@@ -199,12 +199,15 @@ interface AccountRow {
 // ─── Source document link resolver ───────────────────────
 function getSourceDocumentLink(reference: string | null): { href: string; label: string } | null {
     if (!reference) return null
-    if (reference.startsWith('INV-')) return { href: `/finance/invoices?highlight=${reference}`, label: 'Invoice' }
-    if (reference.startsWith('BILL-')) return { href: `/finance/bills?highlight=${reference}`, label: 'Tagihan' }
-    if (reference.startsWith('PAY-') || reference.startsWith('VPAY-')) return { href: `/finance/payments`, label: 'Pembayaran' }
-    if (reference.startsWith('PC-')) return { href: `/finance/petty-cash`, label: 'Kas Kecil' }
-    if (reference.startsWith('DEP-')) return { href: `/finance/fixed-assets/depreciation`, label: 'Penyusutan' }
-    if (reference.startsWith('JE-')) return null // Manual journal — no source doc
+    const ref = reference.toUpperCase()
+    if (ref.startsWith('INV-')) return { href: `/finance/invoices?highlight=${reference}`, label: 'Invoice' }
+    if (ref.startsWith('BILL-') || ref.includes('BILL')) return { href: `/finance/bills?highlight=${reference}`, label: 'Tagihan' }
+    if (ref.startsWith('VPAY-')) return { href: `/finance/vendor-payments`, label: 'Pembayaran Vendor' }
+    if (ref.startsWith('PAY-')) return { href: `/finance/payments`, label: 'Pembayaran' }
+    if (ref.startsWith('PC-')) return { href: `/finance/petty-cash`, label: 'Kas Kecil' }
+    if (ref.startsWith('DEP-')) return { href: `/finance/fixed-assets/depreciation`, label: 'Penyusutan' }
+    if (ref.startsWith('CN-') || ref.startsWith('DN-')) return { href: `/finance/credit-notes`, label: 'Nota' }
+    if (ref.startsWith('JE-')) return null // Jurnal manual — tidak ada dokumen sumber
     return null
 }
 

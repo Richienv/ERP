@@ -1039,16 +1039,54 @@ export async function getOpenInvoices(): Promise<OpenInvoice[]> {
 
 
 /**
+ * Get bank/cash GL accounts for payment form dropdown.
+ * Returns ASSET-type accounts that are bank or cash accounts.
+ */
+export async function getBankCashAccounts(): Promise<
+    { code: string; name: string }[]
+> {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            await ensureSystemAccounts()
+            const accounts = await prisma.gLAccount.findMany({
+                where: {
+                    type: 'ASSET',
+                    OR: [
+                        { name: { contains: 'bank', mode: 'insensitive' as const } },
+                        { name: { contains: 'kas', mode: 'insensitive' as const } },
+                        { name: { contains: 'cash', mode: 'insensitive' as const } },
+                        { code: { in: [SYS_ACCOUNTS.CASH, SYS_ACCOUNTS.PETTY_CASH, SYS_ACCOUNTS.BANK_BCA, SYS_ACCOUNTS.BANK_MANDIRI] } },
+                    ],
+                },
+                select: { code: true, name: true },
+                orderBy: { code: 'asc' },
+            })
+            // Deduplicate by code
+            const seen = new Set<string>()
+            return accounts.filter((a) => {
+                if (seen.has(a.code)) return false
+                seen.add(a.code)
+                return true
+            })
+        })
+    } catch (error) {
+        console.error("[getBankCashAccounts] Error:", error)
+        return []
+    }
+}
+
+/**
  * Record a new customer payment (AR receipt)
  */
 export async function recordARPayment(data: {
     customerId: string
     amount: number
     date?: Date
-    method?: 'CASH' | 'TRANSFER' | 'CHECK' | 'CARD'
+    method?: 'CASH' | 'TRANSFER' | 'CHECK' | 'GIRO' | 'CARD'
     reference?: string
     notes?: string
     invoiceId?: string // Optional: directly link to invoice
+    bankAccountCode?: string // COA code for specific bank/cash account (e.g. "1110" for Bank BCA)
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
@@ -1072,8 +1110,8 @@ export async function recordARPayment(data: {
                 }
             })
 
-            // Determine cash/bank account based on payment method
-            const cashCode = getCashAccountCode(data.method || 'TRANSFER')
+            // Determine cash/bank account based on payment method + user-selected bank
+            const cashCode = getCashAccountCode(data.method || 'TRANSFER', data.bankAccountCode)
 
             await ensureSystemAccounts()
 

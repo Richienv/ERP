@@ -37,7 +37,8 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 import { NB } from "@/lib/dialog-styles"
-import { matchPaymentToInvoice, recordARPayment } from "@/lib/actions/finance-ar"
+import { matchPaymentToInvoice, recordARPayment, getBankCashAccounts } from "@/lib/actions/finance-ar"
+import { Landmark } from "lucide-react"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
@@ -131,8 +132,15 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
         method: "TRANSFER" as PaymentMethod,
         reference: "",
         notes: "",
-        invoiceId: ""
+        invoiceId: "",
+        bankAccountCode: ""
     })
+    const [bankAccounts, setBankAccounts] = useState<{ code: string; name: string }[]>([])
+
+    // Fetch bank/cash accounts for COA selector
+    useEffect(() => {
+        getBankCashAccounts().then(setBankAccounts)
+    }, [])
 
     // Auto-scroll to highlighted payment from ?highlight= param
     useEffect(() => {
@@ -218,6 +226,10 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
             toast.error("Nominal penerimaan harus lebih besar dari 0")
             return
         }
+        if (createForm.method !== "CARD" && !createForm.bankAccountCode) {
+            toast.error("Pilih akun bank/kas terlebih dahulu")
+            return
+        }
 
         setSubmittingPayment(true)
         try {
@@ -225,10 +237,11 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                 customerId: createForm.customerId,
                 amount,
                 date: createForm.date ? new Date(`${createForm.date}T00:00:00`) : new Date(),
-                method: createForm.method as "CASH" | "TRANSFER" | "CHECK" | "CARD",
+                method: createForm.method,
                 reference: createForm.reference.trim() || undefined,
                 notes: createForm.notes.trim() || undefined,
-                invoiceId: createForm.invoiceId || undefined
+                invoiceId: createForm.invoiceId || undefined,
+                bankAccountCode: createForm.bankAccountCode || undefined
             })
 
             if (!result.success) {
@@ -245,7 +258,8 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                 method: "TRANSFER",
                 reference: "",
                 notes: "",
-                invoiceId: ""
+                invoiceId: "",
+                bankAccountCode: ""
             })
             queryClient.invalidateQueries({ queryKey: queryKeys.arPayments.all })
             queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
@@ -759,7 +773,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                             <Select
                                                 value={createForm.method}
                                                 onValueChange={(value) =>
-                                                    setCreateForm((prev) => ({ ...prev, method: value as PaymentMethod }))
+                                                    setCreateForm((prev) => ({ ...prev, method: value as PaymentMethod, bankAccountCode: "" }))
                                                 }
                                             >
                                                 <SelectTrigger className={`h-8 text-sm rounded-none border ${
@@ -779,6 +793,41 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                             </Select>
                                         </div>
                                     </div>
+
+                                    {/* COA Bank/Cash Account Selector */}
+                                    {createForm.method !== "CARD" && (
+                                        <div>
+                                            <label className={NB.label}>
+                                                <Landmark className="inline h-3 w-3 mr-1" />
+                                                {createForm.method === "CASH" ? "Akun Kas" : createForm.method === "GIRO" ? "Akun Giro" : "Akun Bank"} <span className="text-red-500">*</span>
+                                            </label>
+                                            <Select
+                                                value={createForm.bankAccountCode || EMPTY_INVOICE_VALUE}
+                                                onValueChange={(value) =>
+                                                    setCreateForm((prev) => ({
+                                                        ...prev,
+                                                        bankAccountCode: value === EMPTY_INVOICE_VALUE ? "" : value,
+                                                    }))
+                                                }
+                                            >
+                                                <SelectTrigger className={`h-8 text-sm rounded-none border ${
+                                                    createForm.bankAccountCode
+                                                        ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 font-bold"
+                                                        : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
+                                                }`}>
+                                                    <SelectValue placeholder="Pilih akun bank/kas" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value={EMPTY_INVOICE_VALUE}>Pilih akun bank/kas</SelectItem>
+                                                    {bankAccounts.map((acc) => (
+                                                        <SelectItem key={acc.code} value={acc.code}>
+                                                            {acc.code} — {acc.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

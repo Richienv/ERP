@@ -570,6 +570,183 @@ When adding new transaction types:
 - [ ] Does the AR/AP page show the correct outstanding balance?
 - [ ] If the GL posting fails, does the document revert to its previous status?
 
+## Ripple Check — Cross-Module Consistency Protocol
+
+> **MANDATORY**: When modifying or creating ANY server action, shared function, or type definition (especially in `lib/actions/`, `lib/gl-accounts.ts`, or files imported by multiple pages), Claude MUST run the 5-phase Ripple Check before claiming done.
+>
+> **Full skill reference:** `~/.claude/skills/erp-ripple-check/SKILL.md`
+> **Dependency map:** `~/.claude/skills/erp-ripple-check/erp-dependency-map.md`
+
+### The 5-Phase Protocol (HARD GATE — cannot skip)
+
+| Phase | What to Check | Gate |
+|-------|--------------|------|
+| **1. Duplicate Scan** | Grep function name across `lib/actions/` — any stale copies? | No duplicates (or deleted) |
+| **2. Consumer Trace** | Find every file that imports/calls the function | Complete list built |
+| **3. GL Impact Trace** | Which `SYS_ACCOUNTS.*` are touched? Which reports affected? | Entries balance, reports identified |
+| **4. Type & Interface Check** | If signature changed, update all types/Zod schemas | All consistent |
+| **5. Consumer Verification** | Each consumer: correct import source? correct args? data path works? | Every consumer verified |
+
+### When to Run
+
+- Editing any file in `lib/actions/`
+- Creating a new server action or shared function
+- Fixing bugs in functions imported by 2+ files
+- Changing function signatures or return types
+- Touching GL posting, PPN calculation, or account codes
+
+### Canonical Finance Action Files
+
+**NEVER create new functions in `finance.ts`** — it contains stale copies. Use the specialized files:
+
+| Domain | Canonical File |
+|--------|---------------|
+| Accounts Payable | `lib/actions/finance-ap.ts` |
+| Accounts Receivable | `lib/actions/finance-ar.ts` |
+| General Ledger | `lib/actions/finance-gl.ts` |
+| Invoices | `lib/actions/finance-invoices.ts` |
+| Financial Reports | `lib/actions/finance-reports.ts` |
+
+### Output Required
+
+After completing the ripple check, output a structured summary:
+```
+## Ripple Check Complete
+- Function: name()
+- File: canonical path
+- Duplicates: N found (action taken)
+- Consumers: N/N verified
+- GL impact: accounts → reports (or N/A)
+- Types: changes or "No signature change"
+```
+
+## Proactive Accounting Audit SOP — ERP Global Standard
+
+> **MANDATORY**: Claude MUST proactively audit accounting integrity WITHOUT being asked. This is not optional. Every session that touches finance code must run the audit checklist. The goal is ERP gold standard — matching SAP, Oracle NetSuite, and Accurate Online in accounting correctness.
+
+### When to Audit (Proactive — Don't Wait to Be Asked)
+
+1. **Session start**: When the user mentions finance, accounting, invoices, bills, payments, GL, reports, neraca, laba rugi, or any money-related topic — run a quick integrity scan of the relevant code paths before doing any work.
+2. **Before implementation**: Before writing any finance code, audit the current state of the affected transaction flow end-to-end (document creation → GL posting → report reflection).
+3. **After implementation**: After any finance change, verify the full chain: document status change → journal entry created → account balances updated → reports reflect correctly.
+4. **On any bug report**: When the user reports a finance bug, don't just fix the symptom. Trace the entire transaction lifecycle to find the root cause and check for similar issues in other flows.
+
+### The 7-Layer Accounting Audit Checklist
+
+Run this checklist (mentally or via tests) for every finance-related change:
+
+#### Layer 1: Double-Entry Integrity
+- [ ] Every `postJournalEntry()` call has balanced lines: `SUM(debit) === SUM(credit)`
+- [ ] No financial document changes status (DRAFT→ISSUED, DRAFT→APPROVED, etc.) without a corresponding GL entry
+- [ ] GL failures cause document status rollback (atomic)
+
+#### Layer 2: Account Type Correctness (PSAK/IFRS)
+- [ ] ASSET accounts (1xxx): balance increases with DEBIT, decreases with CREDIT
+- [ ] LIABILITY accounts (2xxx): balance increases with CREDIT, decreases with DEBIT
+- [ ] EQUITY accounts (3xxx): balance increases with CREDIT, decreases with DEBIT
+- [ ] REVENUE accounts (4xxx): balance increases with CREDIT, decreases with DEBIT
+- [ ] EXPENSE accounts (5xxx-8xxx): balance increases with DEBIT, decreases with CREDIT
+- [ ] No account code is hardcoded — all use `SYS_ACCOUNTS.*` constants
+
+#### Layer 3: PPN Tax Separation (Indonesian Tax Law)
+- [ ] DPP (tax base) and PPN (11% VAT) are stored SEPARATELY: `subtotal` vs `taxAmount`
+- [ ] AR invoices: Revenue credited with DPP only, PPN Keluaran (2110) credited separately
+- [ ] AP bills: Expense/COGS debited with DPP only, PPN Masukan (1330) debited separately
+- [ ] Tax report (`getTaxReport()`) correctly aggregates DPP and PPN from invoice fields
+- [ ] PPN is ONLY calculated when `includeTax` is true — no blanket fallback
+
+#### Layer 4: Balance Sheet Equation (Assets = Liabilities + Equity)
+- [ ] Balance sheet uses single-query approach (all accounts from same dataset)
+- [ ] AR (1200) appears under Current Assets
+- [ ] AP (2000) appears under Current Liabilities
+- [ ] Revenue - Expense flows into Equity as `currentYearNetIncome`
+- [ ] Prior-year Revenue - Expense flows into `retainedEarnings`
+- [ ] `balanceCheck.isBalanced` returns true (tolerance < Rp 1)
+
+#### Layer 5: Cross-Module GL Connectivity
+Every module that creates financial impact MUST post to GL:
+
+| Module | Trigger | GL Entry | Server Action |
+|--------|---------|----------|---------------|
+| **Sales** | Invoice sent | DR AR, CR Revenue + PPN Keluaran | `moveInvoiceToSent()` |
+| **Sales** | AR Payment | DR Cash/Bank, CR AR | `recordInvoicePayment()` / `recordARPayment()` |
+| **Procurement** | Bill approved | DR Expense + PPN Masukan, CR AP | `approveVendorBill()` |
+| **Procurement** | AP Payment | DR AP, CR Cash/Bank | `recordVendorPayment()` |
+| **Procurement** | GRN received | DR Inventory, CR AP/Accrual | `procurement.ts` |
+| **Manufacturing** | WO completed | DR Finished Goods, CR WIP | TBD |
+| **HCM** | Payroll posted | DR Salary Expense, CR Cash/Bank | `hcm.ts` |
+| **Finance** | Petty cash top-up | DR Petty Cash, CR Bank | `topUpPettyCash()` |
+| **Finance** | Petty cash disburse | DR Expense, CR Petty Cash | `disbursePettyCash()` |
+| **Finance** | Depreciation run | DR Depreciation Expense, CR Accumulated Depreciation | `postDepreciationRun()` |
+| **Finance** | Credit note posted | DR Revenue, CR AR | `postDCNote()` |
+| **Finance** | Debit note posted | DR AP, CR Expense | `postDCNote()` |
+
+If a module is missing from this table but creates financial impact, that is a **critical gap**.
+
+#### Layer 6: Accrual Basis Accounting
+- [ ] **Expense recognition**: Expense is recorded when bill is APPROVED (accrual), NOT when payment is made
+- [ ] **Revenue recognition**: Revenue is recorded when invoice is SENT/ISSUED, NOT when payment is received
+- [ ] **Payment recording**: Payments only move money between balance sheet accounts (Asset ↔ Liability), NO P&L impact
+- [ ] **Period matching**: Journal entry dates match the transaction date, not the posting date
+
+#### Layer 7: Report Consistency
+- [ ] **Laba Rugi (P&L)**: Queries journal lines where `account.type IN ('REVENUE', 'EXPENSE')` with `status: 'POSTED'`
+- [ ] **Neraca (Balance Sheet)**: `Assets = Liabilities + Equity` — with Equity including current period P&L
+- [ ] **Arus Kas (Cash Flow)**: Tracks actual cash movement (bank/cash account entries only)
+- [ ] **Neraca Saldo (Trial Balance)**: `SUM(all debits) === SUM(all credits)` across all accounts
+- [ ] **AR/AP Aging**: Matches invoice `balanceDue` field, grouped by days overdue
+
+### Automated Audit Tests
+
+Run `npx vitest run __tests__/accounting-integrity.test.ts` to verify accounting logic.
+
+This test file validates:
+- All `SYS_ACCOUNTS` codes have correct account types
+- Double-entry balance for every transaction pattern
+- PPN DPP/PPN separation logic
+- Balance sheet equation
+- Accrual basis timing (expense at approval, revenue at send)
+- Account balance direction (debit-normal vs credit-normal)
+
+### How to Audit (Step-by-Step)
+
+When auditing a finance feature, follow this exact sequence:
+
+```
+1. TRACE THE FLOW
+   Document lifecycle: DRAFT → [trigger] → status change → GL entry → report impact
+
+2. CHECK GL ENTRY CREATION
+   Find the server action → locate postJournalEntry() call → verify lines balance
+
+3. VERIFY ACCOUNT CODES
+   All codes must come from SYS_ACCOUNTS.* — grep for string literals like '1200', '2000'
+
+4. TEST PPN HANDLING
+   If transaction has tax: verify DPP goes to Revenue/Expense, PPN goes to PPN_MASUKAN/KELUARAN
+
+5. CHECK REPORT IMPACT
+   - Does it show in Laba Rugi? (only if REVENUE or EXPENSE account touched)
+   - Does it show in Neraca? (always — every GL entry affects balance sheet)
+   - Does it show in account transactions? (only if journal entry has status: POSTED)
+
+6. VERIFY EDGE CASES
+   - What if GL posting fails? Does document revert?
+   - What if amount is 0? Is it handled?
+   - What if PPN is disabled? Does it still work?
+   - What about partial payments? Is balanceDue updated?
+```
+
+### Known Gaps to Watch For
+
+These are recurring issues that have caused production bugs:
+
+1. **DRAFT documents with no GL entry**: Documents stuck in DRAFT don't appear in reports or transactions. This is BY DESIGN (no financial impact until sent/approved), but users may not understand why their data is "missing."
+2. **Hardcoded account codes**: Any string literal like `'1200'`, `'2000'`, `'4000'` in server actions is a bug. Always use `SYS_ACCOUNTS.*`.
+3. **PPN blanket fallback**: Never apply PPN automatically. Only calculate when `includeTax === true`.
+4. **GL posting outside transaction**: If `postJournalEntry()` is called after the Prisma transaction commits, a failure leaves the document in wrong status. Prefer calling inside the transaction or implementing robust rollback.
+5. **Missing `ensureSystemAccounts()`**: Every server action that posts GL entries must call this first. Missing it causes "account not found" errors on fresh databases.
+
 ## Multi-Session Safety Rules
 
 > **CRITICAL**: This project is often worked on by **multiple Claude Code sessions running simultaneously** in separate terminals. If you don't follow these rules, sessions will overwrite each other's work and changes will be lost.

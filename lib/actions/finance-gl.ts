@@ -167,53 +167,49 @@ export async function postJournalEntry(data: {
 
             const accountMap = new Map(accounts.map(a => [a.code, a]))
 
-            let entryId: string | undefined
+            // withPrismaAuth already provides a transaction context — use it directly
+            // (no nested $transaction needed)
+            const entry = await prisma.journalEntry.create({
+                data: {
+                    date: data.date,
+                    description: data.description,
+                    reference: data.reference,
+                    status: 'POSTED',
+                    ...(data.invoiceId ? { invoiceId: data.invoiceId } : {}),
+                    ...(data.paymentId ? { paymentId: data.paymentId } : {}),
+                    lines: {
+                        create: data.lines.map(line => {
+                            const account = accountMap.get(line.accountCode)
+                            if (!account) throw new Error(`Account code not found: ${line.accountCode}`)
 
-            await prisma.$transaction(async (tx) => {
-                const entry = await tx.journalEntry.create({
-                    data: {
-                        date: data.date,
-                        description: data.description,
-                        reference: data.reference,
-                        status: 'POSTED',
-                        ...(data.invoiceId ? { invoiceId: data.invoiceId } : {}),
-                        ...(data.paymentId ? { paymentId: data.paymentId } : {}),
-                        lines: {
-                            create: data.lines.map(line => {
-                                const account = accountMap.get(line.accountCode)
-                                if (!account) throw new Error(`Account code not found: ${line.accountCode}`)
-
-                                return {
-                                    accountId: account.id,
-                                    debit: line.debit,
-                                    credit: line.credit,
-                                    description: line.description || data.description
-                                }
-                            })
-                        }
+                            return {
+                                accountId: account.id,
+                                debit: line.debit,
+                                credit: line.credit,
+                                description: line.description || data.description
+                            }
+                        })
                     }
-                })
-
-                entryId = entry.id
-
-                for (const line of data.lines) {
-                    const account = accountMap.get(line.accountCode)!
-                    let balanceChange = 0
-
-                    if (['ASSET', 'EXPENSE'].includes(account.type)) {
-                        balanceChange = line.debit - line.credit
-                    } else {
-                        balanceChange = line.credit - line.debit
-                    }
-
-                    await tx.gLAccount.update({
-                        where: { id: account.id },
-                        data: { balance: { increment: balanceChange } }
-                    })
                 }
             })
 
-            return { success: true, id: entryId }
+            for (const line of data.lines) {
+                const account = accountMap.get(line.accountCode)!
+                let balanceChange = 0
+
+                if (['ASSET', 'EXPENSE'].includes(account.type)) {
+                    balanceChange = line.debit - line.credit
+                } else {
+                    balanceChange = line.credit - line.debit
+                }
+
+                await prisma.gLAccount.update({
+                    where: { id: account.id },
+                    data: { balance: { increment: balanceChange } }
+                })
+            }
+
+            return { success: true, id: entry.id }
         })
     } catch (error: any) {
         console.error("Journal Posting Error:", error)

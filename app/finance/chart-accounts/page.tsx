@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import {
     Search,
     Plus,
@@ -17,6 +18,7 @@ import {
     Eye,
     EyeOff,
     Download,
+    ExternalLink,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -41,7 +43,7 @@ const fadeUp = {
     show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
 }
 
-const AccountNode = ({ node, level }: { node: GLAccountNode; level: number }) => {
+const AccountNode = ({ node, level, router }: { node: GLAccountNode; level: number; router: ReturnType<typeof useRouter> }) => {
     const [isOpen, setIsOpen] = useState(true)
     const hasChildren = node.children && node.children.length > 0
     const paddingLeft = level * 24
@@ -85,18 +87,26 @@ const AccountNode = ({ node, level }: { node: GLAccountNode; level: number }) =>
                         {node.type}
                     </span>
                 </div>
-                <div
-                    className={`text-right font-mono font-bold text-sm tracking-tight w-40 ${
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        router.push(`/finance/transactions?account=${node.code}`)
+                    }}
+                    className={`text-right font-mono font-bold text-sm tracking-tight w-40 cursor-pointer hover:text-orange-600 hover:underline transition-colors group/bal ${
                         node.balance < 0 ? "text-red-500" : "text-zinc-900 dark:text-white"
                     }`}
+                    title="Lihat transaksi akun ini"
                 >
-                    {formatIDR(node.balance)}
-                </div>
+                    <span className="flex items-center justify-end gap-1">
+                        {formatIDR(node.balance)}
+                        <ExternalLink className="h-3 w-3 opacity-0 group-hover/bal:opacity-100 text-orange-500 transition-opacity" />
+                    </span>
+                </button>
             </div>
             {isOpen && hasChildren && (
                 <div>
                     {node.children.map((child: GLAccountNode) => (
-                        <AccountNode key={child.id} node={child} level={level + 1} />
+                        <AccountNode key={child.id} node={child} level={level + 1} router={router} />
                     ))}
                 </div>
             )}
@@ -105,6 +115,7 @@ const AccountNode = ({ node, level }: { node: GLAccountNode; level: number }) =>
 }
 
 export default function CoALedgerPage() {
+    const router = useRouter()
     const { data: accounts = [], isLoading: loading } = useChartOfAccounts()
     const invalidateChartAccounts = useInvalidateChartAccounts()
     const queryClient = useQueryClient()
@@ -393,7 +404,7 @@ export default function CoALedgerPage() {
                         <span className="text-xs text-zinc-400 mt-1">Coba ubah filter atau tambah akun baru</span>
                     </motion.div>
                 ) : (
-                    filteredAccounts.map((node) => <AccountNode key={node.id} node={node} level={0} />)
+                    filteredAccounts.map((node) => <AccountNode key={node.id} node={node} level={0} router={router} />)
                 )}
 
                 {/* Footer */}
