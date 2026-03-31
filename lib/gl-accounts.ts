@@ -99,7 +99,7 @@ export const SYS_ACCOUNTS = {
  * For TRANSFER/CHECK/GIRO, uses the provided bankAccountCode or defaults to Bank BCA.
  */
 export function getCashAccountCode(method: string, bankAccountCode?: string): string {
-  if (method === "CASH") return SYS_ACCOUNTS.CASH
+  if (method === "CASH") return bankAccountCode || SYS_ACCOUNTS.PETTY_CASH
   return bankAccountCode || SYS_ACCOUNTS.BANK_BCA
 }
 

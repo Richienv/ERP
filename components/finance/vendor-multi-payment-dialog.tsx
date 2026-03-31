@@ -35,7 +35,7 @@ import { recordMultiBillPayment } from "@/lib/actions/finance"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
-import { useBankAccounts } from "@/hooks/use-bank-accounts"
+import { useChartOfAccounts } from "@/hooks/use-chart-accounts"
 import type { VendorBill } from "@/lib/actions/finance-ap"
 
 type PaymentMethod = "TRANSFER" | "CHECK" | "GIRO" | "CASH"
@@ -77,10 +77,40 @@ export function VendorMultiPaymentDialog({
     vendorAPBalances = [],
 }: VendorMultiPaymentDialogProps) {
     const queryClient = useQueryClient()
-    const { data: bankAccounts } = useBankAccounts()
+    const { data: coaTree } = useChartOfAccounts()
+    const { bankAccounts, cashAccounts } = useMemo(() => {
+        if (!coaTree) return { bankAccounts: [] as { code: string; name: string }[], cashAccounts: [] as { code: string; name: string }[] }
+        const flat: any[] = []
+        const walk = (nodes: any[]) => {
+            for (const n of nodes) {
+                if (n.children?.length) {
+                    walk(n.children)
+                } else {
+                    flat.push(n)
+                }
+            }
+        }
+        walk(Array.isArray(coaTree) ? coaTree : [])
+        const leafs = flat
+            .filter((a) => a.type === "ASSET" && (a.subType === "ASSET_CASH" || (a.code >= "1000" && a.code < "1200")))
+            .map((a) => ({ code: a.code as string, name: a.name as string }))
+            .sort((a, b) => a.code.localeCompare(b.code))
+
+        const bank: { code: string; name: string }[] = []
+        const cash: { code: string; name: string }[] = []
+        for (const acc of leafs) {
+            const lower = acc.name.toLowerCase()
+            if (lower.includes("bank")) {
+                bank.push(acc)
+            } else if (lower.includes("kas") || lower.includes("cash") || lower.includes("petty")) {
+                cash.push(acc)
+            }
+        }
+        return { bankAccounts: bank, cashAccounts: cash }
+    }, [coaTree])
     const [selectedVendorId, setSelectedVendorId] = useState("")
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("TRANSFER")
-    const [bankAccountCode, setBankAccountCode] = useState("1010")
+    const [bankAccountCode, setBankAccountCode] = useState("")
     const [reference, setReference] = useState("")
     const [notes, setNotes] = useState("")
     const [submitting, setSubmitting] = useState(false)
@@ -217,7 +247,7 @@ export function VendorMultiPaymentDialog({
                 setReference("")
                 setNotes("")
                 setPaymentMethod("TRANSFER")
-                setBankAccountCode("1010")
+                setBankAccountCode("")
                 setEnablePPh(false)
                 setPPhType("PPH_23")
                 setPPhRate(2)
@@ -288,7 +318,7 @@ export function VendorMultiPaymentDialog({
                             onValueChange={(v) => {
                                 const m = v as PaymentMethod
                                 setPaymentMethod(m)
-                                setBankAccountCode(m === "CASH" ? "1000" : "1010")
+                                setBankAccountCode("")
                             }}
                             options={[
                                 { value: "TRANSFER", label: "Transfer Bank" },
@@ -299,19 +329,25 @@ export function VendorMultiPaymentDialog({
                         />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <NBSelect
-                            label="Akun Pembayaran"
-                            required
-                            value={bankAccountCode}
-                            onValueChange={setBankAccountCode}
-                            placeholder="Pilih akun..."
-                        >
-                            {bankAccounts?.map((a) => (
-                                <SelectItem key={a.code} value={a.code}>
-                                    {a.code} — {a.name}
-                                </SelectItem>
-                            ))}
-                        </NBSelect>
+                        {(() => {
+                            const isCash = paymentMethod === "CASH"
+                            const accounts = isCash ? cashAccounts : bankAccounts
+                            return (
+                                <NBSelect
+                                    label={isCash ? "Akun Kas" : "Akun Bank"}
+                                    required
+                                    value={bankAccountCode}
+                                    onValueChange={setBankAccountCode}
+                                    placeholder={isCash ? "Pilih akun kas..." : "Pilih akun bank..."}
+                                >
+                                    {accounts.map((a) => (
+                                        <SelectItem key={a.code} value={a.code}>
+                                            {a.code} — {a.name}
+                                        </SelectItem>
+                                    ))}
+                                </NBSelect>
+                            )
+                        })()}
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <NBInput
@@ -572,7 +608,7 @@ export function VendorMultiPaymentDialog({
                                 <span className="text-right font-mono">{formatIDR(totalAllocated)}</span>
                                 <span className="text-right font-mono">-</span>
 
-                                <span>{bankAccountCode} - {bankAccounts?.find(a => a.code === bankAccountCode)?.name || 'Cash/Bank'}</span>
+                                <span>{bankAccountCode} - {[...bankAccounts, ...cashAccounts].find(a => a.code === bankAccountCode)?.name || 'Cash/Bank'}</span>
                                 <span className="text-right font-mono">-</span>
                                 <span className="text-right font-mono">{formatIDR(enablePPh && pphCalc ? pphCalc.netAmount : totalAllocated)}</span>
 

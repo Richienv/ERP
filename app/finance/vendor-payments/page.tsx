@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react"
 import { useSearchParams } from "next/navigation"
 import Image from "next/image"
 import {
@@ -34,7 +34,7 @@ import { useVendorPayments } from "@/hooks/use-vendor-payments"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { VendorMultiPaymentDialog } from "@/components/finance/vendor-multi-payment-dialog"
-import { useBankAccounts } from "@/hooks/use-bank-accounts"
+import { useChartOfAccounts } from "@/hooks/use-chart-accounts"
 import { exportToExcel } from "@/lib/table-export"
 import {
     DropdownMenu,
@@ -88,8 +88,38 @@ export default function APCheckbookPage() {
     const [reference, setReference] = useState("")
     const [selectedBillId, setSelectedBillId] = useState("")
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("TRANSFER")
-    const [bankAccountCode, setBankAccountCode] = useState("1010")
-    const { data: bankAccounts } = useBankAccounts()
+    const [bankAccountCode, setBankAccountCode] = useState("")
+    const { data: coaTree } = useChartOfAccounts()
+    const { bankAccounts, cashAccounts } = useMemo(() => {
+        if (!coaTree) return { bankAccounts: [] as { code: string; name: string }[], cashAccounts: [] as { code: string; name: string }[] }
+        const flat: any[] = []
+        const walk = (nodes: any[]) => {
+            for (const n of nodes) {
+                if (n.children?.length) {
+                    walk(n.children)
+                } else {
+                    flat.push(n)
+                }
+            }
+        }
+        walk(Array.isArray(coaTree) ? coaTree : [])
+        const leafs = flat
+            .filter((a) => a.type === "ASSET" && (a.subType === "ASSET_CASH" || (a.code >= "1000" && a.code < "1200")))
+            .map((a) => ({ code: a.code as string, name: a.name as string }))
+            .sort((a, b) => a.code.localeCompare(b.code))
+
+        const bank: { code: string; name: string }[] = []
+        const cash: { code: string; name: string }[] = []
+        for (const acc of leafs) {
+            const lower = acc.name.toLowerCase()
+            if (lower.includes("bank")) {
+                bank.push(acc)
+            } else if (lower.includes("kas") || lower.includes("cash") || lower.includes("petty")) {
+                cash.push(acc)
+            }
+        }
+        return { bankAccounts: bank, cashAccounts: cash }
+    }, [coaTree])
     const [checkNumber, setCheckNumber] = useState("")
     const [checkBank, setCheckBank] = useState("")
     const [checkDate, setCheckDate] = useState("")
@@ -472,7 +502,7 @@ export default function APCheckbookPage() {
                                 <Label className={NB.label}>Metode</Label>
                                 <Select value={paymentMethod} onValueChange={(v: PaymentMethod) => {
                                     setPaymentMethod(v)
-                                    setBankAccountCode(v === "CASH" ? "1000" : "1010")
+                                    setBankAccountCode("")
                                     resetSignatureState()
                                 }}>
                                     <SelectTrigger className={`${NB.select} ${NB.inputActive}`}>
@@ -487,13 +517,13 @@ export default function APCheckbookPage() {
                                 </Select>
                             </div>
                             <div className="space-y-1.5">
-                                <Label className={NB.label}>Akun Pembayaran <span className={NB.labelRequired}>*</span></Label>
+                                <Label className={NB.label}>{paymentMethod === "CASH" ? "Akun Kas" : "Akun Bank"} <span className={NB.labelRequired}>*</span></Label>
                                 <Select value={bankAccountCode} onValueChange={(v) => { setBankAccountCode(v); resetSignatureState() }}>
                                     <SelectTrigger className={`${NB.select} ${bankAccountCode ? NB.inputActive : NB.inputEmpty}`}>
-                                        <SelectValue placeholder="Pilih akun..." />
+                                        <SelectValue placeholder={paymentMethod === "CASH" ? "Pilih akun kas..." : "Pilih akun bank..."} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {(bankAccounts || []).map(acc => (
+                                        {(paymentMethod === "CASH" ? cashAccounts : bankAccounts).map(acc => (
                                             <SelectItem key={acc.code} value={acc.code}>
                                                 {acc.code} — {acc.name}
                                             </SelectItem>

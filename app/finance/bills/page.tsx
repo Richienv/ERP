@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import {
     Plus,
@@ -55,7 +55,7 @@ import { useBills, useBanks } from "@/hooks/use-bills"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
-import { useBankAccounts } from "@/hooks/use-bank-accounts"
+import { useChartOfAccounts } from "@/hooks/use-chart-accounts"
 
 /* ─── Animation variants ─── */
 const fadeUp = {
@@ -112,7 +112,7 @@ export default function APBillsStackPage() {
     // Manual payment state
     const [paymentTab, setPaymentTab] = useState<"manual" | "xendit">("manual")
     const [manualMethod, setManualMethod] = useState<"TRANSFER" | "CHECK" | "GIRO" | "CASH">("TRANSFER")
-    const [manualBankAccount, setManualBankAccount] = useState("1010")
+    const [manualBankAccount, setManualBankAccount] = useState("")
     const [manualReference, setManualReference] = useState("")
     const [manualNotes, setManualNotes] = useState("")
     const [manualAllocations, setManualAllocations] = useState<Array<{
@@ -126,7 +126,37 @@ export default function APBillsStackPage() {
         isOverdue: boolean
     }>>([])
 
-    const { data: bankAccounts } = useBankAccounts()
+    const { data: coaTree } = useChartOfAccounts()
+    const { bankAccounts, cashAccounts } = useMemo(() => {
+        if (!coaTree) return { bankAccounts: [] as { code: string; name: string }[], cashAccounts: [] as { code: string; name: string }[] }
+        const flat: any[] = []
+        const walk = (nodes: any[]) => {
+            for (const n of nodes) {
+                if (n.children?.length) {
+                    walk(n.children)
+                } else {
+                    flat.push(n)
+                }
+            }
+        }
+        walk(Array.isArray(coaTree) ? coaTree : [])
+        const leafs = flat
+            .filter((a) => a.type === "ASSET" && (a.subType === "ASSET_CASH" || (a.code >= "1000" && a.code < "1200")))
+            .map((a) => ({ code: a.code as string, name: a.name as string }))
+            .sort((a, b) => a.code.localeCompare(b.code))
+
+        const bank: { code: string; name: string }[] = []
+        const cash: { code: string; name: string }[] = []
+        for (const acc of leafs) {
+            const lower = acc.name.toLowerCase()
+            if (lower.includes("bank")) {
+                bank.push(acc)
+            } else if (lower.includes("kas") || lower.includes("cash") || lower.includes("petty")) {
+                cash.push(acc)
+            }
+        }
+        return { bankAccounts: bank, cashAccounts: cash }
+    }, [coaTree])
 
     useEffect(() => {
         if (activeBill && activeBill.vendor) {
@@ -782,7 +812,7 @@ export default function APBillsStackPage() {
                                                             <Select value={manualMethod} onValueChange={(v) => {
                                                                 const m = v as "TRANSFER" | "CHECK" | "GIRO" | "CASH"
                                                                 setManualMethod(m)
-                                                                setManualBankAccount(m === "CASH" ? "1000" : "1010")
+                                                                setManualBankAccount("")
                                                             }}>
                                                                 <SelectTrigger className={NB.select}><SelectValue /></SelectTrigger>
                                                                 <SelectContent>
@@ -794,11 +824,11 @@ export default function APBillsStackPage() {
                                                             </Select>
                                                         </div>
                                                         <div className="space-y-1.5">
-                                                            <Label className={NB.label}>Akun Pembayaran <span className={NB.labelRequired}>*</span></Label>
+                                                            <Label className={NB.label}>{manualMethod === "CASH" ? "Akun Kas" : "Akun Bank"} <span className={NB.labelRequired}>*</span></Label>
                                                             <Select value={manualBankAccount} onValueChange={setManualBankAccount}>
-                                                                <SelectTrigger className={NB.select}><SelectValue placeholder="Pilih akun..." /></SelectTrigger>
+                                                                <SelectTrigger className={NB.select}><SelectValue placeholder={manualMethod === "CASH" ? "Pilih akun kas..." : "Pilih akun bank..."} /></SelectTrigger>
                                                                 <SelectContent>
-                                                                    {bankAccounts?.map((a) => (
+                                                                    {(manualMethod === "CASH" ? cashAccounts : bankAccounts).map((a) => (
                                                                         <SelectItem key={a.code} value={a.code}>
                                                                             {a.code} — {a.name}
                                                                         </SelectItem>
@@ -937,7 +967,7 @@ export default function APBillsStackPage() {
                                                             <span>2000 - Hutang Usaha</span>
                                                             <span className="text-right font-mono">{formatIDR(manualTotalAllocated)}</span>
                                                             <span className="text-right font-mono">-</span>
-                                                            <span>{manualBankAccount} - {bankAccounts?.find((a) => a.code === manualBankAccount)?.name || "Cash/Bank"}</span>
+                                                            <span>{manualBankAccount} - {[...bankAccounts, ...cashAccounts].find((a) => a.code === manualBankAccount)?.name || "Cash/Bank"}</span>
                                                             <span className="text-right font-mono">-</span>
                                                             <span className="text-right font-mono">{formatIDR(manualTotalAllocated)}</span>
                                                         </div>

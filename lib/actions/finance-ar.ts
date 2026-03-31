@@ -943,7 +943,7 @@ export async function recordARPayment(data: {
     customerId: string
     amount: number
     date?: Date
-    method?: 'CASH' | 'TRANSFER' | 'CHECK' | 'CARD'
+    method?: 'CASH' | 'TRANSFER' | 'CHECK' | 'GIRO' | 'CREDIT_CARD' | 'OTHER'
     reference?: string
     notes?: string
     invoiceId?: string // Optional: directly link to invoice
@@ -954,6 +954,7 @@ export async function recordARPayment(data: {
         buktiPotongNo?: string
     }
     bankChargeAmount?: number // Optional: bank charges deducted from received amount
+    bankAccountCode?: string // COA code for the bank/cash account to debit
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
@@ -981,7 +982,7 @@ export async function recordARPayment(data: {
             })
 
             // Determine cash/bank account based on payment method
-            const cashCode = getCashAccountCode(data.method || 'TRANSFER')
+            const cashCode = getCashAccountCode(data.method || 'TRANSFER', data.bankAccountCode)
 
             await ensureSystemAccounts()
 
@@ -1202,5 +1203,48 @@ export async function getARPaymentStats() {
             outstandingAmount: 0,
             todayPayments: 0
         }
+    }
+}
+
+
+/**
+ * Fetch cash/bank GL accounts for AR payment receipt dropdown.
+ * Returns leaf accounts only (excludes parent/header accounts like 1000).
+ * Splits into bank (name contains "Bank") and cash (Kas/Petty Cash) for conditional display.
+ */
+export async function getCashBankAccountsForPayment(): Promise<{
+    bankAccounts: { code: string; name: string }[]
+    cashAccounts: { code: string; name: string }[]
+}> {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const accounts = await prisma.gLAccount.findMany({
+                where: {
+                    type: "ASSET",
+                    subType: "ASSET_CASH",
+                    // Only leaf accounts that can receive journal postings
+                    children: { none: {} },
+                },
+                orderBy: { code: "asc" },
+                select: { code: true, name: true },
+            })
+
+            const bankAccounts: { code: string; name: string }[] = []
+            const cashAccounts: { code: string; name: string }[] = []
+
+            for (const acc of accounts) {
+                const lowerName = acc.name.toLowerCase()
+                if (lowerName.includes("bank")) {
+                    bankAccounts.push(acc)
+                } else if (lowerName.includes("kas") || lowerName.includes("cash") || lowerName.includes("petty")) {
+                    cashAccounts.push(acc)
+                }
+            }
+
+            return { bankAccounts, cashAccounts }
+        })
+    } catch (error) {
+        console.error("getCashBankAccountsForPayment failed:", error)
+        return { bankAccounts: [], cashAccounts: [] }
     }
 }

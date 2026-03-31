@@ -53,8 +53,9 @@ import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { exportToExcel } from "@/lib/table-export"
+import { useChartOfAccounts } from "@/hooks/use-chart-accounts"
 
-type PaymentMethod = "CASH" | "TRANSFER" | "CHECK" | "GIRO" | "CARD"
+type PaymentMethod = "CASH" | "TRANSFER" | "CHECK" | "GIRO" | "CREDIT_CARD" | "OTHER"
 
 interface UnallocatedPayment {
     id: string
@@ -123,7 +124,8 @@ const METHOD_LABEL: Record<PaymentMethod, string> = {
     TRANSFER: "Transfer Bank",
     CHECK: "Cek",
     GIRO: "Giro",
-    CARD: "Kartu Kredit"
+    CREDIT_CARD: "Kartu Kredit",
+    OTHER: "Lainnya"
 }
 
 const EMPTY_INVOICE_VALUE = "__NO_INVOICE__"
@@ -135,6 +137,38 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
     const queryClient = useQueryClient()
     const pathname = usePathname()
     const searchParams = useSearchParams()
+    const { data: coaTree } = useChartOfAccounts()
+    const { bankAccounts, cashAccounts } = useMemo(() => {
+        if (!coaTree) return { bankAccounts: [] as { code: string; name: string }[], cashAccounts: [] as { code: string; name: string }[] }
+        // Flatten tree: collect all leaf nodes (no children = not a header/parent)
+        const flat: any[] = []
+        const walk = (nodes: any[]) => {
+            for (const n of nodes) {
+                if (n.children?.length) {
+                    walk(n.children) // parent/header — skip it, recurse children
+                } else {
+                    flat.push(n)
+                }
+            }
+        }
+        walk(Array.isArray(coaTree) ? coaTree : [])
+        const cashBankLeafs = flat
+            .filter((a) => a.type === "ASSET" && (a.subType === "ASSET_CASH" || (a.code >= "1000" && a.code < "1200")))
+            .map((a) => ({ code: a.code as string, name: a.name as string }))
+            .sort((a, b) => a.code.localeCompare(b.code))
+
+        const bank: { code: string; name: string }[] = []
+        const cash: { code: string; name: string }[] = []
+        for (const acc of cashBankLeafs) {
+            const lower = acc.name.toLowerCase()
+            if (lower.includes("bank")) {
+                bank.push(acc)
+            } else if (lower.includes("kas") || lower.includes("cash") || lower.includes("petty")) {
+                cash.push(acc)
+            }
+        }
+        return { bankAccounts: bank, cashAccounts: cash }
+    }, [coaTree])
     const [processing, setProcessing] = useState<string | null>(null)
     const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(highlightPaymentId ?? null)
     const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null)
@@ -147,6 +181,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
         amount: "",
         date: todayAsInput(),
         method: "TRANSFER" as PaymentMethod,
+        bankAccountCode: "",
         reference: "",
         notes: "",
         invoiceId: ""
@@ -239,43 +274,18 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
             return
         }
 
-        // Optimistic: add temp payment to registry
         const prevPayments = queryClient.getQueryData(queryKeys.arPayments.all)
-        queryClient.setQueryData(queryKeys.arPayments.all, (old: any) => {
-            if (!old || !old.registry) return old
-            const tempPayment = {
-                id: `temp-${Date.now()}`,
-                number: 'PAY-...',
-                customerId: createForm.customerId,
-                amount,
-                date: createForm.date || new Date().toISOString().slice(0, 10),
-                method: createForm.method,
-                reference: createForm.reference,
-                notes: createForm.notes,
-                status: 'COMPLETED',
-                _optimistic: true,
-            }
-            return {
-                ...old,
-                registry: [tempPayment, ...old.registry],
-                stats: old.stats ? {
-                    ...old.stats,
-                    totalReceived: (old.stats.totalReceived || 0) + amount,
-                    count: (old.stats.count || 0) + 1,
-                } : old.stats,
-            }
-        })
-
         setSubmittingPayment(true)
         try {
             const result = await recordARPayment({
                 customerId: createForm.customerId,
                 amount,
                 date: createForm.date ? new Date(`${createForm.date}T00:00:00`) : new Date(),
-                method: createForm.method as "CASH" | "TRANSFER" | "CHECK" | "CARD",
+                method: createForm.method as PaymentMethod,
                 reference: createForm.reference.trim() || undefined,
                 notes: createForm.notes.trim() || undefined,
-                invoiceId: createForm.invoiceId || undefined
+                invoiceId: createForm.invoiceId || undefined,
+                bankAccountCode: createForm.bankAccountCode || undefined
             })
 
             if (!result.success) {
@@ -290,6 +300,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                 amount: "",
                 date: todayAsInput(),
                 method: "TRANSFER",
+                bankAccountCode: "",
                 reference: "",
                 notes: "",
                 invoiceId: ""
@@ -465,6 +476,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                                             amount: String(inv.balanceDue),
                                                             date: todayAsInput(),
                                                             method: "TRANSFER",
+                                                            bankAccountCode: "",
                                                             reference: "",
                                                             notes: "",
                                                             invoiceId: inv.id,
@@ -810,17 +822,39 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                 label="Metode"
                                 value={createForm.method}
                                 onValueChange={(value) =>
-                                    setCreateForm((prev) => ({ ...prev, method: value as PaymentMethod }))
+                                    setCreateForm((prev) => ({ ...prev, method: value as PaymentMethod, bankAccountCode: "" }))
                                 }
                                 options={[
                                     { value: "TRANSFER", label: "Transfer Bank" },
                                     { value: "CASH", label: "Tunai" },
                                     { value: "CHECK", label: "Cek" },
                                     { value: "GIRO", label: "Giro" },
-                                    { value: "CARD", label: "Kartu" },
+                                    { value: "CREDIT_CARD", label: "Kartu Kredit" },
                                 ]}
                             />
                         </div>
+                        {(() => {
+                            const isCash = createForm.method === "CASH"
+                            const accounts = isCash ? cashAccounts : bankAccounts
+                            if (accounts.length === 0) return null
+                            return (
+                                <NBSelect
+                                    label={isCash ? "Akun Kas" : "Akun Bank"}
+                                    required
+                                    value={createForm.bankAccountCode}
+                                    onValueChange={(value) =>
+                                        setCreateForm((prev) => ({ ...prev, bankAccountCode: value }))
+                                    }
+                                    placeholder={isCash ? "Pilih akun kas" : "Pilih akun bank tujuan"}
+                                >
+                                    {accounts.map((acc) => (
+                                        <SelectItem key={acc.code} value={acc.code}>
+                                            {acc.code} — {acc.name}
+                                        </SelectItem>
+                                    ))}
+                                </NBSelect>
+                            )
+                        })()}
                     </NBSection>
 
                     <NBSection icon={FileText} title="Hubungkan ke Invoice" optional>
