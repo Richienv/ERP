@@ -181,13 +181,12 @@ export async function createCreditNote(data: {
             const year = new Date().getFullYear()
             const number = `CN-${year}-${String(count + 1).padStart(4, '0')}`
 
-            // 4. Create Credit Note
+            // 4. Create Credit Note — relation connect for Prisma 6
             const creditNote = await prisma.invoice.create({
                 data: {
                     number,
-                    type: 'CREDIT_NOTE',
-                    customerId: originalInvoice.customerId,
-                    referenceId: originalInvoice.id,
+                    type: 'INV_OUT', // Credit notes are AR-side (INV_OUT with negative amounts)
+                    ...(originalInvoice.customerId ? { customer: { connect: { id: originalInvoice.customerId } } } : {}),
                     status: 'ISSUED',
                     issueDate: new Date(),
                     dueDate: new Date(),
@@ -195,7 +194,6 @@ export async function createCreditNote(data: {
                     taxAmount: -creditTax,
                     totalAmount: -creditTotal,
                     balanceDue: -creditTotal,
-                    notes: data.reason,
                     items: {
                         create: data.items.map(item => ({
                             description: item.description,

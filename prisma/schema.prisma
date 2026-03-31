@@ -1826,6 +1826,10 @@ model Invoice {
 
   status InvoiceStatus @default(DRAFT)
 
+  // User-selected GL account code for revenue (INV_OUT) or expense (INV_IN) posting
+  // When set, moveInvoiceToSent() uses this instead of hardcoded SYS_ACCOUNTS.REVENUE / EXPENSE_DEFAULT
+  glAccountCode String?
+
   // Relations
   customer       Customer?      @relation(fields: [customerId], references: [id])
   supplier       Supplier?      @relation(fields: [supplierId], references: [id])

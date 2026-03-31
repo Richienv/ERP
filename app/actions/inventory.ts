@@ -1094,26 +1094,34 @@ export async function receiveGoodsFromPO(data: {
                 }
             })
 
-            // B. Update Stock Level (Atomic Upsert — no read-then-write race)
-            await prisma.stockLevel.upsert({
+            // B. Update Stock Level (findFirst + create/update to avoid Prisma null-in-composite-key issue)
+            const existingStock = await prisma.stockLevel.findFirst({
                 where: {
-                    productId_warehouseId_locationId: {
-                        productId: data.itemId,
-                        warehouseId: targetWarehouseId,
-                        locationId: null as unknown as string,
-                    }
-                },
-                update: {
-                    quantity: { increment: data.receivedQty },
-                    availableQty: { increment: data.receivedQty },
-                },
-                create: {
                     productId: data.itemId,
                     warehouseId: targetWarehouseId,
-                    quantity: data.receivedQty,
-                    availableQty: data.receivedQty,
-                },
+                    locationId: null,
+                }
             })
+
+            if (existingStock) {
+                await prisma.stockLevel.update({
+                    where: { id: existingStock.id },
+                    data: {
+                        quantity: { increment: data.receivedQty },
+                        availableQty: { increment: data.receivedQty },
+                    }
+                })
+            } else {
+                await prisma.stockLevel.create({
+                    data: {
+                        productId: data.itemId,
+                        warehouseId: targetWarehouseId,
+                        quantity: data.receivedQty,
+                        availableQty: data.receivedQty,
+                        reservedQty: 0,
+                    }
+                })
+            }
 
             // B2. Post GL Journal Entry (blocking — GL failure rolls back stock changes)
             if (totalValue > 0) {
@@ -1386,26 +1394,34 @@ export async function createManualMovement(data: {
                     throw new Error("Stok tidak mencukupi")
                 }
             } else {
-                // For inbound: atomic upsert
-                await tx.stockLevel.upsert({
+                // For inbound: findFirst + create/update (Prisma can't handle null in composite unique for upsert)
+                const existingInbound = await tx.stockLevel.findFirst({
                     where: {
-                        productId_warehouseId_locationId: {
-                            productId: data.productId,
-                            warehouseId: data.warehouseId,
-                            locationId: null as unknown as string,
-                        }
-                    },
-                    update: {
-                        quantity: { increment: qtyChange },
-                        availableQty: { increment: qtyChange },
-                    },
-                    create: {
                         productId: data.productId,
                         warehouseId: data.warehouseId,
-                        quantity: qtyChange,
-                        availableQty: qtyChange,
-                    },
+                        locationId: null,
+                    }
                 })
+
+                if (existingInbound) {
+                    await tx.stockLevel.update({
+                        where: { id: existingInbound.id },
+                        data: {
+                            quantity: { increment: qtyChange },
+                            availableQty: { increment: qtyChange },
+                        }
+                    })
+                } else {
+                    await tx.stockLevel.create({
+                        data: {
+                            productId: data.productId,
+                            warehouseId: data.warehouseId,
+                            quantity: qtyChange,
+                            availableQty: qtyChange,
+                            reservedQty: 0,
+                        }
+                    })
+                }
             }
 
             // 3. Handle TRANSFER (Target Side)
@@ -1421,26 +1437,34 @@ export async function createManualMovement(data: {
                     }
                 })
 
-                // Atomic upsert for target warehouse stock
-                await tx.stockLevel.upsert({
+                // Update target warehouse stock (findFirst + create/update for null locationId)
+                const existingTarget = await tx.stockLevel.findFirst({
                     where: {
-                        productId_warehouseId_locationId: {
-                            productId: data.productId,
-                            warehouseId: data.targetWarehouseId,
-                            locationId: null as unknown as string,
-                        }
-                    },
-                    update: {
-                        quantity: { increment: data.quantity },
-                        availableQty: { increment: data.quantity },
-                    },
-                    create: {
                         productId: data.productId,
                         warehouseId: data.targetWarehouseId,
-                        quantity: data.quantity,
-                        availableQty: data.quantity,
-                    },
+                        locationId: null,
+                    }
                 })
+
+                if (existingTarget) {
+                    await tx.stockLevel.update({
+                        where: { id: existingTarget.id },
+                        data: {
+                            quantity: { increment: data.quantity },
+                            availableQty: { increment: data.quantity },
+                        }
+                    })
+                } else {
+                    await tx.stockLevel.create({
+                        data: {
+                            productId: data.productId,
+                            warehouseId: data.targetWarehouseId,
+                            quantity: data.quantity,
+                            availableQty: data.quantity,
+                            reservedQty: 0,
+                        }
+                    })
+                }
             }
 
             // 4. Post GL Journal Entry (skip TRANSFER — intra-entity movement)

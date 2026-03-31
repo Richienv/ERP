@@ -388,8 +388,7 @@ export async function postJournalEntry(data: {
                 }
             }
 
-            // 3. Create Entry & Lines (already inside withPrismaAuth transaction)
-            // Create Header
+            // 3. Create Entry & Lines — relation connect for Prisma 6
             const _entry = await prisma.journalEntry.create({
                 data: {
                     date: data.date,
@@ -402,7 +401,7 @@ export async function postJournalEntry(data: {
                             if (!account) throw new Error(`Account code not found: ${line.accountCode}`)
 
                             return {
-                                accountId: account.id,
+                                account: { connect: { id: account.id } },
                                 debit: line.debit,
                                 credit: line.credit,
                                 description: line.description || data.description
@@ -1128,8 +1127,14 @@ export async function createCustomerInvoice(data: {
         productId?: string
     }>
     type?: 'CUSTOMER' | 'SUPPLIER'
+    accountId?: string // User-selected GL account UUID (looked up → glAccountCode on invoice)
 }) {
     try {
+        // Server-side validation: COA account is mandatory for manual invoices
+        if (!data.accountId) {
+            return { success: false, error: "Pilih akun pendapatan/beban (COA) terlebih dahulu" }
+        }
+
         return await withPrismaAuth(async (prisma) => {
             // Determine Type
             let invoiceType: 'INV_OUT' | 'INV_IN' = 'INV_OUT'
@@ -1140,6 +1145,16 @@ export async function createCustomerInvoice(data: {
                 invoiceType = isCustomer ? 'INV_OUT' : 'INV_IN'
             } else {
                 invoiceType = data.type === 'CUSTOMER' ? 'INV_OUT' : 'INV_IN'
+            }
+
+            // Look up GL account code from accountId (user-selected COA)
+            let glAccountCode: string | null = null
+            if (data.accountId) {
+                const glAccount = await prisma.gLAccount.findUnique({
+                    where: { id: data.accountId },
+                    select: { code: true },
+                })
+                if (glAccount) glAccountCode = glAccount.code
             }
 
             // Generate invoice number prefix
@@ -1173,22 +1188,23 @@ export async function createCustomerInvoice(data: {
 
             // Calculate subtotal and tax
             const subtotal = invoiceItems.reduce((sum, item) => sum + Number(item.amount), 0)
-            const taxAmount = data.includeTax ? Math.round(subtotal * 0.11) : 0
+            const taxAmount = data.includeTax ? Math.round(subtotal * TAX_RATES.PPN) : 0
             const totalAmount = subtotal + taxAmount
 
-            // Create invoice
+            // Create invoice — use relation connect (Prisma 6 rejects scalar FK mixed with nested creates)
             const invoice = await prisma.invoice.create({
                 data: {
                     number: invoiceNumber,
                     type: invoiceType,
-                    customerId: invoiceType === 'INV_OUT' ? data.customerId : null,
-                    supplierId: invoiceType === 'INV_IN' ? data.customerId : null,
+                    ...(invoiceType === 'INV_OUT' ? { customer: { connect: { id: data.customerId } } } : {}),
+                    ...(invoiceType === 'INV_IN' ? { supplier: { connect: { id: data.customerId } } } : {}),
                     issueDate: issueDate,
                     dueDate: dueDate,
                     subtotal: subtotal,
                     taxAmount: taxAmount,
                     totalAmount: totalAmount,
                     balanceDue: totalAmount,
+                    glAccountCode,
                     status: 'DRAFT',
                     items: {
                         create: invoiceItems
@@ -1246,13 +1262,12 @@ export async function recordPendingBillFromPO(po: any) {
                 return { success: true, billId: existingBill.id }
             }
 
-            // Create new Bill (Invoice Type IN)
+            // Create new Bill (Invoice Type IN) — relation connect for Prisma 6
             const bill = await prisma.invoice.create({
                 data: {
                     number: `BILL-${po.number}`,
                     type: 'INV_IN',
-                    supplierId: po.supplierId,
-                    orderId: po.id,
+                    ...(po.supplierId ? { supplier: { connect: { id: po.supplierId } } } : {}),
                     status: 'DRAFT',
                     issueDate: new Date(),
                     dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
@@ -1266,7 +1281,7 @@ export async function recordPendingBillFromPO(po: any) {
                             quantity: item.quantity,
                             unitPrice: item.unitPrice,
                             amount: item.totalPrice,
-                            productId: item.productId
+                            ...(item.productId ? { product: { connect: { id: item.productId } } } : {}),
                         }))
                     }
                 }
@@ -1345,13 +1360,13 @@ export async function createInvoiceFromSalesOrder(salesOrderId: string) {
             const soCurrencyCode = salesOrder.currencyCode || "IDR"
             const soExchangeRate = Number(salesOrder.exchangeRate) || 1
 
-            // Create Customer Invoice (Invoice Type OUT)
+            // Create Customer Invoice (Invoice Type OUT) — relation connect for Prisma 6
             const invoice = await prisma.invoice.create({
                 data: {
                     number: invoiceNumber,
                     type: 'INV_OUT',
-                    customerId: salesOrder.customerId,
-                    salesOrderId: salesOrder.id,
+                    ...(salesOrder.customerId ? { customer: { connect: { id: salesOrder.customerId } } } : {}),
+                    salesOrder: { connect: { id: salesOrder.id } },
                     status: 'ISSUED',
                     issueDate: new Date(),
                     dueDate: dueDate,
@@ -1369,7 +1384,7 @@ export async function createInvoiceFromSalesOrder(salesOrderId: string) {
                             quantity: item.quantity,
                             unitPrice: item.unitPrice,
                             amount: item.lineTotal,
-                            productId: item.productId
+                            ...(item.productId ? { product: { connect: { id: item.productId } } } : {}),
                         }))
                     }
                 }
@@ -3982,8 +3997,8 @@ export async function recordExpense(input: RecordExpenseInput) {
                     status: 'POSTED',
                     lines: {
                         create: [
-                            { accountId: expenseAccountId, debit: amount, credit: 0, description: `${category} — ${description}` },
-                            { accountId: cashAccountId, credit: amount, debit: 0, description: `Pembayaran: ${description}` },
+                            { account: { connect: { id: expenseAccountId } }, debit: amount, credit: 0, description: `${category} — ${description}` },
+                            { account: { connect: { id: cashAccountId } }, credit: amount, debit: 0, description: `Pembayaran: ${description}` },
                         ]
                     }
                 }
@@ -4205,11 +4220,11 @@ export async function createCreditNote(input: CreateCreditNoteInput) {
                     description: `[CREDIT_NOTE] ${num}: ${reason}`,
                     reference: num,
                     status: 'POSTED',
-                    invoiceId: cn.id,
+                    invoice: { connect: { id: cn.id } },
                     lines: {
                         create: [
-                            { accountId: revenueAccountId, debit: amount, credit: 0, description: `Nota Kredit ${num} — pengurangan pendapatan: ${reason}` },
-                            { accountId: arAccountId, credit: amount, debit: 0, description: `Nota Kredit ${num} — pengurangan piutang usaha` },
+                            { account: { connect: { id: revenueAccountId } }, debit: amount, credit: 0, description: `Nota Kredit ${num} — pengurangan pendapatan: ${reason}` },
+                            { account: { connect: { id: arAccountId } }, credit: amount, debit: 0, description: `Nota Kredit ${num} — pengurangan piutang usaha` },
                         ]
                     }
                 }
@@ -4301,12 +4316,12 @@ export async function createDebitNote(input: CreateDebitNoteInput) {
 
             // Journal: DR Hutang Usaha, CR HPP (+ CR PPN Masukan if applicable)
             const journalLines: { accountId: string; debit: number; credit: number; description: string }[] = [
-                { accountId: apAccount.id, debit: total, credit: 0, description: `Nota Debit ${num} — pengurangan hutang usaha` },
-                { accountId: expenseAccount.id, debit: 0, credit: subtotal, description: `Nota Debit ${num} — koreksi HPP: ${reason}` },
+                { account: { connect: { id: apAccount.id } }, debit: total, credit: 0, description: `Nota Debit ${num} — pengurangan hutang usaha` },
+                { account: { connect: { id: expenseAccount.id } }, debit: 0, credit: subtotal, description: `Nota Debit ${num} — koreksi HPP: ${reason}` },
             ]
             if (ppnAmount > 0 && ppnAccount) {
                 journalLines.push({
-                    accountId: ppnAccount.id, debit: 0, credit: ppnAmount,
+                    account: { connect: { id: ppnAccount.id } }, debit: 0, credit: ppnAmount,
                     description: `Nota Debit ${num} — reversal PPN Masukan`,
                 })
             }
@@ -4317,7 +4332,7 @@ export async function createDebitNote(input: CreateDebitNoteInput) {
                     description: `[DEBIT_NOTE] ${num}: ${reason}`,
                     reference: num,
                     status: 'POSTED',
-                    invoiceId: dn.id,
+                    invoice: { connect: { id: dn.id } },
                     lines: { create: journalLines },
                 }
             })

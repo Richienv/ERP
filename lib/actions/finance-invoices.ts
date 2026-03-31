@@ -17,6 +17,7 @@ import { assertPeriodOpen } from "@/lib/period-helpers"
 import { getPPhLiabilityAccount, type PPhTypeValue } from "@/lib/pph-helpers"
 import { legacyTermToDays, calculateDueDate } from "@/lib/payment-term-helpers"
 import { getExchangeRate, convertToIDR } from "@/lib/currency-helpers"
+import { TAX_RATES } from "@/lib/tax-rates"
 import { toNum } from "@/lib/utils"
 
 export interface InvoiceKanbanItem {
@@ -239,8 +240,14 @@ export async function createCustomerInvoice(data: {
         productId?: string
     }>
     type?: 'CUSTOMER' | 'SUPPLIER'
+    accountId?: string // User-selected GL account UUID (looked up → glAccountCode on invoice)
 }) {
     try {
+        // Server-side validation: COA account is mandatory for manual invoices
+        if (!data.accountId) {
+            return { success: false, error: "Pilih akun pendapatan/beban (COA) terlebih dahulu" }
+        }
+
         return await withPrismaAuth(async (prisma) => {
             // Determine Type
             let invoiceType: 'INV_OUT' | 'INV_IN' = 'INV_OUT'
@@ -251,6 +258,16 @@ export async function createCustomerInvoice(data: {
                 invoiceType = isCustomer ? 'INV_OUT' : 'INV_IN'
             } else {
                 invoiceType = data.type === 'CUSTOMER' ? 'INV_OUT' : 'INV_IN'
+            }
+
+            // Look up GL account code from accountId (user-selected COA)
+            let glAccountCode: string | null = null
+            if (data.accountId) {
+                const glAccount = await prisma.gLAccount.findUnique({
+                    where: { id: data.accountId },
+                    select: { code: true },
+                })
+                if (glAccount) glAccountCode = glAccount.code
             }
 
             // Generate invoice number prefix
@@ -284,22 +301,23 @@ export async function createCustomerInvoice(data: {
 
             // Calculate subtotal and tax
             const subtotal = invoiceItems.reduce((sum, item) => sum + toNum(item.amount), 0)
-            const taxAmount = data.includeTax ? Math.round(subtotal * 0.11) : 0
+            const taxAmount = data.includeTax ? Math.round(subtotal * TAX_RATES.PPN) : 0
             const totalAmount = subtotal + taxAmount
 
-            // Create invoice
+            // Create invoice — use relation connect (Prisma 6 rejects scalar FK mixed with nested creates)
             const invoice = await prisma.invoice.create({
                 data: {
                     number: invoiceNumber,
                     type: invoiceType,
-                    customerId: invoiceType === 'INV_OUT' ? data.customerId : null,
-                    supplierId: invoiceType === 'INV_IN' ? data.customerId : null,
+                    ...(invoiceType === 'INV_OUT' ? { customer: { connect: { id: data.customerId } } } : {}),
+                    ...(invoiceType === 'INV_IN' ? { supplier: { connect: { id: data.customerId } } } : {}),
                     issueDate: issueDate,
                     dueDate: dueDate,
                     subtotal: subtotal,
                     taxAmount: taxAmount,
                     totalAmount: totalAmount,
                     balanceDue: totalAmount,
+                    glAccountCode,
                     status: 'DRAFT',
                     items: {
                         create: invoiceItems
@@ -597,14 +615,13 @@ export async function recordPendingBillFromPO(
                 ? `${billBaseNumber}-${String(duplicateCount + 1).padStart(2, '0')}`
                 : billBaseNumber
 
-            // Create new Bill (Invoice Type IN)
+            // Create new Bill (Invoice Type IN) — relation connect for Prisma 6
             const bill = await prisma.invoice.create({
                 data: {
                     number: billNumber,
                     type: 'INV_IN',
-                    supplierId: po.supplierId,
-                    orderId: po.id,
-                    purchaseOrderId: po.id,
+                    ...(po.supplierId ? { supplier: { connect: { id: po.supplierId } } } : {}),
+                    purchaseOrder: { connect: { id: po.id } },
                     status: 'DRAFT',
                     issueDate: new Date(),
                     dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
@@ -618,7 +635,7 @@ export async function recordPendingBillFromPO(
                             quantity: item.quantity,
                             unitPrice: item.unitPrice,
                             amount: item.totalPrice,
-                            productId: item.productId
+                            ...(item.productId ? { product: { connect: { id: item.productId } } } : {}),
                         }))
                     }
                 }
@@ -703,13 +720,13 @@ export async function createInvoiceFromSalesOrder(
             const paymentTermDays = legacyTermToDays(salesOrder.paymentTerm)
             const dueDate = calculateDueDate(new Date(), paymentTermDays)
 
-            // Create Customer Invoice (Invoice Type OUT)
+            // Create Customer Invoice (Invoice Type OUT) — relation connect for Prisma 6
             const invoice = await prisma.invoice.create({
                 data: {
                     number: invoiceNumber,
                     type: 'INV_OUT',
-                    customerId: salesOrder.customerId,
-                    salesOrderId: salesOrder.id,
+                    ...(salesOrder.customerId ? { customer: { connect: { id: salesOrder.customerId } } } : {}),
+                    salesOrder: { connect: { id: salesOrder.id } },
                     status: 'DRAFT',
                     issueDate: new Date(),
                     dueDate: dueDate,
@@ -727,7 +744,7 @@ export async function createInvoiceFromSalesOrder(
                             quantity: item.quantity,
                             unitPrice: item.unitPrice,
                             amount: item.lineTotal,
-                            productId: item.productId
+                            ...(item.productId ? { product: { connect: { id: item.productId } } } : {}),
                         }))
                     }
                 }
@@ -873,7 +890,7 @@ export async function moveInvoiceToSent(invoiceId: string, _message?: string, _m
                     id: true, number: true, dueDate: true,
                     totalAmount: true, subtotal: true, taxAmount: true,
                     type: true, status: true, currencyCode: true,
-                    purchaseOrderId: true,
+                    purchaseOrderId: true, glAccountCode: true,
                     customer: { select: { name: true } },
                     supplier: { select: { name: true } },
                 }
@@ -918,6 +935,7 @@ export async function moveInvoiceToSent(invoiceId: string, _message?: string, _m
                 customerName: existing.customer?.name,
                 supplierName: existing.supplier?.name,
                 purchaseOrderId: existing.purchaseOrderId,
+                glAccountCode: existing.glAccountCode,
                 goodsReceivedViaPO,
                 nextStatus,
                 dueDate,
@@ -989,14 +1007,16 @@ export async function moveInvoiceToSent(invoiceId: string, _message?: string, _m
 
                 if (txResult.type === 'INV_OUT') {
                     // AR Invoice: DR Piutang Usaha, CR Pendapatan + CR PPN Keluaran
+                    // Use user-selected revenue account (glAccountCode) if set, else default 4000
+                    const revenueAccount = txResult.glAccountCode || SYS_ACCOUNTS.REVENUE
                     const lines: { accountCode: string; debit: number; credit: number; description: string }[] = [
                         { accountCode: SYS_ACCOUNTS.AR, debit: amountInIDR, credit: 0, description: `Piutang - ${txResult.customerName || 'Customer'}${glCurrencyNote}` },
                     ]
                     if (taxInIDR > 0) {
-                        lines.push({ accountCode: SYS_ACCOUNTS.REVENUE, debit: 0, credit: subtotalInIDR, description: `Pendapatan - ${txResult.number}${glCurrencyNote}` })
+                        lines.push({ accountCode: revenueAccount, debit: 0, credit: subtotalInIDR, description: `Pendapatan - ${txResult.number}${glCurrencyNote}` })
                         lines.push({ accountCode: SYS_ACCOUNTS.PPN_KELUARAN, debit: 0, credit: taxInIDR, description: `PPN Keluaran - ${txResult.number}${glCurrencyNote}` })
                     } else {
-                        lines.push({ accountCode: SYS_ACCOUNTS.REVENUE, debit: 0, credit: amountInIDR, description: `Pendapatan - ${txResult.number}${glCurrencyNote}` })
+                        lines.push({ accountCode: revenueAccount, debit: 0, credit: amountInIDR, description: `Pendapatan - ${txResult.number}${glCurrencyNote}` })
                     }
                     glResult = await postJournalEntry({
                         description: `Faktur Penjualan ${txResult.number} - ${txResult.customerName || 'Customer'}${glCurrencyNote}`,
@@ -1010,10 +1030,10 @@ export async function moveInvoiceToSent(invoiceId: string, _message?: string, _m
                     // For PO-linked bills with received goods: DR GR/IR Clearing (2150) instead of Expense
                     //   → This clears the GR/IR suspense created when GRN was accepted (DR Inventory, CR GR/IR)
                     //   → Net effect: GR/IR Clearing balance returns to zero after both GRN + bill
-                    // For non-PO bills (direct expense purchase): DR Expense (6900) as before
+                    // For non-PO bills (direct expense purchase): use user-selected expense account or default 6900
                     const debitAccount = txResult.goodsReceivedViaPO
                         ? SYS_ACCOUNTS.GR_IR_CLEARING
-                        : SYS_ACCOUNTS.EXPENSE_DEFAULT
+                        : (txResult.glAccountCode || SYS_ACCOUNTS.EXPENSE_DEFAULT)
                     const debitLabel = txResult.goodsReceivedViaPO
                         ? `GR/IR Clearing - ${txResult.number}`
                         : `Beban - ${txResult.number}`
@@ -1430,13 +1450,13 @@ export async function createBillFromPR(
             const issueDate = new Date()
             const dueDate = new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000)
 
-            // Create Bill (Invoice Type INV_IN)
+            // Create Bill (Invoice Type INV_IN) — relation connect for Prisma 6
             const bill = await prisma.invoice.create({
                 data: {
                     number: billNumber,
                     type: 'INV_IN',
-                    supplierId,
-                    purchaseRequestId: pr.id,
+                    ...(supplierId ? { supplier: { connect: { id: supplierId } } } : {}),
+                    purchaseRequest: { connect: { id: pr.id } },
                     status: 'DRAFT',
                     issueDate,
                     dueDate,
@@ -1450,7 +1470,7 @@ export async function createBillFromPR(
                             quantity: item.quantity,
                             unitPrice: item.unitPrice,
                             amount: item.amount,
-                            productId: item.productId,
+                            ...(item.productId ? { product: { connect: { id: item.productId } } } : {}),
                         }))
                     }
                 }

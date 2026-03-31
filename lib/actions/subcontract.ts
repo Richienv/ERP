@@ -815,13 +815,11 @@ export async function recordShipment(data: {
 
                 if (data.direction === 'OUTBOUND') {
                     // Validate stock availability
-                    const stockLevel = await (prisma as any).stockLevel.findUnique({
+                    const stockLevel = await (prisma as any).stockLevel.findFirst({
                         where: {
-                            productId_warehouseId_locationId: {
-                                productId: item.productId,
-                                warehouseId: data.warehouseId,
-                                locationId: null as any,
-                            },
+                            productId: item.productId,
+                            warehouseId: data.warehouseId,
+                            locationId: null,
                         },
                     })
 
@@ -850,20 +848,16 @@ export async function recordShipment(data: {
                         },
                     })
 
-                    // Decrement stock
-                    await (prisma as any).stockLevel.update({
-                        where: {
-                            productId_warehouseId_locationId: {
-                                productId: item.productId,
-                                warehouseId: data.warehouseId,
-                                locationId: null as any,
+                    // Decrement stock (use findFirst + update by id for null locationId)
+                    if (stockLevel) {
+                        await (prisma as any).stockLevel.update({
+                            where: { id: stockLevel.id },
+                            data: {
+                                quantity: { decrement: item.quantity },
+                                availableQty: { decrement: item.quantity },
                             },
-                        },
-                        data: {
-                            quantity: { decrement: item.quantity },
-                            availableQty: { decrement: item.quantity },
-                        },
-                    })
+                        })
+                    }
 
                     // GL: DR WIP (material sent to CMT), CR Inventory Asset
                     try {
@@ -909,27 +903,34 @@ export async function recordShipment(data: {
                         },
                     })
 
-                    // Increment stock (only good quantity)
-                    await (prisma as any).stockLevel.upsert({
+                    // Increment stock (only good quantity — findFirst + create/update for null locationId)
+                    const existingStock = await (prisma as any).stockLevel.findFirst({
                         where: {
-                            productId_warehouseId_locationId: {
-                                productId: item.productId,
-                                warehouseId: data.warehouseId,
-                                locationId: null as any,
-                            },
-                        },
-                        create: {
                             productId: item.productId,
                             warehouseId: data.warehouseId,
-                            quantity: goodQty,
-                            availableQty: goodQty,
-                            reservedQty: 0,
-                        },
-                        update: {
-                            quantity: { increment: goodQty },
-                            availableQty: { increment: goodQty },
-                        },
+                            locationId: null,
+                        }
                     })
+
+                    if (existingStock) {
+                        await (prisma as any).stockLevel.update({
+                            where: { id: existingStock.id },
+                            data: {
+                                quantity: { increment: goodQty },
+                                availableQty: { increment: goodQty },
+                            }
+                        })
+                    } else {
+                        await (prisma as any).stockLevel.create({
+                            data: {
+                                productId: item.productId,
+                                warehouseId: data.warehouseId,
+                                quantity: goodQty,
+                                availableQty: goodQty,
+                                reservedQty: 0,
+                            }
+                        })
+                    }
 
                     // GL: DR Inventory Asset (good qty), CR WIP
                     // If there's scrap (defect + wastage): DR Loss/Writeoff, CR WIP

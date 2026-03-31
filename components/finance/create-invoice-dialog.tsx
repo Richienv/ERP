@@ -160,11 +160,13 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                 queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.invoiceAvailableOrders.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.glAccounts.all })
             } else {
                 toast.error(('error' in result ? result.error : "Gagal membuat invoice") || "Gagal membuat invoice")
             }
-        } catch {
-            toast.error("Terjadi kesalahan")
+        } catch (err: any) {
+            console.error("[CreateInvoiceDialog] Error:", err)
+            toast.error(err?.message || "Terjadi kesalahan saat membuat invoice")
         } finally {
             setCreating(false)
         }
@@ -386,13 +388,13 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                     </button>
                                 </div>
 
-                                {/* COA Account */}
+                                {/* COA Account — MANDATORY */}
                                 <NBSelect
                                     label="Akun Pendapatan / Beban (COA)"
+                                    required
                                     value={selectedAccountId}
                                     onValueChange={setSelectedAccountId}
-                                    placeholder="Pilih akun COA"
-                                    emptyLabel="Tanpa akun COA"
+                                    placeholder="Pilih akun COA..."
                                 >
                                     {accounts.map((a) => (
                                         <SelectItem key={a.id} value={a.id}>{a.code} — {a.name}</SelectItem>
@@ -453,7 +455,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                 onSubmit={handleCreate}
                 submitting={creating}
                 submitLabel="Buat Invoice"
-                disabled={(sourceType !== 'MANUAL' && !selectedOrderId) || (sourceType === 'MANUAL' && (!selectedCustomer || !manualPrice || manualQty <= 0))}
+                disabled={(sourceType !== 'MANUAL' && !selectedOrderId) || (sourceType === 'MANUAL' && (!selectedCustomer || !manualPrice || manualQty <= 0 || !selectedAccountId))}
             />
         </NBDialog>
     )

@@ -194,21 +194,22 @@ async function postJournalEntryInner(prisma: any, data: {
         }
     }
 
+    // Use relation connect for FK fields — Prisma 6 rejects scalar FK mixed with nested creates
     const entry = await prisma.journalEntry.create({
         data: {
             date: data.date,
             description: data.description,
             reference: data.reference,
             status: 'POSTED',
-            ...(data.invoiceId ? { invoiceId: data.invoiceId } : {}),
-            ...(data.paymentId ? { paymentId: data.paymentId } : {}),
+            ...(data.invoiceId ? { invoice: { connect: { id: data.invoiceId } } } : {}),
+            ...(data.paymentId ? { payment: { connect: { id: data.paymentId } } } : {}),
             lines: {
                 create: data.lines.map((line: any) => {
                     const account = accountMap.get(line.accountCode)
                     if (!account) throw new Error(`Account code not found: ${line.accountCode}`)
 
                     return {
-                        accountId: account.id,
+                        account: { connect: { id: account.id } },
                         debit: line.debit,
                         credit: line.credit,
                         description: line.description || data.description
@@ -461,7 +462,7 @@ export async function reverseJournalEntry(journalEntryId: string) {
                 throw new Error(`Periode fiskal ${fiscalPeriod.name} sudah ditutup. Tidak bisa posting jurnal balik ke periode ini.`)
             }
 
-            // Create reversal entry with swapped debit/credit lines
+            // Create reversal entry with swapped debit/credit lines — relation connect for Prisma 6
             const reversal = await prisma.journalEntry.create({
                 data: {
                     date: reversalDate,
@@ -470,7 +471,7 @@ export async function reverseJournalEntry(journalEntryId: string) {
                     status: 'POSTED',
                     lines: {
                         create: original.lines.map(line => ({
-                            accountId: line.accountId,
+                            account: { connect: { id: line.accountId } },
                             debit: toNum(line.credit),   // swap: original credit → reversal debit
                             credit: toNum(line.debit),   // swap: original debit → reversal credit
                             description: `Pembalikan: ${line.description || original.description}`
@@ -609,7 +610,7 @@ export async function postOpeningBalances(data: {
                             const account = accountMap.get(line.accountCode)
                             if (!account) throw new Error(`Kode akun tidak ditemukan: ${line.accountCode}`)
                             return {
-                                accountId: account.id,
+                                account: { connect: { id: account.id } },
                                 debit: line.debit,
                                 credit: line.credit,
                                 description: 'Saldo Awal'
@@ -700,7 +701,7 @@ export async function createRecurringJournalTemplate(data: {
                     nextRecurringDate: data.startDate,
                     lines: {
                         create: data.lines.map(line => ({
-                            accountId: accountMap.get(line.accountCode)!.id,
+                            account: { connect: { id: accountMap.get(line.accountCode)!.id } },
                             debit: line.debit,
                             credit: line.credit,
                             description: line.description || data.description,
@@ -803,7 +804,7 @@ export async function processRecurringEntries(): Promise<{
                         isRecurring: false,
                         lines: {
                             create: template.lines.map((l) => ({
-                                accountId: l.accountId,
+                                account: { connect: { id: l.accountId } },
                                 debit: l.debit,
                                 credit: l.credit,
                                 description: l.description,
@@ -1078,7 +1079,7 @@ export async function postOpeningBalancesGL(data: {
                             const account = accountMap.get(row.accountCode)
                             if (!account) throw new Error(`Kode akun tidak ditemukan: ${row.accountCode}`)
                             return {
-                                accountId: account.id,
+                                account: { connect: { id: account.id } },
                                 debit: row.debit,
                                 credit: row.credit,
                                 description: 'Saldo Awal',
@@ -1503,7 +1504,7 @@ export async function postClosingJournal(fiscalYear: number): Promise<{
                     status: 'POSTED',
                     lines: {
                         create: lines.map(line => ({
-                            accountId: line.accountId,
+                            account: { connect: { id: line.accountId } },
                             debit: line.debit,
                             credit: line.credit,
                             description: line.description,

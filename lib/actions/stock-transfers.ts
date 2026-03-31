@@ -266,26 +266,34 @@ export async function transitionStockTransfer(
                     )
                 }
 
-                // 5. Upsert target StockLevel (increment or create)
-                await tx.stockLevel.upsert({
+                // 5. Update target StockLevel (findFirst + create/update for null locationId)
+                const existingTarget = await tx.stockLevel.findFirst({
                     where: {
-                        productId_warehouseId_locationId: {
-                            productId: transfer.productId,
-                            warehouseId: transfer.toWarehouseId,
-                            locationId: null as unknown as string,
-                        },
-                    },
-                    update: {
-                        quantity: { increment: transfer.quantity },
-                        availableQty: { increment: transfer.quantity },
-                    },
-                    create: {
                         productId: transfer.productId,
                         warehouseId: transfer.toWarehouseId,
-                        quantity: transfer.quantity,
-                        availableQty: transfer.quantity,
-                    },
+                        locationId: null,
+                    }
                 })
+
+                if (existingTarget) {
+                    await tx.stockLevel.update({
+                        where: { id: existingTarget.id },
+                        data: {
+                            quantity: { increment: transfer.quantity },
+                            availableQty: { increment: transfer.quantity },
+                        }
+                    })
+                } else {
+                    await tx.stockLevel.create({
+                        data: {
+                            productId: transfer.productId,
+                            warehouseId: transfer.toWarehouseId,
+                            quantity: transfer.quantity,
+                            availableQty: transfer.quantity,
+                            reservedQty: 0,
+                        }
+                    })
+                }
             }
         })
 

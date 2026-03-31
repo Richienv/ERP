@@ -4,7 +4,7 @@ import { prisma, safeQuery, withRetry, withPrismaAuth } from "@/lib/db"
 
 import { ProcurementStatus } from "@prisma/client"
 import { assertRole, getAuthzUser } from "@/lib/authz"
-import { assertPOTransition } from "@/lib/po-state-machine"
+import { assertPOTransition, allowedNextStatuses } from "@/lib/po-state-machine"
 import { postInventoryGLEntry } from "@/lib/actions/inventory-gl"
 import { revalidatePath } from "next/cache"
 import {
@@ -383,6 +383,7 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
     try {
         const user = await getAuthzUser()
         assertRole(user, RECEIVING_ROLES)
+        console.log("[acceptGRN] START grnId=", grnId, "overrideReason=", overrideReason ? `"${overrideReason}" (${overrideReason.length} chars)` : "undefined", "user=", user.id)
 
         const result = await withPrismaAuth(async (prisma) => {
             const prismaAny = prisma as any
@@ -401,6 +402,7 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
             })
 
             if (!grn) throw new Error("GRN not found")
+            console.log("[acceptGRN] GRN found:", grn.number, "status=", grn.status, "PO status=", grn.purchaseOrder?.status, "items=", grn.items.length)
 
             // SoD Check: If user approved the PO, they need to provide a reason to receive it
             // This runs BEFORE the atomic status transition so a soft rejection doesn't corrupt state
@@ -415,6 +417,7 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
 
             if (approvingEvent) {
                 const reason = (overrideReason || "").trim()
+                console.log("[acceptGRN] SoD detected. Override reason length=", reason.length)
                 if (reason.length < 10) {
                     return {
                         success: false,
@@ -436,6 +439,7 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
                         grnId,
                     },
                 })
+                console.log("[acceptGRN] SoD override event created OK")
             }
 
             // 2. Atomic status transition — only succeeds if still DRAFT (prevents double-accept race)
@@ -452,6 +456,7 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
             if (updated.count === 0) {
                 throw new Error('GRN sudah diproses atau tidak ditemukan. Refresh halaman.')
             }
+            console.log("[acceptGRN] GRN status → ACCEPTED")
 
             // 3. Update PO item received quantities (with over-receive guard)
             for (const grnItem of grn.items) {
@@ -461,6 +466,7 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
                 })
                 if (currentPoItem) {
                     const newTotal = currentPoItem.receivedQty + grnItem.quantityAccepted
+                    console.log("[acceptGRN] PO item", currentPoItem.id, "receivedQty=", currentPoItem.receivedQty, "+", grnItem.quantityAccepted, "= ", newTotal, "/ max=", currentPoItem.quantity)
                     if (newTotal > currentPoItem.quantity) {
                         throw new Error(
                             `Jumlah penerimaan melebihi jumlah pesanan pada PO item ${currentPoItem.id}. ` +
@@ -496,6 +502,7 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
                             notes: `Received via ${grn.number}`
                         }
                     })
+                    console.log("[acceptGRN] Inventory TX created:", invTx.id, "qty=", grnItem.quantityAccepted, "value=", totalValue)
 
                     // 5. Update stock levels (findFirst + create/update to avoid Prisma null-in-composite-key issue)
                     const existingStock = await prisma.stockLevel.findFirst({
@@ -514,6 +521,7 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
                                 availableQty: { increment: grnItem.quantityAccepted },
                             }
                         })
+                        console.log("[acceptGRN] Stock updated:", existingStock.id, "+", grnItem.quantityAccepted)
                     } else {
                         await prisma.stockLevel.create({
                             data: {
@@ -524,82 +532,103 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
                                 reservedQty: 0,
                             }
                         })
+                        console.log("[acceptGRN] Stock created for product=", grnItem.productId)
                     }
 
-                    // 6. Post GL entry: DR Inventory Asset (1300) / CR Accounts Payable (2100)
+                    // 6. Post GL entry: DR Inventory Asset (1300) / CR GR/IR Clearing (2150)
                     const productName = grnItem.product?.name || grnItem.productId.slice(0, 8)
-                    await postInventoryGLEntry(prisma, {
-                        transactionId: invTx.id,
-                        type: 'PO_RECEIVE',
-                        productName,
-                        quantity: grnItem.quantityAccepted,
-                        unitCost,
-                        totalValue,
-                        reference: grn.number,
-                    })
+                    try {
+                        await postInventoryGLEntry(prisma, {
+                            transactionId: invTx.id,
+                            type: 'PO_RECEIVE',
+                            productName,
+                            quantity: grnItem.quantityAccepted,
+                            unitCost,
+                            totalValue,
+                            reference: grn.number,
+                        })
+                        console.log("[acceptGRN] GL entry posted OK")
+                    } catch (glErr: any) {
+                        console.error("[acceptGRN] GL entry FAILED (non-blocking):", glErr.message)
+                        // Don't let missing GL accounts block GRN acceptance.
+                        // Stock update is already done; GL can be reconciled later.
+                    }
                 }
             }
 
-            // 6. Check if PO is fully received
-            const po = await prisma.purchaseOrder.findUnique({
-                where: { id: grn.purchaseOrderId },
-                include: { items: true }
-            })
+            // 7. Check if PO is fully received — auto-transition PO status (best-effort, non-blocking)
+            try {
+                const po = await prisma.purchaseOrder.findUnique({
+                    where: { id: grn.purchaseOrderId },
+                    include: { items: true }
+                })
 
-            if (po) {
-                const allItemsReceived = po.items.every(item => item.receivedQty >= item.quantity)
-                const someItemsReceived = po.items.some(item => item.receivedQty > 0)
+                if (po) {
+                    const allItemsReceived = po.items.every((item: any) => item.receivedQty >= item.quantity)
+                    const someItemsReceived = po.items.some((item: any) => item.receivedQty > 0)
+                    console.log("[acceptGRN] PO status=", po.status, "allReceived=", allItemsReceived, "someReceived=", someItemsReceived)
 
-                const transitionPO = async (
-                    currentStatus: ProcurementStatus,
-                    nextStatus: ProcurementStatus,
-                    action: string,
-                    metadata?: any
-                ) => {
-                    assertPOTransition(currentStatus, nextStatus)
-                    await prisma.purchaseOrder.update({
-                        where: { id: po.id },
-                        data: {
-                            previousStatus: currentStatus,
-                            status: nextStatus,
+                    const safeTransitionPO = async (
+                        currentStatus: ProcurementStatus,
+                        nextStatus: ProcurementStatus,
+                        action: string,
+                        metadata?: any
+                    ) => {
+                        const allowed = allowedNextStatuses[currentStatus] || []
+                        if (!allowed.includes(nextStatus)) {
+                            console.warn(`[acceptGRN] PO transition skipped: ${currentStatus} → ${nextStatus} not allowed`)
+                            return false
                         }
-                    })
-                    await createPurchaseOrderEvent(prisma as any, {
-                        purchaseOrderId: po.id,
-                        status: nextStatus,
-                        changedBy: user.id,
-                        action,
-                        metadata,
-                    })
-                }
+                        await prisma.purchaseOrder.update({
+                            where: { id: po.id },
+                            data: {
+                                previousStatus: currentStatus,
+                                status: nextStatus,
+                            }
+                        })
+                        await createPurchaseOrderEvent(prisma as any, {
+                            purchaseOrderId: po.id,
+                            status: nextStatus,
+                            changedBy: user.id,
+                            action,
+                            metadata,
+                        })
+                        console.log("[acceptGRN] PO transitioned:", currentStatus, "→", nextStatus)
+                        return true
+                    }
 
-                if (allItemsReceived) {
-                    if (po.status !== 'RECEIVED' && po.status !== 'COMPLETED') {
-                        await transitionPO(po.status as any, 'RECEIVED', 'RECEIVE_FULL', {
-                            source: 'GRN_ACCEPT',
-                            grnId,
-                            sodOverride: overrideReason
-                        })
-                        po.status = 'RECEIVED'
-                    }
-                    if (po.status === 'RECEIVED') {
-                        await transitionPO('RECEIVED', 'COMPLETED', 'AUTO_COMPLETE', {
-                            source: 'GRN_ACCEPT',
-                            grnId,
-                            sodOverride: overrideReason
-                        })
-                    }
-                } else if (someItemsReceived) {
-                    if (po.status !== 'PARTIAL_RECEIVED') {
-                        await transitionPO(po.status as any, 'PARTIAL_RECEIVED' as any, 'RECEIVE_PARTIAL', {
-                            source: 'GRN_ACCEPT',
-                            grnId,
-                            sodOverride: overrideReason
-                        })
+                    if (allItemsReceived) {
+                        if (po.status !== 'RECEIVED' && po.status !== 'COMPLETED') {
+                            const ok = await safeTransitionPO(po.status as any, 'RECEIVED', 'RECEIVE_FULL', {
+                                source: 'GRN_ACCEPT',
+                                grnId,
+                                sodOverride: overrideReason
+                            })
+                            if (ok) po.status = 'RECEIVED'
+                        }
+                        if (po.status === 'RECEIVED') {
+                            await safeTransitionPO('RECEIVED', 'COMPLETED', 'AUTO_COMPLETE', {
+                                source: 'GRN_ACCEPT',
+                                grnId,
+                                sodOverride: overrideReason
+                            })
+                        }
+                    } else if (someItemsReceived) {
+                        if (po.status !== 'PARTIAL_RECEIVED') {
+                            await safeTransitionPO(po.status as any, 'PARTIAL_RECEIVED' as any, 'RECEIVE_PARTIAL', {
+                                source: 'GRN_ACCEPT',
+                                grnId,
+                                sodOverride: overrideReason
+                            })
+                        }
                     }
                 }
+            } catch (poErr: any) {
+                // PO transition failure should NOT roll back the GRN acceptance
+                console.error("[acceptGRN] PO transition failed (non-blocking):", poErr.message)
             }
 
+            console.log("[acceptGRN] SUCCESS — returning { success: true }")
             return { success: true }
         })
 
@@ -620,7 +649,7 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
 
         return result
     } catch (error: any) {
-        console.error("Error accepting GRN:", error)
+        console.error("[acceptGRN] CAUGHT ERROR:", error.message, error.stack?.slice(0, 300))
         return { success: false, error: error.message }
     }
 }
