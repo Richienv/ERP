@@ -5,23 +5,39 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/** Safely convert Prisma Decimal, null, undefined, or NaN to a finite number. */
+export function toNum(val: unknown): number {
+  if (val == null) return 0
+  if (typeof val === 'number') return Number.isFinite(val) ? val : 0
+  if (typeof (val as any)?.toNumber === 'function') {
+    const n = (val as any).toNumber()
+    return Number.isFinite(n) ? n : 0
+  }
+  const n = Number(val)
+  return Number.isFinite(n) ? n : 0
+}
+
 export function formatIDR(amount: number) {
+  const num = Number(amount)
+  if (!Number.isFinite(num)) return 'Rp 0'
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
     currency: 'IDR',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount)
+  }).format(num)
 }
 
 // Key alias for compatibility
 export const formatCurrency = formatIDR;
 
 export function formatCompactNumber(number: number) {
+  const num = Number(number)
+  if (!Number.isFinite(num)) return '0'
   return Intl.NumberFormat("id-ID", {
     notation: "compact",
     maximumFractionDigits: 1,
-  }).format(number)
+  }).format(num)
 }
 
 /**

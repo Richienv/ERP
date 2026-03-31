@@ -15,15 +15,12 @@ import {
     UserX,
 } from "lucide-react"
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { NB } from "@/lib/dialog-styles"
-import { ScrollArea } from "@/components/ui/scroll-area"
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBDialogFooter,
+    NBSelect,
+} from "@/components/ui/nb-dialog"
 import { toast } from "sonner"
 import {
     getAttendanceSnapshot,
@@ -726,53 +723,43 @@ export function AttendanceClient({
             {/* ================================================================ */}
             {/* Clock In/Out Dialog */}
             {/* ================================================================ */}
-            <Dialog open={clockOpen} onOpenChange={setClockOpen}>
-                <DialogContent className={NB.contentNarrow}>
-                    <DialogHeader className={NB.header}>
-                        <DialogTitle className={NB.title}>
-                            <Clock className="h-5 w-5" />
-                            Clock In / Clock Out
-                        </DialogTitle>
-                        <p className={NB.subtitle}>Pilih karyawan dan jenis aksi absensi</p>
-                    </DialogHeader>
+            <NBDialog open={clockOpen} onOpenChange={setClockOpen} size="narrow">
+                <NBDialogHeader
+                    icon={Clock}
+                    title="Clock In / Clock Out"
+                    subtitle="Pilih karyawan dan jenis aksi absensi"
+                />
 
-                    <ScrollArea className={NB.scroll}>
-                        <div className="p-6 space-y-5">
-                            <div>
-                                <label className={NB.label}>Karyawan</label>
-                                <select
-                                    value={clockForm.employeeId}
-                                    onChange={(e) => setClockForm((p) => ({ ...p, employeeId: e.target.value }))}
-                                    className={NB.select}
-                                >
-                                    <option value="">Pilih karyawan</option>
-                                    {initialEmployees.map((emp) => (
-                                        <option key={emp.id} value={emp.id}>{emp.name} ({emp.employeeCode})</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className={NB.label}>Mode</label>
-                                <select
-                                    value={clockForm.mode}
-                                    onChange={(e) => setClockForm((p) => ({ ...p, mode: e.target.value as "CLOCK_IN" | "CLOCK_OUT" }))}
-                                    className={NB.select}
-                                >
-                                    <option value="CLOCK_IN">Clock In (Masuk)</option>
-                                    <option value="CLOCK_OUT">Clock Out (Pulang)</option>
-                                </select>
-                            </div>
-                        </div>
-                    </ScrollArea>
+                <NBDialogBody>
+                    <NBSelect
+                        label="Karyawan"
+                        required
+                        value={clockForm.employeeId}
+                        onValueChange={(v) => setClockForm((p) => ({ ...p, employeeId: v }))}
+                        placeholder="Pilih karyawan"
+                        options={initialEmployees.map((emp) => ({
+                            value: emp.id,
+                            label: `${emp.name} (${emp.employeeCode})`,
+                        }))}
+                    />
+                    <NBSelect
+                        label="Mode"
+                        value={clockForm.mode}
+                        onValueChange={(v) => setClockForm((p) => ({ ...p, mode: v as "CLOCK_IN" | "CLOCK_OUT" }))}
+                        options={[
+                            { value: "CLOCK_IN", label: "Clock In (Masuk)" },
+                            { value: "CLOCK_OUT", label: "Clock Out (Pulang)" },
+                        ]}
+                    />
+                </NBDialogBody>
 
-                    <DialogFooter className="p-4 border-t-2 border-black bg-zinc-50 flex gap-2">
-                        <button className={NB.cancelBtn} onClick={() => setClockOpen(false)}>Batal</button>
-                        <button className={NB.submitBtn} onClick={handleClockSubmit} disabled={clockSubmitting}>
-                            {clockSubmitting ? "Menyimpan..." : "Simpan Absensi"}
-                        </button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                <NBDialogFooter
+                    onCancel={() => setClockOpen(false)}
+                    onSubmit={handleClockSubmit}
+                    submitting={clockSubmitting}
+                    submitLabel="Simpan Absensi"
+                />
+            </NBDialog>
         </div>
     )
 }

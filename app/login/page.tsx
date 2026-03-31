@@ -32,6 +32,16 @@ export default function LoginPage() {
             .catch(() => {})
     }, [])
 
+    // Detect session expiry redirect (from middleware ?expired=true)
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search)
+        if (params.get("expired") === "true") {
+            toast.info("Sesi Anda telah berakhir. Silakan masuk kembali.", { duration: 5000 })
+            // Clean up URL without reload
+            window.history.replaceState({}, "", "/login")
+        }
+    }, [])
+
     // Load saved email on component mount
     useEffect(() => {
         const savedEmail = localStorage.getItem('rememberedEmail')
@@ -61,9 +71,6 @@ export default function LoginPage() {
                 toast.error("Login gagal: " + error.message)
                 return
             }
-
-            // Clear cache warming flag so background warm runs after fresh login
-            sessionStorage.removeItem("erp_cache_warmed")
 
             // Save email only if "Remember Me" is checked (never store passwords)
             if (rememberMe) {

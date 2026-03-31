@@ -17,7 +17,8 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useState } from "react"
+import { useRef, useState } from "react"
+import { useVirtualizer } from "@tanstack/react-virtual"
 import { GoodsReceiptDialog } from "./goods-receipt-dialog"
 import { PurchaseRequestDialog } from "./purchase-request-dialog"
 import { ShoppingBag } from "lucide-react"
@@ -144,7 +145,16 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
     // Debugging Render
     // console.log("[DetailedMaterialTable] Render. Optimistic Keys:", Object.keys(optimisticPOs))
 
-
+    // Virtual scrolling for large lists (>50 items)
+    const scrollRef = useRef<HTMLDivElement>(null)
+    const useVirtual = filteredData.length > 50
+    const rowVirtualizer = useVirtualizer({
+        count: filteredData.length,
+        getScrollElement: () => scrollRef.current,
+        estimateSize: () => 120, // approximate row height for these dense rows
+        overscan: 10,
+        enabled: useVirtual,
+    })
 
     if (!data.length) return <div className="p-8 text-center text-muted-foreground border-2 border-dashed border-black">No material data found.</div>
 
@@ -216,276 +226,336 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
             </CardHeader>
             <CardContent className="p-0 overflow-x-auto flex-1">
                 <div className="w-full bg-white">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm">
-                            <thead>
-                                <tr className="border-b-2 border-black bg-zinc-100 uppercase text-[10px] font-black tracking-wider">
-                                    <th className="p-4">Material Info</th>
-                                    <th className="p-4 text-center">Stock & Demand</th>
-                                    <th className="p-4">Planning</th>
-                                    <th className="p-4">Supply Chain</th>
-                                    <th className="p-4 text-right">Financial Impact</th>
-                                    <th className="p-4 text-right">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-zinc-200">
-                                {filteredData.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={6} className="p-8 text-center text-zinc-400 italic font-medium">
-                                            No items found for this filter.
-                                        </td>
+                    {useVirtual ? (
+                        /* ── Virtualized rendering for >50 rows ── */
+                        <div className="overflow-x-auto">
+                            <div ref={scrollRef} className="overflow-auto" style={{ maxHeight: 600 }}>
+                                <table className="w-full text-left text-sm">
+                                    <thead className="sticky top-0 z-10">
+                                        <tr className="border-b-2 border-black bg-zinc-100 uppercase text-[10px] font-black tracking-wider">
+                                            <th className="p-4">Material Info</th>
+                                            <th className="p-4 text-center">Stock & Demand</th>
+                                            <th className="p-4">Planning</th>
+                                            <th className="p-4">Supply Chain</th>
+                                            <th className="p-4 text-right">Financial Impact</th>
+                                            <th className="p-4 text-right">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody style={{ height: rowVirtualizer.getTotalSize(), position: 'relative', display: 'block' }}>
+                                        {filteredData.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={6} className="p-8 text-center text-zinc-400 italic font-medium">
+                                                    No items found for this filter.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                                                const item = filteredData[virtualRow.index]
+                                                return (
+                                                    <tr
+                                                        key={item.id}
+                                                        data-index={virtualRow.index}
+                                                        ref={rowVirtualizer.measureElement}
+                                                        className="group hover:bg-zinc-50 transition-colors border-b border-zinc-200"
+                                                        style={{
+                                                            display: 'table-row',
+                                                            position: 'absolute',
+                                                            top: 0,
+                                                            left: 0,
+                                                            width: '100%',
+                                                            transform: `translateY(${virtualRow.start}px)`,
+                                                        }}
+                                                    >
+                                                        {renderRowCells(item)}
+                                                    </tr>
+                                                )
+                                            })
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    ) : (
+                        /* ── Normal rendering for <=50 rows ── */
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                                <thead>
+                                    <tr className="border-b-2 border-black bg-zinc-100 uppercase text-[10px] font-black tracking-wider">
+                                        <th className="p-4">Material Info</th>
+                                        <th className="p-4 text-center">Stock & Demand</th>
+                                        <th className="p-4">Planning</th>
+                                        <th className="p-4">Supply Chain</th>
+                                        <th className="p-4 text-right">Financial Impact</th>
+                                        <th className="p-4 text-right">Action</th>
                                     </tr>
-                                ) : (
-                                    filteredData.map((item) => (
-                                        <tr key={item.id} className="group hover:bg-zinc-50 transition-colors">
-                                            {/* Material Info */}
-                                            <td className="p-4 align-top w-[250px]">
-                                                <div className="font-black text-black">{item.name}</div>
-                                                <div className="text-[10px] text-zinc-500 font-mono mt-1">
-                                                    {item.category} • {item.sku}
-                                                </div>
-                                                <div className="flex gap-1 mt-1 flex-wrap">
-                                                    {item.manualAlert && (
-                                                        <Badge variant="destructive" className="text-[9px] h-4 uppercase font-black tracking-tighter">
-                                                            Manual Alert
-                                                        </Badge>
-                                                    )}
-                                                    {item.alternative && (
-                                                        <Badge variant="outline" className="text-[9px] h-4 border-emerald-500 text-emerald-700 bg-emerald-50">
-                                                            Alt: {item.alternative.code}
-                                                        </Badge>
-                                                    )}
-                                                </div>
-                                            </td>
-
-                                            {/* Stock & Demand (Current / Needed) */}
-                                            <td className="p-4 align-top w-[200px]">
-                                                <div className="text-center">
-                                                    {(() => {
-                                                        const demand = item.pendingRestockQty > 0 ? item.pendingRestockQty : item.reorderPoint
-                                                        return (
-                                                            <>
-                                                                <div className="flex items-baseline justify-center gap-1">
-                                                                    <span className={`text-xl font-black ${item.currentStock < demand ? 'text-red-600' : 'text-emerald-600'}`}>
-                                                                        {item.currentStock}
-                                                                    </span>
-                                                                    <span className="text-zinc-400 font-bold text-sm">/</span>
-                                                                    <span className="text-xl font-black text-zinc-700">{demand}</span>
-                                                                    <span className="text-sm font-normal text-zinc-500 ml-0.5">{item.unit}</span>
-                                                                </div>
-                                                                <div className="text-[9px] font-bold text-zinc-400 uppercase mt-0.5">
-                                                                    Stok / {item.pendingRestockQty > 0 ? 'Diminta (PR)' : 'Kebutuhan'}
-                                                                </div>
-                                                            </>
-                                                        )
-                                                    })()}
-
-                                                    {/* Incoming from PO */}
-                                                    {item.incomingQty > 0 && (
-                                                        <div className="text-[10px] font-bold text-cyan-600 mt-1 bg-cyan-50 border border-cyan-200 py-0.5 px-2 inline-block">
-                                                            +{item.incomingQty} {item.unit} incoming (PO)
-                                                        </div>
-                                                    )}
-
-                                                    {/* Warehouse Breakdown */}
-                                                    {item.warehouses.length > 0 && (
-                                                        <div className="flex flex-wrap justify-center gap-1 mt-1.5">
-                                                            {item.warehouses.map(w => (
-                                                                <span key={w.name} className="text-[9px] bg-zinc-100 px-1 border border-zinc-200" title={w.name}>
-                                                                    {w.name.substring(0, 3)}: {w.qty}
-                                                                </span>
-                                                            ))}
-                                                        </div>
-                                                    )}
-
-                                                    {/* Active Demand Warning */}
-                                                    {item.demandSources.length > 0 && (
-                                                        <div className="mt-2 text-left bg-purple-50 p-2 border border-purple-200">
-                                                            <div className="text-[10px] font-bold text-purple-700 uppercase flex items-center gap-1">
-                                                                <AlertCircle className="h-3 w-3" /> Needed for WO
-                                                            </div>
-                                                            <div className="space-y-1 mt-1">
-                                                                {item.demandSources.slice(0, 2).map((wo, i) => (
-                                                                    <div key={i} className="text-[9px] text-purple-800 font-mono">
-                                                                        WO-{wo.number}: {wo.qty} {item.unit}
-                                                                    </div>
-                                                                ))}
-                                                                {item.demandSources.length > 2 && <div className="text-[9px] text-center text-purple-400">+{item.demandSources.length - 2} more</div>}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </td>
-
-                                            {/* Planning (Safety, ROP, Burn) */}
-                                            <td className="p-4 align-top">
-                                                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                                                    <span className="text-zinc-500 text-[10px] uppercase font-bold">Safe Stock</span>
-                                                    <span className="font-mono font-bold text-right">{item.safetyStock}</span>
-
-                                                    <span className="text-zinc-500 text-[10px] uppercase font-bold">R. Point</span>
-                                                    <span className="font-mono font-bold text-right text-amber-600">{item.reorderPoint}</span>
-
-                                                    <span className="text-zinc-500 text-[10px] uppercase font-bold">Lead Time</span>
-                                                    <span className="font-mono text-right">{item.leadTime}d</span>
-
-                                                    <span className="text-zinc-500 text-[10px] uppercase font-bold">Burn Rate</span>
-                                                    <span className="font-mono text-right">{item.consumptionRate}/d</span>
-                                                </div>
-                                                <div className={`mt-2 text-[10px] font-black uppercase text-center border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] p-1 ${item.stockEndsInDays < 7 ? 'bg-red-200 text-red-900' : 'bg-emerald-200 text-emerald-900'}`}>
-                                                    Stock ends: {item.stockEndsInDays === 999 ? '∞' : `${item.stockEndsInDays} days`}
-                                                </div>
-                                            </td>
-
-                                            {/* Supply Chain (Supplier & PO) */}
-                                            <td className="p-4 align-top">
-                                                <div className="text-xs space-y-2">
-                                                    {/* Supplier */}
-                                                    <div>
-                                                        <div className="text-[9px] uppercase font-bold text-zinc-400">Preferred Vendor</div>
-                                                        <div className="font-bold truncate w-[120px]">{item.supplier?.name || 'Unknown'}</div>
-                                                    </div>
-
-                                                    {/* Incoming PO */}
-                                                    {/* Incoming PO - Hide if Manual Alert (User treats it as insufficient/ignored) */}
-                                                    {!item.manualAlert && ((item.activePO) || (optimisticPOs[item.id] && optimisticPOs[item.id].length > 0)) && !optimisticResolvedItems.has(item.id) ? (
-                                                        <div className="bg-blue-100 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] p-2 relative mt-1">
-                                                            <div className="absolute -top-1.5 -right-1.5 bg-blue-500 text-white text-[8px] font-black px-1 border border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] rotate-3">
-                                                                INCOMING
-                                                            </div>
-                                                            <div className="text-[10px] font-bold mt-1 leading-tight">
-                                                                {(optimisticPOs[item.id] && optimisticPOs[item.id].length > 0) ? optimisticPOs[item.id][0].orderedQty : item.activePO?.qty} {item.unit}
-                                                            </div>
-                                                            <div className="text-[9px] font-mono text-blue-900">
-                                                                via {(optimisticPOs[item.id] && optimisticPOs[item.id].length > 0) ? `PO-${optimisticPOs[item.id][0].number}` : `PO-${item.activePO?.number}`}
-                                                            </div>
-                                                            <div className="text-[9px] font-bold text-black/60 mt-0.5 border-t border-black/10 pt-0.5">
-                                                                ETA: {formatDate((optimisticPOs[item.id] && optimisticPOs[item.id].length > 0) ? optimisticPOs[item.id][0].expectedDate : item.activePO?.eta)}
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="text-[10px] text-zinc-400 italic">No active orders</div>
-                                                    )}
-                                                </div>
-                                            </td>
-
-                                            {/* Financial Impact */}
-                                            <td className="p-4 text-right align-top">
-                                                <div className="text-xs font-mono text-zinc-500">{formatCurrency(item.cost)} / {item.unit}</div>
-                                                {/* Hide gap/impact if pending request exists */}
-                                                {item.gap > 0 && !optimisticResolvedItems.has(item.id) && !item.isPendingRequest && !optimisticPendingRequests.has(item.id) ? (
-                                                    <div className="mt-2 text-right">
-                                                        <div className="text-[10px] text-zinc-400 uppercase font-bold">Budget Needed</div>
-                                                        <div className="text-sm font-black text-red-600">{formatCurrency(item.totalGapCost)}</div>
-                                                        <div className="text-[10px] text-red-500 font-bold">Deficit: {item.gap} {item.unit}</div>
-                                                    </div>
-                                                ) : (
-                                                    <div className="mt-2 text-[10px] text-black font-black bg-emerald-300 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] inline-block px-2 py-0.5 rotate-[-2deg]">
-                                                        HEALTHY
-                                                    </div>
-                                                )}
-                                            </td>
-
-                                            {/* Action */}
-                                            <td className="p-4 text-right align-top">
-                                                <div className="flex justify-end gap-2">
-                                                    {/* Action Logic */}
-                                                    {item.gap > 0 && !optimisticResolvedItems.has(item.id) ? (
-                                                        // GAP EXISTS
-                                                        // Priority Case: MANUAL ALERT -> Always Allow Request (Even if PO exists, it might be insufficient)
-                                                        (item.manualAlert) ? (
-                                                            <PurchaseRequestDialog
-                                                                item={{
-                                                                    id: item.id,
-                                                                    name: item.name,
-                                                                    sku: item.sku,
-                                                                    category: item.category,
-                                                                    unit: item.unit,
-                                                                    cost: item.cost,
-                                                                    gap: item.gap,
-                                                                    reorderPoint: item.reorderPoint,
-                                                                    pendingRestockQty: item.pendingRestockQty,
-                                                                    currentStock: item.currentStock
-                                                                }}
-                                                                onSuccess={(result) => handlePurchaseSuccess(item.id, result)}
-                                                            />
-                                                        ) :
-                                                            ((item.openPOs && item.openPOs.length > 0) || (optimisticPOs[item.id] && optimisticPOs[item.id].length > 0)) ? (
-                                                                // A. Active PO -> Show Receipt Dialog
-                                                                <GoodsReceiptDialog
-                                                                    item={{
-                                                                        id: item.id,
-                                                                        name: item.name,
-                                                                        unit: item.unit,
-                                                                        warehouses: item.warehouses
-                                                                    }}
-                                                                    // Combine server POs with optimistic local POs
-                                                                    openPOs={[...(item.openPOs || []), ...(optimisticPOs[item.id] || [])]}
-                                                                    onSuccess={() => {
-                                                                        handleReceiptSuccess(item.id)
-                                                                        setOptimisticPOs(prev => {
-                                                                            const newState = { ...prev };
-                                                                            delete newState[item.id];
-                                                                            return newState;
-                                                                        })
-                                                                    }}
-                                                                />
-                                                            ) : (
-                                                                // B. No Active PO -> Check if Pending
-                                                                (item.isPendingRequest || optimisticPendingRequests.has(item.id)) ? (
-                                                                    // B1. Pending -> Show Badge
-                                                                    <div className="flex items-center justify-end gap-2 text-amber-600 font-bold text-xs uppercase">
-                                                                        <span className="bg-amber-100 px-2 py-1 border border-amber-200 flex items-center gap-1">
-                                                                            <Loader2 className="h-3 w-3 animate-spin" />
-                                                                            Pending Request
-                                                                        </span>
-                                                                    </div>
-                                                                ) : (
-                                                                    // B2. Not Pending -> Show Request Dialog
-                                                                    <PurchaseRequestDialog
-                                                                        item={{
-                                                                            id: item.id,
-                                                                            name: item.name,
-                                                                            sku: item.sku,
-                                                                            category: item.category,
-                                                                            unit: item.unit,
-                                                                            cost: item.cost,
-                                                                            gap: item.gap,
-                                                                            reorderPoint: item.reorderPoint,
-                                                                            pendingRestockQty: item.pendingRestockQty,
-                                                                            currentStock: item.currentStock
-                                                                        }}
-                                                                        onSuccess={(result) => handlePurchaseSuccess(item.id, result)}
-                                                                    />
-                                                                )
-                                                            )
-                                                    ) : (
-                                                        // NO GAP (Healthy) -> Show Badge
-                                                        <div className="flex items-center justify-end gap-2 text-emerald-600 font-bold text-xs uppercase">
-                                                            <span className="bg-emerald-100 px-2 py-1 border border-emerald-200">
-                                                                All Good
-                                                            </span>
-                                                        </div>
-                                                    )}
-
-                                                    {/* Fallback Restock Request (if needed, kept for reference or quick link) */}
-                                                    {/* 
-                                                <Link href={`/procurement/requests/create?item=${item.id}&code=${item.sku}&name=${encodeURIComponent(item.name)}&qty=${item.gap > 0 ? item.gap : (item.reorderPoint - item.currentStock)}`}>
-                                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                                                        <ArrowRight className="h-4 w-4" />
-                                                    </Button>
-                                                </Link>
-                                                */}
-                                                </div>
+                                </thead>
+                                <tbody className="divide-y divide-zinc-200">
+                                    {filteredData.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={6} className="p-8 text-center text-zinc-400 italic font-medium">
+                                                No items found for this filter.
                                             </td>
                                         </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                    ) : (
+                                        filteredData.map((item) => (
+                                            <tr key={item.id} className="group hover:bg-zinc-50 transition-colors">
+                                                {renderRowCells(item)}
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
             </CardContent>
         </Card>
     );
+
+    /* ── Shared row cell renderer ── */
+    function renderRowCells(item: GapData) {
+        return (
+            <>
+                {/* Material Info */}
+                <td className="p-4 align-top w-[250px]">
+                    <div className="font-black text-black">{item.name}</div>
+                    <div className="text-[10px] text-zinc-500 font-mono mt-1">
+                        {item.category} • {item.sku}
+                    </div>
+                    <div className="flex gap-1 mt-1 flex-wrap">
+                        {item.manualAlert && (
+                            <Badge variant="destructive" className="text-[9px] h-4 uppercase font-black tracking-tighter">
+                                Manual Alert
+                            </Badge>
+                        )}
+                        {item.alternative && (
+                            <Badge variant="outline" className="text-[9px] h-4 border-emerald-500 text-emerald-700 bg-emerald-50">
+                                Alt: {item.alternative.code}
+                            </Badge>
+                        )}
+                    </div>
+                </td>
+
+                {/* Stock & Demand (Current / Needed) */}
+                <td className="p-4 align-top w-[200px]">
+                    <div className="text-center">
+                        {(() => {
+                            const demand = item.pendingRestockQty > 0 ? item.pendingRestockQty : item.reorderPoint
+                            return (
+                                <>
+                                    <div className="flex items-baseline justify-center gap-1">
+                                        <span className={`text-xl font-black ${item.currentStock < demand ? 'text-red-600' : 'text-emerald-600'}`}>
+                                            {item.currentStock}
+                                        </span>
+                                        <span className="text-zinc-400 font-bold text-sm">/</span>
+                                        <span className="text-xl font-black text-zinc-700">{demand}</span>
+                                        <span className="text-sm font-normal text-zinc-500 ml-0.5">{item.unit}</span>
+                                    </div>
+                                    <div className="text-[9px] font-bold text-zinc-400 uppercase mt-0.5">
+                                        Stok / {item.pendingRestockQty > 0 ? 'Diminta (PR)' : 'Kebutuhan'}
+                                    </div>
+                                </>
+                            )
+                        })()}
+
+                        {/* Incoming from PO */}
+                        {item.incomingQty > 0 && (
+                            <div className="text-[10px] font-bold text-cyan-600 mt-1 bg-cyan-50 border border-cyan-200 py-0.5 px-2 inline-block">
+                                +{item.incomingQty} {item.unit} incoming (PO)
+                            </div>
+                        )}
+
+                        {/* Warehouse Breakdown */}
+                        {item.warehouses.length > 0 && (
+                            <div className="flex flex-wrap justify-center gap-1 mt-1.5">
+                                {item.warehouses.map(w => (
+                                    <span key={w.name} className="text-[9px] bg-zinc-100 px-1 border border-zinc-200" title={w.name}>
+                                        {w.name.substring(0, 3)}: {w.qty}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Active Demand Warning */}
+                        {item.demandSources.length > 0 && (
+                            <div className="mt-2 text-left bg-purple-50 p-2 border border-purple-200">
+                                <div className="text-[10px] font-bold text-purple-700 uppercase flex items-center gap-1">
+                                    <AlertCircle className="h-3 w-3" /> Needed for WO
+                                </div>
+                                <div className="space-y-1 mt-1">
+                                    {item.demandSources.slice(0, 2).map((wo, i) => (
+                                        <div key={i} className="text-[9px] text-purple-800 font-mono">
+                                            WO-{wo.number}: {wo.qty} {item.unit}
+                                        </div>
+                                    ))}
+                                    {item.demandSources.length > 2 && <div className="text-[9px] text-center text-purple-400">+{item.demandSources.length - 2} more</div>}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </td>
+
+                {/* Planning (Safety, ROP, Burn) */}
+                <td className="p-4 align-top">
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                        <span className="text-zinc-500 text-[10px] uppercase font-bold">Safe Stock</span>
+                        <span className="font-mono font-bold text-right">{item.safetyStock}</span>
+
+                        <span className="text-zinc-500 text-[10px] uppercase font-bold">R. Point</span>
+                        <span className="font-mono font-bold text-right text-amber-600">{item.reorderPoint}</span>
+
+                        <span className="text-zinc-500 text-[10px] uppercase font-bold">Lead Time</span>
+                        <span className="font-mono text-right">{item.leadTime}d</span>
+
+                        <span className="text-zinc-500 text-[10px] uppercase font-bold">Burn Rate</span>
+                        <span className="font-mono text-right">{item.consumptionRate}/d</span>
+                    </div>
+                    <div className={`mt-2 text-[10px] font-black uppercase text-center border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] p-1 ${item.stockEndsInDays < 7 ? 'bg-red-200 text-red-900' : 'bg-emerald-200 text-emerald-900'}`}>
+                        Stock ends: {item.stockEndsInDays === 999 ? '∞' : `${item.stockEndsInDays} days`}
+                    </div>
+                </td>
+
+                {/* Supply Chain (Supplier & PO) */}
+                <td className="p-4 align-top">
+                    <div className="text-xs space-y-2">
+                        {/* Supplier */}
+                        <div>
+                            <div className="text-[9px] uppercase font-bold text-zinc-400">Preferred Vendor</div>
+                            <div className="font-bold truncate w-[120px]">{item.supplier?.name || 'Unknown'}</div>
+                        </div>
+
+                        {/* Incoming PO - Hide if Manual Alert (User treats it as insufficient/ignored) */}
+                        {!item.manualAlert && ((item.activePO) || (optimisticPOs[item.id] && optimisticPOs[item.id].length > 0)) && !optimisticResolvedItems.has(item.id) ? (
+                            <div className="bg-blue-100 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] p-2 relative mt-1">
+                                <div className="absolute -top-1.5 -right-1.5 bg-blue-500 text-white text-[8px] font-black px-1 border border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] rotate-3">
+                                    INCOMING
+                                </div>
+                                <div className="text-[10px] font-bold mt-1 leading-tight">
+                                    {(optimisticPOs[item.id] && optimisticPOs[item.id].length > 0) ? optimisticPOs[item.id][0].orderedQty : item.activePO?.qty} {item.unit}
+                                </div>
+                                <div className="text-[9px] font-mono text-blue-900">
+                                    via {(optimisticPOs[item.id] && optimisticPOs[item.id].length > 0) ? `PO-${optimisticPOs[item.id][0].number}` : `PO-${item.activePO?.number}`}
+                                </div>
+                                <div className="text-[9px] font-bold text-black/60 mt-0.5 border-t border-black/10 pt-0.5">
+                                    ETA: {formatDate((optimisticPOs[item.id] && optimisticPOs[item.id].length > 0) ? optimisticPOs[item.id][0].expectedDate : item.activePO?.eta)}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-[10px] text-zinc-400 italic">No active orders</div>
+                        )}
+                    </div>
+                </td>
+
+                {/* Financial Impact */}
+                <td className="p-4 text-right align-top">
+                    <div className="text-xs font-mono text-zinc-500">{formatCurrency(item.cost)} / {item.unit}</div>
+                    {/* Hide gap/impact if pending request exists */}
+                    {item.gap > 0 && !optimisticResolvedItems.has(item.id) && !item.isPendingRequest && !optimisticPendingRequests.has(item.id) ? (
+                        <div className="mt-2 text-right">
+                            <div className="text-[10px] text-zinc-400 uppercase font-bold">Budget Needed</div>
+                            <div className="text-sm font-black text-red-600">{formatCurrency(item.totalGapCost)}</div>
+                            <div className="text-[10px] text-red-500 font-bold">Deficit: {item.gap} {item.unit}</div>
+                        </div>
+                    ) : (
+                        <div className="mt-2 text-[10px] text-black font-black bg-emerald-300 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] inline-block px-2 py-0.5 rotate-[-2deg]">
+                            HEALTHY
+                        </div>
+                    )}
+                </td>
+
+                {/* Action */}
+                <td className="p-4 text-right align-top">
+                    <div className="flex justify-end gap-2">
+                        {/* Action Logic */}
+                        {item.gap > 0 && !optimisticResolvedItems.has(item.id) ? (
+                            // GAP EXISTS
+                            // Priority Case: MANUAL ALERT -> Always Allow Request (Even if PO exists, it might be insufficient)
+                            (item.manualAlert) ? (
+                                <PurchaseRequestDialog
+                                    item={{
+                                        id: item.id,
+                                        name: item.name,
+                                        sku: item.sku,
+                                        category: item.category,
+                                        unit: item.unit,
+                                        cost: item.cost,
+                                        gap: item.gap,
+                                        reorderPoint: item.reorderPoint,
+                                        pendingRestockQty: item.pendingRestockQty,
+                                        currentStock: item.currentStock
+                                    }}
+                                    onSuccess={(result) => handlePurchaseSuccess(item.id, result)}
+                                />
+                            ) :
+                                ((item.openPOs && item.openPOs.length > 0) || (optimisticPOs[item.id] && optimisticPOs[item.id].length > 0)) ? (
+                                    // A. Active PO -> Show Receipt Dialog
+                                    <GoodsReceiptDialog
+                                        item={{
+                                            id: item.id,
+                                            name: item.name,
+                                            unit: item.unit,
+                                            warehouses: item.warehouses
+                                        }}
+                                        // Combine server POs with optimistic local POs
+                                        openPOs={[...(item.openPOs || []), ...(optimisticPOs[item.id] || [])]}
+                                        onSuccess={() => {
+                                            handleReceiptSuccess(item.id)
+                                            setOptimisticPOs(prev => {
+                                                const newState = { ...prev };
+                                                delete newState[item.id];
+                                                return newState;
+                                            })
+                                        }}
+                                    />
+                                ) : (
+                                    // B. No Active PO -> Check if Pending
+                                    (item.isPendingRequest || optimisticPendingRequests.has(item.id)) ? (
+                                        // B1. Pending -> Show Badge
+                                        <div className="flex items-center justify-end gap-2 text-amber-600 font-bold text-xs uppercase">
+                                            <span className="bg-amber-100 px-2 py-1 border border-amber-200 flex items-center gap-1">
+                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                                Pending Request
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        // B2. Not Pending -> Show Request Dialog
+                                        <PurchaseRequestDialog
+                                            item={{
+                                                id: item.id,
+                                                name: item.name,
+                                                sku: item.sku,
+                                                category: item.category,
+                                                unit: item.unit,
+                                                cost: item.cost,
+                                                gap: item.gap,
+                                                reorderPoint: item.reorderPoint,
+                                                pendingRestockQty: item.pendingRestockQty,
+                                                currentStock: item.currentStock
+                                            }}
+                                            onSuccess={(result) => handlePurchaseSuccess(item.id, result)}
+                                        />
+                                    )
+                                )
+                        ) : (
+                            // NO GAP (Healthy) -> Show Badge
+                            <div className="flex items-center justify-end gap-2 text-emerald-600 font-bold text-xs uppercase">
+                                <span className="bg-emerald-100 px-2 py-1 border border-emerald-200">
+                                    All Good
+                                </span>
+                            </div>
+                        )}
+
+                        {/* Fallback Restock Request (if needed, kept for reference or quick link) */}
+                        {/*
+                    <Link href={`/procurement/requests/create?item=${item.id}&code=${item.sku}&name=${encodeURIComponent(item.name)}&qty=${item.gap > 0 ? item.gap : (item.reorderPoint - item.currentStock)}`}>
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                            <ArrowRight className="h-4 w-4" />
+                        </Button>
+                    </Link>
+                    */}
+                    </div>
+                </td>
+            </>
+        )
+    }
 }

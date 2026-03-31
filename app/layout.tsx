@@ -4,6 +4,7 @@ import { GlobalLayout } from "@/components/global-layout";
 import { ThemeProvider } from "next-themes";
 import { WorkflowConfigProvider } from "@/components/workflow/workflow-config-context";
 import { QueryProvider } from "@/lib/query-client";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -28,6 +29,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="id" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://qundyzibdhggwhxgtlus.supabase.co" />
+        <link rel="dns-prefetch" href="https://qundyzibdhggwhxgtlus.supabase.co" />
+      </head>
       <body
         className={`${geistSans.variable} ${outfit.variable} antialiased`}
       >
@@ -44,6 +49,7 @@ export default function RootLayout({
             </WorkflowConfigProvider>
           </QueryProvider>
         </ThemeProvider>
+        <SpeedInsights />
       </body>
     </html>
   );

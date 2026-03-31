@@ -3,36 +3,21 @@
 import { InvoiceStatus, InvoiceType } from "@prisma/client"
 import { withPrismaAuth, prisma } from "@/lib/db"
 import { postJournalEntry } from "./finance-gl"
-import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts"
-import { calculateDueDate } from "@/lib/payment-term-helpers"
-
-// ==========================================
-// MULTI-RATE PPN HELPER
-// ==========================================
-
-/**
- * Resolve the effective PPN tax rate based on:
- * 1. Explicit taxRate param (highest priority — user override)
- * 2. Customer taxStatus (PKP=11%, NON_PKP=0%, EXEMPT=0%)
- * 3. Default 11% for PKP customers when includeTax is true
- *
- * Returns the rate as a percentage number (e.g. 11 for 11%, 0 for 0%).
- * Export invoices or EXEMPT/NON_PKP customers get 0%.
- */
-function resolveEffectiveTaxRate(
-    explicitRate?: number | null,
-    customerTaxStatus?: string | null,
-    includeTax?: boolean
-): number {
-    // 1. Explicit rate always wins (allows 0% for exports, 12% future rate, etc.)
-    if (explicitRate != null) return explicitRate
-
-    // 2. Customer tax status determines rate
-    if (customerTaxStatus === 'EXEMPT' || customerTaxStatus === 'NON_PKP') return 0
-
-    // 3. Default: 11% for PKP (or when no customer info available)
-    return (includeTax !== false) ? 11 : 0
-}
+import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts-server"
+import {
+    getRequiredInvoicePostingSystemAccountCodes,
+    INVOICE_POSTING_ACCOUNT_DEFS,
+    type RequiredSystemAccountDef,
+} from "@/lib/invoice-posting-accounts"
+import {
+    getRequiredInvoicePaymentPostingSystemAccountCodes,
+    INVOICE_PAYMENT_ACCOUNT_DEFS,
+} from "@/lib/invoice-payment-posting-accounts"
+import { assertPeriodOpen } from "@/lib/period-helpers"
+import { getPPhLiabilityAccount, type PPhTypeValue } from "@/lib/pph-helpers"
+import { legacyTermToDays, calculateDueDate } from "@/lib/payment-term-helpers"
+import { getExchangeRate, convertToIDR } from "@/lib/currency-helpers"
+import { toNum } from "@/lib/utils"
 
 export interface InvoiceKanbanItem {
     id: string
@@ -53,6 +38,80 @@ export interface InvoiceKanbanData {
     overdue: InvoiceKanbanItem[]
     paid: InvoiceKanbanItem[]
 }
+async function ensureInvoicePostingAccounts(input: {
+    type: InvoiceType
+    taxAmount: number
+    goodsReceivedViaPO: boolean
+}) {
+    const requiredCodes = getRequiredInvoicePostingSystemAccountCodes(input)
+    const existingAccounts = await prisma.gLAccount.findMany({
+        where: { code: { in: requiredCodes } },
+        select: { code: true },
+    })
+
+    const existingCodes = new Set(existingAccounts.map((account) => account.code))
+    const missingDefs = requiredCodes
+        .filter((code) => !existingCodes.has(code))
+        .map((code) => INVOICE_POSTING_ACCOUNT_DEFS[code])
+        .filter((def): def is RequiredSystemAccountDef => Boolean(def))
+
+    if (missingDefs.length === 0) return
+
+    await prisma.gLAccount.createMany({
+        data: missingDefs.map((def) => ({
+            code: def.code,
+            name: def.name,
+            type: def.type,
+            balance: 0,
+        })),
+        skipDuplicates: true,
+    })
+}
+
+async function ensureInvoicePaymentPostingAccounts(
+    prismaClient: {
+        gLAccount: {
+            findMany: (args: {
+                where: { code: { in: string[] } }
+                select: { code: true }
+            }) => Promise<Array<{ code: string }>>
+            createMany: (args: {
+                data: Array<{ code: string; name: string; type: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE"; balance: number }>
+                skipDuplicates: boolean
+            }) => Promise<unknown>
+        }
+    },
+    input: {
+        type: InvoiceType
+        paymentMethod: 'CASH' | 'TRANSFER' | 'CHECK' | 'GIRO' | 'CREDIT_CARD' | 'OTHER'
+        withholdingType?: PPhTypeValue
+        withholdingAmount?: number
+    }
+) {
+    const requiredCodes = getRequiredInvoicePaymentPostingSystemAccountCodes(input)
+    const existingAccounts = await prismaClient.gLAccount.findMany({
+        where: { code: { in: requiredCodes } },
+        select: { code: true },
+    })
+
+    const existingCodes = new Set(existingAccounts.map((account) => account.code))
+    const missingDefs = requiredCodes
+        .filter((code) => !existingCodes.has(code))
+        .map((code) => INVOICE_PAYMENT_ACCOUNT_DEFS[code])
+        .filter((def): def is RequiredSystemAccountDef => Boolean(def))
+
+    if (missingDefs.length === 0) return
+
+    await prismaClient.gLAccount.createMany({
+        data: missingDefs.map((def) => ({
+            code: def.code,
+            name: def.name,
+            type: def.type,
+            balance: 0,
+        })),
+        skipDuplicates: true,
+    })
+}
 
 type InvoiceKanbanQueryInput = {
     q?: string | null
@@ -60,52 +119,8 @@ type InvoiceKanbanQueryInput = {
     limit?: number | null
 }
 
-// ==========================================
-// AUTO-MARK OVERDUE INVOICES
-// ==========================================
-
-/**
- * Batch-update invoices/bills whose dueDate has passed from ISSUED/PARTIAL → OVERDUE.
- *
- * This is called lazily at the start of data-fetching functions
- * (kanban, aging reports) so the status is always accurate when
- * the user views their data — no cron job required.
- */
-export async function markOverdueInvoices() {
-    return await withPrismaAuth(async (prisma) => {
-        const now = new Date()
-
-        // Mark AR invoices (INV_OUT) overdue
-        const arResult = await prisma.invoice.updateMany({
-            where: {
-                type: 'INV_OUT',
-                status: { in: ['ISSUED', 'PARTIAL'] },
-                dueDate: { lt: now },
-            },
-            data: { status: 'OVERDUE' },
-        })
-
-        // Mark AP bills (INV_IN) overdue
-        const apResult = await prisma.invoice.updateMany({
-            where: {
-                type: 'INV_IN',
-                status: { in: ['ISSUED', 'PARTIAL'] },
-                dueDate: { lt: now },
-            },
-            data: { status: 'OVERDUE' },
-        })
-
-        return { arCount: arResult.count, apCount: apResult.count }
-    })
-}
-
 export async function getInvoiceKanbanData(input?: InvoiceKanbanQueryInput): Promise<InvoiceKanbanData> {
     return withPrismaAuth(async (prisma) => {
-        // Auto-mark past-due invoices before fetching data
-        await markOverdueInvoices().catch((err) => {
-            console.warn('markOverdueInvoices failed (non-fatal):', err?.message)
-        })
-
         const normalizedQ = (input?.q || "").trim()
         const normalizedType = (input?.type || "ALL") as InvoiceType | 'ALL'
         const normalizedLimitRaw = Number(input?.limit)
@@ -136,11 +151,11 @@ export async function getInvoiceKanbanData(input?: InvoiceKanbanQueryInput): Pro
 
         for (const inv of invoices) {
             const partyName = inv.customer?.name || inv.supplier?.name || 'Unknown'
-            const amount = Number(inv.totalAmount || 0)
+            const amount = toNum(inv.totalAmount)
             const dueDate = inv.dueDate
             const issueDate = inv.issueDate
 
-            const balanceDue = Number(inv.balanceDue ?? amount)
+            const balanceDue = toNum(inv.balanceDue) || amount
 
             const base: InvoiceKanbanItem = {
                 id: inv.id,
@@ -213,10 +228,8 @@ export async function createCustomerInvoice(data: {
     amount: number
     issueDate?: Date
     dueDate?: Date
-    paymentTerm?: string  // PaymentTerm enum value (CASH, NET_15, NET_30, etc.)
     notes?: string
-    includeTax?: boolean  // PPN — rate determined by customer taxStatus or explicit taxRate
-    taxRate?: number      // Explicit PPN rate override (0, 11, 12, etc.)
+    includeTax?: boolean  // PPN 11%
     // Manual Items
     items?: Array<{
         description: string
@@ -229,49 +242,16 @@ export async function createCustomerInvoice(data: {
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
-            // Determine Type and resolve party payment term + tax status
+            // Determine Type
             let invoiceType: 'INV_OUT' | 'INV_IN' = 'INV_OUT'
-            let partyPaymentTerm: string | null = null
-            let customerTaxStatus: string | null = null
 
+            // Check if ID belongs to customer or supplier if type not explicit
             if (!data.type) {
-                const customer = await prisma.customer.findUnique({
-                    where: { id: data.customerId },
-                    select: { id: true, paymentTerm: true, taxStatus: true, isTaxable: true },
-                })
-                if (customer) {
-                    invoiceType = 'INV_OUT'
-                    partyPaymentTerm = customer.paymentTerm
-                    customerTaxStatus = customer.taxStatus
-                } else {
-                    invoiceType = 'INV_IN'
-                    const supplier = await prisma.supplier.findUnique({
-                        where: { id: data.customerId },
-                        select: { paymentTerm: true },
-                    })
-                    partyPaymentTerm = supplier?.paymentTerm ?? null
-                }
+                const isCustomer = await prisma.customer.findUnique({ where: { id: data.customerId } })
+                invoiceType = isCustomer ? 'INV_OUT' : 'INV_IN'
             } else {
                 invoiceType = data.type === 'CUSTOMER' ? 'INV_OUT' : 'INV_IN'
-                // Fetch party payment term + tax status for due date & PPN calculation
-                if (data.type === 'CUSTOMER') {
-                    const customer = await prisma.customer.findUnique({
-                        where: { id: data.customerId },
-                        select: { paymentTerm: true, taxStatus: true, isTaxable: true },
-                    })
-                    partyPaymentTerm = customer?.paymentTerm ?? null
-                    customerTaxStatus = customer?.taxStatus ?? null
-                } else {
-                    const supplier = await prisma.supplier.findUnique({
-                        where: { id: data.customerId },
-                        select: { paymentTerm: true },
-                    })
-                    partyPaymentTerm = supplier?.paymentTerm ?? null
-                }
             }
-
-            // Resolve payment term: explicit param > party default > NET_30
-            const resolvedTerm = data.paymentTerm || partyPaymentTerm || 'NET_30'
 
             // Generate invoice number prefix
             const prefix = invoiceType === 'INV_OUT' ? 'INV' : 'BILL'
@@ -285,9 +265,9 @@ export async function createCustomerInvoice(data: {
             })
             const invoiceNumber = `${prefix}-${year}-${String(count + 1).padStart(4, '0')}`
 
-            // Calculate due date from payment term (explicit dueDate overrides)
+            // Calculate due date (default NET 30)
             const issueDate = data.issueDate || new Date()
-            const dueDate = data.dueDate || calculateDueDate(resolvedTerm, issueDate)
+            const dueDate = data.dueDate || new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000)
 
             // Prepare Items
             const invoiceItems = data.items && data.items.length > 0 ? data.items.map(item => ({
@@ -302,13 +282,12 @@ export async function createCustomerInvoice(data: {
                 amount: data.amount
             }]
 
-            // Calculate subtotal and tax (multi-rate PPN)
-            const subtotal = invoiceItems.reduce((sum, item) => sum + Number(item.amount), 0)
-            const effectiveRate = resolveEffectiveTaxRate(data.taxRate, customerTaxStatus, data.includeTax)
-            const taxAmount = data.includeTax ? Math.round(subtotal * (effectiveRate / 100)) : 0
+            // Calculate subtotal and tax
+            const subtotal = invoiceItems.reduce((sum, item) => sum + toNum(item.amount), 0)
+            const taxAmount = data.includeTax ? Math.round(subtotal * 0.11) : 0
             const totalAmount = subtotal + taxAmount
 
-            // Create invoice — store resolved taxRate for audit trail
+            // Create invoice
             const invoice = await prisma.invoice.create({
                 data: {
                     number: invoiceNumber,
@@ -317,10 +296,8 @@ export async function createCustomerInvoice(data: {
                     supplierId: invoiceType === 'INV_IN' ? data.customerId : null,
                     issueDate: issueDate,
                     dueDate: dueDate,
-                    paymentTerm: resolvedTerm as any,
                     subtotal: subtotal,
                     taxAmount: taxAmount,
-                    taxRate: effectiveRate,
                     totalAmount: totalAmount,
                     balanceDue: totalAmount,
                     status: 'DRAFT',
@@ -351,7 +328,6 @@ export async function updateDraftInvoice(data: {
     customerId?: string
     items?: Array<{ description: string; quantity: number; unitPrice: number }>
     includeTax?: boolean
-    taxRate?: number      // Explicit PPN rate override (0, 11, 12, etc.)
     discountAmount?: number
     issueDate?: Date
     dueDate?: Date
@@ -360,21 +336,10 @@ export async function updateDraftInvoice(data: {
         return await withPrismaAuth(async (prisma) => {
             const invoice = await prisma.invoice.findUnique({
                 where: { id: data.invoiceId },
-                select: { id: true, status: true, type: true, taxRate: true, customerId: true }
+                select: { id: true, status: true, type: true }
             })
             if (!invoice) return { success: false, error: "Invoice tidak ditemukan" }
             if (invoice.status !== 'DRAFT') return { success: false, error: "Hanya invoice DRAFT yang bisa diedit" }
-
-            // Resolve tax rate: explicit param > existing invoice rate > customer taxStatus > 11%
-            let customerTaxStatus: string | null = null
-            if (invoice.type === 'INV_OUT' && invoice.customerId) {
-                const cust = await prisma.customer.findUnique({
-                    where: { id: invoice.customerId },
-                    select: { taxStatus: true },
-                })
-                customerTaxStatus = cust?.taxStatus ?? null
-            }
-            const effectiveRate = data.taxRate ?? (invoice.taxRate != null ? Number(invoice.taxRate) : resolveEffectiveTaxRate(undefined, customerTaxStatus, data.includeTax ?? true))
 
             const discount = data.discountAmount ?? 0
 
@@ -391,12 +356,12 @@ export async function updateDraftInvoice(data: {
                 }))
                 await prisma.invoiceItem.createMany({ data: invoiceItems })
 
-                const subtotal = invoiceItems.reduce((sum, item) => sum + Number(item.amount), 0)
+                const subtotal = invoiceItems.reduce((sum, item) => sum + toNum(item.amount), 0)
                 const taxableAmount = subtotal - discount
-                const taxAmount = data.includeTax ? Math.round(taxableAmount * (effectiveRate / 100)) : 0
+                const taxAmount = data.includeTax ? Math.round(taxableAmount * 0.11) : 0
                 const totalAmount = taxableAmount + taxAmount
 
-                const updateData: any = { subtotal, taxAmount, taxRate: effectiveRate, discountAmount: discount, totalAmount, balanceDue: totalAmount }
+                const updateData: any = { subtotal, taxAmount, discountAmount: discount, totalAmount, balanceDue: totalAmount }
                 if (data.customerId) {
                     if (invoice.type === 'INV_OUT') updateData.customerId = data.customerId
                     else updateData.supplierId = data.customerId
@@ -414,7 +379,7 @@ export async function updateDraftInvoice(data: {
                 }
                 if (data.issueDate) updateData.issueDate = data.issueDate
                 if (data.dueDate) updateData.dueDate = data.dueDate
-                if (data.includeTax !== undefined || data.discountAmount !== undefined || data.taxRate !== undefined) {
+                if (data.includeTax !== undefined || data.discountAmount !== undefined) {
                     const existing = await prisma.invoice.findUnique({
                         where: { id: data.invoiceId },
                         select: { subtotal: true, discountAmount: true }
@@ -422,9 +387,8 @@ export async function updateDraftInvoice(data: {
                     const subtotal = Number(existing?.subtotal || 0)
                     const disc = data.discountAmount ?? Number(existing?.discountAmount || 0)
                     const taxableAmount = subtotal - disc
-                    const taxAmount = (data.includeTax ?? true) ? Math.round(taxableAmount * (effectiveRate / 100)) : 0
+                    const taxAmount = (data.includeTax ?? true) ? Math.round(taxableAmount * 0.11) : 0
                     updateData.taxAmount = taxAmount
-                    updateData.taxRate = effectiveRate
                     updateData.discountAmount = disc
                     updateData.totalAmount = taxableAmount + taxAmount
                     updateData.balanceDue = taxableAmount + taxAmount
@@ -458,7 +422,33 @@ export async function getInvoiceDetail(invoiceId: string) {
                 }
             })
             if (!invoice) return { success: false, error: "Invoice tidak ditemukan" }
-            return { success: true, data: invoice }
+            // Convert Prisma Decimal fields to plain numbers for client serialization
+            return {
+                success: true,
+                data: {
+                    ...invoice,
+                    subtotal: toNum(invoice.subtotal),
+                    taxAmount: toNum(invoice.taxAmount),
+                    discountAmount: toNum(invoice.discountAmount),
+                    totalAmount: toNum(invoice.totalAmount),
+                    balanceDue: toNum(invoice.balanceDue),
+                    exchangeRate: toNum(invoice.exchangeRate) || 1,
+                    amountInIDR: toNum(invoice.amountInIDR),
+                    items: invoice.items.map((item: any) => ({
+                        ...item,
+                        quantity: toNum(item.quantity),
+                        unitPrice: toNum(item.unitPrice),
+                        discount: toNum(item.discount),
+                        taxRate: toNum(item.taxRate),
+                        taxAmount: toNum(item.taxAmount),
+                        lineTotal: toNum(item.lineTotal),
+                    })),
+                    payments: invoice.payments.map((p: any) => ({
+                        ...p,
+                        amount: toNum(p.amount),
+                    })),
+                },
+            }
         })
     } catch (error: any) {
         return { success: false, error: error.message }
@@ -530,8 +520,8 @@ export async function getAccountTransactions(params?: {
                         accountName: l.account.name,
                         accountType: l.account.type,
                         description: l.description,
-                        debit: Number(l.debit),
-                        credit: Number(l.credit),
+                        debit: toNum(l.debit),
+                        credit: toNum(l.credit),
                     }))
                 })),
                 accounts: accounts.map(a => ({
@@ -618,10 +608,10 @@ export async function recordPendingBillFromPO(
                     status: 'DRAFT',
                     issueDate: new Date(),
                     dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
-                    subtotal: po.totalAmount || 0,     // pre-tax subtotal
-                    taxAmount: po.taxAmount || 0,
-                    totalAmount: po.netAmount || 0,    // grand total (subtotal + tax)
-                    balanceDue: po.netAmount || 0,     // what's actually owed
+                    subtotal: toNum(po.totalAmount),     // pre-tax subtotal
+                    taxAmount: toNum(po.taxAmount),
+                    totalAmount: toNum(po.netAmount),    // grand total (subtotal + tax)
+                    balanceDue: toNum(po.netAmount),     // what's actually owed
                     items: {
                         create: po.items.map((item: any) => ({
                             description: item.product?.name || 'Unknown Item',
@@ -709,9 +699,9 @@ export async function createInvoiceFromSalesOrder(
             })
             const invoiceNumber = `INV-${year}-${String(count + 1).padStart(4, '0')}`
 
-            // Calculate due date from sales order payment term
-            const issueDate = new Date()
-            const dueDate = calculateDueDate(salesOrder.paymentTerm, issueDate)
+            // Determine due date based on payment terms (default: NET_30 = 30 days)
+            const paymentTermDays = legacyTermToDays(salesOrder.paymentTerm)
+            const dueDate = calculateDueDate(new Date(), paymentTermDays)
 
             // Create Customer Invoice (Invoice Type OUT)
             const invoice = await prisma.invoice.create({
@@ -721,14 +711,16 @@ export async function createInvoiceFromSalesOrder(
                     customerId: salesOrder.customerId,
                     salesOrderId: salesOrder.id,
                     status: 'DRAFT',
-                    issueDate: issueDate,
+                    issueDate: new Date(),
                     dueDate: dueDate,
-                    paymentTerm: salesOrder.paymentTerm,
                     subtotal: salesOrder.subtotal,
                     taxAmount: salesOrder.taxAmount,
                     discountAmount: salesOrder.discountAmount || 0,
                     totalAmount: salesOrder.total,
                     balanceDue: salesOrder.total,
+                    currencyCode: salesOrder.currencyCode || "IDR",
+                    exchangeRate: salesOrder.exchangeRate || 1,
+                    amountInIDR: 0, // computed at posting time (moveInvoiceToSent)
                     items: {
                         create: salesOrder.items.map((item) => ({
                             description: item.product?.name || item.description || 'Unknown Item',
@@ -786,7 +778,7 @@ export async function getPendingSalesOrders() {
             id: o.id,
             number: o.number,
             customerName: (o as any).customer?.name || 'Unknown',
-            amount: Number(o.total),
+            amount: toNum(o.total),
             date: o.orderDate
         }))
     })
@@ -830,7 +822,7 @@ export async function getPendingPurchaseOrders() {
             id: o.id,
             number: o.number,
             vendorName: (o as any).supplier?.name || 'Unknown',
-            amount: Number(o.totalAmount),
+            amount: toNum(o.totalAmount),
             date: o.orderDate
         }))
     })
@@ -868,8 +860,11 @@ export async function createBillFromPOId(
     }
 }
 
-export async function moveInvoiceToSent(invoiceId: string, message?: string, method?: 'WHATSAPP' | 'EMAIL') {
+export async function moveInvoiceToSent(invoiceId: string, _message?: string, _method?: 'WHATSAPP' | 'EMAIL') {
     try {
+        // Period lock: fail fast before mutation
+        await assertPeriodOpen(new Date())
+
         const txResult = await withPrismaAuth(async (prisma) => {
             const now = new Date()
             const existing = await prisma.invoice.findUnique({
@@ -877,17 +872,15 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
                 select: {
                     id: true, number: true, dueDate: true,
                     totalAmount: true, subtotal: true, taxAmount: true,
-                    type: true, status: true,
+                    type: true, status: true, currencyCode: true,
+                    purchaseOrderId: true,
                     customer: { select: { name: true } },
                     supplier: { select: { name: true } },
                 }
             })
 
-            if (!existing) throw new Error("Invoice tidak ditemukan")
-            if (existing.status === 'ISSUED' || existing.status === 'OVERDUE') {
-                return { alreadySent: true, number: existing.number, status: existing.status }
-            }
-            if (existing.status !== 'DRAFT') throw new Error(`Invoice ${existing.number} sudah berstatus ${existing.status}. Tidak bisa dikirim.`)
+            if (!existing) throw new Error("Invoice not found")
+            if (existing.status !== 'DRAFT') throw new Error(`Invoice ${existing.number} sudah berstatus ${existing.status}. Refresh halaman untuk melihat status terbaru.`)
 
             const fallbackDueDate = new Date(now)
             fallbackDueDate.setDate(fallbackDueDate.getDate() + 30)
@@ -903,29 +896,82 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
                 }
             })
 
+            // For PO-linked bills, check if goods were received via GRN (for GR/IR clearing)
+            let goodsReceivedViaPO = false
+            if (existing.type === 'INV_IN' && existing.purchaseOrderId) {
+                const grnCount = await prisma.goodsReceivedNote.count({
+                    where: {
+                        purchaseOrderId: existing.purchaseOrderId,
+                        status: 'ACCEPTED',
+                    }
+                })
+                goodsReceivedViaPO = grnCount > 0
+            }
+
             return {
                 number: existing.number,
                 type: existing.type,
-                totalAmount: Number(existing.totalAmount || 0),
-                subtotal: Number(existing.subtotal || existing.totalAmount || 0),
-                taxAmount: Number(existing.taxAmount || 0),
+                totalAmount: toNum(existing.totalAmount),
+                subtotal: toNum(existing.subtotal) || toNum(existing.totalAmount),
+                taxAmount: toNum(existing.taxAmount),
+                currencyCode: existing.currencyCode || "IDR",
                 customerName: existing.customer?.name,
                 supplierName: existing.supplier?.name,
+                purchaseOrderId: existing.purchaseOrderId,
+                goodsReceivedViaPO,
                 nextStatus,
                 dueDate,
                 issueDate: now,
             }
         })
 
-        // If invoice was already sent (stale cache), return early without re-posting GL
-        if ('alreadySent' in txResult && txResult.alreadySent) {
-            return { success: false, alreadySent: true, error: `Invoice ${txResult.number} sudah dikirim sebelumnya` }
+        // Multi-currency: convert to IDR if foreign currency
+        const currencyCode = txResult.currencyCode || "IDR"
+        let amountInIDR = txResult.totalAmount
+        let taxInIDR = txResult.taxAmount
+        let subtotalInIDR = txResult.subtotal
+
+        if (currencyCode !== "IDR") {
+            try {
+                const rate = await getExchangeRate(currencyCode, txResult.issueDate)
+                amountInIDR = convertToIDR(txResult.totalAmount, rate)
+                taxInIDR = convertToIDR(txResult.taxAmount, rate)
+                subtotalInIDR = convertToIDR(txResult.subtotal, rate)
+
+                // Store the rate and IDR amount on the invoice
+                await prisma.invoice.update({
+                    where: { id: invoiceId },
+                    data: { exchangeRate: rate, amountInIDR }
+                })
+            } catch (error: any) {
+                // Revert invoice to DRAFT if rate not available
+                await prisma.invoice.update({
+                    where: { id: invoiceId },
+                    data: { status: 'DRAFT', issueDate: null }
+                }).catch(() => {})
+                return { success: false, error: error.message }
+            }
+        } else {
+            // IDR: amountInIDR = totalAmount
+            await prisma.invoice.update({
+                where: { id: invoiceId },
+                data: { amountInIDR: txResult.totalAmount }
+            }).catch(() => {})
         }
 
         // Post GL entry for AR/AP recognition (outside withPrismaAuth to avoid nested transaction)
         // Idempotency: check if journal entry already exists for this invoice
         try {
-            await ensureSystemAccounts()
+            try {
+                await ensureInvoicePostingAccounts({
+                    type: txResult.type,
+                    taxAmount: txResult.taxAmount,
+                    goodsReceivedViaPO: txResult.goodsReceivedViaPO,
+                })
+            } catch (accountEnsureError) {
+                console.warn("[moveInvoiceToSent] Fast invoice account ensure failed, falling back to full ensureSystemAccounts()", accountEnsureError)
+                await ensureSystemAccounts()
+            }
             const existingJE = await prisma.journalEntry.findFirst({
                 where: {
                     OR: [
@@ -937,41 +983,125 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
             })
 
             if (!existingJE) {
+                // GL always in IDR — use converted amounts for foreign currency invoices
+                const glCurrencyNote = currencyCode !== "IDR" ? ` [${currencyCode}→IDR]` : ""
+                let glResult: any
+
                 if (txResult.type === 'INV_OUT') {
                     // AR Invoice: DR Piutang Usaha, CR Pendapatan + CR PPN Keluaran
                     const lines: { accountCode: string; debit: number; credit: number; description: string }[] = [
-                        { accountCode: SYS_ACCOUNTS.AR, debit: txResult.totalAmount, credit: 0, description: `Piutang - ${txResult.customerName || 'Customer'}` },
+                        { accountCode: SYS_ACCOUNTS.AR, debit: amountInIDR, credit: 0, description: `Piutang - ${txResult.customerName || 'Customer'}${glCurrencyNote}` },
                     ]
-                    if (txResult.taxAmount > 0) {
-                        lines.push({ accountCode: SYS_ACCOUNTS.REVENUE, debit: 0, credit: txResult.subtotal, description: `Pendapatan - ${txResult.number}` })
-                        lines.push({ accountCode: SYS_ACCOUNTS.PPN_KELUARAN, debit: 0, credit: txResult.taxAmount, description: `PPN Keluaran - ${txResult.number}` })
+                    if (taxInIDR > 0) {
+                        lines.push({ accountCode: SYS_ACCOUNTS.REVENUE, debit: 0, credit: subtotalInIDR, description: `Pendapatan - ${txResult.number}${glCurrencyNote}` })
+                        lines.push({ accountCode: SYS_ACCOUNTS.PPN_KELUARAN, debit: 0, credit: taxInIDR, description: `PPN Keluaran - ${txResult.number}${glCurrencyNote}` })
                     } else {
-                        lines.push({ accountCode: SYS_ACCOUNTS.REVENUE, debit: 0, credit: txResult.totalAmount, description: `Pendapatan - ${txResult.number}` })
+                        lines.push({ accountCode: SYS_ACCOUNTS.REVENUE, debit: 0, credit: amountInIDR, description: `Pendapatan - ${txResult.number}${glCurrencyNote}` })
                     }
-                    await postJournalEntry({
-                        description: `Faktur Penjualan ${txResult.number} - ${txResult.customerName || 'Customer'}`,
+                    glResult = await postJournalEntry({
+                        description: `Faktur Penjualan ${txResult.number} - ${txResult.customerName || 'Customer'}${glCurrencyNote}`,
                         date: txResult.issueDate,
                         reference: txResult.number,
                         invoiceId: invoiceId,
                         lines,
                     })
                 } else {
-                    // AP Bill: DR HPP + DR PPN Masukan, CR Hutang Usaha
+                    // AP Bill: DR [expense account] + DR PPN Masukan, CR Hutang Usaha (AP)
+                    // For PO-linked bills with received goods: DR GR/IR Clearing (2150) instead of Expense
+                    //   → This clears the GR/IR suspense created when GRN was accepted (DR Inventory, CR GR/IR)
+                    //   → Net effect: GR/IR Clearing balance returns to zero after both GRN + bill
+                    // For non-PO bills (direct expense purchase): DR Expense (6900) as before
+                    const debitAccount = txResult.goodsReceivedViaPO
+                        ? SYS_ACCOUNTS.GR_IR_CLEARING
+                        : SYS_ACCOUNTS.EXPENSE_DEFAULT
+                    const debitLabel = txResult.goodsReceivedViaPO
+                        ? `GR/IR Clearing - ${txResult.number}`
+                        : `Beban - ${txResult.number}`
+
                     const lines: { accountCode: string; debit: number; credit: number; description: string }[] = []
-                    if (txResult.taxAmount > 0) {
-                        lines.push({ accountCode: SYS_ACCOUNTS.COGS, debit: txResult.subtotal, credit: 0, description: `HPP - ${txResult.number}` })
-                        lines.push({ accountCode: SYS_ACCOUNTS.PPN_MASUKAN, debit: txResult.taxAmount, credit: 0, description: `PPN Masukan - ${txResult.number}` })
+                    if (taxInIDR > 0) {
+                        lines.push({ accountCode: debitAccount, debit: subtotalInIDR, credit: 0, description: `${debitLabel}${glCurrencyNote}` })
+                        lines.push({ accountCode: SYS_ACCOUNTS.PPN_MASUKAN, debit: taxInIDR, credit: 0, description: `PPN Masukan - ${txResult.number}${glCurrencyNote}` })
                     } else {
-                        lines.push({ accountCode: SYS_ACCOUNTS.COGS, debit: txResult.totalAmount, credit: 0, description: `HPP - ${txResult.number}` })
+                        lines.push({ accountCode: debitAccount, debit: amountInIDR, credit: 0, description: `${debitLabel}${glCurrencyNote}` })
                     }
-                    lines.push({ accountCode: SYS_ACCOUNTS.AP, debit: 0, credit: txResult.totalAmount, description: `Hutang - ${txResult.supplierName || 'Supplier'}` })
-                    await postJournalEntry({
+                    lines.push({ accountCode: SYS_ACCOUNTS.AP, debit: 0, credit: amountInIDR, description: `Hutang - ${txResult.supplierName || 'Supplier'}${glCurrencyNote}` })
+                    glResult = await postJournalEntry({
                         description: `Tagihan Pembelian ${txResult.number} - ${txResult.supplierName || 'Supplier'}`,
                         date: txResult.issueDate,
                         reference: txResult.number,
                         invoiceId: invoiceId,
                         lines,
                     })
+                }
+
+                // CRITICAL: Check GL result — if posting failed, throw to trigger revert
+                if (!glResult?.success) {
+                    throw new Error(`GL posting failed: ${glResult?.error || 'Unknown error'}`)
+                }
+            }
+
+            // --- COGS Recognition for Sales Invoices with Stock Items ---
+            // BLOCKING: If COGS posting fails, the outer catch reverts invoice to DRAFT.
+            // Revenue and COGS must always be recognized together, or not at all.
+            if (txResult.type === 'INV_OUT') {
+                const invoiceItems = await prisma.invoiceItem.findMany({
+                    where: { invoiceId },
+                    select: {
+                        quantity: true,
+                        product: {
+                            select: {
+                                id: true,
+                                name: true,
+                                costPrice: true,
+                                productType: true,
+                                cogsAccountId: true,
+                                inventoryAccountId: true,
+                                cogsAccount: { select: { code: true } },
+                                inventoryAccount: { select: { code: true } },
+                            }
+                        }
+                    }
+                })
+
+                const cogsLines: { accountCode: string; debit: number; credit: number; description: string }[] = []
+                for (const item of invoiceItems) {
+                    if (!item.product) continue // service/text line — skip
+                    const cost = Number(item.product.costPrice || 0)
+                    if (cost <= 0) continue // no cost — skip (services, zero-cost items)
+                    const qty = Number(item.quantity || 0)
+                    if (qty <= 0) continue
+                    const cogsAmount = qty * cost
+
+                    const cogsCode = item.product.cogsAccount?.code || SYS_ACCOUNTS.COGS
+                    const invCode = item.product.inventoryAccount?.code || SYS_ACCOUNTS.INVENTORY_ASSET
+
+                    cogsLines.push({
+                        accountCode: cogsCode,
+                        debit: cogsAmount,
+                        credit: 0,
+                        description: `HPP - ${item.product.name} (${qty} x ${cost})`,
+                    })
+                    cogsLines.push({
+                        accountCode: invCode,
+                        debit: 0,
+                        credit: cogsAmount,
+                        description: `Persediaan keluar - ${item.product.name}`,
+                    })
+                }
+
+                if (cogsLines.length > 0) {
+                    const cogsResult = await postJournalEntry({
+                        description: `HPP Penjualan ${txResult.number} - ${txResult.customerName || 'Customer'}`,
+                        date: txResult.issueDate,
+                        reference: `COGS-${txResult.number}`,
+                        invoiceId: invoiceId,
+                        sourceDocumentType: 'COGS_RECOGNITION',
+                        lines: cogsLines,
+                    })
+                    if (!cogsResult?.success) {
+                        throw new Error(`COGS posting gagal: ${cogsResult?.error || 'Unknown error'}`)
+                    }
                 }
             }
         } catch (glError: any) {
@@ -989,104 +1119,193 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
             }
         }
 
-        return { success: true, number: txResult.number, dueDate: txResult.dueDate, status: txResult.nextStatus }
+        return { success: true, dueDate: txResult.dueDate, status: txResult.nextStatus }
     } catch (error: any) {
         console.error("Failed to move invoice to sent:", error)
-        return { success: false, error: error?.message || "Gagal mengupdate status invoice" }
+        return { success: false, error: error?.message || "Failed to update invoice status" }
     }
 }
 
 export async function recordInvoicePayment(data: {
     invoiceId: string
-    paymentMethod: 'CASH' | 'TRANSFER' | 'CHECK' | 'CREDIT_CARD' | 'OTHER'
+    paymentMethod: 'CASH' | 'TRANSFER' | 'CHECK' | 'GIRO' | 'CREDIT_CARD' | 'OTHER'
     amount: number
     paymentDate: Date
     reference?: string
     notes?: string
+    withholding?: {
+        type: PPhTypeValue
+        rate: number
+        baseAmount: number
+        buktiPotongNo?: string
+    }
 }) {
     try {
-        // Step 1: Create payment + update invoice in a single transaction
-        const txResult = await withPrismaAuth(async (prisma) => {
+        const paymentDate = new Date(data.paymentDate)
+        if (Number.isNaN(paymentDate.getTime())) {
+            throw new Error("Tanggal pembayaran tidak valid")
+        }
+        if (!data.amount || Number(data.amount) <= 0) {
+            throw new Error("Jumlah pembayaran harus lebih dari 0")
+        }
+        if (data.paymentMethod === 'CHECK' && !data.reference?.trim()) {
+            throw new Error("Nomor cek / referensi wajib diisi untuk metode CHECK")
+        }
+
+        // Period lock: fail fast before mutation
+        await assertPeriodOpen(paymentDate)
+
+        // Calculate PPh withholding amount (if any)
+        const pphAmount = data.withholding
+            ? Math.round((data.withholding.rate / 100) * data.withholding.baseAmount)
+            : 0
+
+        return await withPrismaAuth(async (prisma) => {
             const invoice = await prisma.invoice.findUnique({
                 where: { id: data.invoiceId },
                 include: { customer: true, supplier: true }
             })
 
             if (!invoice) throw new Error("Invoice not found")
+            if (invoice.status === 'DRAFT') {
+                throw new Error("Invoice draft belum bisa dicatat pembayarannya")
+            }
+
+            const currentBalance = toNum(invoice.balanceDue)
+            if (data.amount > currentBalance + 0.01) {
+                throw new Error("Jumlah pembayaran tidak boleh melebihi sisa tagihan")
+            }
+
+            await ensureInvoicePaymentPostingAccounts(prisma, {
+                type: invoice.type,
+                paymentMethod: data.paymentMethod,
+                withholdingType: data.withholding?.type,
+                withholdingAmount: pphAmount,
+            })
+
+            const year = paymentDate.getFullYear()
+            const prefix = invoice.type === 'INV_OUT' ? 'PAY' : 'VPAY'
+            const count = await prisma.payment.count({
+                where: { number: { startsWith: `${prefix}-${year}` } }
+            })
+            const paymentNumber = `${prefix}-${year}-${String(count + 1).padStart(4, '0')}`
 
             const payment = await prisma.payment.create({
                 data: {
-                    number: `PAY-${Date.now()}`,
-                    date: data.paymentDate,
+                    number: paymentNumber,
+                    date: paymentDate,
                     amount: data.amount,
                     method: data.paymentMethod === 'CREDIT_CARD' || data.paymentMethod === 'OTHER' ? 'TRANSFER' : data.paymentMethod,
                     reference: data.reference,
                     notes: data.notes,
                     invoiceId: invoice.id,
                     customerId: invoice.customerId,
-                    supplierId: invoice.supplierId
+                    supplierId: invoice.supplierId,
+                    glPostingStatus: 'PENDING',
+                    whtAmount: pphAmount > 0 ? pphAmount : null,
+                    whtRate: data.withholding ? data.withholding.rate / 100 : null,
                 }
             })
 
-            const newBalance = Number(invoice.balanceDue) - data.amount
-            const newStatus = newBalance <= 0 ? 'PAID' : 'PARTIAL'
+            // For INV_OUT with withholding: total settled = cash received + PPh withheld by customer
+            const settledAmount = invoice.type === 'INV_OUT'
+                ? data.amount + pphAmount
+                : data.amount
+            const rawNewBalance = currentBalance - settledAmount
+            const newBalance = Math.max(0, rawNewBalance)
+            const newStatus = rawNewBalance <= 0.01 ? 'PAID' : 'PARTIAL'
 
             await prisma.invoice.update({
                 where: { id: invoice.id },
                 data: { status: newStatus, balanceDue: newBalance }
             })
 
-            return {
-                paymentNumber: payment.number,
-                invoiceNumber: invoice.number,
-                invoiceType: invoice.type,
-                customerName: invoice.customer?.name,
-                supplierName: invoice.supplier?.name,
+            const cashAccountCode = getCashAccountCode(data.paymentMethod)
+            let glResult: any
+
+            if (invoice.type === 'INV_OUT') {
+                // AR Payment: DR Kas/Bank, DR PPh Dibayar Dimuka (if withheld), CR Piutang Usaha
+                const totalSettled = data.amount + pphAmount
+                const arLines: { accountCode: string; debit: number; credit: number; description?: string }[] = [
+                    { accountCode: cashAccountCode, debit: data.amount, credit: 0, description: `Terima dari ${invoice.customer?.name || 'Customer'}` },
+                    { accountCode: SYS_ACCOUNTS.AR, debit: 0, credit: totalSettled, description: `Pelunasan ${invoice.number}` },
+                ]
+
+                if (data.withholding && pphAmount > 0) {
+                    arLines.push({
+                        accountCode: SYS_ACCOUNTS.PPH_PREPAID,
+                        debit: pphAmount,
+                        credit: 0,
+                        description: `PPh Dibayar Dimuka - ${invoice.number}`,
+                    })
+                }
+
+                glResult = await postJournalEntry({
+                    description: `Penerimaan Pembayaran ${invoice.number} - ${invoice.customer?.name || 'Customer'}`,
+                    date: paymentDate,
+                    reference: `${payment.number} — ${invoice.number}`,
+                    invoiceId: data.invoiceId,
+                    paymentId: payment.id,
+                    lines: arLines,
+                }, prisma)
+            } else {
+                // AP Payment: DR Hutang Usaha, CR Kas/Bank, CR Utang PPh (if withheld)
+                const apLines: { accountCode: string; debit: number; credit: number; description?: string }[] = [
+                    { accountCode: SYS_ACCOUNTS.AP, debit: data.amount, credit: 0, description: `Pelunasan ${invoice.supplier?.name || 'Supplier'}` },
+                ]
+
+                if (data.withholding && pphAmount > 0) {
+                    apLines.push(
+                        { accountCode: cashAccountCode, debit: 0, credit: data.amount - pphAmount, description: `Bayar ${invoice.number}` },
+                        { accountCode: getPPhLiabilityAccount(data.withholding.type), debit: 0, credit: pphAmount, description: `Utang PPh - ${invoice.number}` },
+                    )
+                } else {
+                    apLines.push(
+                        { accountCode: cashAccountCode, debit: 0, credit: data.amount, description: `Bayar ${invoice.number}` },
+                    )
+                }
+
+                glResult = await postJournalEntry({
+                    description: `Pembayaran Tagihan ${invoice.number} - ${invoice.supplier?.name || 'Supplier'}`,
+                    date: paymentDate,
+                    reference: `${payment.number} — ${invoice.number}`,
+                    invoiceId: data.invoiceId,
+                    paymentId: payment.id,
+                    lines: apLines,
+                }, prisma)
             }
+
+            if (!glResult?.success) {
+                throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${glResult?.error || 'Unknown GL error'}`)
+            }
+
+            // Create WithholdingTax record if applicable
+            if (data.withholding && pphAmount > 0) {
+                await prisma.withholdingTax.create({
+                    data: {
+                        paymentId: payment.id,
+                        invoiceId: invoice.id,
+                        type: data.withholding.type,
+                        direction: invoice.type === 'INV_OUT' ? 'IN' : 'OUT',
+                        rate: data.withholding.rate,
+                        baseAmount: data.withholding.baseAmount,
+                        amount: pphAmount,
+                        buktiPotongNo: data.withholding.buktiPotongNo || null,
+                        buktiPotongDate: data.withholding.buktiPotongNo ? new Date() : null,
+                    },
+                })
+            }
+
+            await prisma.payment.update({
+                where: { id: payment.id },
+                data: { glPostingStatus: 'POSTED' },
+            })
+
+            return { success: true, paymentId: payment.id, paymentNumber: payment.number }
         })
-
-        // Step 2: Post journal entry OUTSIDE the main transaction to avoid nested tx deadlock
-        await ensureSystemAccounts()
-        const cashAccountCode = getCashAccountCode(data.paymentMethod)
-
-        let glResult: any
-        if (txResult.invoiceType === 'INV_OUT') {
-            // AR Payment: DR Kas/Bank, CR Piutang Usaha
-            glResult = await postJournalEntry({
-                description: `Penerimaan Pembayaran ${txResult.invoiceNumber} - ${txResult.customerName || 'Customer'}`,
-                date: data.paymentDate,
-                reference: `${txResult.paymentNumber} — ${txResult.invoiceNumber}`,
-                invoiceId: data.invoiceId,
-                lines: [
-                    { accountCode: cashAccountCode, debit: data.amount, credit: 0, description: `Terima dari ${txResult.customerName}` },
-                    { accountCode: SYS_ACCOUNTS.AR, debit: 0, credit: data.amount, description: `Pelunasan ${txResult.invoiceNumber}` }
-                ]
-            })
-        } else {
-            // AP Payment: DR Hutang Usaha, CR Kas/Bank
-            glResult = await postJournalEntry({
-                description: `Pembayaran Tagihan ${txResult.invoiceNumber} - ${txResult.supplierName || 'Supplier'}`,
-                date: data.paymentDate,
-                reference: `${txResult.paymentNumber} — ${txResult.invoiceNumber}`,
-                invoiceId: data.invoiceId,
-                lines: [
-                    { accountCode: SYS_ACCOUNTS.AP, debit: data.amount, credit: 0, description: `Pelunasan ${txResult.supplierName}` },
-                    { accountCode: cashAccountCode, debit: 0, credit: data.amount, description: `Bayar ${txResult.invoiceNumber}` }
-                ]
-            })
-        }
-
-        if (!glResult?.success) {
-            return {
-                success: true,
-                glWarning: `Pembayaran berhasil dicatat, tetapi jurnal GL gagal diposting: ${glResult?.error || 'Akun GL tidak ditemukan'}. Hubungi bagian akuntansi.`,
-            }
-        }
-
-        return { success: true }
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to record payment:", error)
-        return { success: false, error: "Failed to record payment" }
+        return { success: false, error: error?.message || "Failed to record payment" }
     }
 }
 
@@ -1101,7 +1320,7 @@ export async function recordInvoicePayment(data: {
  */
 export async function createBillFromPR(
     prId: string,
-    options?: { forceCreate?: boolean; includeTax?: boolean; taxRate?: number }
+    options?: { forceCreate?: boolean; includeTax?: boolean }
 ) {
     try {
         return await withPrismaAuth(async (prisma) => {
@@ -1204,8 +1423,7 @@ export async function createBillFromPR(
 
             const subtotal = invoiceItems.reduce((sum, item) => sum + item.amount, 0)
             const includeTax = options?.includeTax ?? false
-            const billTaxRate = options?.taxRate ?? 11 // AP bills default to 11% when tax is included
-            const taxAmount = includeTax ? Math.round(subtotal * (billTaxRate / 100)) : 0
+            const taxAmount = includeTax ? Math.round(subtotal * 0.11) : 0
             const totalAmount = subtotal + taxAmount
 
             // Due date: NET 30
@@ -1224,7 +1442,6 @@ export async function createBillFromPR(
                     dueDate,
                     subtotal,
                     taxAmount,
-                    taxRate: includeTax ? billTaxRate : 0,
                     totalAmount,
                     balanceDue: totalAmount,
                     items: {
@@ -1249,5 +1466,39 @@ export async function createBillFromPR(
     } catch (error: any) {
         console.error("Failed to create bill from PR:", error)
         return { success: false, error: error.message || "Gagal membuat bill dari Purchase Request" }
+    }
+}
+
+/**
+ * Cancel a DRAFT invoice/bill — sets status to CANCELLED.
+ * Only DRAFT invoices can be cancelled via this action.
+ */
+export async function cancelInvoice(invoiceId: string, reason?: string) {
+    try {
+        const result = await withPrismaAuth(async (prisma) => {
+            const existing = await prisma.invoice.findUnique({
+                where: { id: invoiceId },
+                select: { id: true, number: true, status: true },
+            })
+
+            if (!existing) throw new Error("Invoice tidak ditemukan")
+            if (existing.status !== 'DRAFT') {
+                throw new Error(`Invoice ${existing.number} berstatus ${existing.status}, hanya DRAFT yang bisa dibatalkan.`)
+            }
+
+            await prisma.invoice.update({
+                where: { id: invoiceId },
+                data: {
+                    status: 'CANCELLED',
+                },
+            })
+
+            return { number: existing.number }
+        })
+
+        return { success: true, invoiceNumber: result.number }
+    } catch (error: any) {
+        console.error("Failed to cancel invoice:", error)
+        return { success: false, error: error.message || "Gagal membatalkan invoice" }
     }
 }

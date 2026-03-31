@@ -7,6 +7,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
+import { NBDialog } from "@/components/ui/nb-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -322,13 +323,12 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
 
     return (
         <>
-            <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="max-w-2xl p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0">
+            <NBDialog open={open} onOpenChange={onOpenChange} size="default">
                     {/* Header */}
-                    <DialogHeader className="bg-black text-white px-6 py-4">
+                    <DialogHeader className="bg-black text-white px-5 py-3">
                         <div className="flex items-center justify-between">
                             <div className="flex-1 min-w-0">
-                                <DialogTitle className="text-lg font-black uppercase tracking-wider text-white truncate">
+                                <DialogTitle className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
                                     {loading ? "Memuat..." : product?.name || "Produk"}
                                 </DialogTitle>
                                 {product && (
@@ -749,8 +749,7 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                             </div>
                         )}
                     </ScrollArea>
-                </DialogContent>
-            </Dialog>
+            </NBDialog>
 
             {/* Delete Confirmation */}
             <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

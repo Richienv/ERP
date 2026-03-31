@@ -1,8 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
@@ -10,6 +8,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner"
 import { detectWorkOrderShortages, createPRFromWorkOrder } from "@/lib/actions/manufacturing-procurement"
 import { IconAlertTriangle, IconCheck, IconLoader2 } from "@tabler/icons-react"
+import {
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBDialogFooter,
+} from "@/components/ui/nb-dialog"
 
 interface ShortageItem {
     materialId: string
@@ -88,15 +92,14 @@ export function ShortageDialog({ workOrderId, open, onOpenChange, onPRCreated }:
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-4xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                        <IconAlertTriangle className="h-5 w-5" />
-                        Cek Kebutuhan Material
-                    </DialogTitle>
-                </DialogHeader>
+        <NBDialog open={open} onOpenChange={onOpenChange} size="wide">
+            <NBDialogHeader
+                icon={IconAlertTriangle}
+                title="Cek Kebutuhan Material"
+                subtitle="Deteksi kekurangan material dan buat Purchase Request"
+            />
 
+            <NBDialogBody>
                 {loading ? (
                     <div className="flex items-center justify-center py-12">
                         <IconLoader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -111,99 +114,86 @@ export function ShortageDialog({ workOrderId, open, onOpenChange, onPRCreated }:
                         <p className="text-sm text-muted-foreground">Tidak ada kekurangan material untuk work order ini.</p>
                     </div>
                 ) : (
-                    <>
-                        <div className="max-h-96 overflow-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Material</TableHead>
-                                        <TableHead className="text-right">Butuh</TableHead>
-                                        <TableHead className="text-right">Stok</TableHead>
-                                        <TableHead className="text-right">On Order</TableHead>
-                                        <TableHead className="text-right">Kurang</TableHead>
-                                        <TableHead>Supplier</TableHead>
-                                        <TableHead className="text-right">Qty Pesan</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {shortages.map((item) => (
-                                        <TableRow key={item.materialId}>
-                                            <TableCell>
-                                                <div>
-                                                    <p className="font-medium">{item.materialName}</p>
-                                                    <p className="text-xs text-muted-foreground">{item.materialCode} · {item.unit}</p>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="text-right">{item.requiredQty}</TableCell>
-                                            <TableCell className="text-right">{item.availableQty}</TableCell>
-                                            <TableCell className="text-right">{item.onOrderQty}</TableCell>
-                                            <TableCell className="text-right">
-                                                <Badge variant="destructive">{item.shortfall}</Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                {item.suppliers.length > 0 ? (
-                                                    <Select
-                                                        value={selectedSuppliers[item.materialId] ?? ""}
-                                                        onValueChange={(v) =>
-                                                            setSelectedSuppliers((prev) => ({ ...prev, [item.materialId]: v }))
-                                                        }
-                                                    >
-                                                        <SelectTrigger className="h-8 w-40">
-                                                            <SelectValue placeholder="Pilih..." />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {item.suppliers.map((s) => (
-                                                                <SelectItem key={s.id} value={s.id}>
-                                                                    {s.name}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                ) : (
-                                                    <span className="text-xs text-muted-foreground">Belum ada</span>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <Input
-                                                    type="number"
-                                                    className="h-8 w-20 text-right"
-                                                    value={orderQtys[item.materialId] ?? 0}
-                                                    onChange={(e) =>
-                                                        setOrderQtys((prev) => ({
-                                                            ...prev,
-                                                            [item.materialId]: parseInt(e.target.value) || 0,
-                                                        }))
+                    <div className="max-h-96 overflow-auto border border-zinc-200">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Material</TableHead>
+                                    <TableHead className="text-right">Butuh</TableHead>
+                                    <TableHead className="text-right">Stok</TableHead>
+                                    <TableHead className="text-right">On Order</TableHead>
+                                    <TableHead className="text-right">Kurang</TableHead>
+                                    <TableHead>Supplier</TableHead>
+                                    <TableHead className="text-right">Qty Pesan</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {shortages.map((item) => (
+                                    <TableRow key={item.materialId}>
+                                        <TableCell>
+                                            <div>
+                                                <p className="font-medium">{item.materialName}</p>
+                                                <p className="text-xs text-muted-foreground">{item.materialCode} · {item.unit}</p>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-right">{item.requiredQty}</TableCell>
+                                        <TableCell className="text-right">{item.availableQty}</TableCell>
+                                        <TableCell className="text-right">{item.onOrderQty}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Badge variant="destructive">{item.shortfall}</Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            {item.suppliers.length > 0 ? (
+                                                <Select
+                                                    value={selectedSuppliers[item.materialId] ?? ""}
+                                                    onValueChange={(v) =>
+                                                        setSelectedSuppliers((prev) => ({ ...prev, [item.materialId]: v }))
                                                     }
-                                                />
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => onOpenChange(false)}>
-                                Batal
-                            </Button>
-                            <Button
-                                onClick={handleCreatePR}
-                                disabled={creating}
-                                className="border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-                            >
-                                {creating ? (
-                                    <>
-                                        <IconLoader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Membuat...
-                                    </>
-                                ) : (
-                                    "Buat Purchase Request"
-                                )}
-                            </Button>
-                        </DialogFooter>
-                    </>
+                                                >
+                                                    <SelectTrigger className="h-8 w-40 rounded-none text-xs">
+                                                        <SelectValue placeholder="Pilih..." />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {item.suppliers.map((s) => (
+                                                            <SelectItem key={s.id} value={s.id}>
+                                                                {s.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            ) : (
+                                                <span className="text-xs text-muted-foreground">Belum ada</span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <Input
+                                                type="number"
+                                                className="h-8 w-20 text-right rounded-none text-xs"
+                                                value={orderQtys[item.materialId] ?? 0}
+                                                onChange={(e) =>
+                                                    setOrderQtys((prev) => ({
+                                                        ...prev,
+                                                        [item.materialId]: parseInt(e.target.value) || 0,
+                                                    }))
+                                                }
+                                            />
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
                 )}
-            </DialogContent>
-        </Dialog>
+            </NBDialogBody>
+
+            {shortages.length > 0 && !loading && (
+                <NBDialogFooter
+                    onCancel={() => onOpenChange(false)}
+                    onSubmit={handleCreatePR}
+                    submitting={creating}
+                    submitLabel="Buat Purchase Request"
+                />
+            )}
+        </NBDialog>
     )
 }

@@ -385,21 +385,18 @@ export async function addCutPlanLayer(data: {
             })
 
             // Post GL entry: DR WIP, CR Raw Materials
+            // BLOCKING: GL failure rolls back the entire cut plan layer transaction
             if (totalValue > 0) {
-                try {
-                    const { postInventoryGLEntry } = await import("@/lib/actions/inventory-gl")
-                    await postInventoryGLEntry(prisma, {
-                        transactionId: invTx.id,
-                        type: 'CUT_CONSUME',
-                        productName: roll.product.name,
-                        quantity: data.metersUsed,
-                        unitCost,
-                        totalValue,
-                        reference: `${cutPlan.number} layer #${data.layerNumber}`,
-                    })
-                } catch (glErr) {
-                    console.error("[addCutPlanLayer] GL posting failed:", glErr)
-                }
+                const { postInventoryGLEntry } = await import("@/lib/actions/inventory-gl")
+                await postInventoryGLEntry(prisma, {
+                    transactionId: invTx.id,
+                    type: 'CUT_CONSUME',
+                    productName: roll.product.name,
+                    quantity: data.metersUsed,
+                    unitCost,
+                    totalValue,
+                    reference: `${cutPlan.number} layer #${data.layerNumber}`,
+                })
             }
 
             // Update fabric roll status

@@ -1,11 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { PaymentTermLegacy } from '@prisma/client'
 
+import { isValidNpwp } from '@/lib/npwp'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
 
 const toNumber = (value: unknown, fallback = 0) => {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : fallback
+}
+
+const toOptionalText = (value: unknown) => {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+const isEnumValue = <T extends string>(value: unknown, enumValues: readonly T[]): value is T => {
+  return typeof value === 'string' && enumValues.includes(value as T)
 }
 
 async function requireAuth() {
@@ -29,13 +41,25 @@ export async function PUT(
       return NextResponse.json({ success: false, error: 'Customer not found' }, { status: 404 })
     }
 
+    const npwp = body.npwp !== undefined ? toOptionalText(body.npwp) : existing.npwp
+    if (npwp && !isValidNpwp(npwp)) {
+      return NextResponse.json(
+        { success: false, error: 'NPWP harus terdiri dari 15 atau 16 digit angka' },
+        { status: 400 }
+      )
+    }
+
+    const paymentTerm = isEnumValue(body.paymentTerm, Object.values(PaymentTermLegacy))
+      ? body.paymentTerm
+      : existing.paymentTerm
+
     const updated = await prisma.customer.update({
       where: { id },
       data: {
         name: body.name ?? existing.name,
         legalName: body.legalName !== undefined ? body.legalName : existing.legalName,
         customerType: body.customerType ?? existing.customerType,
-        npwp: body.npwp !== undefined ? body.npwp : existing.npwp,
+        npwp,
         nik: body.nik !== undefined ? body.nik : existing.nik,
         taxAddress: body.taxAddress !== undefined ? body.taxAddress : existing.taxAddress,
         isTaxable: body.isTaxable !== undefined ? body.isTaxable : existing.isTaxable,
@@ -45,7 +69,7 @@ export async function PUT(
         website: body.website !== undefined ? body.website : existing.website,
         creditLimit: body.creditLimit !== undefined ? body.creditLimit : existing.creditLimit,
         creditTerm: body.creditTerm !== undefined ? body.creditTerm : existing.creditTerm,
-        paymentTerm: body.paymentTerm ?? existing.paymentTerm,
+        paymentTerm,
         creditStatus: body.creditStatus ?? existing.creditStatus,
         currency: body.currency ?? existing.currency,
         isActive: body.isActive !== undefined ? body.isActive : existing.isActive,

@@ -2,27 +2,25 @@
 
 import { useState } from "react"
 import { queryKeys } from "@/lib/query-keys"
-import { Plus, FileText, Loader2 } from "lucide-react"
+import { Plus, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-// Textarea removed — using Input for compact layout
 import { Checkbox } from "@/components/ui/checkbox"
-import {
-    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select"
-import {
-    Dialog, DialogContent, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog"
+import { SelectItem } from "@/components/ui/select"
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
-// Badge removed — using inline span for status
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
 import { useCreditDebitNotes } from "@/hooks/use-credit-debit-notes"
 import { createDebitNote } from "@/lib/actions/finance"
 import { useQueryClient } from "@tanstack/react-query"
 import { NB } from "@/lib/dialog-styles"
+import { TAX_RATES } from "@/lib/tax-rates"
+import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
+import {
+    NBDialog, NBDialogHeader, NBDialogBody, NBDialogFooter,
+    NBSection, NBSelect, NBCurrencyInput, NBInput,
+} from "@/components/ui/nb-dialog"
 
 const REASON_CODES = [
     { code: "RET-DEFECT", label: "Barang Cacat/Rusak" },
@@ -49,11 +47,9 @@ export function NotaDebitTab() {
 
     const debitNotes = (data?.notes ?? []).filter((n: any) => n.type === "DEBIT_NOTE")
     const suppliers = data?.suppliers ?? []
-    const apAccounts = data?.apAccounts ?? []
-    const expenseAccounts = data?.expenseAccounts ?? []
 
     const subtotal = Number(form.amount) || 0
-    const ppnAmount = includePPN ? Math.round(subtotal * 0.11) : 0
+    const ppnAmount = includePPN ? Math.round(subtotal * TAX_RATES.PPN) : 0
     const total = subtotal + ppnAmount
 
     const totalDN = debitNotes.reduce((sum: number, n: any) => sum + Number(n.amount || 0), 0)
@@ -71,23 +67,15 @@ export function NotaDebitTab() {
             return
         }
 
-        const defaultAP = apAccounts[0]
-        const defaultExpense = expenseAccounts[0]
-        if (!defaultAP || !defaultExpense) {
-            toast.error("Akun AP atau Beban tidak ditemukan. Pastikan Chart of Accounts sudah diatur.")
-            return
-        }
-
         setSubmitting(true)
         try {
             const reasonLabel = REASON_CODES.find(r => r.code === form.reason)?.label ?? form.reason
             const result = await createDebitNote({
                 supplierId: form.supplierId,
-                amount: total,
+                subtotal,
+                ppnAmount,
                 reason: `[${form.reason}] ${reasonLabel}${form.notes ? ` — ${form.notes}` : ""}`,
                 date: new Date(form.date + "T12:00:00"),
-                apAccountId: defaultAP.id,
-                expenseAccountId: defaultExpense.id,
             })
 
             if (result.success) {
@@ -192,148 +180,94 @@ export function NotaDebitTab() {
             </div>
 
             {/* Create Dialog */}
-            <Dialog open={showDialog} onOpenChange={setShowDialog}>
-                <DialogContent className="max-w-2xl sm:max-w-2xl p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0">
-                    <DialogHeader className="bg-black text-white px-5 py-3">
-                        <DialogTitle className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
-                            <FileText className="h-4 w-4" /> Buat Nota Debit
-                        </DialogTitle>
-                        <p className={NB.subtitle}>Koreksi tagihan supplier atau retur barang</p>
-                    </DialogHeader>
+            <NBDialog open={showDialog} onOpenChange={setShowDialog}>
+                <NBDialogHeader
+                    icon={FileText}
+                    title="Buat Nota Debit"
+                    subtitle="Koreksi tagihan supplier atau retur barang"
+                />
+                <NBDialogBody>
+                    <NBSection icon={FileText} title="Data Nota Debit">
+                        <div className="grid grid-cols-2 gap-3">
+                            <NBSelect
+                                label="Supplier"
+                                required
+                                value={form.supplierId}
+                                onValueChange={(v) => setForm(f => ({ ...f, supplierId: v }))}
+                                placeholder="Pilih supplier..."
+                            >
+                                {suppliers.map((s: any) => (
+                                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                                ))}
+                            </NBSelect>
 
-                    <div className={NB.scroll}>
-                        <div className="p-4 space-y-3">
-                            {/* Data Section */}
-                            <div className="border border-zinc-200 dark:border-zinc-700">
-                                <div className="bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700 flex items-center gap-2">
-                                    <FileText className="h-3.5 w-3.5 text-zinc-400" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Data Nota Debit</span>
-                                </div>
-                                <div className="p-3 space-y-3">
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className={NB.label}>Supplier <span className={NB.labelRequired}>*</span></label>
-                                            <Select value={form.supplierId} onValueChange={(v) => setForm(f => ({ ...f, supplierId: v }))}>
-                                                <SelectTrigger className={`h-8 text-sm rounded-none border ${
-                                                    form.supplierId ? "border-orange-400 bg-orange-50/50 font-bold" : "border-zinc-300 bg-white"
-                                                }`}>
-                                                    <SelectValue placeholder="Pilih supplier..." />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {suppliers.map((s: any) => (
-                                                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div>
-                                            <label className={NB.label}>Alasan <span className={NB.labelRequired}>*</span></label>
-                                            <Select value={form.reason} onValueChange={(v) => setForm(f => ({ ...f, reason: v }))}>
-                                                <SelectTrigger className={`h-8 text-sm rounded-none border ${
-                                                    form.reason ? "border-orange-400 bg-orange-50/50 font-bold" : "border-zinc-300 bg-white"
-                                                }`}>
-                                                    <SelectValue placeholder="Pilih alasan..." />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {REASON_CODES.map((r) => (
-                                                        <SelectItem key={r.code} value={r.code}>{r.label}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
+                            <NBSelect
+                                label="Alasan"
+                                required
+                                value={form.reason}
+                                onValueChange={(v) => setForm(f => ({ ...f, reason: v }))}
+                                placeholder="Pilih alasan..."
+                                options={REASON_CODES.map(r => ({ value: r.code, label: r.label }))}
+                            />
+                        </div>
 
-                                    <div className="grid grid-cols-3 gap-3">
-                                        <div>
-                                            <label className={NB.label}>Jumlah (sebelum PPN) <span className={NB.labelRequired}>*</span></label>
-                                            <div className={`flex items-center border h-8 rounded-none transition-colors ${
-                                                subtotal > 0 ? "border-emerald-400 bg-emerald-50" : "border-zinc-300 bg-white"
-                                            }`}>
-                                                <span className={`pl-2 text-[10px] font-bold select-none ${subtotal > 0 ? "text-emerald-500" : "text-zinc-300"}`}>Rp</span>
-                                                <input
-                                                    type="text"
-                                                    inputMode="numeric"
-                                                    placeholder="0"
-                                                    className={`w-full h-full bg-transparent text-right text-sm font-mono font-bold pr-2 pl-1 outline-none placeholder:text-zinc-300 ${
-                                                        subtotal > 0 ? "text-emerald-700" : ""
-                                                    }`}
-                                                    value={subtotal ? subtotal.toLocaleString("id-ID") : ""}
-                                                    onChange={(e) => {
-                                                        const raw = e.target.value.replace(/\D/g, "")
-                                                        setForm(f => ({ ...f, amount: raw }))
-                                                    }}
-                                                />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className={NB.label}>Tanggal</label>
-                                            <Input
-                                                type="date"
-                                                value={form.date}
-                                                onChange={(e) => setForm(f => ({ ...f, date: e.target.value }))}
-                                                className={`border font-medium h-8 text-sm rounded-none ${
-                                                    form.date ? "border-orange-400 bg-orange-50/50" : "border-zinc-300 bg-white"
-                                                }`}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className={NB.label}>Catatan</label>
-                                            <Input
-                                                value={form.notes}
-                                                onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))}
-                                                placeholder="Keterangan..."
-                                                className={`border font-medium h-8 text-sm rounded-none placeholder:text-zinc-400 placeholder:italic ${
-                                                    form.notes ? "border-orange-400 bg-orange-50/50" : "border-zinc-300 bg-white"
-                                                }`}
-                                            />
-                                        </div>
-                                    </div>
+                        <div className="grid grid-cols-3 gap-3">
+                            <NBCurrencyInput
+                                label="Jumlah (sebelum PPN)"
+                                required
+                                value={form.amount}
+                                onChange={(v) => setForm(f => ({ ...f, amount: v }))}
+                            />
 
-                                    {/* PPN toggle */}
-                                    <div className="flex items-center gap-2 pt-1">
-                                        <Checkbox checked={includePPN} onCheckedChange={(c) => setIncludePPN(!!c)} className="border border-zinc-300 rounded-none" />
-                                        <span className="text-[11px] font-medium text-zinc-600">Termasuk PPN 11%</span>
-                                        {includePPN && ppnAmount > 0 && (
-                                            <span className="text-[11px] text-zinc-400 ml-auto font-mono font-bold">PPN: {formatIDR(ppnAmount)}</span>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
+                            <NBInput
+                                label="Tanggal"
+                                type="date"
+                                value={form.date}
+                                onChange={(v) => setForm(f => ({ ...f, date: v }))}
+                            />
 
-                            {/* GL Preview */}
-                            {subtotal > 0 && (
-                                <div className="border border-zinc-200 dark:border-zinc-700">
-                                    <div className="bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700">
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Preview Jurnal</span>
-                                    </div>
-                                    <div className="p-3 space-y-1 text-[11px] font-mono">
-                                        <div className="flex justify-between"><span className="text-zinc-600">DR 2100 Hutang Usaha</span><span className="font-bold text-emerald-700">{formatIDR(total)}</span></div>
-                                        <div className="flex justify-between text-zinc-400"><span>CR 5000 HPP</span><span>{formatIDR(subtotal)}</span></div>
-                                        {ppnAmount > 0 && (
-                                            <div className="flex justify-between text-zinc-400"><span>CR 1330 PPN Masukan</span><span>{formatIDR(ppnAmount)}</span></div>
-                                        )}
-                                        <div className="border-t border-zinc-200 pt-1 flex justify-between font-bold text-zinc-900"><span>Total</span><span>{formatIDR(total)}</span></div>
-                                    </div>
-                                </div>
+                            <NBInput
+                                label="Catatan"
+                                value={form.notes}
+                                onChange={(v) => setForm(f => ({ ...f, notes: v }))}
+                                placeholder="Keterangan..."
+                            />
+                        </div>
+
+                        {/* PPN toggle */}
+                        <div className="flex items-center gap-2 pt-1">
+                            <Checkbox checked={includePPN} onCheckedChange={(c) => setIncludePPN(!!c)} className="border border-zinc-300 rounded-none" />
+                            <span className="text-[11px] font-medium text-zinc-600">Termasuk PPN 11%</span>
+                            {includePPN && ppnAmount > 0 && (
+                                <span className="text-[11px] text-zinc-400 ml-auto font-mono font-bold">PPN: {formatIDR(ppnAmount)}</span>
                             )}
                         </div>
-                    </div>
+                    </NBSection>
 
-                    {/* Footer */}
-                    <div className="border-t border-zinc-200 bg-zinc-50 px-4 py-2.5 flex items-center justify-end gap-2">
-                        <Button variant="outline" onClick={() => setShowDialog(false)} className="border border-zinc-300 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none">
-                            Batal
-                        </Button>
-                        <Button
-                            onClick={handleSubmit}
-                            disabled={submitting}
-                            className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none gap-1.5 disabled:opacity-40 transition-colors"
-                        >
-                            {submitting ? <><Loader2 className="h-3 w-3 animate-spin" /> Menyimpan...</> : "Simpan & Posting"}
-                        </Button>
-                    </div>
-                </DialogContent>
-            </Dialog>
+                    {/* GL Preview */}
+                    {subtotal > 0 && (
+                        <div className="border border-zinc-200 dark:border-zinc-700">
+                            <div className="bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Preview Jurnal</span>
+                            </div>
+                            <div className="p-3 space-y-1 text-[11px] font-mono">
+                                <div className="flex justify-between"><span className="text-zinc-600">DR {SYS_ACCOUNTS.AP} Hutang Usaha</span><span className="font-bold text-emerald-700">{formatIDR(total)}</span></div>
+                                <div className="flex justify-between text-zinc-400"><span>CR {SYS_ACCOUNTS.COGS} HPP</span><span>{formatIDR(subtotal)}</span></div>
+                                {ppnAmount > 0 && (
+                                    <div className="flex justify-between text-zinc-400"><span>CR {SYS_ACCOUNTS.PPN_MASUKAN} PPN Masukan</span><span>{formatIDR(ppnAmount)}</span></div>
+                                )}
+                                <div className="border-t border-zinc-200 pt-1 flex justify-between font-bold text-zinc-900"><span>Total</span><span>{formatIDR(total)}</span></div>
+                            </div>
+                        </div>
+                    )}
+                </NBDialogBody>
+                <NBDialogFooter
+                    onCancel={() => setShowDialog(false)}
+                    onSubmit={handleSubmit}
+                    submitting={submitting}
+                    submitLabel="Simpan & Posting"
+                />
+            </NBDialog>
         </div>
     )
 }

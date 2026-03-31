@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { usePurchaseOrders } from "@/hooks/use-purchase-orders"
 import {
     Search,
     ArrowRight,
@@ -19,6 +20,7 @@ import {
     CheckCircle2,
     Clock,
     AlertCircle,
+    Hourglass,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,19 +29,27 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { formatIDR } from "@/lib/utils"
 import { NewPurchaseOrderDialog } from "@/components/procurement/new-po-dialog"
 import { POFinalizeDialog } from "@/components/procurement/po-finalize-dialog"
 import { PurchaseReturnDialog } from "@/components/procurement/purchase-return-dialog"
-import { markAsOrdered } from "@/lib/actions/procurement"
+import { markAsOrdered, updateVendor } from "@/lib/actions/procurement"
 import { toast } from "sonner"
 import { exportToExcel } from "@/lib/table-export"
+import {
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBInput,
+} from "@/components/ui/nb-dialog"
 
 interface Order {
     id: string
     dbId: string
+    vendorId?: string
     vendor: string
     vendorEmail?: string
     vendorPhone?: string
@@ -68,10 +78,14 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
     const pathname = usePathname()
     const queryClient = useQueryClient()
 
+    // Use reactive query — falls back to server-rendered initialOrders
+    const { data: liveData } = usePurchaseOrders()
+    const orders = liveData?.orders ?? initialOrders
+
     // Auto-scroll & highlight when arriving with ?highlight=
     useEffect(() => {
-        if (!highlightId || initialOrders.length === 0) return
-        const match = initialOrders.find(o => o.dbId === highlightId)
+        if (!highlightId || orders.length === 0) return
+        const match = orders.find(o => o.dbId === highlightId)
         if (match) {
             setHighlightedDbId(match.dbId)
             // Clear the ?highlight param from URL
@@ -80,7 +94,7 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
             const timer = setTimeout(() => setHighlightedDbId(null), 4000)
             return () => clearTimeout(timer)
         }
-    }, [highlightId, initialOrders, router, pathname])
+    }, [highlightId, orders, router, pathname])
 
     // Scroll into view once the highlighted row renders
     useEffect(() => {
@@ -89,7 +103,7 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
         }
     }, [highlightedDbId])
 
-    const filteredOrders = initialOrders.filter(order => {
+    const filteredOrders = orders.filter(order => {
         const matchesSearch = order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
             order.vendor.toLowerCase().includes(searchTerm.toLowerCase())
         const matchesStatus = filterStatus === "ALL" ||
@@ -100,10 +114,10 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
     })
 
     // Stats
-    const totalOrders = initialOrders.length
-    const activeOrders = initialOrders.filter(o => ['PO_DRAFT', 'PENDING_APPROVAL', 'ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED'].includes(o.status)).length
-    const approvedOrders = initialOrders.filter(o => o.status === 'APPROVED').length
-    const completedOrders = initialOrders.filter(o => ['COMPLETED', 'RECEIVED'].includes(o.status)).length
+    const totalOrders = orders.length
+    const activeOrders = orders.filter(o => ['PO_DRAFT', 'PENDING_APPROVAL', 'ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED'].includes(o.status)).length
+    const approvedOrders = orders.filter(o => o.status === 'APPROVED').length
+    const completedOrders = orders.filter(o => ['COMPLETED', 'RECEIVED'].includes(o.status)).length
 
     const getStatusStyle = (status: string) => {
         switch (status) {
@@ -126,6 +140,14 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
 
     const [finalizePO, setFinalizePO] = useState<Order | null>(null)
 
+    // Phone/email input fallback state
+    const [contactInput, setContactInput] = useState<{
+        po: Order
+        channel: "whatsapp" | "gmail"
+        value: string
+        saveToVendor: boolean
+    } | null>(null)
+
     const invalidateAfterAction = () => {
         queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
         queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
@@ -144,33 +166,64 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
         }
     }
 
+    const executeSend = async (po: Order, channel: "whatsapp" | "gmail", contactOverride?: string) => {
+        const pdfUrl = `${window.location.origin}/api/documents/purchase-order/${po.dbId}?disposition=inline`
+        if (channel === "whatsapp") {
+            const phone = (contactOverride || po.vendorPhone || "").replace(/\D/g, "")
+            const message = `Hello! Please find attached Purchase Order ${po.id}. Total: ${formatIDR(po.total)}. PDF: ${pdfUrl}`
+            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank")
+        } else {
+            const email = contactOverride || po.vendorEmail || ""
+            const subject = `Purchase Order ${po.id}`
+            const body = `Dear Vendor,%0D%0A%0D%0APlease find our Purchase Order attached.%0D%0APO Number: ${po.id}%0D%0ATotal Amount: ${formatIDR(po.total)}%0D%0A%0D%0APDF Link: ${pdfUrl}%0D%0A%0D%0AThank you.`
+            window.open(`https://mail.google.com/mail/?view=cm&to=${email}&su=${encodeURIComponent(subject)}&body=${body}`, "_blank")
+        }
+        await handleConfirmSent(po)
+    }
+
     const handleSendToVendor = async (po: Order, channel: "whatsapp" | "gmail") => {
+        const phone = (po.vendorPhone || "").replace(/\D/g, "")
+        const vendorEmail = po.vendorEmail || ""
+
+        // If contact info missing, show inline input instead of failing
+        if (channel === "whatsapp" && !phone) {
+            setContactInput({ po, channel, value: "", saveToVendor: true })
+            return
+        }
+        if (channel === "gmail" && !vendorEmail) {
+            setContactInput({ po, channel, value: "", saveToVendor: true })
+            return
+        }
+
         setSendingOrderId(po.dbId)
         try {
-            const phone = (po.vendorPhone || "").replace(/\D/g, "")
-            const vendorEmail = po.vendorEmail || ""
-            if (channel === "whatsapp" && !phone) throw new Error("Vendor WhatsApp number not found")
-            if (channel === "gmail" && !vendorEmail) throw new Error("Vendor email not found")
-
-            const pdfUrl = `${window.location.origin}/api/documents/purchase-order/${po.dbId}?disposition=inline`
-            if (channel === "whatsapp") {
-                const message = `Hello! Please find attached Purchase Order ${po.id}. Total: ${formatIDR(po.total)}. PDF: ${pdfUrl}`
-                window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank")
-            } else {
-                const subject = `Purchase Order ${po.id}`
-                const body = `Dear Vendor,%0D%0A%0D%0APlease find our Purchase Order attached.%0D%0APO Number: ${po.id}%0D%0ATotal Amount: ${formatIDR(po.total)}%0D%0A%0D%0APDF Link: ${pdfUrl}%0D%0A%0D%0AThank you.`
-                window.open(`https://mail.google.com/mail/?view=cm&to=${vendorEmail}&su=${encodeURIComponent(subject)}&body=${body}`, "_blank")
-            }
-
-            // Ask user to confirm the message was actually sent before marking as ORDERED
-            const confirmed = window.confirm('Pesan sudah terkirim ke vendor? Klik OK untuk menandai PO sebagai ORDERED.')
-            if (confirmed) {
-                await handleConfirmSent(po)
-            } else {
-                toast.info('PO belum ditandai sebagai Ordered. Anda bisa mengirim ulang nanti.')
-            }
+            await executeSend(po, channel)
         } catch (error: any) {
-            toast.error(error?.message || "Failed to send PO to vendor")
+            toast.error(error?.message || "Gagal mengirim PO ke vendor")
+        } finally {
+            setSendingOrderId(null)
+        }
+    }
+
+    const handleContactSubmit = async () => {
+        if (!contactInput || !contactInput.value.trim()) return
+
+        setSendingOrderId(contactInput.po.dbId)
+        try {
+            // Optionally save to vendor record
+            if (contactInput.saveToVendor && contactInput.po.vendorId) {
+                const field = contactInput.channel === "whatsapp" ? "phone" : "email"
+                const res = await updateVendor(contactInput.po.vendorId, { [field]: contactInput.value.trim() })
+                if (res.success) {
+                    toast.success(`${contactInput.channel === "whatsapp" ? "Nomor" : "Email"} disimpan ke vendor ${contactInput.po.vendor}`)
+                    invalidateAfterAction()
+                }
+            }
+
+            await executeSend(contactInput.po, contactInput.channel, contactInput.value.trim())
+            setContactInput(null)
+        } catch (error: any) {
+            toast.error(error?.message || "Gagal mengirim PO ke vendor")
         } finally {
             setSendingOrderId(null)
         }
@@ -348,25 +401,32 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
                                         <div className="text-[10px] text-zinc-400 font-medium">{po.items} Items</div>
                                     </td>
                                     <td className="p-4 text-right">
-                                        <div className="flex justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                                        <div className="flex justify-end gap-1 items-center">
+                                            {/* View PDF — always visible */}
                                             <a href={`/api/documents/purchase-order/${po.dbId}?disposition=inline`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-black hover:text-white" title="View PDF">
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-black hover:text-white" title="Lihat PDF">
                                                     <Eye className="h-3.5 w-3.5" />
                                                 </Button>
                                             </a>
+                                            {/* Download PDF — always visible */}
                                             <a href={`/api/documents/purchase-order/${po.dbId}?disposition=attachment`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
                                                 <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-black hover:text-white" title="Download PDF">
                                                     <Download className="h-3.5 w-3.5" />
                                                 </Button>
                                             </a>
+                                            {/* Status-specific action */}
                                             {po.status === 'PO_DRAFT' ? (
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-black hover:text-white" onClick={(e) => { e.stopPropagation(); setFinalizePO(po) }}>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white border border-blue-200" title="Finalisasi PO" onClick={(e) => { e.stopPropagation(); setFinalizePO(po) }}>
                                                     <ArrowRight className="h-3.5 w-3.5" />
+                                                </Button>
+                                            ) : po.status === 'PENDING_APPROVAL' ? (
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 bg-amber-50 text-amber-600 border border-amber-200 cursor-default" title="Menunggu persetujuan">
+                                                    <Hourglass className="h-3.5 w-3.5" />
                                                 </Button>
                                             ) : po.status === 'APPROVED' ? (
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-emerald-600 hover:text-white" disabled={sendingOrderId === po.dbId}>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white border border-emerald-200" title="Kirim ke vendor" disabled={sendingOrderId === po.dbId}>
                                                             {sendingOrderId === po.dbId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageSquare className="h-3.5 w-3.5" />}
                                                         </Button>
                                                     </DropdownMenuTrigger>
@@ -377,7 +437,7 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
                                                             onClick={(e) => { e.stopPropagation(); handleSendToVendor(po, "whatsapp") }}
                                                         >
                                                             <MessageSquare className="h-4 w-4 mr-2" />
-                                                            Send WhatsApp + Mark Ordered
+                                                            Kirim WhatsApp + Tandai Ordered
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem
                                                             className="cursor-pointer text-xs font-bold"
@@ -385,17 +445,20 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
                                                             onClick={(e) => { e.stopPropagation(); handleSendToVendor(po, "gmail") }}
                                                         >
                                                             <Mail className="h-4 w-4 mr-2" />
-                                                            Send Gmail + Mark Ordered
+                                                            Kirim Gmail + Tandai Ordered
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            className="cursor-pointer text-xs font-bold"
+                                                            disabled={sendingOrderId === po.dbId}
+                                                            onClick={(e) => { e.stopPropagation(); handleConfirmSent(po) }}
+                                                        >
+                                                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                                                            Tandai Ordered (tanpa kirim)
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
-                                            ) : (
-                                                <a href={`/api/documents/purchase-order/${po.dbId}?disposition=inline`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-emerald-600 hover:text-white" title="View PDF">
-                                                        <Eye className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                </a>
-                                            )}
+                                            ) : null}
                                         </div>
                                     </td>
                                 </tr>
@@ -418,7 +481,66 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
                 isOpen={!!finalizePO}
                 onClose={() => setFinalizePO(null)}
                 vendors={vendors}
+                initialOrder={finalizePO}
             />
+
+            {/* ═══ CONTACT INPUT DIALOG (WhatsApp/Gmail fallback) ═══ */}
+            <NBDialog open={!!contactInput} onOpenChange={() => setContactInput(null)} size="default">
+                <NBDialogHeader
+                    icon={contactInput?.channel === "whatsapp" ? MessageSquare : Mail}
+                    title={contactInput?.channel === "whatsapp" ? "Nomor WhatsApp Vendor" : "Email Vendor"}
+                    subtitle={`Vendor "${contactInput?.po.vendor}" belum memiliki ${contactInput?.channel === "whatsapp" ? "nomor WhatsApp" : "alamat email"}.`}
+                />
+                <NBDialogBody>
+                    <div className="space-y-4">
+                        <div className="p-3 bg-amber-50 border border-amber-200 text-sm">
+                            <p className="font-bold text-amber-800">
+                                Masukkan {contactInput?.channel === "whatsapp" ? "nomor" : "email"} untuk mengirim PO {contactInput?.po.id}
+                            </p>
+                        </div>
+
+                        <NBInput
+                            label={contactInput?.channel === "whatsapp" ? "NOMOR WHATSAPP" : "ALAMAT EMAIL"}
+                            value={contactInput?.value || ""}
+                            onChange={(val) => setContactInput(prev => prev ? { ...prev, value: val } : null)}
+                            placeholder={contactInput?.channel === "whatsapp" ? "08xx-xxxx-xxxx" : "vendor@email.com"}
+                            type="text"
+                        />
+
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={contactInput?.saveToVendor ?? true}
+                                onChange={(e) => setContactInput(prev => prev ? { ...prev, saveToVendor: e.target.checked } : null)}
+                                className="w-4 h-4 accent-orange-500"
+                            />
+                            <span className="text-xs font-bold text-zinc-600">
+                                Simpan ke data vendor
+                            </span>
+                        </label>
+                    </div>
+                </NBDialogBody>
+                <div className="border-t border-zinc-200 bg-zinc-50 px-4 py-2.5 flex items-center justify-end gap-2">
+                    <Button
+                        variant="outline"
+                        onClick={() => setContactInput(null)}
+                        className="border border-zinc-300 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none"
+                    >
+                        Batal
+                    </Button>
+                    <Button
+                        onClick={handleContactSubmit}
+                        disabled={!contactInput?.value || (contactInput?.channel === "whatsapp" ? contactInput.value.replace(/\D/g, "").length < 10 : !contactInput.value.includes("@"))}
+                        className="bg-emerald-600 text-white border border-emerald-700 hover:bg-emerald-700 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none gap-1.5 disabled:opacity-50 transition-colors"
+                    >
+                        {contactInput?.channel === "whatsapp" ? (
+                            <><MessageSquare className="h-3.5 w-3.5" /> Kirim WhatsApp</>
+                        ) : (
+                            <><Mail className="h-3.5 w-3.5" /> Kirim Gmail</>
+                        )}
+                    </Button>
+                </div>
+            </NBDialog>
         </div>
     )
 }

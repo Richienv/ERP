@@ -3,27 +3,21 @@
 import { useState, useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
-import { Loader2, Pencil } from "lucide-react"
+import { Loader2, Pencil, User, Phone, FileText, CreditCard } from "lucide-react"
 import { toast } from "sonner"
+import { usePaymentTerms } from "@/hooks/use-payment-terms"
+import { useCurrencies } from "@/hooks/use-currencies"
 
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Button } from "@/components/ui/button"
-import { NB } from "@/lib/dialog-styles"
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBDialogFooter,
+    NBSection,
+    NBInput,
+    NBSelect,
+    NBCurrencyInput,
+} from "@/components/ui/nb-dialog"
 
 interface CustomerEditDialogProps {
     customerId: string
@@ -53,6 +47,8 @@ const defaultForm = {
 
 export function CustomerEditDialog({ customerId, open, onOpenChange }: CustomerEditDialogProps) {
     const queryClient = useQueryClient()
+    const { data: paymentTermOptions = [] } = usePaymentTerms()
+    const { data: currencies = [] } = useCurrencies()
     const [saving, setSaving] = useState(false)
     const [loading, setLoading] = useState(false)
     const [form, setForm] = useState(defaultForm)
@@ -135,228 +131,157 @@ export function CustomerEditDialog({ customerId, open, onOpenChange }: CustomerE
         }
     }
 
+    const currencyOptions = [
+        { value: "IDR", label: "IDR — Rupiah Indonesia" },
+        ...currencies.filter(c => c.code !== "IDR").map(c => ({ value: c.code, label: `${c.code} — ${c.name}` })),
+    ]
+
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className={NB.content}>
-                <DialogHeader className={NB.header}>
-                    <DialogTitle className={NB.title}>
-                        <Pencil className="h-5 w-5" />
-                        Edit Data Pelanggan
-                    </DialogTitle>
-                    <p className={NB.subtitle}>Perbarui informasi pelanggan</p>
-                </DialogHeader>
+        <NBDialog open={open} onOpenChange={onOpenChange}>
+            <NBDialogHeader
+                icon={Pencil}
+                title="Edit Data Pelanggan"
+                subtitle="Perbarui informasi pelanggan"
+            />
 
-                {loading ? (
-                    <div className="flex items-center justify-center py-16">
-                        <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
-                        <span className="ml-3 text-sm font-bold text-zinc-500">Memuat data...</span>
-                    </div>
-                ) : (
-                    <ScrollArea className={NB.scroll}>
-                        <div className="p-6 space-y-6">
-                            {/* Data Utama */}
-                            <div className={NB.section}>
-                                <div className={NB.sectionHead}>
-                                    <span className={NB.sectionTitle}>Data Utama</span>
-                                </div>
-                                <div className={`${NB.sectionBody} grid gap-4 md:grid-cols-2`}>
-                                    <div>
-                                        <label className={NB.label}>
-                                            Nama Pelanggan <span className={NB.labelRequired}>*</span>
-                                        </label>
-                                        <Input
-                                            className={NB.input}
-                                            value={form.name}
-                                            onChange={(e) => setForm(p => ({ ...p, name: e.target.value }))}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Nama Legal</label>
-                                        <Input
-                                            className={NB.input}
-                                            value={form.legalName}
-                                            onChange={(e) => setForm(p => ({ ...p, legalName: e.target.value }))}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Tipe Pelanggan</label>
-                                        <Select value={form.customerType} onValueChange={(v) => setForm(p => ({ ...p, customerType: v }))}>
-                                            <SelectTrigger className={NB.select}><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="COMPANY">Perusahaan</SelectItem>
-                                                <SelectItem value="INDIVIDUAL">Perorangan</SelectItem>
-                                                <SelectItem value="GOVERNMENT">Pemerintah</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Mata Uang</label>
-                                        <Select value={form.currency} onValueChange={(v) => setForm(p => ({ ...p, currency: v }))}>
-                                            <SelectTrigger className={NB.select}><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="IDR">IDR — Rupiah Indonesia</SelectItem>
-                                                <SelectItem value="USD">USD — US Dollar</SelectItem>
-                                                <SelectItem value="EUR">EUR — Euro</SelectItem>
-                                                <SelectItem value="SGD">SGD — Singapore Dollar</SelectItem>
-                                                <SelectItem value="MYR">MYR — Malaysian Ringgit</SelectItem>
-                                                <SelectItem value="JPY">JPY — Japanese Yen</SelectItem>
-                                                <SelectItem value="CNY">CNY — Chinese Yuan</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Kontak */}
-                            <div className={NB.section}>
-                                <div className={NB.sectionHead}>
-                                    <span className={NB.sectionTitle}>Informasi Kontak</span>
-                                </div>
-                                <div className={`${NB.sectionBody} grid gap-4 md:grid-cols-2`}>
-                                    <div>
-                                        <label className={NB.label}>Telepon</label>
-                                        <Input
-                                            className={NB.input}
-                                            value={form.phone}
-                                            onChange={(e) => setForm(p => ({ ...p, phone: e.target.value }))}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Email</label>
-                                        <Input
-                                            type="email"
-                                            className={NB.input}
-                                            value={form.email}
-                                            onChange={(e) => setForm(p => ({ ...p, email: e.target.value }))}
-                                        />
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label className={NB.label}>Website</label>
-                                        <Input
-                                            className={NB.input}
-                                            value={form.website}
-                                            onChange={(e) => setForm(p => ({ ...p, website: e.target.value }))}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Pajak */}
-                            <div className={NB.section}>
-                                <div className={NB.sectionHead}>
-                                    <span className={NB.sectionTitle}>Informasi Pajak</span>
-                                </div>
-                                <div className={`${NB.sectionBody} grid gap-4 md:grid-cols-2`}>
-                                    <div>
-                                        <label className={NB.label}>NPWP</label>
-                                        <Input
-                                            className={NB.inputMono}
-                                            value={form.npwp}
-                                            onChange={(e) => setForm(p => ({ ...p, npwp: e.target.value }))}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>NIK</label>
-                                        <Input
-                                            className={NB.inputMono}
-                                            value={form.nik}
-                                            onChange={(e) => setForm(p => ({ ...p, nik: e.target.value }))}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Status Pajak</label>
-                                        <Select value={form.taxStatus} onValueChange={(v) => setForm(p => ({ ...p, taxStatus: v }))}>
-                                            <SelectTrigger className={NB.select}><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="PKP">PKP (Pengusaha Kena Pajak)</SelectItem>
-                                                <SelectItem value="NON_PKP">Non-PKP</SelectItem>
-                                                <SelectItem value="EXEMPT">Exempt</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Kredit */}
-                            <div className={NB.section}>
-                                <div className={NB.sectionHead}>
-                                    <span className={NB.sectionTitle}>Manajemen Kredit</span>
-                                </div>
-                                <div className={`${NB.sectionBody} grid gap-4 md:grid-cols-2`}>
-                                    <div>
-                                        <label className={NB.label}>Limit Kredit (Rp)</label>
-                                        <Input
-                                            type="number"
-                                            className={NB.inputMono}
-                                            value={form.creditLimit}
-                                            onChange={(e) => setForm(p => ({ ...p, creditLimit: Number(e.target.value) || 0 }))}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Tenor Kredit (Hari)</label>
-                                        <Input
-                                            type="number"
-                                            className={NB.inputMono}
-                                            value={form.creditTerm}
-                                            onChange={(e) => setForm(p => ({ ...p, creditTerm: Number(e.target.value) || 0 }))}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Term Pembayaran</label>
-                                        <Select value={form.paymentTerm} onValueChange={(v) => setForm(p => ({ ...p, paymentTerm: v }))}>
-                                            <SelectTrigger className={NB.select}><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="CASH">Cash</SelectItem>
-                                                <SelectItem value="COD">COD</SelectItem>
-                                                <SelectItem value="NET_15">Net 15</SelectItem>
-                                                <SelectItem value="NET_30">Net 30</SelectItem>
-                                                <SelectItem value="NET_45">Net 45</SelectItem>
-                                                <SelectItem value="NET_60">Net 60</SelectItem>
-                                                <SelectItem value="NET_90">Net 90</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Status Kredit</label>
-                                        <Select value={form.creditStatus} onValueChange={(v) => setForm(p => ({ ...p, creditStatus: v }))}>
-                                            <SelectTrigger className={NB.select}><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="GOOD">Baik</SelectItem>
-                                                <SelectItem value="WATCH">Pantau</SelectItem>
-                                                <SelectItem value="HOLD">Hold</SelectItem>
-                                                <SelectItem value="BLOCKED">Blocked</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-                            </div>
+            {loading ? (
+                <div className="flex items-center justify-center py-16">
+                    <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
+                    <span className="ml-3 text-sm font-bold text-zinc-500">Memuat data...</span>
+                </div>
+            ) : (
+                <NBDialogBody>
+                    <NBSection icon={User} title="Data Utama">
+                        <div className="grid gap-3 md:grid-cols-2">
+                            <NBInput
+                                label="Nama Pelanggan"
+                                required
+                                value={form.name}
+                                onChange={(v) => setForm(p => ({ ...p, name: v }))}
+                            />
+                            <NBInput
+                                label="Nama Legal"
+                                value={form.legalName}
+                                onChange={(v) => setForm(p => ({ ...p, legalName: v }))}
+                            />
+                            <NBSelect
+                                label="Tipe Pelanggan"
+                                value={form.customerType}
+                                onValueChange={(v) => setForm(p => ({ ...p, customerType: v }))}
+                                options={[
+                                    { value: "COMPANY", label: "Perusahaan" },
+                                    { value: "INDIVIDUAL", label: "Perorangan" },
+                                    { value: "GOVERNMENT", label: "Pemerintah" },
+                                ]}
+                            />
+                            <NBSelect
+                                label="Mata Uang"
+                                value={form.currency}
+                                onValueChange={(v) => setForm(p => ({ ...p, currency: v }))}
+                                options={currencyOptions}
+                            />
                         </div>
-                    </ScrollArea>
-                )}
+                    </NBSection>
 
-                <DialogFooter className="px-6 py-4 border-t-2 border-black bg-zinc-50">
-                    <div className={NB.footer}>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => onOpenChange(false)}
-                            disabled={saving}
-                            className={NB.cancelBtn}
-                        >
-                            Batal
-                        </Button>
-                        <Button
-                            type="button"
-                            onClick={handleSave}
-                            disabled={saving || loading}
-                            className={NB.submitBtn}
-                        >
-                            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                            Simpan Perubahan
-                        </Button>
-                    </div>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                    <NBSection icon={Phone} title="Informasi Kontak">
+                        <div className="grid gap-3 md:grid-cols-2">
+                            <NBInput
+                                label="Telepon"
+                                value={form.phone}
+                                onChange={(v) => setForm(p => ({ ...p, phone: v }))}
+                            />
+                            <NBInput
+                                label="Email"
+                                value={form.email}
+                                onChange={(v) => setForm(p => ({ ...p, email: v }))}
+                            />
+                            <NBInput
+                                label="Website"
+                                value={form.website}
+                                onChange={(v) => setForm(p => ({ ...p, website: v }))}
+                                className="md:col-span-2"
+                            />
+                        </div>
+                    </NBSection>
+
+                    <NBSection icon={FileText} title="Informasi Pajak">
+                        <div className="grid gap-3 md:grid-cols-2">
+                            <NBInput
+                                label="NPWP"
+                                value={form.npwp}
+                                onChange={(v) => setForm(p => ({ ...p, npwp: v }))}
+                            />
+                            <NBInput
+                                label="NIK"
+                                value={form.nik}
+                                onChange={(v) => setForm(p => ({ ...p, nik: v }))}
+                            />
+                            <NBSelect
+                                label="Status Pajak"
+                                value={form.taxStatus}
+                                onValueChange={(v) => setForm(p => ({ ...p, taxStatus: v }))}
+                                options={[
+                                    { value: "PKP", label: "PKP (Pengusaha Kena Pajak)" },
+                                    { value: "NON_PKP", label: "Non-PKP" },
+                                    { value: "EXEMPT", label: "Exempt" },
+                                ]}
+                            />
+                        </div>
+                    </NBSection>
+
+                    <NBSection icon={CreditCard} title="Manajemen Kredit">
+                        <div className="grid gap-3 md:grid-cols-2">
+                            <NBCurrencyInput
+                                label="Limit Kredit"
+                                value={String(form.creditLimit)}
+                                onChange={(v) => setForm(p => ({ ...p, creditLimit: Number(v) || 0 }))}
+                                disabled={form.paymentTerm === "CASH" || form.paymentTerm === "COD"}
+                            />
+                            <NBSelect
+                                label="Term Pembayaran"
+                                value={form.paymentTerm}
+                                onValueChange={(v) => {
+                                    const matched = paymentTermOptions.find(t => t.code === v)
+                                    const isCash = v === "CASH" || v === "COD"
+                                    setForm(p => ({
+                                        ...p,
+                                        paymentTerm: v,
+                                        creditTerm: matched ? matched.days : p.creditTerm,
+                                        ...(isCash ? { creditLimit: 0 } : {}),
+                                    }))
+                                }}
+                                options={paymentTermOptions.map(t => ({ value: t.code, label: t.name }))}
+                            />
+                            <NBInput
+                                label="Term Kredit (Hari)"
+                                type="number"
+                                value={String(form.creditTerm)}
+                                onChange={() => {}}
+                                disabled
+                            />
+                            <NBSelect
+                                label="Status Kredit"
+                                value={form.creditStatus}
+                                onValueChange={(v) => setForm(p => ({ ...p, creditStatus: v }))}
+                                options={[
+                                    { value: "GOOD", label: "Baik" },
+                                    { value: "WATCH", label: "Pantau" },
+                                    { value: "HOLD", label: "Hold" },
+                                    { value: "BLOCKED", label: "Blocked" },
+                                ]}
+                            />
+                        </div>
+                    </NBSection>
+                </NBDialogBody>
+            )}
+
+            <NBDialogFooter
+                onCancel={() => onOpenChange(false)}
+                onSubmit={handleSave}
+                submitting={saving}
+                submitLabel="Simpan Perubahan"
+                disabled={loading}
+            />
+        </NBDialog>
     )
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import {
     Plus,
@@ -11,7 +11,6 @@ import {
     Loader2,
     CheckCircle2,
     AlertCircle,
-    AlertTriangle,
     Wallet,
     Search,
     FileText,
@@ -25,7 +24,6 @@ import {
     Check,
     Minus,
 } from "lucide-react"
-import { differenceInDays } from "date-fns"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import {
@@ -48,7 +46,7 @@ import { CheckboxFilter } from "@/components/ui/checkbox-filter"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { disputeBill, recordMultiBillPayment, type VendorBill } from "@/lib/actions/finance"
-import { approveVendorBill } from "@/lib/actions/finance-ap"
+import { PaymentHistoryTable, type PaymentHistoryRow } from "@/components/finance/payment-history-table"
 import { processXenditPayout } from "@/lib/actions/xendit"
 import { formatIDR } from "@/lib/utils"
 import { NB } from "@/lib/dialog-styles"
@@ -57,7 +55,7 @@ import { useBills, useBanks } from "@/hooks/use-bills"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
-import { useBankAccounts } from "@/hooks/use-bank-accounts"
+import { useChartOfAccounts } from "@/hooks/use-chart-accounts"
 
 /* ─── Animation variants ─── */
 const fadeUp = {
@@ -114,7 +112,7 @@ export default function APBillsStackPage() {
     // Manual payment state
     const [paymentTab, setPaymentTab] = useState<"manual" | "xendit">("manual")
     const [manualMethod, setManualMethod] = useState<"TRANSFER" | "CHECK" | "GIRO" | "CASH">("TRANSFER")
-    const [manualBankAccount, setManualBankAccount] = useState("1010")
+    const [manualBankAccount, setManualBankAccount] = useState("")
     const [manualReference, setManualReference] = useState("")
     const [manualNotes, setManualNotes] = useState("")
     const [manualAllocations, setManualAllocations] = useState<Array<{
@@ -128,7 +126,37 @@ export default function APBillsStackPage() {
         isOverdue: boolean
     }>>([])
 
-    const { data: bankAccounts } = useBankAccounts()
+    const { data: coaTree } = useChartOfAccounts()
+    const { bankAccounts, cashAccounts } = useMemo(() => {
+        if (!coaTree) return { bankAccounts: [] as { code: string; name: string }[], cashAccounts: [] as { code: string; name: string }[] }
+        const flat: any[] = []
+        const walk = (nodes: any[]) => {
+            for (const n of nodes) {
+                if (n.children?.length) {
+                    walk(n.children)
+                } else {
+                    flat.push(n)
+                }
+            }
+        }
+        walk(Array.isArray(coaTree) ? coaTree : [])
+        const leafs = flat
+            .filter((a) => a.type === "ASSET" && (a.subType === "ASSET_CASH" || (a.code >= "1000" && a.code < "1200")))
+            .map((a) => ({ code: a.code as string, name: a.name as string }))
+            .sort((a, b) => a.code.localeCompare(b.code))
+
+        const bank: { code: string; name: string }[] = []
+        const cash: { code: string; name: string }[] = []
+        for (const acc of leafs) {
+            const lower = acc.name.toLowerCase()
+            if (lower.includes("bank")) {
+                bank.push(acc)
+            } else if (lower.includes("kas") || lower.includes("cash") || lower.includes("petty")) {
+                cash.push(acc)
+            }
+        }
+        return { bankAccounts: bank, cashAccounts: cash }
+    }, [coaTree])
 
     useEffect(() => {
         if (activeBill && activeBill.vendor) {
@@ -324,41 +352,24 @@ export default function APBillsStackPage() {
 
     const openBillDetail = (bill: VendorBill) => { setActiveBill(bill); setStamped(false); setIsDetailOpen(true) }
 
-    const [approvingBillId, setApprovingBillId] = useState<string | null>(null)
-    const handleApproveBill = async (bill: VendorBill) => {
-        setApprovingBillId(bill.id)
-        try {
-            const result = await approveVendorBill(bill.id)
-            if (result.success) {
-                toast.success(`${bill.number} berhasil disetujui — jurnal terposting`)
-                invalidateAfterPayout()
-            } else {
-                toast.error("error" in result ? result.error : "Gagal menyetujui tagihan")
-            }
-        } catch {
-            toast.error("Terjadi kesalahan saat menyetujui")
-        } finally {
-            setApprovingBillId(null)
-        }
-    }
+    // Separate active vs completed bills
+    const activeBills = bills.filter((b) => b.status !== "PAID")
+    const completedBills = bills.filter((b) => b.status === "PAID")
+    const completedTotal = completedBills.reduce((sum, b) => sum + b.amount, 0)
 
-    // KPI
-    const totalBills = billMeta.total
-    const pendingBills = bills.filter((b) => b.status === "ISSUED" || b.status === "DRAFT").length
-    const overdueBills = bills.filter((b) => b.isOverdue).length
-    const totalAmount = bills.reduce((sum, b) => sum + b.balanceDue, 0)
+    // KPI (only count active bills)
+    const totalBills = activeBills.length
+    const pendingBills = activeBills.filter((b) => b.status === "ISSUED" || b.status === "DRAFT").length
+    const overdueBills = activeBills.filter((b) => b.isOverdue).length
+    const totalAmount = activeBills.reduce((sum, b) => sum + b.balanceDue, 0)
     const hasActiveFilters = searchText || selectedStatuses.length > 0
 
-    /** DRAFT bills older than 3 days are "stale" — user should approve them */
-    const isStaleDraft = (bill: VendorBill) =>
-        bill.status === "DRAFT" && differenceInDays(new Date(), new Date(bill.date)) > 3
-
     const getStatusColor = (status: string, isOverdue: boolean) => {
-        if (isOverdue) return "bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-400 border-red-300 dark:border-red-700"
+        if (isOverdue) return "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 border-red-300 dark:border-red-700"
         switch (status) {
-            case "PAID": return "bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700"
-            case "DISPUTED": return "bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-400 border-red-300 dark:border-red-700"
-            case "PARTIAL": return "bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700"
+            case "PAID": return "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700"
+            case "DISPUTED": return "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700"
+            case "PARTIAL": return "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border-blue-300 dark:border-blue-700"
             case "DRAFT": return "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-700"
             default: return "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-300 dark:border-zinc-700"
         }
@@ -368,6 +379,28 @@ export default function APBillsStackPage() {
 
     return (
         <div className="mf-page">
+            {/* ─── RIWAYAT PEMBAYARAN — above active bills ─── */}
+            <PaymentHistoryTable
+                title="Riwayat Pembayaran"
+                rows={completedBills.map((bill): PaymentHistoryRow => ({
+                    id: bill.id,
+                    documentNumber: bill.number,
+                    counterpartyName: bill.vendor?.name ?? "—",
+                    method: bill.payments?.[0]?.method ?? "—",
+                    reference: bill.payments?.[0]?.reference ?? null,
+                    amount: bill.amount,
+                    date: bill.payments?.[0]?.date ?? bill.date,
+                    status: "PAID",
+                }))}
+                documentLabel="No. Bill"
+                counterpartyLabel="Vendor"
+                onRowClick={(row) => {
+                    const match = completedBills.find(b => b.id === row.id)
+                    if (match) openBillDetail(match)
+                }}
+                maxHeight={250}
+            />
+
             {/* ─── Single unified card: KPI + Filter + Table ─── */}
             <motion.div
                 variants={fadeUp}
@@ -396,14 +429,14 @@ export default function APBillsStackPage() {
                 {/* Row 2: KPI Strip — big, colorful, attention-grabbing */}
                 <div className="grid grid-cols-3 border-b border-zinc-200 dark:border-zinc-800">
                     {/* Total Tagihan */}
-                    <div className="px-5 py-4 border-r border-zinc-200 dark:border-zinc-800 bg-orange-50/50 dark:bg-orange-950/10">
+                    <div className="px-5 py-4 border-r border-zinc-200 dark:border-zinc-800 bg-blue-50/50 dark:bg-blue-950/10">
                         <div className="flex items-center gap-1.5 mb-1">
-                            <span className="w-2 h-2 bg-orange-500 rounded-full" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 dark:text-orange-400">Total Tagihan</span>
+                            <span className="w-2 h-2 bg-blue-500 rounded-full" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">Total Tagihan</span>
                         </div>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-black text-orange-700 dark:text-orange-300 tabular-nums">{totalBills}</span>
-                            <span className="text-sm font-mono font-bold text-orange-500 dark:text-orange-400">{formatIDR(totalAmount)}</span>
+                            <span className="text-3xl font-black text-blue-700 dark:text-blue-300 tabular-nums">{totalBills}</span>
+                            <span className="text-sm font-mono font-bold text-blue-500 dark:text-blue-400">{formatIDR(totalAmount)}</span>
                         </div>
                     </div>
                     {/* Pending */}
@@ -481,9 +514,9 @@ export default function APBillsStackPage() {
                     ))}
                 </div>
 
-                {/* ─── Table Body ─── */}
+                {/* ─── Table Body (active bills only) ─── */}
                 <div className="min-h-[200px]">
-                    {bills.length === 0 ? (
+                    {activeBills.length === 0 ? (
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
@@ -497,7 +530,7 @@ export default function APBillsStackPage() {
                         </motion.div>
                     ) : (
                         <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                            {bills.map((bill, idx) => {
+                            {activeBills.map((bill, idx) => {
                                 const isOverdue = bill.isOverdue
                                 return (
                                     <motion.div
@@ -525,23 +558,16 @@ export default function APBillsStackPage() {
                                             </span>
                                         </div>
                                         {/* Status */}
-                                        <div className="flex flex-col gap-1">
+                                        <div>
                                             <span className={`inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wide px-2 py-1 border rounded-none ${getStatusColor(bill.status, isOverdue)}`}>
                                                 <span className={`w-1.5 h-1.5 ${
                                                     isOverdue ? "bg-red-500" :
                                                     bill.status === "PAID" ? "bg-emerald-500" :
-                                                    bill.status === "DISPUTED" ? "bg-red-500" :
-                                                    bill.status === "PARTIAL" ? "bg-amber-500" :
+                                                    bill.status === "DISPUTED" ? "bg-amber-500" :
                                                     "bg-zinc-400"
                                                 }`} />
                                                 {isOverdue ? "Overdue" : bill.status}
                                             </span>
-                                            {isStaleDraft(bill) && (
-                                                <span className="inline-flex items-center gap-1 text-[8px] font-bold text-orange-600 bg-orange-100 dark:bg-orange-900/30 dark:text-orange-400 px-1.5 py-0.5 border border-orange-300 dark:border-orange-700 rounded-none">
-                                                    <AlertTriangle className="h-2.5 w-2.5" />
-                                                    Belum disetujui
-                                                </span>
-                                            )}
                                         </div>
                                         {/* Amount */}
                                         <div>
@@ -567,22 +593,7 @@ export default function APBillsStackPage() {
                                             >
                                                 <Eye className="h-3 w-3" />
                                             </motion.button>
-                                            {bill.status === "DRAFT" && (
-                                                <motion.button
-                                                    whileHover={{ y: -1 }}
-                                                    whileTap={{ scale: 0.92 }}
-                                                    onClick={() => handleApproveBill(bill)}
-                                                    disabled={approvingBillId === bill.id}
-                                                    title="Setujui"
-                                                    className="h-7 px-2 flex items-center gap-1 bg-orange-500 text-white border border-orange-600 hover:bg-orange-600 transition-colors rounded-none text-[9px] font-bold uppercase"
-                                                >
-                                                    {approvingBillId === bill.id
-                                                        ? <Loader2 className="h-3 w-3 animate-spin" />
-                                                        : <Check className="h-3 w-3" />}
-                                                    Setujui
-                                                </motion.button>
-                                            )}
-                                            {bill.status !== "PAID" && bill.status !== "DRAFT" && bill.balanceDue > 0 && (
+                                            {["ISSUED", "PARTIAL", "OVERDUE"].includes(bill.status) && bill.balanceDue > 0 && (
                                                 <motion.button
                                                     whileHover={{ y: -1 }}
                                                     whileTap={{ scale: 0.92 }}
@@ -593,6 +604,9 @@ export default function APBillsStackPage() {
                                                 >
                                                     <CreditCard className="h-3 w-3" /> Bayar
                                                 </motion.button>
+                                            )}
+                                            {bill.status === "DRAFT" && (
+                                                <span className="text-[9px] italic text-zinc-400 dark:text-zinc-500 px-1">Perlu persetujuan</span>
                                             )}
                                         </div>
                                     </motion.div>
@@ -660,14 +674,62 @@ export default function APBillsStackPage() {
                                     </div>
                                 </div>
                             )}
+                            {activeBill.payments && activeBill.payments.length > 0 && (
+                                <div className={NB.section}>
+                                    <div className={NB.sectionHead}><CreditCard className="h-3.5 w-3.5" /><span className={NB.sectionTitle}>Riwayat Pembayaran</span></div>
+                                    <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                        {activeBill.payments.map((p) => (
+                                            <div key={p.id} className="px-4 py-2.5 flex items-center justify-between text-xs">
+                                                <div className="flex items-center gap-3">
+                                                    <span className={`text-[9px] font-bold uppercase px-2 py-0.5 border ${
+                                                        p.method === "TRANSFER" ? "border-blue-300 text-blue-600 bg-blue-50/50" :
+                                                        p.method === "CASH" ? "border-emerald-300 text-emerald-600 bg-emerald-50/50" :
+                                                        "border-amber-300 text-amber-600 bg-amber-50/50"
+                                                    }`}>{p.method}</span>
+                                                    <span className="font-mono text-zinc-400 text-[10px]">{p.reference || "—"}</span>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">{formatIDR(p.amount)}</span>
+                                                    <span className="text-zinc-400">{new Date(p.date).toLocaleDateString("id-ID")}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                         <div className="px-6 py-4 border-t-2 border-black bg-zinc-50 dark:bg-zinc-800 flex items-center justify-between gap-3">
-                            <Button variant="outline" onClick={() => { setIsDetailOpen(false); setIsDisputeOpen(true) }} disabled={activeBill.status === "PAID"} className={NB.cancelBtn}>
-                                <XCircle className="mr-2 h-3.5 w-3.5" /> Dispute
-                            </Button>
-                            <Button onClick={() => { setIsDetailOpen(false); setIsPayOpen(true) }} disabled={activeBill.status === "PAID" || activeBill.balanceDue <= 0} className={NB.submitBtnGreen}>
-                                <CreditCard className="mr-2 h-3.5 w-3.5" /> Bayar Sekarang
-                            </Button>
+                            {activeBill.status === "PAID" ? (
+                                <>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[8px] font-black uppercase px-2 py-1 bg-emerald-100 text-emerald-700 border border-emerald-300">Lunas</span>
+                                        {activeBill.payments?.[0] && (
+                                            <span className="text-[10px] text-zinc-400">
+                                                {new Date(activeBill.payments[0].date).toLocaleDateString("id-ID")}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <Button variant="outline" onClick={() => setIsDetailOpen(false)} className={NB.cancelBtn}>
+                                        Tutup
+                                    </Button>
+                                </>
+                            ) : activeBill.status === "DRAFT" ? (
+                                <>
+                                    <span className="text-[10px] italic text-zinc-400">Tagihan ini masih draft — perlu persetujuan sebelum dibayar</span>
+                                    <Button variant="outline" onClick={() => setIsDetailOpen(false)} className={NB.cancelBtn}>
+                                        Tutup
+                                    </Button>
+                                </>
+                            ) : (
+                                <>
+                                    <Button variant="outline" onClick={() => { setIsDetailOpen(false); setIsDisputeOpen(true) }} className={NB.cancelBtn}>
+                                        <XCircle className="mr-2 h-3.5 w-3.5" /> Dispute
+                                    </Button>
+                                    <Button onClick={() => { setIsDetailOpen(false); setIsPayOpen(true) }} disabled={activeBill.balanceDue <= 0} className={NB.submitBtnGreen}>
+                                        <CreditCard className="mr-2 h-3.5 w-3.5" /> Bayar Sekarang
+                                    </Button>
+                                </>
+                            )}
                         </div>
                     </>)}
                 </DialogContent>
@@ -750,7 +812,7 @@ export default function APBillsStackPage() {
                                                             <Select value={manualMethod} onValueChange={(v) => {
                                                                 const m = v as "TRANSFER" | "CHECK" | "GIRO" | "CASH"
                                                                 setManualMethod(m)
-                                                                setManualBankAccount(m === "CASH" ? "1000" : "1010")
+                                                                setManualBankAccount("")
                                                             }}>
                                                                 <SelectTrigger className={NB.select}><SelectValue /></SelectTrigger>
                                                                 <SelectContent>
@@ -762,11 +824,11 @@ export default function APBillsStackPage() {
                                                             </Select>
                                                         </div>
                                                         <div className="space-y-1.5">
-                                                            <Label className={NB.label}>Akun Pembayaran <span className={NB.labelRequired}>*</span></Label>
+                                                            <Label className={NB.label}>{manualMethod === "CASH" ? "Akun Kas" : "Akun Bank"} <span className={NB.labelRequired}>*</span></Label>
                                                             <Select value={manualBankAccount} onValueChange={setManualBankAccount}>
-                                                                <SelectTrigger className={NB.select}><SelectValue placeholder="Pilih akun..." /></SelectTrigger>
+                                                                <SelectTrigger className={NB.select}><SelectValue placeholder={manualMethod === "CASH" ? "Pilih akun kas..." : "Pilih akun bank..."} /></SelectTrigger>
                                                                 <SelectContent>
-                                                                    {bankAccounts?.map((a) => (
+                                                                    {(manualMethod === "CASH" ? cashAccounts : bankAccounts).map((a) => (
                                                                         <SelectItem key={a.code} value={a.code}>
                                                                             {a.code} — {a.name}
                                                                         </SelectItem>
@@ -905,7 +967,7 @@ export default function APBillsStackPage() {
                                                             <span>2000 - Hutang Usaha</span>
                                                             <span className="text-right font-mono">{formatIDR(manualTotalAllocated)}</span>
                                                             <span className="text-right font-mono">-</span>
-                                                            <span>{manualBankAccount} - {bankAccounts?.find((a) => a.code === manualBankAccount)?.name || "Cash/Bank"}</span>
+                                                            <span>{manualBankAccount} - {[...bankAccounts, ...cashAccounts].find((a) => a.code === manualBankAccount)?.name || "Cash/Bank"}</span>
                                                             <span className="text-right font-mono">-</span>
                                                             <span className="text-right font-mono">{formatIDR(manualTotalAllocated)}</span>
                                                         </div>

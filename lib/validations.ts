@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { isValidNpwp } from './npwp'
+import { LEGACY_PAYMENT_TERM_VALUES } from './payment-term-options'
 
 // Product validation schema - base object for type inference
 export const createProductSchemaBase = z.object({
@@ -121,7 +123,9 @@ export const createCustomerSchemaBase = z.object({
   categoryId: z.string().optional(),
   
   // Indonesian Business Information
-  npwp: z.string().optional(),
+  npwp: z.string().optional().refine((value) => !value || isValidNpwp(value), {
+    message: 'NPWP harus terdiri dari 15 atau 16 digit angka',
+  }),
   nik: z.string().optional(),
   taxAddress: z.string().optional(),
   isTaxable: z.boolean().optional().default(true),
@@ -135,7 +139,7 @@ export const createCustomerSchemaBase = z.object({
   // Credit Management
   creditLimit: z.number().min(0, 'Limit kredit tidak boleh negatif').optional().default(0),
   creditTerm: z.number().int().min(0, 'Term kredit tidak boleh negatif').optional().default(30),
-  paymentTerm: z.enum(['CASH', 'NET_15', 'NET_30', 'NET_45', 'NET_60', 'NET_90', 'COD']).optional().default('NET_30'),
+  paymentTerm: z.enum(LEGACY_PAYMENT_TERM_VALUES).optional().default('NET_30'),
   
   // Settings
   currency: z.string().optional().default('IDR'),
@@ -194,7 +198,7 @@ export const createQuotationSchema = z.object({
   validUntil: z.date({
     message: 'Tanggal berlaku sampai wajib diisi',
   }),
-  paymentTerm: z.enum(['CASH', 'NET_15', 'NET_30', 'NET_45', 'NET_60', 'NET_90', 'COD']).optional().default('NET_30'),
+  paymentTerm: z.enum(LEGACY_PAYMENT_TERM_VALUES).optional().default('NET_30'),
   deliveryTerm: z.string().optional(),
   notes: z.string().optional(),
   internalNotes: z.string().optional(),
@@ -238,7 +242,7 @@ export const createSalesOrderSchema = z.object({
   customerRef: z.string().optional(),
   orderDate: z.date().default(() => new Date()),
   requestedDate: z.date().optional(),
-  paymentTerm: z.enum(['CASH', 'NET_15', 'NET_30', 'NET_45', 'NET_60', 'NET_90', 'COD']).default('NET_30'),
+  paymentTerm: z.enum(LEGACY_PAYMENT_TERM_VALUES).default('NET_30'),
   deliveryTerm: z.string().optional(),
   notes: z.string().optional(),
   internalNotes: z.string().optional(),

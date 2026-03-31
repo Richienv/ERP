@@ -2,19 +2,147 @@
 
 import { withPrismaAuth } from "@/lib/db"
 import { postJournalEntry } from "./finance-gl"
-import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts"
-import {
-    buildTransactionIndex,
-    findMatchesIndexed,
-    type BankLine,
-    type SystemTransaction,
-    type MatchResult,
-} from "@/lib/finance-reconciliation-helpers"
-import {
-    parseBCACSV,
-    parseGenericBankCSV,
-    type ParsedBankLine,
-} from "@/lib/bank-csv-parsers"
+import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts-server"
+import { assertPeriodOpen } from "@/lib/period-helpers"
+import { type PPhTypeValue } from "@/lib/pph-helpers"
+import { toNum } from "@/lib/utils"
+
+// ==========================================
+// BAD DEBT WRITE-OFF
+// ==========================================
+
+/**
+ * Provision for bad debt (Allowance method Step 1).
+ * Creates a journal entry that provisions for expected losses:
+ *   DR Bad Debt Expense (6500), CR Allowance for Doubtful Debts (1210)
+ *
+ * This hits P&L immediately but does NOT affect the invoice or AR balance yet.
+ */
+export async function provisionBadDebt(data: {
+    amount: number
+    reason?: string
+}) {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            if (data.amount <= 0) throw new Error("Jumlah provisi harus lebih dari 0")
+
+            await ensureSystemAccounts()
+
+            const glResult = await postJournalEntry({
+                description: `Provisi Piutang Tak Tertagih: ${data.reason || 'Cadangan kerugian piutang'}`,
+                date: new Date(),
+                reference: `PROV-BD-${Date.now()}`,
+                sourceDocumentType: 'BAD_DEBT_PROVISION',
+                lines: [
+                    { accountCode: SYS_ACCOUNTS.BAD_DEBT_EXPENSE, debit: data.amount, credit: 0 },
+                    { accountCode: SYS_ACCOUNTS.ALLOWANCE_DOUBTFUL, debit: 0, credit: data.amount },
+                ]
+            }, prisma)
+
+            if (!glResult?.success) {
+                throw new Error(`Jurnal provisi gagal: ${(glResult as any)?.error || 'Unknown GL error'}`)
+            }
+
+            return { success: true, journalEntryId: (glResult as any)?.journalEntryId }
+        })
+    } catch (error: any) {
+        console.error("Provision Bad Debt Error:", error)
+        return { success: false, error: error.message }
+    }
+}
+
+/**
+ * Write off bad debt for an invoice.
+ *
+ * DIRECT method:
+ *   DR Bad Debt Expense (6500), CR AR (1200)
+ *   — Hits P&L directly. Use when there's no prior provision.
+ *
+ * ALLOWANCE method:
+ *   DR Allowance for Doubtful Debts (1210), CR AR (1200)
+ *   — Uses previously provisioned allowance. Does NOT hit P&L again.
+ *   — Call provisionBadDebt() first to set up the allowance.
+ *
+ * Supports partial write-off: amount can be less than balanceDue.
+ * When amount >= balanceDue, invoice status becomes VOID.
+ */
+export async function writeOffBadDebt(data: {
+    invoiceId: string
+    method: 'DIRECT' | 'ALLOWANCE'
+    amount: number
+    reason?: string
+}) {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            // 1. Validate invoice
+            const invoice = await prisma.invoice.findUnique({
+                where: { id: data.invoiceId }
+            })
+
+            if (!invoice) throw new Error("Invoice tidak ditemukan")
+            if (invoice.type !== 'INV_OUT') throw new Error("Hanya invoice pelanggan (AR) yang dapat dihapusbukukan")
+            if (!['ISSUED', 'PARTIAL', 'OVERDUE'].includes(invoice.status)) {
+                throw new Error(`Invoice status '${invoice.status}' tidak dapat dihapusbukukan`)
+            }
+
+            const balanceDue = toNum(invoice.balanceDue)
+            if (data.amount <= 0) throw new Error("Jumlah write-off harus lebih dari 0")
+            if (data.amount > balanceDue) throw new Error(`Jumlah write-off (${data.amount}) melebihi saldo piutang (${balanceDue})`)
+
+            // 2. Determine debit account based on method
+            const debitAccountCode = data.method === 'DIRECT'
+                ? SYS_ACCOUNTS.BAD_DEBT_EXPENSE   // 6500 — hits P&L
+                : SYS_ACCOUNTS.ALLOWANCE_DOUBTFUL  // 1210 — uses prior provision
+
+            // 3. Post journal entry
+            await ensureSystemAccounts()
+
+            const description = data.method === 'DIRECT'
+                ? `Hapus Buku Piutang (Langsung) - ${invoice.number}: ${data.reason || 'Piutang tak tertagih'}`
+                : `Hapus Buku Piutang (Cadangan) - ${invoice.number}: ${data.reason || 'Piutang tak tertagih'}`
+
+            const glResult = await postJournalEntry({
+                description,
+                date: new Date(),
+                reference: `WO-${invoice.number}`,
+                invoiceId: data.invoiceId,
+                sourceDocumentType: 'BAD_DEBT_WRITEOFF',
+                lines: [
+                    { accountCode: debitAccountCode, debit: data.amount, credit: 0 },
+                    { accountCode: SYS_ACCOUNTS.AR, debit: 0, credit: data.amount },
+                ]
+            }, prisma)
+
+            if (!glResult?.success) {
+                throw new Error(`Jurnal hapus buku gagal: ${(glResult as any)?.error || 'Unknown GL error'}`)
+            }
+
+            // 4. Update invoice balance
+            const newBalance = balanceDue - data.amount
+            const newStatus = newBalance <= 0 ? 'VOID' : invoice.status
+
+            await prisma.invoice.update({
+                where: { id: data.invoiceId },
+                data: {
+                    balanceDue: newBalance,
+                    status: newStatus,
+                }
+            })
+
+            return {
+                success: true,
+                invoiceId: data.invoiceId,
+                method: data.method,
+                amountWrittenOff: data.amount,
+                newBalance,
+                newStatus,
+            }
+        })
+    } catch (error: any) {
+        console.error("Write Off Bad Debt Error:", error)
+        return { success: false, error: error.message }
+    }
+}
 
 // ==========================================
 // CREDIT NOTES & REFUNDS
@@ -39,6 +167,9 @@ export async function createCreditNote(data: {
 
             if (!originalInvoice) throw new Error("Original invoice not found")
             if (originalInvoice.type !== 'INV_OUT') throw new Error("Can only credit customer invoices")
+
+            // Period lock: fail fast before mutation
+            await assertPeriodOpen(new Date())
 
             // 2. Calculate Credit Amount
             const creditSubtotal = data.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0)
@@ -77,7 +208,7 @@ export async function createCreditNote(data: {
             })
 
             // 5. Apply Credit to Original Invoice
-            const newBalance = Number(originalInvoice.balanceDue) - creditTotal
+            const newBalance = toNum(originalInvoice.balanceDue) - creditTotal
             await prisma.invoice.update({
                 where: { id: originalInvoice.id },
                 data: {
@@ -109,7 +240,7 @@ export async function createCreditNote(data: {
                         credit: creditTax
                     }
                 ]
-            })
+            }, prisma)
 
             return { success: true, creditNoteId: creditNote.id, number: creditNote.number }
         })
@@ -135,6 +266,9 @@ export async function processRefund(data: {
             if (!invoice) throw new Error("Invoice not found")
             if (invoice.type !== 'INV_OUT') throw new Error("Can only refund customer payments")
 
+            // Period lock: fail fast before mutation
+            await assertPeriodOpen(new Date())
+
             // 1. Create Refund Record
             const refund = await prisma.payment.create({
                 data: {
@@ -150,7 +284,7 @@ export async function processRefund(data: {
             })
 
             // 2. Update Invoice Balance
-            const newBalance = Number(invoice.balanceDue) + data.amount
+            const newBalance = toNum(invoice.balanceDue) + data.amount
             await prisma.invoice.update({
                 where: { id: data.invoiceId },
                 data: {
@@ -179,7 +313,7 @@ export async function processRefund(data: {
                         credit: data.amount
                     }
                 ]
-            })
+            }, prisma)
 
             return { success: true, refundId: refund.id }
         })
@@ -219,6 +353,9 @@ export async function createPaymentVoucher(data: {
                 throw new Error("Some bills not found or already paid")
             }
 
+            // Period lock: fail fast before mutation
+            await assertPeriodOpen(new Date())
+
             // 2. Generate PV Number
             const count = await prisma.payment.count({ where: { type: 'VOUCHER' } })
             const year = new Date().getFullYear()
@@ -241,7 +378,7 @@ export async function createPaymentVoucher(data: {
                     voucherItems: {
                         create: bills.map(bill => ({
                             invoiceId: bill.id,
-                            amount: Math.min(data.amount / bills.length, Number(bill.balanceDue))
+                            amount: Math.min(data.amount / bills.length, toNum(bill.balanceDue))
                         }))
                     }
                 }
@@ -250,8 +387,8 @@ export async function createPaymentVoucher(data: {
             // 4. If not GIRO, immediately apply payment
             if (data.method !== 'GIRO') {
                 for (const bill of bills) {
-                    const paymentAmount = Math.min(data.amount / bills.length, Number(bill.balanceDue))
-                    const newBalance = Number(bill.balanceDue) - paymentAmount
+                    const paymentAmount = Math.min(data.amount / bills.length, toNum(bill.balanceDue))
+                    const newBalance = toNum(bill.balanceDue) - paymentAmount
 
                     await prisma.invoice.update({
                         where: { id: bill.id },
@@ -283,7 +420,7 @@ export async function createPaymentVoucher(data: {
                         credit: data.amount
                     }
                 ]
-            })
+            }, prisma)
 
             return { success: true, voucherNumber: number }
         })
@@ -309,10 +446,13 @@ export async function processGIROClearing(voucherId: string, isCleared: boolean,
             if (voucher.method !== 'GIRO') throw new Error("Not a GIRO payment")
             if (voucher.status !== 'PENDING') throw new Error("GIRO already processed")
 
+            // Period lock: fail fast before mutation
+            await assertPeriodOpen(new Date())
+
             if (isCleared) {
                 // GIRO Cleared - apply payments
                 for (const item of voucher.voucherItems) {
-                    const newBalance = Number(item.invoice.balanceDue) - Number(item.amount)
+                    const newBalance = toNum(item.invoice.balanceDue) - toNum(item.amount)
                     await prisma.invoice.update({
                         where: { id: item.invoiceId },
                         data: {
@@ -345,7 +485,7 @@ export async function processGIROClearing(voucherId: string, isCleared: boolean,
                             credit: voucher.amount
                         }
                     ]
-                })
+                }, prisma)
 
                 return { success: true, status: 'CLEARED' }
             } else {
@@ -380,22 +520,9 @@ export interface BankStatementLine {
     matchedPaymentId?: string
 }
 
-export async function importBankStatement(
-    bankAccountId: string,
-    lines: Omit<BankStatementLine, 'id' | 'isReconciled'>[],
-    importBatchId?: string
-) {
+export async function importBankStatement(bankAccountId: string, lines: Omit<BankStatementLine, 'id' | 'isReconciled'>[]) {
     try {
         return await withPrismaAuth(async (prisma) => {
-            // Verify the bank account exists and is a bank/cash asset
-            const bankAccount = await prisma.gLAccount.findUnique({
-                where: { id: bankAccountId }
-            })
-            if (!bankAccount) throw new Error("Akun bank tidak ditemukan (bank account not found)")
-
-            // Generate batch ID if not provided
-            const batchId = importBatchId || `IMPORT-${Date.now()}`
-
             // Create bank statement lines
             const created = await prisma.bankStatement.createMany({
                 data: lines.map(line => ({
@@ -405,63 +532,14 @@ export async function importBankStatement(
                     reference: line.reference,
                     debit: line.debit,
                     credit: line.credit,
-                    isReconciled: false,
-                    importBatchId: batchId,
+                    isReconciled: false
                 }))
             })
 
-            return { success: true, count: created.count, importBatchId: batchId }
+            return { success: true, count: created.count }
         })
     } catch (error: any) {
         console.error("Import Bank Statement Error:", error)
-        return { success: false, error: error.message }
-    }
-}
-
-/**
- * Import a CSV file directly — parses the CSV and creates bank statement records.
- * Combines CSV parsing + database import in one step.
- */
-export async function importBankCSV(data: {
-    bankAccountId: string
-    csvContent: string
-    bankName?: string // 'BCA' or leave empty for auto-detect
-}) {
-    try {
-        // Parse the CSV
-        const parseResult = data.bankName?.toUpperCase() === 'BCA'
-            ? parseBCACSV(data.csvContent)
-            : parseGenericBankCSV(data.csvContent, data.bankName)
-
-        if (!parseResult.success || parseResult.lines.length === 0) {
-            return {
-                success: false,
-                error: parseResult.errors.join('; ') || 'Gagal parsing CSV (failed to parse CSV)',
-                parseErrors: parseResult.errors,
-                skippedRows: parseResult.skippedRows,
-            }
-        }
-
-        // Convert parsed lines to import format
-        const importLines = parseResult.lines.map(line => ({
-            date: line.date,
-            description: line.description,
-            reference: line.reference,
-            debit: line.debit,
-            credit: line.credit,
-        }))
-
-        // Import into database
-        const importResult = await importBankStatement(data.bankAccountId, importLines)
-
-        return {
-            ...importResult,
-            parsed: parseResult.lines.length,
-            skippedRows: parseResult.skippedRows,
-            bankName: parseResult.bankName,
-        }
-    } catch (error: any) {
-        console.error("Import Bank CSV Error:", error)
         return { success: false, error: error.message }
     }
 }
@@ -543,206 +621,6 @@ export async function reconcileBankLine(data: {
     }
 }
 
-/**
- * Auto-suggest matches between unreconciled bank statement lines and system payments.
- *
- * Uses the indexed matching algorithm from finance-reconciliation-helpers.ts:
- *   HIGH   = exact amount + date within 3 days + reference match
- *   MEDIUM = exact amount + date within 3 days
- *   LOW    = amount within Rp 100 + date within 5 days
- */
-export interface BankMatchSuggestion {
-    bankLineId: string
-    bankDate: string
-    bankDescription: string
-    bankAmount: number // positive = credit (money in), negative = debit (money out)
-    matches: Array<{
-        paymentId: string
-        paymentNumber: string
-        paymentAmount: number
-        paymentDate: string
-        customerName?: string
-        supplierName?: string
-        invoiceNumber?: string
-        confidence: 'HIGH' | 'MEDIUM' | 'LOW'
-        score: number
-        reason: string
-    }>
-}
-
-export async function suggestBankMatches(bankAccountId: string): Promise<{
-    success: boolean
-    suggestions: BankMatchSuggestion[]
-    stats: {
-        totalUnreconciled: number
-        withSuggestions: number
-        highConfidence: number
-        mediumConfidence: number
-        lowConfidence: number
-    }
-    error?: string
-}> {
-    try {
-        return await withPrismaAuth(async (prisma) => {
-            // 1. Get all unreconciled bank statement lines
-            const bankLines = await prisma.bankStatement.findMany({
-                where: {
-                    bankAccountId,
-                    isReconciled: false,
-                },
-                orderBy: { date: 'asc' },
-            })
-
-            if (bankLines.length === 0) {
-                return {
-                    success: true,
-                    suggestions: [],
-                    stats: { totalUnreconciled: 0, withSuggestions: 0, highConfidence: 0, mediumConfidence: 0, lowConfidence: 0 },
-                }
-            }
-
-            // 2. Get all unreconciled payments (both AR and AP)
-            const payments = await prisma.payment.findMany({
-                where: {
-                    isReconciled: false,
-                },
-                include: {
-                    invoice: { select: { number: true } },
-                    customer: { select: { name: true } },
-                    supplier: { select: { name: true } },
-                },
-            })
-
-            // 3. Build transaction index from payments
-            const systemTransactions: SystemTransaction[] = payments.map(p => ({
-                id: p.id,
-                date: p.date,
-                amount: Number(p.amount),
-                description: `${p.number} ${p.customer?.name || p.supplier?.name || ''}`,
-                reference: p.reference,
-            }))
-
-            const txnIndex = buildTransactionIndex(systemTransactions)
-
-            // 4. For each bank line, find matches
-            const suggestions: BankMatchSuggestion[] = []
-            let highCount = 0, mediumCount = 0, lowCount = 0
-
-            // Build a map for quick payment lookup
-            const paymentMap = new Map(payments.map(p => [p.id, p]))
-
-            for (const bl of bankLines) {
-                const bankAmount = Number(bl.credit) > 0 ? Number(bl.credit) : -Number(bl.debit)
-
-                const bankLineInput: BankLine = {
-                    id: bl.id,
-                    bankDate: bl.date,
-                    bankAmount,
-                    bankDescription: bl.description,
-                    bankRef: bl.reference || '',
-                }
-
-                const matchResults: MatchResult[] = findMatchesIndexed(bankLineInput, txnIndex)
-
-                if (matchResults.length > 0) {
-                    const enrichedMatches = matchResults.map(m => {
-                        const payment = paymentMap.get(m.transactionId)!
-                        if (m.confidence === 'HIGH') highCount++
-                        else if (m.confidence === 'MEDIUM') mediumCount++
-                        else lowCount++
-
-                        return {
-                            paymentId: m.transactionId,
-                            paymentNumber: payment.number,
-                            paymentAmount: Number(payment.amount),
-                            paymentDate: payment.date.toISOString().split('T')[0],
-                            customerName: payment.customer?.name,
-                            supplierName: payment.supplier?.name,
-                            invoiceNumber: payment.invoice?.number ?? undefined,
-                            confidence: m.confidence,
-                            score: m.score,
-                            reason: m.reason,
-                        }
-                    })
-
-                    suggestions.push({
-                        bankLineId: bl.id,
-                        bankDate: bl.date.toISOString().split('T')[0],
-                        bankDescription: bl.description,
-                        bankAmount,
-                        matches: enrichedMatches,
-                    })
-                }
-            }
-
-            return {
-                success: true,
-                suggestions,
-                stats: {
-                    totalUnreconciled: bankLines.length,
-                    withSuggestions: suggestions.length,
-                    highConfidence: highCount,
-                    mediumConfidence: mediumCount,
-                    lowConfidence: lowCount,
-                },
-            }
-        })
-    } catch (error: any) {
-        console.error("Suggest Bank Matches Error:", error)
-        return {
-            success: false,
-            suggestions: [],
-            stats: { totalUnreconciled: 0, withSuggestions: 0, highConfidence: 0, mediumConfidence: 0, lowConfidence: 0 },
-            error: error.message,
-        }
-    }
-}
-
-/**
- * Auto-reconcile all HIGH confidence matches in one batch.
- * Only reconciles matches where there is exactly one HIGH confidence suggestion.
- */
-export async function autoReconcileHighConfidence(bankAccountId: string) {
-    try {
-        const suggestResult = await suggestBankMatches(bankAccountId)
-        if (!suggestResult.success) {
-            return { success: false, error: suggestResult.error, reconciled: 0 }
-        }
-
-        let reconciled = 0
-        const errors: string[] = []
-
-        for (const suggestion of suggestResult.suggestions) {
-            const highMatches = suggestion.matches.filter(m => m.confidence === 'HIGH')
-
-            // Only auto-reconcile if there is exactly one HIGH match (unambiguous)
-            if (highMatches.length === 1) {
-                const match = highMatches[0]
-                const result = await reconcileBankLine({
-                    bankLineId: suggestion.bankLineId,
-                    paymentId: match.paymentId,
-                    isAutoMatched: true,
-                })
-                if (result.success) {
-                    reconciled++
-                } else {
-                    errors.push(`Baris ${suggestion.bankLineId}: ${result.error}`)
-                }
-            }
-        }
-
-        return {
-            success: true,
-            reconciled,
-            total: suggestResult.stats.totalUnreconciled,
-            errors: errors.length > 0 ? errors : undefined,
-        }
-    } catch (error: any) {
-        console.error("Auto-reconcile Error:", error)
-        return { success: false, error: error.message, reconciled: 0 }
-    }
-}
-
 // ==========================================
 // AR PAYMENT MATCHING (Penerimaan AR)
 // ==========================================
@@ -756,6 +634,10 @@ export interface UnallocatedPayment {
     date: Date
     method: string
     reference: string | null
+    allocated?: boolean
+    invoiceId?: string | null
+    invoiceNumber?: string | null
+    invoiceStatus?: string | null
 }
 
 export interface OpenInvoice {
@@ -766,6 +648,7 @@ export interface OpenInvoice {
     balanceDue: number
     dueDate: Date
     isOverdue: boolean
+    status: string
 }
 
 type ARRegistryQueryInput = {
@@ -779,10 +662,13 @@ type ARRegistryQueryInput = {
 
 export interface RecentAllocatedPayment {
     id: string
+    number: string
     amount: number
     method: string
     reference: string | null
+    date: Date
     createdAt: Date
+    customerName: string | null
     invoice: { id: string; number: string; status: string } | null
 }
 
@@ -829,7 +715,6 @@ export async function getARPaymentRegistry(input?: ARRegistryQueryInput): Promis
     try {
         return await withPrismaAuth(async (prisma) => {
             const paymentWhere: any = {
-                invoiceId: null,
                 customerId: { not: null },
             }
             const invoiceWhere: any = {
@@ -861,7 +746,10 @@ export async function getARPaymentRegistry(input?: ARRegistryQueryInput): Promis
             const [payments, invoices, paymentsTotal, invoicesTotal, recentPayments, allCustomers] = await Promise.all([
                 prisma.payment.findMany({
                     where: paymentWhere,
-                    include: { customer: { select: { id: true, name: true } } },
+                    include: {
+                        customer: { select: { id: true, name: true } },
+                        invoice: { select: { id: true, number: true, status: true } },
+                    },
                     orderBy: { date: 'desc' },
                     skip: (query.paymentPage - 1) * query.pageSize,
                     take: query.pageSize,
@@ -883,7 +771,8 @@ export async function getARPaymentRegistry(input?: ARRegistryQueryInput): Promis
                     orderBy: { createdAt: 'desc' },
                     take: 20,
                     select: {
-                        id: true, amount: true, method: true, reference: true, createdAt: true,
+                        id: true, number: true, amount: true, method: true, reference: true, date: true, createdAt: true,
+                        customer: { select: { id: true, name: true } },
                         invoice: { select: { id: true, number: true, status: true } },
                     },
                 }),
@@ -901,26 +790,34 @@ export async function getARPaymentRegistry(input?: ARRegistryQueryInput): Promis
                     number: p.number,
                     from: p.customer?.name || 'Unknown Customer',
                     customerId: p.customerId,
-                    amount: Number(p.amount),
+                    amount: toNum(p.amount),
                     date: p.date,
                     method: p.method,
-                    reference: p.reference
+                    reference: p.reference,
+                    allocated: p.invoiceId != null,
+                    invoiceId: p.invoiceId,
+                    invoiceNumber: p.invoice?.number ?? null,
+                    invoiceStatus: p.invoice?.status ?? null,
                 })),
                 openInvoices: invoices.map((inv) => ({
                     id: inv.id,
                     number: inv.number,
                     customer: inv.customer ? { id: inv.customer.id, name: inv.customer.name } : null,
-                    amount: Number(inv.totalAmount),
-                    balanceDue: Number(inv.balanceDue),
+                    amount: toNum(inv.totalAmount),
+                    balanceDue: toNum(inv.balanceDue),
                     dueDate: inv.dueDate,
-                    isOverdue: inv.dueDate < now
+                    isOverdue: inv.dueDate < now,
+                    status: inv.status,
                 })),
                 recentPayments: recentPayments.map((p) => ({
                     id: p.id,
-                    amount: Number(p.amount),
+                    number: p.number,
+                    amount: toNum(p.amount),
                     method: p.method,
                     reference: p.reference,
+                    date: p.date,
                     createdAt: p.createdAt,
+                    customerName: p.customer?.name ?? null,
                     invoice: p.invoice ? { id: p.invoice.id, number: p.invoice.number, status: p.invoice.status } : null,
                 })),
                 allCustomers,
@@ -989,7 +886,7 @@ export async function getUnallocatedPayments(): Promise<UnallocatedPayment[]> {
                 number: p.number,
                 from: p.customer?.name || 'Unknown Customer',
                 customerId: p.customerId,
-                amount: Number(p.amount),
+                amount: toNum(p.amount),
                 date: p.date,
                 method: p.method,
                 reference: p.reference
@@ -1025,10 +922,11 @@ export async function getOpenInvoices(): Promise<OpenInvoice[]> {
                 id: inv.id,
                 number: inv.number,
                 customer: inv.customer ? { id: inv.customer.id, name: inv.customer.name } : null,
-                amount: Number(inv.totalAmount),
-                balanceDue: Number(inv.balanceDue),
+                amount: toNum(inv.totalAmount),
+                balanceDue: toNum(inv.balanceDue),
                 dueDate: inv.dueDate,
-                isOverdue: inv.dueDate < now
+                isOverdue: inv.dueDate < now,
+                status: inv.status,
             }))
         })
     } catch (error) {
@@ -1039,57 +937,30 @@ export async function getOpenInvoices(): Promise<OpenInvoice[]> {
 
 
 /**
- * Get bank/cash GL accounts for payment form dropdown.
- * Returns ASSET-type accounts that are bank or cash accounts.
- */
-export async function getBankCashAccounts(): Promise<
-    { code: string; name: string }[]
-> {
-    try {
-        return await withPrismaAuth(async (prisma) => {
-            await ensureSystemAccounts()
-            const accounts = await prisma.gLAccount.findMany({
-                where: {
-                    type: 'ASSET',
-                    OR: [
-                        { name: { contains: 'bank', mode: 'insensitive' as const } },
-                        { name: { contains: 'kas', mode: 'insensitive' as const } },
-                        { name: { contains: 'cash', mode: 'insensitive' as const } },
-                        { code: { in: [SYS_ACCOUNTS.CASH, SYS_ACCOUNTS.PETTY_CASH, SYS_ACCOUNTS.BANK_BCA, SYS_ACCOUNTS.BANK_MANDIRI] } },
-                    ],
-                },
-                select: { code: true, name: true },
-                orderBy: { code: 'asc' },
-            })
-            // Deduplicate by code
-            const seen = new Set<string>()
-            return accounts.filter((a) => {
-                if (seen.has(a.code)) return false
-                seen.add(a.code)
-                return true
-            })
-        })
-    } catch (error) {
-        console.error("[getBankCashAccounts] Error:", error)
-        return []
-    }
-}
-
-/**
  * Record a new customer payment (AR receipt)
  */
 export async function recordARPayment(data: {
     customerId: string
     amount: number
     date?: Date
-    method?: 'CASH' | 'TRANSFER' | 'CHECK' | 'GIRO' | 'CARD'
+    method?: 'CASH' | 'TRANSFER' | 'CHECK' | 'GIRO' | 'CREDIT_CARD' | 'OTHER'
     reference?: string
     notes?: string
     invoiceId?: string // Optional: directly link to invoice
-    bankAccountCode?: string // COA code for specific bank/cash account (e.g. "1110" for Bank BCA)
+    withheldByCustomer?: {
+        type: PPhTypeValue
+        rate: number
+        baseAmount: number
+        buktiPotongNo?: string
+    }
+    bankChargeAmount?: number // Optional: bank charges deducted from received amount
+    bankAccountCode?: string // COA code for the bank/cash account to debit
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
+            // Period lock: fail fast before mutation
+            await assertPeriodOpen(data.date || new Date())
+
             // Generate payment number
             const year = new Date().getFullYear()
             const count = await prisma.payment.count({
@@ -1110,7 +981,7 @@ export async function recordARPayment(data: {
                 }
             })
 
-            // Determine cash/bank account based on payment method + user-selected bank
+            // Determine cash/bank account based on payment method
             const cashCode = getCashAccountCode(data.method || 'TRANSFER', data.bankAccountCode)
 
             await ensureSystemAccounts()
@@ -1118,11 +989,18 @@ export async function recordARPayment(data: {
             if (data.invoiceId) {
                 // Payment linked to invoice — reduce AR balance
                 const invoice = await prisma.invoice.findUnique({
-                    where: { id: data.invoiceId }
+                    where: { id: data.invoiceId },
+                    include: { customer: { select: { name: true } } }
                 })
 
                 if (invoice) {
-                    const newBalance = Number(invoice.balanceDue) - data.amount
+                    const customer = invoice.customer
+                    const pphAmount = data.withheldByCustomer
+                        ? Math.round((data.withheldByCustomer.rate / 100) * data.withheldByCustomer.baseAmount)
+                        : 0
+                    const totalSettled = data.amount + pphAmount
+
+                    const newBalance = toNum(invoice.balanceDue) - totalSettled
                     await prisma.invoice.update({
                         where: { id: data.invoiceId },
                         data: {
@@ -1131,19 +1009,60 @@ export async function recordARPayment(data: {
                         }
                     })
 
-                    // Post GL Entry: DR Cash/Bank, CR Piutang Usaha (AR)
+                    // Post GL Entry: DR Cash/Bank, DR PPh Dibayar Dimuka (if withheld), DR Bank Charges (if any), CR Piutang Usaha (AR)
+                    const bankCharge = data.bankChargeAmount && data.bankChargeAmount > 0 ? data.bankChargeAmount : 0
+                    const bankDebitAmount = data.amount - bankCharge
+
+                    const arLines: { accountCode: string; debit: number; credit: number; description?: string }[] = [
+                        { accountCode: cashCode, debit: bankDebitAmount, credit: 0, description: `Terima dari ${customer?.name || 'Customer'}` },
+                    ]
+
+                    if (bankCharge > 0) {
+                        arLines.push({
+                            accountCode: SYS_ACCOUNTS.BANK_CHARGES, debit: bankCharge, credit: 0, description: `Biaya bank - ${invoice.number}`
+                        })
+                    }
+
+                    if (data.withheldByCustomer && pphAmount > 0) {
+                        arLines.push({
+                            accountCode: SYS_ACCOUNTS.PPH_PREPAID,
+                            debit: pphAmount,
+                            credit: 0,
+                            description: `PPh Dibayar Dimuka - ${invoice.number}`,
+                        })
+                    }
+
+                    arLines.push({
+                        accountCode: SYS_ACCOUNTS.AR, debit: 0, credit: totalSettled, description: `Pelunasan ${invoice.number}`
+                    })
+
                     const glResult = await postJournalEntry({
-                        description: `Penerimaan ${paymentNumber} untuk ${invoice.number}`,
+                        description: `Penerimaan ${paymentNumber} untuk ${invoice.number}${bankCharge > 0 ? ` (biaya bank: ${bankCharge})` : ''}`,
                         date: data.date || new Date(),
                         reference: paymentNumber,
                         invoiceId: data.invoiceId,
-                        lines: [
-                            { accountCode: cashCode, debit: data.amount, credit: 0 },
-                            { accountCode: SYS_ACCOUNTS.AR, debit: 0, credit: data.amount } // Piutang Usaha
-                        ]
-                    })
+                        lines: arLines,
+                    }, prisma)
                     if (!glResult?.success) {
-                        console.error("GL posting failed (payment recorded):", glResult?.error)
+                        // Atomic: GL gagal → lempar error agar withPrismaAuth rollback payment + invoice update
+                        throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(glResult as any)?.error || 'Unknown GL error'}`)
+                    }
+
+                    // Create WithholdingTax record if customer withheld PPh
+                    if (data.withheldByCustomer && pphAmount > 0) {
+                        await prisma.withholdingTax.create({
+                            data: {
+                                paymentId: payment.id,
+                                invoiceId: data.invoiceId || null,
+                                type: data.withheldByCustomer.type,
+                                direction: 'IN',
+                                rate: data.withheldByCustomer.rate,
+                                baseAmount: data.withheldByCustomer.baseAmount,
+                                amount: pphAmount,
+                                buktiPotongNo: data.withheldByCustomer.buktiPotongNo || null,
+                                buktiPotongDate: data.withheldByCustomer.buktiPotongNo ? new Date() : null,
+                            },
+                        })
                     }
                 }
             } else {
@@ -1158,9 +1077,10 @@ export async function recordARPayment(data: {
                         { accountCode: cashCode, debit: data.amount, credit: 0 },
                         { accountCode: SYS_ACCOUNTS.DEFERRED_REV, debit: 0, credit: data.amount } // Pendapatan Diterima Dimuka
                     ]
-                })
+                }, prisma)
                 if (!advGlResult?.success) {
-                    console.error("GL posting failed (advance payment):", advGlResult?.error)
+                    // Atomic: GL gagal → lempar error agar withPrismaAuth rollback payment
+                    throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(advGlResult as any)?.error || 'Unknown GL error'}`)
                 }
             }
 
@@ -1188,8 +1108,11 @@ export async function matchPaymentToInvoice(paymentId: string, invoiceId: string
             if (!invoice) throw new Error("Invoice not found")
             if (payment.invoiceId) throw new Error("Payment already allocated")
 
-            const paymentAmount = Number(payment.amount)
-            const newBalance = Number(invoice.balanceDue) - paymentAmount
+            // Period lock: fail fast before mutation
+            await assertPeriodOpen(new Date())
+
+            const paymentAmount = toNum(payment.amount)
+            const newBalance = toNum(invoice.balanceDue) - paymentAmount
 
             // Update payment
             await prisma.payment.update({
@@ -1216,9 +1139,10 @@ export async function matchPaymentToInvoice(paymentId: string, invoiceId: string
                     { accountCode: getCashAccountCode(payment.method), debit: paymentAmount, credit: 0 }, // Kas/Bank
                     { accountCode: SYS_ACCOUNTS.AR, debit: 0, credit: paymentAmount }  // Piutang Usaha (AR)
                 ]
-            })
+            }, prisma)
             if (!matchGlResult?.success) {
-                console.error("GL posting failed (match recorded):", matchGlResult?.error)
+                // Atomic: GL gagal → lempar error agar withPrismaAuth rollback match
+                throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(matchGlResult as any)?.error || 'Unknown GL error'}`)
             }
 
             return { success: true, message: `Payment matched to invoice ${invoice.number}` }
@@ -1253,7 +1177,7 @@ export async function getARPaymentStats() {
                     },
                     select: { amount: true }
                 })
-                return payments.reduce((sum, p) => sum + Number(p.amount), 0)
+                return payments.reduce((sum, p) => sum + toNum(p.amount), 0)
             })
             todayTotal = result
         } catch (e) {
@@ -1279,5 +1203,48 @@ export async function getARPaymentStats() {
             outstandingAmount: 0,
             todayPayments: 0
         }
+    }
+}
+
+
+/**
+ * Fetch cash/bank GL accounts for AR payment receipt dropdown.
+ * Returns leaf accounts only (excludes parent/header accounts like 1000).
+ * Splits into bank (name contains "Bank") and cash (Kas/Petty Cash) for conditional display.
+ */
+export async function getCashBankAccountsForPayment(): Promise<{
+    bankAccounts: { code: string; name: string }[]
+    cashAccounts: { code: string; name: string }[]
+}> {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const accounts = await prisma.gLAccount.findMany({
+                where: {
+                    type: "ASSET",
+                    subType: "ASSET_CASH",
+                    // Only leaf accounts that can receive journal postings
+                    children: { none: {} },
+                },
+                orderBy: { code: "asc" },
+                select: { code: true, name: true },
+            })
+
+            const bankAccounts: { code: string; name: string }[] = []
+            const cashAccounts: { code: string; name: string }[] = []
+
+            for (const acc of accounts) {
+                const lowerName = acc.name.toLowerCase()
+                if (lowerName.includes("bank")) {
+                    bankAccounts.push(acc)
+                } else if (lowerName.includes("kas") || lowerName.includes("cash") || lowerName.includes("petty")) {
+                    cashAccounts.push(acc)
+                }
+            }
+
+            return { bankAccounts, cashAccounts }
+        })
+    } catch (error) {
+        console.error("getCashBankAccountsForPayment failed:", error)
+        return { bankAccounts: [], cashAccounts: [] }
     }
 }

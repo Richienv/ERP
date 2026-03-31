@@ -13,18 +13,18 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog"
-import {
     Popover,
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { ComboboxWithCreate, type ComboboxOption } from "@/components/ui/combobox-with-create"
+import {
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBSection,
+} from "@/components/ui/nb-dialog"
 import { NB } from "@/lib/dialog-styles"
 import { postJournalEntry } from "@/lib/actions/finance"
 import { updateJournalEntry, getNextJournalRef } from "@/lib/actions/finance-gl"
@@ -214,339 +214,324 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-5xl sm:max-w-5xl p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0">
-                {/* ── Black header ── */}
-                <DialogHeader className="bg-black text-white px-5 py-3">
-                    <DialogTitle className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
-                        <BookText className="h-4 w-4" /> {isEditMode ? "Edit Jurnal" : "Buat Jurnal Baru"}
-                    </DialogTitle>
-                    <p className={NB.subtitle}>
-                        {isEditMode ? `Mengedit entri jurnal draft` : "Catat transaksi manual ke buku besar"}
-                    </p>
-                </DialogHeader>
+        <NBDialog open={open} onOpenChange={onOpenChange} size="wide">
+            <NBDialogHeader
+                icon={BookText}
+                title={isEditMode ? "Edit Jurnal" : "Buat Jurnal Baru"}
+                subtitle={isEditMode ? "Mengedit entri jurnal draft" : "Catat transaksi manual ke buku besar"}
+            />
 
-                {/* ── Scrollable body ── */}
-                <div className={NB.scroll}>
-                    <div className="p-4 space-y-3">
-                        {/* ── Info section ── */}
-                        <div className="border border-zinc-200 dark:border-zinc-700">
-                            <div className="bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700 flex items-center gap-2">
-                                <CalendarIcon className="h-3.5 w-3.5 text-zinc-400" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Informasi Jurnal</span>
-                            </div>
-                            <div className="p-3">
-                                <div className="grid grid-cols-3 gap-3">
-                                    {/* Date picker */}
-                                    <div>
-                                        <label className={NB.label}>
-                                            Tanggal <span className={NB.labelRequired}>*</span>
-                                        </label>
-                                        <Popover open={calOpen} onOpenChange={setCalOpen}>
-                                            <PopoverTrigger asChild>
-                                                <Button
-                                                    variant="outline"
-                                                    className={`font-bold h-8 w-full justify-start text-left text-xs rounded-none border ${NB.inputActive}`}
-                                                >
-                                                    <CalendarIcon className={`mr-2 h-3.5 w-3.5 ${NB.inputIconActive}`} />
-                                                    {format(date, "dd MMM yyyy", { locale: localeId })}
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0 border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" align="start">
-                                                <Calendar
-                                                    mode="single"
-                                                    selected={date}
-                                                    onSelect={(d) => {
-                                                        if (d) setDate(d)
-                                                        setCalOpen(false)
-                                                    }}
-                                                />
-                                            </PopoverContent>
-                                        </Popover>
-                                    </div>
-
-                                    {/* Description */}
-                                    <div>
-                                        <label className={NB.label}>
-                                            Deskripsi <span className={NB.labelRequired}>*</span>
-                                        </label>
-                                        <Input
-                                            value={desc}
-                                            onChange={e => setDesc(e.target.value)}
-                                            placeholder="Manual Adjustment..."
-                                            className={`border font-medium h-8 text-sm rounded-none placeholder:text-zinc-400 placeholder:italic placeholder:font-normal transition-colors ${
-                                                desc
-                                                    ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 text-zinc-900 dark:text-white"
-                                                    : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
-                                            }`}
-                                        />
-                                    </div>
-
-                                    {/* Journal Type + Generated Ref */}
-                                    <div>
-                                        <label className={NB.label}>Tipe Jurnal</label>
-                                        <div className="flex gap-1.5">
-                                            <select
-                                                value={journalType}
-                                                onChange={e => {
-                                                    setJournalType(e.target.value)
-                                                    if (e.target.value) {
-                                                        const year = new Date().getFullYear()
-                                                        setGeneratedRef(`${e.target.value}-${year}-···`)
-                                                    } else {
-                                                        setGeneratedRef("")
-                                                    }
-                                                }}
-                                                className={`border font-medium h-8 text-[11px] rounded-none px-2 flex-1 transition-colors cursor-pointer ${
-                                                    journalType
-                                                        ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 text-zinc-900 dark:text-white font-bold"
-                                                        : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-400"
-                                                }`}
-                                            >
-                                                <option value="">Pilih tipe...</option>
-                                                {JOURNAL_TYPES.map(t => (
-                                                    <option key={t.value} value={t.value}>{t.value} — {t.label}</option>
-                                                ))}
-                                            </select>
-                                            {generatedRef && (
-                                                <div className="flex items-center px-2 h-8 border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-[10px] font-mono font-bold text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
-                                                    {generatedRef}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* ── Line items ── */}
-                        <div className="border border-zinc-200 dark:border-zinc-700">
-                            <div className="bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700 flex items-center gap-2">
-                                <BookText className="h-3.5 w-3.5 text-zinc-400" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Baris Jurnal</span>
-                                <span className="text-[10px] font-medium text-zinc-400 ml-auto">
-                                    {lines.length} baris
-                                </span>
-                            </div>
-
-                            {/* Column headers */}
-                            <div className={`grid grid-cols-[24px_1.3fr_1fr_100px_100px_28px] gap-1.5 px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700`}>
-                                <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400">#</div>
-                                <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Akun</div>
-                                <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Keterangan</div>
-                                <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400 text-right">
-                                    <span className="inline-flex items-center gap-1">
-                                        <span className="w-1 h-1 bg-emerald-500 inline-block" />
-                                        Debit
-                                    </span>
-                                </div>
-                                <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400 text-right">
-                                    <span className="inline-flex items-center gap-1">
-                                        <span className="w-1 h-1 bg-red-500 inline-block" />
-                                        Kredit
-                                    </span>
-                                </div>
-                                <div></div>
-                            </div>
-
-                            {/* Rows */}
-                            {lines.map((line, i) => {
-                                const hasValue = (Number(line.debit) || 0) > 0 || (Number(line.credit) || 0) > 0
-                                return (
-                                    <div
-                                        key={i}
-                                        className={`group/line grid grid-cols-[24px_1.3fr_1fr_100px_100px_28px] gap-1.5 px-3 py-1.5 items-center transition-colors border-b border-zinc-100 dark:border-zinc-800 last:border-b-0 ${
-                                            hasValue ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/30 dark:bg-zinc-800/10"
-                                        }`}
+            <NBDialogBody>
+                {/* ── Info section ── */}
+                <NBSection icon={CalendarIcon} title="Informasi Jurnal">
+                    <div className="grid grid-cols-3 gap-3">
+                        {/* Date picker — Popover-based, keep as-is */}
+                        <div>
+                            <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                                Tanggal <span className="text-red-500">*</span>
+                            </label>
+                            <Popover open={calOpen} onOpenChange={setCalOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        className={`font-bold h-8 w-full justify-start text-left text-xs rounded-none border ${NB.inputActive}`}
                                     >
-                                        {/* Row number */}
-                                        <div className="flex items-center justify-center">
-                                            <span className={`w-5 h-5 flex items-center justify-center text-[9px] font-black ${
-                                                hasValue
-                                                    ? "bg-zinc-900 dark:bg-white text-white dark:text-black"
-                                                    : "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500"
-                                            }`}>
-                                                {i + 1}
-                                            </span>
-                                        </div>
+                                        <CalendarIcon className={`mr-2 h-3.5 w-3.5 ${NB.inputIconActive}`} />
+                                        {format(date, "dd MMM yyyy", { locale: localeId })}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0 border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" align="start">
+                                    <Calendar
+                                        mode="single"
+                                        selected={date}
+                                        onSelect={(d) => {
+                                            if (d) setDate(d)
+                                            setCalOpen(false)
+                                        }}
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
 
-                                        {/* Account combobox */}
-                                        <div>
-                                            <ComboboxWithCreate
-                                                options={accountOptions}
-                                                value={line.accountId}
-                                                onChange={v => updateLine(i, { accountId: v })}
-                                                placeholder="Cari akun..."
-                                                searchPlaceholder="Ketik kode atau nama..."
-                                                emptyMessage="Akun tidak ditemukan"
-                                                className={`h-7 text-[11px] ${line.accountId
-                                                    ? "!border-orange-400 dark:!border-orange-500 !bg-orange-50/50 dark:!bg-orange-950/20"
-                                                    : "!border-zinc-200 dark:!border-zinc-700 !border"
-                                                }`}
-                                            />
-                                        </div>
+                        {/* Description */}
+                        <div>
+                            <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                                Deskripsi <span className="text-red-500">*</span>
+                            </label>
+                            <Input
+                                value={desc}
+                                onChange={e => setDesc(e.target.value)}
+                                placeholder="Manual Adjustment..."
+                                className={`border font-medium h-8 text-sm rounded-none placeholder:text-zinc-400 placeholder:italic placeholder:font-normal transition-colors ${
+                                    desc
+                                        ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 text-zinc-900 dark:text-white"
+                                        : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
+                                }`}
+                            />
+                        </div>
 
-                                        {/* Per-line description */}
-                                        <div>
-                                            <Input
-                                                value={line.description}
-                                                onChange={e => updateLine(i, { description: e.target.value })}
-                                                placeholder="Opsional..."
-                                                className={`border h-7 text-[11px] font-medium rounded-none placeholder:text-zinc-300 ${
-                                                    line.description
-                                                        ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20"
-                                                        : "border-zinc-200 dark:border-zinc-700"
-                                                }`}
-                                            />
-                                        </div>
-
-                                        {/* Debit */}
-                                        <div className={`flex items-center border h-7 rounded-none transition-colors ${
-                                            (Number(line.debit) || 0) > 0
-                                                ? "border-emerald-400 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-950/20"
-                                                : "border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/30"
-                                        }`}>
-                                            <span className={`pl-1.5 text-[9px] font-bold select-none ${
-                                                (Number(line.debit) || 0) > 0 ? "text-emerald-500 dark:text-emerald-500" : "text-zinc-300 dark:text-zinc-600"
-                                            }`}>Rp</span>
-                                            <input
-                                                type="text"
-                                                inputMode="numeric"
-                                                placeholder="0"
-                                                className={`w-full h-full bg-transparent text-right text-[11px] font-mono font-bold pr-1.5 pl-1 outline-none placeholder:text-zinc-300 placeholder:font-normal ${
-                                                    (Number(line.debit) || 0) > 0 ? "text-emerald-700 dark:text-emerald-400" : ""
-                                                }`}
-                                                value={line.debit ? Number(line.debit).toLocaleString("id-ID") : ""}
-                                                onChange={e => {
-                                                    const raw = e.target.value.replace(/\D/g, "")
-                                                    handleDebitChange(i, parseInt(raw) || 0)
-                                                }}
-                                            />
-                                        </div>
-
-                                        {/* Credit */}
-                                        <div className={`flex items-center border h-7 rounded-none transition-colors ${
-                                            (Number(line.credit) || 0) > 0
-                                                ? "border-red-400 dark:border-red-600 bg-red-50 dark:bg-red-950/20"
-                                                : "border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/30"
-                                        }`}>
-                                            <span className={`pl-1.5 text-[9px] font-bold select-none ${
-                                                (Number(line.credit) || 0) > 0 ? "text-red-500 dark:text-red-500" : "text-zinc-300 dark:text-zinc-600"
-                                            }`}>Rp</span>
-                                            <input
-                                                type="text"
-                                                inputMode="numeric"
-                                                placeholder="0"
-                                                className={`w-full h-full bg-transparent text-right text-[11px] font-mono font-bold pr-1.5 pl-1 outline-none placeholder:text-zinc-300 placeholder:font-normal ${
-                                                    (Number(line.credit) || 0) > 0 ? "text-red-700 dark:text-red-400" : ""
-                                                }`}
-                                                value={line.credit ? Number(line.credit).toLocaleString("id-ID") : ""}
-                                                onChange={e => {
-                                                    const raw = e.target.value.replace(/\D/g, "")
-                                                    handleCreditChange(i, parseInt(raw) || 0)
-                                                }}
-                                            />
-                                        </div>
-
-                                        {/* Delete */}
-                                        <div className="flex justify-center">
-                                            <button
-                                                type="button"
-                                                onClick={() => handleRemoveLine(i)}
-                                                disabled={lines.length <= 2}
-                                                className="w-5 h-5 flex items-center justify-center text-zinc-300 dark:text-zinc-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
-                                            >
-                                                <Trash2 className="h-3 w-3" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                )
-                            })}
-
-                            {/* Add row button */}
-                            <div className="px-3 py-2 border-t border-zinc-200 dark:border-zinc-700">
-                                <button
-                                    type="button"
-                                    onClick={handleAddLine}
-                                    className="w-full py-1.5 text-[9px] font-black uppercase tracking-widest text-zinc-400 hover:text-black dark:hover:text-white border border-dashed border-zinc-200 dark:border-zinc-700 hover:border-black dark:hover:border-white transition-all flex items-center justify-center gap-1.5"
+                        {/* Journal Type + Generated Ref — native select, keep as-is */}
+                        <div>
+                            <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">Tipe Jurnal</label>
+                            <div className="flex gap-1.5">
+                                <select
+                                    value={journalType}
+                                    onChange={e => {
+                                        setJournalType(e.target.value)
+                                        if (e.target.value) {
+                                            const year = new Date().getFullYear()
+                                            setGeneratedRef(`${e.target.value}-${year}-···`)
+                                        } else {
+                                            setGeneratedRef("")
+                                        }
+                                    }}
+                                    className={`border font-medium h-8 text-[11px] rounded-none px-2 flex-1 transition-colors cursor-pointer ${
+                                        journalType
+                                            ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 text-zinc-900 dark:text-white font-bold"
+                                            : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-400"
+                                    }`}
                                 >
-                                    <Plus className="h-2.5 w-2.5" /> Tambah Baris
-                                </button>
-                            </div>
-
-                            {/* Totals row */}
-                            <div className="grid grid-cols-[24px_1.3fr_1fr_100px_100px_28px] gap-1.5 px-3 py-2 bg-zinc-100 dark:bg-zinc-800/80 border-t-2 border-black dark:border-white">
-                                <div></div>
-                                <div className="text-[9px] font-black uppercase tracking-widest text-zinc-500 flex items-center col-span-2">
-                                    Total — {lines.filter(l => (Number(l.debit) || 0) > 0 || (Number(l.credit) || 0) > 0).length} baris aktif
-                                </div>
-                                <div className="text-right font-mono font-black text-xs text-emerald-700 dark:text-emerald-400 tabular-nums">
-                                    {formatIDR(totalDebit)}
-                                </div>
-                                <div className="text-right font-mono font-black text-xs text-red-700 dark:text-red-400 tabular-nums">
-                                    {formatIDR(totalCredit)}
-                                </div>
-                                <div></div>
-                            </div>
-                        </div>
-
-                        {/* ── Balance indicator ── */}
-                        <div
-                            className={`flex items-center justify-between px-3 py-2 text-[9px] font-black uppercase tracking-widest border ${
-                                isBalanced
-                                    ? "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-400 border-emerald-300 dark:border-emerald-600"
-                                    : "bg-red-50 dark:bg-red-950/20 text-red-800 dark:text-red-400 border-red-300 dark:border-red-600"
-                            }`}
-                        >
-                            <span className="flex items-center">
-                                {isBalanced ? (
-                                    <><CheckCircle2 className="mr-1.5 h-3.5 w-3.5" /> Seimbang — Siap {isEditMode ? "Disimpan" : "Posting"}</>
-                                ) : (
-                                    <><AlertCircle className="mr-1.5 h-3.5 w-3.5" /> Tidak Seimbang</>
+                                    <option value="">Pilih tipe...</option>
+                                    {JOURNAL_TYPES.map(t => (
+                                        <option key={t.value} value={t.value}>{t.value} — {t.label}</option>
+                                    ))}
+                                </select>
+                                {generatedRef && (
+                                    <div className="flex items-center px-2 h-8 border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-[10px] font-mono font-bold text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
+                                        {generatedRef}
+                                    </div>
                                 )}
-                            </span>
-                            {!isBalanced && (
-                                <span className="text-xs font-black tabular-nums">
-                                    Selisih {formatIDR(Math.abs(totalDebit - totalCredit))}
-                                </span>
-                            )}
+                            </div>
                         </div>
+                    </div>
+                </NBSection>
+
+                {/* ── Line items section — complex dynamic rows, keep internals as-is ── */}
+                <div className="border border-zinc-200 dark:border-zinc-700">
+                    <div className="bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700 flex items-center gap-2">
+                        <BookText className="h-3.5 w-3.5 text-zinc-400" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Baris Jurnal</span>
+                        <span className="text-[10px] font-medium text-zinc-400 ml-auto">
+                            {lines.length} baris
+                        </span>
+                    </div>
+
+                    {/* Column headers */}
+                    <div className={`grid grid-cols-[24px_1.3fr_1fr_100px_100px_28px] gap-1.5 px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700`}>
+                        <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400">#</div>
+                        <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Akun</div>
+                        <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Keterangan</div>
+                        <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400 text-right">
+                            <span className="inline-flex items-center gap-1">
+                                <span className="w-1 h-1 bg-emerald-500 inline-block" />
+                                Debit
+                            </span>
+                        </div>
+                        <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400 text-right">
+                            <span className="inline-flex items-center gap-1">
+                                <span className="w-1 h-1 bg-red-500 inline-block" />
+                                Kredit
+                            </span>
+                        </div>
+                        <div></div>
+                    </div>
+
+                    {/* Rows */}
+                    {lines.map((line, i) => {
+                        const hasValue = (Number(line.debit) || 0) > 0 || (Number(line.credit) || 0) > 0
+                        return (
+                            <div
+                                key={i}
+                                className={`group/line grid grid-cols-[24px_1.3fr_1fr_100px_100px_28px] gap-1.5 px-3 py-1.5 items-center transition-colors border-b border-zinc-100 dark:border-zinc-800 last:border-b-0 ${
+                                    hasValue ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/30 dark:bg-zinc-800/10"
+                                }`}
+                            >
+                                {/* Row number */}
+                                <div className="flex items-center justify-center">
+                                    <span className={`w-5 h-5 flex items-center justify-center text-[9px] font-black ${
+                                        hasValue
+                                            ? "bg-zinc-900 dark:bg-white text-white dark:text-black"
+                                            : "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500"
+                                    }`}>
+                                        {i + 1}
+                                    </span>
+                                </div>
+
+                                {/* Account combobox — keep as-is */}
+                                <div>
+                                    <ComboboxWithCreate
+                                        options={accountOptions}
+                                        value={line.accountId}
+                                        onChange={v => updateLine(i, { accountId: v })}
+                                        placeholder="Cari akun..."
+                                        searchPlaceholder="Ketik kode atau nama..."
+                                        emptyMessage="Akun tidak ditemukan"
+                                        className={`h-7 text-[11px] ${line.accountId
+                                            ? "!border-orange-400 dark:!border-orange-500 !bg-orange-50/50 dark:!bg-orange-950/20"
+                                            : "!border-zinc-200 dark:!border-zinc-700 !border"
+                                        }`}
+                                    />
+                                </div>
+
+                                {/* Per-line description */}
+                                <div>
+                                    <Input
+                                        value={line.description}
+                                        onChange={e => updateLine(i, { description: e.target.value })}
+                                        placeholder="Opsional..."
+                                        className={`border h-7 text-[11px] font-medium rounded-none placeholder:text-zinc-300 ${
+                                            line.description
+                                                ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20"
+                                                : "border-zinc-200 dark:border-zinc-700"
+                                        }`}
+                                    />
+                                </div>
+
+                                {/* Debit */}
+                                <div className={`flex items-center border h-7 rounded-none transition-colors ${
+                                    (Number(line.debit) || 0) > 0
+                                        ? "border-emerald-400 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-950/20"
+                                        : "border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/30"
+                                }`}>
+                                    <span className={`pl-1.5 text-[9px] font-bold select-none ${
+                                        (Number(line.debit) || 0) > 0 ? "text-emerald-500 dark:text-emerald-500" : "text-zinc-300 dark:text-zinc-600"
+                                    }`}>Rp</span>
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        placeholder="0"
+                                        className={`w-full h-full bg-transparent text-right text-[11px] font-mono font-bold pr-1.5 pl-1 outline-none placeholder:text-zinc-300 placeholder:font-normal ${
+                                            (Number(line.debit) || 0) > 0 ? "text-emerald-700 dark:text-emerald-400" : ""
+                                        }`}
+                                        value={line.debit ? Number(line.debit).toLocaleString("id-ID") : ""}
+                                        onChange={e => {
+                                            const raw = e.target.value.replace(/\D/g, "")
+                                            handleDebitChange(i, parseInt(raw) || 0)
+                                        }}
+                                    />
+                                </div>
+
+                                {/* Credit */}
+                                <div className={`flex items-center border h-7 rounded-none transition-colors ${
+                                    (Number(line.credit) || 0) > 0
+                                        ? "border-red-400 dark:border-red-600 bg-red-50 dark:bg-red-950/20"
+                                        : "border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/30"
+                                }`}>
+                                    <span className={`pl-1.5 text-[9px] font-bold select-none ${
+                                        (Number(line.credit) || 0) > 0 ? "text-red-500 dark:text-red-500" : "text-zinc-300 dark:text-zinc-600"
+                                    }`}>Rp</span>
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        placeholder="0"
+                                        className={`w-full h-full bg-transparent text-right text-[11px] font-mono font-bold pr-1.5 pl-1 outline-none placeholder:text-zinc-300 placeholder:font-normal ${
+                                            (Number(line.credit) || 0) > 0 ? "text-red-700 dark:text-red-400" : ""
+                                        }`}
+                                        value={line.credit ? Number(line.credit).toLocaleString("id-ID") : ""}
+                                        onChange={e => {
+                                            const raw = e.target.value.replace(/\D/g, "")
+                                            handleCreditChange(i, parseInt(raw) || 0)
+                                        }}
+                                    />
+                                </div>
+
+                                {/* Delete */}
+                                <div className="flex justify-center">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleRemoveLine(i)}
+                                        disabled={lines.length <= 2}
+                                        className="w-5 h-5 flex items-center justify-center text-zinc-300 dark:text-zinc-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                                    >
+                                        <Trash2 className="h-3 w-3" />
+                                    </button>
+                                </div>
+                            </div>
+                        )
+                    })}
+
+                    {/* Add row button */}
+                    <div className="px-3 py-2 border-t border-zinc-200 dark:border-zinc-700">
+                        <button
+                            type="button"
+                            onClick={handleAddLine}
+                            className="w-full py-1.5 text-[9px] font-black uppercase tracking-widest text-zinc-400 hover:text-black dark:hover:text-white border border-dashed border-zinc-200 dark:border-zinc-700 hover:border-black dark:hover:border-white transition-all flex items-center justify-center gap-1.5"
+                        >
+                            <Plus className="h-2.5 w-2.5" /> Tambah Baris
+                        </button>
+                    </div>
+
+                    {/* Totals row */}
+                    <div className="grid grid-cols-[24px_1.3fr_1fr_100px_100px_28px] gap-1.5 px-3 py-2 bg-zinc-100 dark:bg-zinc-800/80 border-t-2 border-black dark:border-white">
+                        <div></div>
+                        <div className="text-[9px] font-black uppercase tracking-widest text-zinc-500 flex items-center col-span-2">
+                            Total — {lines.filter(l => (Number(l.debit) || 0) > 0 || (Number(l.credit) || 0) > 0).length} baris aktif
+                        </div>
+                        <div className="text-right font-mono font-black text-xs text-emerald-700 dark:text-emerald-400 tabular-nums">
+                            {formatIDR(totalDebit)}
+                        </div>
+                        <div className="text-right font-mono font-black text-xs text-red-700 dark:text-red-400 tabular-nums">
+                            {formatIDR(totalCredit)}
+                        </div>
+                        <div></div>
                     </div>
                 </div>
 
-                {/* ── Sticky footer ── */}
-                <div className="border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2.5 flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-[10px] text-zinc-400">
-                        <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">D: {formatIDR(totalDebit)}</span>
-                        <span className="text-zinc-300 dark:text-zinc-600">|</span>
-                        <span className="font-mono font-bold text-red-600 dark:text-red-400">K: {formatIDR(totalCredit)}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => onOpenChange(false)}
-                            className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none"
-                        >
-                            Batal
-                        </Button>
-                        <Button
-                            onClick={handleSave}
-                            disabled={!isBalanced || !desc.trim() || posting}
-                            className={`${isEditMode
-                                ? "bg-orange-500 text-white border border-orange-600 hover:bg-orange-600"
-                                : "bg-black text-white border border-black hover:bg-zinc-800"
-                            } font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none gap-1.5 disabled:opacity-40 transition-colors`}
-                        >
-                            {posting ? (
-                                isEditMode ? "Menyimpan..." : "Posting..."
-                            ) : (
-                                <><Save className="h-3 w-3" /> {isEditMode ? "Simpan" : "Post Entry"}</>
-                            )}
-                        </Button>
-                    </div>
+                {/* ── Balance indicator — keep as-is ── */}
+                <div
+                    className={`flex items-center justify-between px-3 py-2 text-[9px] font-black uppercase tracking-widest border ${
+                        isBalanced
+                            ? "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-400 border-emerald-300 dark:border-emerald-600"
+                            : "bg-red-50 dark:bg-red-950/20 text-red-800 dark:text-red-400 border-red-300 dark:border-red-600"
+                    }`}
+                >
+                    <span className="flex items-center">
+                        {isBalanced ? (
+                            <><CheckCircle2 className="mr-1.5 h-3.5 w-3.5" /> Seimbang — Siap {isEditMode ? "Disimpan" : "Posting"}</>
+                        ) : (
+                            <><AlertCircle className="mr-1.5 h-3.5 w-3.5" /> Tidak Seimbang</>
+                        )}
+                    </span>
+                    {!isBalanced && (
+                        <span className="text-xs font-black tabular-nums">
+                            Selisih {formatIDR(Math.abs(totalDebit - totalCredit))}
+                        </span>
+                    )}
                 </div>
-            </DialogContent>
-        </Dialog>
+            </NBDialogBody>
+
+            {/* ── Custom footer with left-side totals ── */}
+            <div className="border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2.5 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-[10px] text-zinc-400">
+                    <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">D: {formatIDR(totalDebit)}</span>
+                    <span className="text-zinc-300 dark:text-zinc-600">|</span>
+                    <span className="font-mono font-bold text-red-600 dark:text-red-400">K: {formatIDR(totalCredit)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => onOpenChange(false)}
+                        className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none"
+                    >
+                        Batal
+                    </Button>
+                    <Button
+                        onClick={handleSave}
+                        disabled={!isBalanced || !desc.trim() || posting}
+                        className={`${isEditMode
+                            ? "bg-orange-500 text-white border border-orange-600 hover:bg-orange-600"
+                            : "bg-black text-white border border-black hover:bg-zinc-800"
+                        } font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none gap-1.5 disabled:opacity-40 transition-colors`}
+                    >
+                        {posting ? (
+                            isEditMode ? "Menyimpan..." : "Posting..."
+                        ) : (
+                            <><Save className="h-3 w-3" /> {isEditMode ? "Simpan" : "Post Entry"}</>
+                        )}
+                    </Button>
+                </div>
+            </div>
+        </NBDialog>
     )
 }

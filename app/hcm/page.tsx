@@ -16,7 +16,6 @@ import { DetailedStaffActivity } from "@/components/hcm/detailed-staff-activity"
 import type { StaffActivityRow } from "@/components/hcm/detailed-staff-activity"
 import { DetailedPerformanceTable } from "@/components/hcm/detailed-performance-table"
 import type { PerformanceRow } from "@/components/hcm/detailed-performance-table"
-import { getHCMDashboardData, getAttendanceSnapshot } from "@/app/actions/hcm"
 import { queryKeys } from "@/lib/query-keys"
 
 interface HCMDashboardData {
@@ -86,8 +85,9 @@ export default function HCMPage() {
   const { data, isLoading, isRefetching } = useQuery({
     queryKey: queryKeys.hcmDashboard.list(),
     queryFn: async () => {
-      const result = await getHCMDashboardData()
-      return result as HCMDashboardData
+      const res = await fetch("/api/hcm/dashboard-data")
+      if (!res.ok) throw new Error("Failed to fetch HCM dashboard data")
+      return res.json() as Promise<HCMDashboardData>
     },
   })
 
@@ -95,8 +95,9 @@ export default function HCMPage() {
   const { data: snapshot } = useQuery({
     queryKey: [...queryKeys.hcmAttendance.all, "snapshot"],
     queryFn: async () => {
-      const result = await getAttendanceSnapshot()
-      return result as {
+      const res = await fetch("/api/hcm/attendance-snapshot")
+      if (!res.ok) throw new Error("Failed to fetch attendance snapshot")
+      return res.json() as Promise<{
         rows: Array<{
           id: string
           employeeCode: string
@@ -111,7 +112,7 @@ export default function HCMPage() {
           isLate: boolean
         }>
         departments: string[]
-      }
+      }>
     },
   })
 

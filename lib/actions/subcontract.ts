@@ -4,7 +4,7 @@ import { prisma, withPrismaAuth } from "@/lib/db"
 import { PrismaClient, SubcontractOrderStatus, SubcontractShipmentDirection } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
 import { assertSubcontractTransition } from "@/lib/subcontract-state-machine"
-import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts"
+import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts-server"
 async function requireAuth() {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
@@ -802,198 +802,197 @@ export async function recordShipment(data: {
         const user = await requireAuth()
 
         await withPrismaAuth(async (prisma: PrismaClient) => {
-            return await (prisma as any).$transaction(async (tx: any) => {
-                // 1. Fetch the order for reference
-                const order = await tx.subcontractOrder.findUniqueOrThrow({
-                    where: { id: data.orderId },
-                    include: { subcontractor: { select: { name: true } } },
-                })
+            // prisma is already a transaction client from withPrismaAuth
+            // 1. Fetch the order for reference
+            const order = await prisma.subcontractOrder.findUniqueOrThrow({
+                where: { id: data.orderId },
+                include: { subcontractor: { select: { name: true } } },
+            })
 
-                // 2. Process each item
-                for (const item of data.items) {
-                    if (item.quantity <= 0) continue
+            // 2. Process each item
+            for (const item of data.items) {
+                if (item.quantity <= 0) continue
 
-                    if (data.direction === 'OUTBOUND') {
-                        // Validate stock availability
-                        const stockLevel = await tx.stockLevel.findUnique({
-                            where: {
-                                productId_warehouseId_locationId: {
-                                    productId: item.productId,
-                                    warehouseId: data.warehouseId,
-                                    locationId: null as any,
-                                },
-                            },
-                        })
-
-                        if (!stockLevel || stockLevel.availableQty < item.quantity) {
-                            const product = await tx.product.findUnique({
-                                where: { id: item.productId },
-                                select: { name: true },
-                            })
-                            throw new Error(
-                                `Stok tidak mencukupi untuk ${product?.name || item.productId}. ` +
-                                `Tersedia: ${stockLevel?.availableQty || 0}, Dibutuhkan: ${item.quantity}`
-                            )
-                        }
-
-                        // Create SUBCONTRACT_OUT inventory transaction
-                        await tx.inventoryTransaction.create({
-                            data: {
+                if (data.direction === 'OUTBOUND') {
+                    // Validate stock availability
+                    const stockLevel = await (prisma as any).stockLevel.findUnique({
+                        where: {
+                            productId_warehouseId_locationId: {
                                 productId: item.productId,
                                 warehouseId: data.warehouseId,
-                                type: 'SUBCONTRACT_OUT',
-                                quantity: -item.quantity,
-                                referenceId: order.number,
-                                workOrderId: order.workOrderId,
-                                performedBy: user.id,
-                                notes: `Subkontrak keluar ke ${order.subcontractor.name} - ${order.number}`,
+                                locationId: null as any,
                             },
-                        })
+                        },
+                    })
 
-                        // Decrement stock
-                        await tx.stockLevel.update({
-                            where: {
-                                productId_warehouseId_locationId: {
-                                    productId: item.productId,
-                                    warehouseId: data.warehouseId,
-                                    locationId: null as any,
-                                },
-                            },
-                            data: {
-                                quantity: { decrement: item.quantity },
-                                availableQty: { decrement: item.quantity },
-                            },
+                    if (!stockLevel || stockLevel.availableQty < item.quantity) {
+                        const product = await prisma.product.findUnique({
+                            where: { id: item.productId },
+                            select: { name: true },
                         })
+                        throw new Error(
+                            `Stok tidak mencukupi untuk ${product?.name || item.productId}. ` +
+                            `Tersedia: ${stockLevel?.availableQty || 0}, Dibutuhkan: ${item.quantity}`
+                        )
+                    }
 
-                        // GL: DR WIP (material sent to CMT), CR Inventory Asset
-                        try {
-                            await ensureSystemAccounts()
-                            const product = await tx.product.findUnique({
-                                where: { id: item.productId },
-                                select: { costPrice: true },
+                    // Create SUBCONTRACT_OUT inventory transaction
+                    await prisma.inventoryTransaction.create({
+                        data: {
+                            productId: item.productId,
+                            warehouseId: data.warehouseId,
+                            type: 'SUBCONTRACT_OUT',
+                            quantity: -item.quantity,
+                            referenceId: order.number,
+                            workOrderId: order.workOrderId,
+                            performedBy: user.id,
+                            notes: `Subkontrak keluar ke ${order.subcontractor.name} - ${order.number}`,
+                        },
+                    })
+
+                    // Decrement stock
+                    await (prisma as any).stockLevel.update({
+                        where: {
+                            productId_warehouseId_locationId: {
+                                productId: item.productId,
+                                warehouseId: data.warehouseId,
+                                locationId: null as any,
+                            },
+                        },
+                        data: {
+                            quantity: { decrement: item.quantity },
+                            availableQty: { decrement: item.quantity },
+                        },
+                    })
+
+                    // GL: DR WIP (material sent to CMT), CR Inventory Asset
+                    try {
+                        await ensureSystemAccounts()
+                        const product = await prisma.product.findUnique({
+                            where: { id: item.productId },
+                            select: { costPrice: true },
+                        })
+                        const unitCost = Number(product?.costPrice || 0)
+                        const totalValue = unitCost * item.quantity
+                        if (totalValue > 0) {
+                            await postJournalInTx(prisma as any, {
+                                description: `Subkon keluar ke ${order.subcontractor.name} - ${order.number}`,
+                                reference: order.number,
+                                lines: [
+                                    { accountCode: SYS_ACCOUNTS.WIP, debit: totalValue, credit: 0, description: 'Material ke subkontraktor' },
+                                    { accountCode: SYS_ACCOUNTS.INVENTORY_ASSET, debit: 0, credit: totalValue, description: 'Pengeluaran material subkon' },
+                                ],
                             })
-                            const unitCost = Number(product?.costPrice || 0)
-                            const totalValue = unitCost * item.quantity
-                            if (totalValue > 0) {
-                                await postJournalInTx(tx, {
-                                    description: `Subkon keluar ke ${order.subcontractor.name} - ${order.number}`,
-                                    reference: order.number,
-                                    lines: [
-                                        { accountCode: SYS_ACCOUNTS.WIP, debit: totalValue, credit: 0, description: 'Material ke subkontraktor' },
-                                        { accountCode: SYS_ACCOUNTS.INVENTORY_ASSET, debit: 0, credit: totalValue, description: 'Pengeluaran material subkon' },
-                                    ],
-                                })
+                        }
+                    } catch (glErr) {
+                        console.error("GL posting failed for SUBCONTRACT_OUT:", glErr)
+                    }
+                } else {
+                    // INBOUND: receive materials back from CMT
+                    const goodQty = item.quantity
+                    const defect = item.defectQty || 0
+                    const wastage = item.wastageQty || 0
+
+                    // Create SUBCONTRACT_IN inventory transaction (only good qty goes to stock)
+                    await prisma.inventoryTransaction.create({
+                        data: {
+                            productId: item.productId,
+                            warehouseId: data.warehouseId,
+                            type: 'SUBCONTRACT_IN',
+                            quantity: goodQty,
+                            referenceId: order.number,
+                            workOrderId: order.workOrderId,
+                            performedBy: user.id,
+                            notes: `Subkontrak masuk dari ${order.subcontractor.name} - ${order.number}` +
+                                (defect > 0 ? ` (cacat: ${defect})` : '') +
+                                (wastage > 0 ? ` (sisa: ${wastage})` : ''),
+                        },
+                    })
+
+                    // Increment stock (only good quantity)
+                    await (prisma as any).stockLevel.upsert({
+                        where: {
+                            productId_warehouseId_locationId: {
+                                productId: item.productId,
+                                warehouseId: data.warehouseId,
+                                locationId: null as any,
+                            },
+                        },
+                        create: {
+                            productId: item.productId,
+                            warehouseId: data.warehouseId,
+                            quantity: goodQty,
+                            availableQty: goodQty,
+                            reservedQty: 0,
+                        },
+                        update: {
+                            quantity: { increment: goodQty },
+                            availableQty: { increment: goodQty },
+                        },
+                    })
+
+                    // GL: DR Inventory Asset (good qty), CR WIP
+                    // If there's scrap (defect + wastage): DR Loss/Writeoff, CR WIP
+                    try {
+                        await ensureSystemAccounts()
+                        const product = await prisma.product.findUnique({
+                            where: { id: item.productId },
+                            select: { costPrice: true },
+                        })
+                        const unitCost = Number(product?.costPrice || 0)
+                        const goodValue = unitCost * goodQty
+                        const scrapQty = defect + wastage
+                        const scrapValue = unitCost * scrapQty
+                        const totalWipRelease = goodValue + scrapValue
+                        if (totalWipRelease > 0) {
+                            const glLines: Array<{ accountCode: string; debit: number; credit: number; description?: string }> = [
+                                { accountCode: SYS_ACCOUNTS.WIP, debit: 0, credit: totalWipRelease, description: 'Penyelesaian subkon' },
+                            ]
+                            if (goodValue > 0) {
+                                glLines.push({ accountCode: SYS_ACCOUNTS.INVENTORY_ASSET, debit: goodValue, credit: 0, description: 'Material kembali dari subkon' })
                             }
-                        } catch (glErr) {
-                            console.error("GL posting failed for SUBCONTRACT_OUT:", glErr)
-                        }
-                    } else {
-                        // INBOUND: receive materials back from CMT
-                        const goodQty = item.quantity
-                        const defect = item.defectQty || 0
-                        const wastage = item.wastageQty || 0
-
-                        // Create SUBCONTRACT_IN inventory transaction (only good qty goes to stock)
-                        await tx.inventoryTransaction.create({
-                            data: {
-                                productId: item.productId,
-                                warehouseId: data.warehouseId,
-                                type: 'SUBCONTRACT_IN',
-                                quantity: goodQty,
-                                referenceId: order.number,
-                                workOrderId: order.workOrderId,
-                                performedBy: user.id,
-                                notes: `Subkontrak masuk dari ${order.subcontractor.name} - ${order.number}` +
-                                    (defect > 0 ? ` (cacat: ${defect})` : '') +
-                                    (wastage > 0 ? ` (sisa: ${wastage})` : ''),
-                            },
-                        })
-
-                        // Increment stock (only good quantity)
-                        await tx.stockLevel.upsert({
-                            where: {
-                                productId_warehouseId_locationId: {
-                                    productId: item.productId,
-                                    warehouseId: data.warehouseId,
-                                    locationId: null as any,
-                                },
-                            },
-                            create: {
-                                productId: item.productId,
-                                warehouseId: data.warehouseId,
-                                quantity: goodQty,
-                                availableQty: goodQty,
-                                reservedQty: 0,
-                            },
-                            update: {
-                                quantity: { increment: goodQty },
-                                availableQty: { increment: goodQty },
-                            },
-                        })
-
-                        // GL: DR Inventory Asset (good qty), CR WIP
-                        // If there's scrap (defect + wastage): DR Loss/Writeoff, CR WIP
-                        try {
-                            await ensureSystemAccounts()
-                            const product = await tx.product.findUnique({
-                                where: { id: item.productId },
-                                select: { costPrice: true },
-                            })
-                            const unitCost = Number(product?.costPrice || 0)
-                            const goodValue = unitCost * goodQty
-                            const scrapQty = defect + wastage
-                            const scrapValue = unitCost * scrapQty
-                            const totalWipRelease = goodValue + scrapValue
-                            if (totalWipRelease > 0) {
-                                const glLines: Array<{ accountCode: string; debit: number; credit: number; description?: string }> = [
-                                    { accountCode: SYS_ACCOUNTS.WIP, debit: 0, credit: totalWipRelease, description: 'Penyelesaian subkon' },
-                                ]
-                                if (goodValue > 0) {
-                                    glLines.push({ accountCode: SYS_ACCOUNTS.INVENTORY_ASSET, debit: goodValue, credit: 0, description: 'Material kembali dari subkon' })
-                                }
-                                if (scrapValue > 0) {
-                                    glLines.push({ accountCode: SYS_ACCOUNTS.LOSS_WRITEOFF, debit: scrapValue, credit: 0, description: 'Scrap subkon' })
-                                }
-                                await postJournalInTx(tx, {
-                                    description: `Subkon masuk dari ${order.subcontractor.name} - ${order.number}`,
-                                    reference: order.number,
-                                    lines: glLines,
-                                })
+                            if (scrapValue > 0) {
+                                glLines.push({ accountCode: SYS_ACCOUNTS.LOSS_WRITEOFF, debit: scrapValue, credit: 0, description: 'Scrap subkon' })
                             }
-                        } catch (glErr) {
-                            console.error("GL posting failed for SUBCONTRACT_IN:", glErr)
-                        }
-
-                        // Auto-update SubcontractOrderItem returnedQty/defectQty/wastageQty
-                        const orderItem = await tx.subcontractOrderItem.findFirst({
-                            where: {
-                                orderId: data.orderId,
-                                productId: item.productId,
-                            },
-                        })
-
-                        if (orderItem) {
-                            await tx.subcontractOrderItem.update({
-                                where: { id: orderItem.id },
-                                data: {
-                                    returnedQty: { increment: goodQty },
-                                    defectQty: { increment: defect },
-                                    wastageQty: { increment: wastage },
-                                },
+                            await postJournalInTx(prisma as any, {
+                                description: `Subkon masuk dari ${order.subcontractor.name} - ${order.number}`,
+                                reference: order.number,
+                                lines: glLines,
                             })
                         }
+                    } catch (glErr) {
+                        console.error("GL posting failed for SUBCONTRACT_IN:", glErr)
+                    }
+
+                    // Auto-update SubcontractOrderItem returnedQty/defectQty/wastageQty
+                    const orderItem = await (prisma as any).subcontractOrderItem.findFirst({
+                        where: {
+                            orderId: data.orderId,
+                            productId: item.productId,
+                        },
+                    })
+
+                    if (orderItem) {
+                        await (prisma as any).subcontractOrderItem.update({
+                            where: { id: orderItem.id },
+                            data: {
+                                returnedQty: { increment: goodQty },
+                                defectQty: { increment: defect },
+                                wastageQty: { increment: wastage },
+                            },
+                        })
                     }
                 }
+            }
 
-                // 3. Create shipment record
-                await tx.subcontractShipment.create({
-                    data: {
-                        orderId: data.orderId,
-                        direction: data.direction as SubcontractShipmentDirection,
-                        deliveryNoteNumber: data.deliveryNoteNumber || null,
-                        items: data.items as object,
-                    },
-                })
+            // 3. Create shipment record
+            await (prisma as any).subcontractShipment.create({
+                data: {
+                    orderId: data.orderId,
+                    direction: data.direction as SubcontractShipmentDirection,
+                    deliveryNoteNumber: data.deliveryNoteNumber || null,
+                    items: data.items as object,
+                },
             })
         })
 

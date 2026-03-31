@@ -2,25 +2,18 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog"
-import { NB } from "@/lib/dialog-styles"
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBDialogFooter,
+    NBSection,
+    NBInput,
+    NBSelect,
+    NBTextarea,
+} from "@/components/ui/nb-dialog"
 import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
-import { ArrowRightLeft } from "lucide-react"
+import { ArrowRightLeft, Package } from "lucide-react"
 import { toast } from "sonner"
 import { createStockTransfer } from "@/lib/actions/stock-transfers"
 import { useQueryClient } from "@tanstack/react-query"
@@ -100,87 +93,90 @@ export function CreateTransferDialog({ warehouses, products, trigger }: CreateTr
     }
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                {trigger ?? (
-                    <Button className={NB.triggerBtn}>
-                        <ArrowRightLeft className="mr-2 h-4 w-4" /> Transfer Baru
-                    </Button>
-                )}
-            </DialogTrigger>
-            <DialogContent className={NB.content}>
-                <DialogHeader className={NB.header}>
-                    <DialogTitle className={NB.title}>
-                        <ArrowRightLeft className="h-5 w-5" /> Buat Stock Transfer
-                    </DialogTitle>
-                    <p className={NB.subtitle}>Pindahkan stok antar gudang</p>
-                </DialogHeader>
+        <>
+            {trigger ? (
+                <span onClick={() => setOpen(true)}>{trigger}</span>
+            ) : (
+                <Button
+                    onClick={() => setOpen(true)}
+                    className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-4 h-8 rounded-none"
+                >
+                    <ArrowRightLeft className="mr-2 h-4 w-4" /> Transfer Baru
+                </Button>
+            )}
 
-                <div className="p-6 space-y-4">
-                    <div className={NB.section}>
-                        <div className={NB.sectionHead}>
-                            <span className={NB.sectionTitle}>Detail Transfer</span>
-                        </div>
-                        <div className={NB.sectionBody}>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className={NB.label}>Gudang Asal <span className={NB.labelRequired}>*</span></label>
-                                    <Select value={fromWarehouseId} onValueChange={setFromWarehouseId}>
-                                        <SelectTrigger className={NB.select}>
-                                            <SelectValue placeholder="Pilih gudang..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {warehouses.map((w) => (
-                                                <SelectItem key={w.id} value={w.id}>{w.code} — {w.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div>
-                                    <label className={NB.label}>Gudang Tujuan <span className={NB.labelRequired}>*</span></label>
-                                    <Select value={toWarehouseId} onValueChange={setToWarehouseId}>
-                                        <SelectTrigger className={NB.select}>
-                                            <SelectValue placeholder="Pilih gudang..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {warehouses.filter((w) => w.id !== fromWarehouseId).map((w) => (
-                                                <SelectItem key={w.id} value={w.id}>{w.code} — {w.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div>
-                                    <label className={NB.label}>Produk <span className={NB.labelRequired}>*</span></label>
-                                    <ComboboxWithCreate
-                                        options={productOptions}
-                                        value={productId}
-                                        onChange={setProductId}
-                                        placeholder="Pilih produk..."
-                                        searchPlaceholder="Cari produk..."
-                                        emptyMessage="Produk tidak ditemukan."
-                                    />
-                                </div>
-                                <div>
-                                    <label className={NB.label}>Jumlah <span className={NB.labelRequired}>*</span></label>
-                                    <Input className={NB.inputMono} type="number" min={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="100" />
-                                </div>
-                            </div>
+            <NBDialog open={open} onOpenChange={setOpen}>
+                <NBDialogHeader
+                    icon={ArrowRightLeft}
+                    title="Buat Stock Transfer"
+                    subtitle="Pindahkan stok antar gudang"
+                />
 
+                <NBDialogBody>
+                    <NBSection icon={Package} title="Detail Transfer">
+                        <div className="grid grid-cols-2 gap-3">
+                            <NBSelect
+                                label="Gudang Asal"
+                                required
+                                value={fromWarehouseId}
+                                onValueChange={setFromWarehouseId}
+                                placeholder="Pilih gudang..."
+                                options={warehouses.map((w) => ({
+                                    value: w.id,
+                                    label: `${w.code} — ${w.name}`,
+                                }))}
+                            />
+                            <NBSelect
+                                label="Gudang Tujuan"
+                                required
+                                value={toWarehouseId}
+                                onValueChange={setToWarehouseId}
+                                placeholder="Pilih gudang..."
+                                options={warehouses
+                                    .filter((w) => w.id !== fromWarehouseId)
+                                    .map((w) => ({
+                                        value: w.id,
+                                        label: `${w.code} — ${w.name}`,
+                                    }))}
+                            />
                             <div>
-                                <label className={NB.label}>Catatan</label>
-                                <Textarea className={NB.textarea} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Alasan transfer..." />
+                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                                    Produk <span className="text-red-500">*</span>
+                                </label>
+                                <ComboboxWithCreate
+                                    options={productOptions}
+                                    value={productId}
+                                    onChange={setProductId}
+                                    placeholder="Pilih produk..."
+                                    searchPlaceholder="Cari produk..."
+                                    emptyMessage="Produk tidak ditemukan."
+                                />
                             </div>
+                            <NBInput
+                                label="Jumlah"
+                                required
+                                type="number"
+                                value={quantity}
+                                onChange={setQuantity}
+                                placeholder="100"
+                            />
                         </div>
-                    </div>
+                        <NBTextarea
+                            label="Catatan"
+                            value={notes}
+                            onChange={setNotes}
+                            placeholder="Alasan transfer..."
+                        />
+                    </NBSection>
+                </NBDialogBody>
 
-                    <div className={NB.footer}>
-                        <Button variant="outline" onClick={() => setOpen(false)} className={NB.cancelBtn}>Batal</Button>
-                        <Button onClick={handleSubmit} disabled={loading} className={NB.submitBtn}>
-                            {loading ? "Membuat..." : "Buat Transfer"}
-                        </Button>
-                    </div>
-                </div>
-            </DialogContent>
-        </Dialog>
+                <NBDialogFooter
+                    onCancel={() => setOpen(false)}
+                    onSubmit={handleSubmit}
+                    submitting={loading}
+                    submitLabel="Buat Transfer"
+                />
+            </NBDialog>
+        </>
     )
 }

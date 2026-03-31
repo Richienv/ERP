@@ -8,6 +8,7 @@ import { assertRole, getAuthzUser } from "@/lib/authz"
 import { assertPOTransition } from "@/lib/po-state-machine"
 import { canApproveForDepartment, resolveEmployeeContext } from "@/lib/employee-context"
 import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
+import { assertPeriodOpen } from "@/lib/period-helpers"
 
 const PURCHASING_ROLES = ["ROLE_PURCHASING", "ROLE_ADMIN", "ROLE_CEO", "ROLE_DIRECTOR"]
 const APPROVER_ROLES = ["ROLE_CEO", "ROLE_DIRECTOR", "ROLE_ADMIN", "ROLE_MANAGER"]
@@ -498,38 +499,38 @@ export async function createPurchaseRequest(data: {
                 }
             }
 
-            // Use $transaction to prevent PR number race condition
-            const pr = await prisma.$transaction(async (tx) => {
-                const now = new Date()
-                const year = now.getFullYear()
-                const month = String(now.getMonth() + 1).padStart(2, "0")
-                const prefix = `PR-${year}${month}`
-                const count = await tx.purchaseRequest.count({
-                    where: { number: { startsWith: prefix } }
-                })
-                const number = `${prefix}-${String(count + 1).padStart(4, "0")}`
+            // withPrismaAuth already provides a transaction-scoped Prisma client.
+            // Calling prisma.$transaction() here crashes because the callback client
+            // is an active transaction, not the root PrismaClient instance.
+            const now = new Date()
+            const year = now.getFullYear()
+            const month = String(now.getMonth() + 1).padStart(2, "0")
+            const prefix = `PR-${year}${month}`
+            const count = await prisma.purchaseRequest.count({
+                where: { number: { startsWith: prefix } }
+            })
+            const number = `${prefix}-${String(count + 1).padStart(4, "0")}`
 
-                return await tx.purchaseRequest.create({
-                    data: {
-                        number,
-                        requesterId,
-                        department: data.department?.trim() || actor.department || "General",
-                        priority: data.priority || "NORMAL",
-                        notes: data.notes || null,
-                        status: "PENDING",
-                        requestDate: new Date(),
-                        items: {
-                            create: data.items.map((item) => ({
-                                productId: item.productId,
-                                quantity: Number(item.quantity || 0),
-                                targetDate: item.targetDate || null,
-                                notes: item.notes || null,
-                                status: "PENDING",
-                            })),
-                        },
+            const pr = await prisma.purchaseRequest.create({
+                data: {
+                    number,
+                    requesterId,
+                    department: data.department?.trim() || actor.department || "General",
+                    priority: data.priority || "NORMAL",
+                    notes: data.notes || null,
+                    status: "PENDING",
+                    requestDate: new Date(),
+                    items: {
+                        create: data.items.map((item) => ({
+                            productId: item.productId,
+                            quantity: Number(item.quantity || 0),
+                            targetDate: item.targetDate || null,
+                            notes: item.notes || null,
+                            status: "PENDING",
+                        })),
                     },
-                    select: { id: true },
-                })
+                },
+                select: { id: true },
             })
 
             return pr
@@ -791,79 +792,75 @@ export async function convertPRToPO(prId: string, itemIds: string[], _creatorId?
                 })
             }
 
-            // 3. Create POs inside transaction to prevent number race conditions
-            const createdPOs = await prisma.$transaction(async (tx) => {
-                const poNow = new Date()
-                const poYear = poNow.getFullYear()
-                const poMonth = String(poNow.getMonth() + 1).padStart(2, '0')
-                const poPrefix = `PO-${poYear}${poMonth}`
-                let poCount = await tx.purchaseOrder.count({
-                    where: { number: { startsWith: poPrefix } }
-                })
-
-                const ids: string[] = []
-
-                for (const [supplierId, groupData] of poMap.entries()) {
-                    poCount++
-                    const poNumber = `${poPrefix}-${String(poCount).padStart(4, '0')}`
-
-                    const subtotal = groupData.items.reduce((sum: number, i: any) => sum + i.totalPrice, 0)
-                    const taxAmount = Math.round(subtotal * 0.11)
-                    const netAmount = subtotal + taxAmount
-
-                    const po = await tx.purchaseOrder.create({
-                        data: {
-                            number: poNumber,
-                            supplierId,
-                            status: 'PO_DRAFT',
-                            createdBy: user.id,
-                            totalAmount: subtotal,
-                            taxAmount,
-                            netAmount,
-                            items: {
-                                create: groupData.items.map((i: any) => ({
-                                    productId: i.productId,
-                                    quantity: i.quantity,
-                                    unitPrice: i.unitPrice,
-                                    totalPrice: i.totalPrice
-                                }))
-                            },
-                            purchaseRequests: { connect: { id: prId } }
-                        }
-                    })
-
-                    await createPurchaseOrderEvent(tx as any, {
-                        purchaseOrderId: po.id,
-                        status: "PO_DRAFT",
-                        changedBy: user.id,
-                        action: "CREATE_DRAFT",
-                        metadata: { source: "SYSTEM" },
-                    })
-
-                    await tx.purchaseRequestItem.updateMany({
-                        where: { id: { in: groupData.items.map((i: any) => i.prItemId) } },
-                        data: { status: 'PO_CREATED' }
-                    })
-
-                    ids.push(po.id)
-                }
-
-                // 4. Update PR Status if all items handled
-                const remainingItems = await tx.purchaseRequestItem.count({
-                    where: { purchaseRequestId: prId, status: { not: 'PO_CREATED' } }
-                })
-
-                if (remainingItems === 0) {
-                    await tx.purchaseRequest.update({
-                        where: { id: prId },
-                        data: { status: 'PO_CREATED' }
-                    })
-                }
-
-                return ids
+            // 3. Create POs (already inside withPrismaAuth transaction)
+            const poNow = new Date()
+            const poYear = poNow.getFullYear()
+            const poMonth = String(poNow.getMonth() + 1).padStart(2, '0')
+            const poPrefix = `PO-${poYear}${poMonth}`
+            let poCount = await prisma.purchaseOrder.count({
+                where: { number: { startsWith: poPrefix } }
             })
 
-            return { success: true, poIds: createdPOs }
+            const createdPOIds: string[] = []
+
+            for (const [supplierId, groupData] of poMap.entries()) {
+                poCount++
+                const poNumber = `${poPrefix}-${String(poCount).padStart(4, '0')}`
+
+                const subtotal = groupData.items.reduce((sum: number, i: any) => sum + i.totalPrice, 0)
+                const taxAmount = Math.round(subtotal * 0.11)
+                const netAmount = subtotal + taxAmount
+
+                const po = await prisma.purchaseOrder.create({
+                    data: {
+                        number: poNumber,
+                        supplierId,
+                        status: 'PO_DRAFT',
+                        createdBy: user.id,
+                        totalAmount: subtotal,
+                        taxAmount,
+                        netAmount,
+                        items: {
+                            create: groupData.items.map((i: any) => ({
+                                productId: i.productId,
+                                quantity: i.quantity,
+                                unitPrice: i.unitPrice,
+                                totalPrice: i.totalPrice
+                            }))
+                        },
+                        purchaseRequests: { connect: { id: prId } }
+                    }
+                })
+
+                await createPurchaseOrderEvent(prisma as any, {
+                    purchaseOrderId: po.id,
+                    status: "PO_DRAFT",
+                    changedBy: user.id,
+                    action: "CREATE_DRAFT",
+                    metadata: { source: "SYSTEM" },
+                })
+
+                await prisma.purchaseRequestItem.updateMany({
+                    where: { id: { in: groupData.items.map((i: any) => i.prItemId) } },
+                    data: { status: 'PO_CREATED' }
+                })
+
+                createdPOIds.push(po.id)
+            }
+
+            // 4. Update PR Status if all items handled
+            const remainingItems = await prisma.purchaseRequestItem.count({
+                where: { purchaseRequestId: prId, status: { not: 'PO_CREATED' } }
+            })
+
+            if (remainingItems === 0) {
+                await prisma.purchaseRequest.update({
+                    where: { id: prId },
+                    data: { status: 'PO_CREATED' }
+                })
+            }
+
+            return { success: true, poIds: createdPOIds }
         })
 
         return result
@@ -881,27 +878,25 @@ export async function submitPOForApproval(poId: string) {
 
         await withPrismaAuth(async (prisma) => {
             await requireActiveProcurementActor(prisma, user)
-            await prisma.$transaction(async (tx) => {
-                const current = await tx.purchaseOrder.findUnique({ where: { id: poId } })
-                if (!current) throw new Error("Purchase Order not found")
+            const current = await prisma.purchaseOrder.findUnique({ where: { id: poId } })
+            if (!current) throw new Error("Purchase Order not found")
 
-                assertPOTransition(current.status as any, "PENDING_APPROVAL")
+            assertPOTransition(current.status as any, "PENDING_APPROVAL")
 
-                await tx.purchaseOrder.update({
-                    where: { id: poId },
-                    data: {
-                        previousStatus: current.status as any,
-                        status: 'PENDING_APPROVAL',
-                    }
-                })
+            await prisma.purchaseOrder.update({
+                where: { id: poId },
+                data: {
+                    previousStatus: current.status as any,
+                    status: 'PENDING_APPROVAL',
+                }
+            })
 
-                await createPurchaseOrderEvent(tx as any, {
-                    purchaseOrderId: poId,
-                    status: "PENDING_APPROVAL",
-                    changedBy: user.id,
-                    action: "SUBMIT_APPROVAL",
-                    metadata: { source: "MANUAL_ENTRY" },
-                })
+            await createPurchaseOrderEvent(prisma as any, {
+                purchaseOrderId: poId,
+                status: "PENDING_APPROVAL",
+                changedBy: user.id,
+                action: "SUBMIT_APPROVAL",
+                metadata: { source: "MANUAL_ENTRY" },
             })
         })
 
@@ -918,32 +913,30 @@ export async function approvePurchaseOrder(poId: string, _approverId?: string) {
 
         const po = await withPrismaAuth(async (prisma) => {
             await requireActiveProcurementActor(prisma, user)
-            return await prisma.$transaction(async (tx) => {
-                const current = await tx.purchaseOrder.findUnique({ where: { id: poId } })
-                if (!current) throw new Error("Purchase Order not found")
+            const current = await prisma.purchaseOrder.findUnique({ where: { id: poId } })
+            if (!current) throw new Error("Purchase Order not found")
 
-                assertPOTransition(current.status as any, "APPROVED")
+            assertPOTransition(current.status as any, "APPROVED")
 
-                const updated = await tx.purchaseOrder.update({
-                    where: { id: poId },
-                    data: {
-                        previousStatus: current.status as any,
-                        status: 'APPROVED',
-                        approvedBy: user.id,
-                    },
-                    include: { supplier: true, items: { include: { product: true } } }
-                })
-
-                await createPurchaseOrderEvent(tx as any, {
-                    purchaseOrderId: poId,
-                    status: "APPROVED",
-                    changedBy: user.id,
-                    action: "APPROVE",
-                    metadata: { source: "MANUAL_ENTRY" },
-                })
-
-                return updated
+            const updated = await prisma.purchaseOrder.update({
+                where: { id: poId },
+                data: {
+                    previousStatus: current.status as any,
+                    status: 'APPROVED',
+                    approvedBy: user.id,
+                },
+                include: { supplier: true, items: { include: { product: true } } }
             })
+
+            await createPurchaseOrderEvent(prisma as any, {
+                purchaseOrderId: poId,
+                status: "APPROVED",
+                changedBy: user.id,
+                action: "APPROVE",
+                metadata: { source: "MANUAL_ENTRY" },
+            })
+
+            return updated
         })
 
         // TRIGGER FINANCE (Bill Creation)
@@ -963,29 +956,27 @@ export async function rejectPurchaseOrder(poId: string, reason: string) {
 
         await withPrismaAuth(async (prisma) => {
             await requireActiveProcurementActor(prisma, user)
-            await prisma.$transaction(async (tx) => {
-                const current = await tx.purchaseOrder.findUnique({ where: { id: poId } })
-                if (!current) throw new Error("Purchase Order not found")
+            const current = await prisma.purchaseOrder.findUnique({ where: { id: poId } })
+            if (!current) throw new Error("Purchase Order not found")
 
-                assertPOTransition(current.status as any, "REJECTED")
+            assertPOTransition(current.status as any, "REJECTED")
 
-                await tx.purchaseOrder.update({
-                    where: { id: poId },
-                    data: {
-                        previousStatus: current.status as any,
-                        status: 'REJECTED',
-                        rejectionReason: reason,
-                    }
-                })
+            await prisma.purchaseOrder.update({
+                where: { id: poId },
+                data: {
+                    previousStatus: current.status as any,
+                    status: 'REJECTED',
+                    rejectionReason: reason,
+                }
+            })
 
-                await createPurchaseOrderEvent(tx as any, {
-                    purchaseOrderId: poId,
-                    status: "REJECTED",
-                    changedBy: user.id,
-                    action: "REJECT",
-                    notes: reason,
-                    metadata: { source: "MANUAL_ENTRY" },
-                })
+            await createPurchaseOrderEvent(prisma as any, {
+                purchaseOrderId: poId,
+                status: "REJECTED",
+                changedBy: user.id,
+                action: "REJECT",
+                notes: reason,
+                metadata: { source: "MANUAL_ENTRY" },
             })
         })
 
@@ -998,60 +989,58 @@ export async function rejectPurchaseOrder(poId: string, reason: string) {
 export async function cancelPurchaseOrder(id: string, reason: string) {
     try {
         return await withPrismaAuth(async (prisma, user) => {
-            return await prisma.$transaction(async (tx) => {
-                const po = await tx.purchaseOrder.findUnique({
-                    where: { id },
-                    select: { id: true, number: true, status: true }
-                })
-
-                if (!po) throw new Error('Purchase order not found')
-
-                // Use state machine to validate transition
-                assertPOTransition(po.status as ProcurementStatus, 'CANCELLED')
-
-                const updated = await tx.purchaseOrder.update({
-                    where: { id },
-                    data: {
-                        previousStatus: po.status as any,
-                        status: 'CANCELLED',
-                        notes: reason ? `[DIBATALKAN] ${reason}` : '[DIBATALKAN]',
-                    }
-                })
-
-                await createPurchaseOrderEvent(tx as any, {
-                    purchaseOrderId: id,
-                    status: "CANCELLED",
-                    changedBy: user.id,
-                    action: "CANCEL",
-                    notes: reason || 'PO dibatalkan',
-                    metadata: { source: "MANUAL_ENTRY" },
-                })
-
-                // Void any associated vendor bills (INV_IN) to keep finance clean
-                const associatedBills = await (tx as any).invoice.findMany({
-                    where: {
-                        type: 'INV_IN',
-                        OR: [{ orderId: id }, { purchaseOrderId: id }],
-                        status: { notIn: ['CANCELLED', 'VOID', 'PAID'] }
-                    }
-                })
-
-                for (const bill of associatedBills) {
-                    await (tx as any).invoice.update({
-                        where: { id: bill.id },
-                        data: {
-                            status: 'VOID',
-                            notes: `[AUTO-VOID] PO ${po.number} dibatalkan. Alasan: ${reason || '-'}`,
-                        }
-                    })
-                }
-
-                if (associatedBills.length > 0) {
-                    console.log(`[Cancel PO] Voided ${associatedBills.length} vendor bill(s) for PO ${po.number}`)
-                }
-
-                return { success: true, data: updated }
+            const po = await prisma.purchaseOrder.findUnique({
+                where: { id },
+                select: { id: true, number: true, status: true }
             })
+
+            if (!po) throw new Error('Purchase order not found')
+
+            // Use state machine to validate transition
+            assertPOTransition(po.status as ProcurementStatus, 'CANCELLED')
+
+            const updated = await prisma.purchaseOrder.update({
+                where: { id },
+                data: {
+                    previousStatus: po.status as any,
+                    status: 'CANCELLED',
+                    notes: reason ? `[DIBATALKAN] ${reason}` : '[DIBATALKAN]',
+                }
+            })
+
+            await createPurchaseOrderEvent(prisma as any, {
+                purchaseOrderId: id,
+                status: "CANCELLED",
+                changedBy: user.id,
+                action: "CANCEL",
+                notes: reason || 'PO dibatalkan',
+                metadata: { source: "MANUAL_ENTRY" },
+            })
+
+            // Void any associated vendor bills (INV_IN) to keep finance clean
+            const associatedBills = await (prisma as any).invoice.findMany({
+                where: {
+                    type: 'INV_IN',
+                    OR: [{ orderId: id }, { purchaseOrderId: id }],
+                    status: { notIn: ['CANCELLED', 'VOID', 'PAID'] }
+                }
+            })
+
+            for (const bill of associatedBills) {
+                await (prisma as any).invoice.update({
+                    where: { id: bill.id },
+                    data: {
+                        status: 'VOID',
+                        notes: `[AUTO-VOID] PO ${po.number} dibatalkan. Alasan: ${reason || '-'}`,
+                    }
+                })
+            }
+
+            if (associatedBills.length > 0) {
+                console.log(`[Cancel PO] Voided ${associatedBills.length} vendor bill(s) for PO ${po.number}`)
+            }
+
+            return { success: true, data: updated }
         })
     } catch (error: any) {
         console.error('Cancel PO error:', error)
@@ -1066,28 +1055,26 @@ export async function markAsOrdered(poId: string) {
 
         await withPrismaAuth(async (prisma) => {
             await requireActiveProcurementActor(prisma, user)
-            await prisma.$transaction(async (tx) => {
-                const current = await tx.purchaseOrder.findUnique({ where: { id: poId } })
-                if (!current) throw new Error("Purchase Order not found")
+            const current = await prisma.purchaseOrder.findUnique({ where: { id: poId } })
+            if (!current) throw new Error("Purchase Order not found")
 
-                assertPOTransition(current.status as any, "ORDERED")
+            assertPOTransition(current.status as any, "ORDERED")
 
-                await tx.purchaseOrder.update({
-                    where: { id: poId },
-                    data: {
-                        previousStatus: current.status as any,
-                        status: 'ORDERED',
-                        sentToVendorAt: new Date()
-                    }
-                })
+            await prisma.purchaseOrder.update({
+                where: { id: poId },
+                data: {
+                    previousStatus: current.status as any,
+                    status: 'ORDERED',
+                    sentToVendorAt: new Date()
+                }
+            })
 
-                await createPurchaseOrderEvent(tx as any, {
-                    purchaseOrderId: poId,
-                    status: "ORDERED",
-                    changedBy: user.id,
-                    action: "MARK_ORDERED",
-                    metadata: { source: "MANUAL_ENTRY" },
-                })
+            await createPurchaseOrderEvent(prisma as any, {
+                purchaseOrderId: poId,
+                status: "ORDERED",
+                changedBy: user.id,
+                action: "MARK_ORDERED",
+                metadata: { source: "MANUAL_ENTRY" },
             })
         })
 
@@ -1104,28 +1091,26 @@ export async function markAsVendorConfirmed(poId: string, notes?: string) {
 
         await withPrismaAuth(async (prisma) => {
             await requireActiveProcurementActor(prisma, user)
-            await prisma.$transaction(async (tx) => {
-                const current = await tx.purchaseOrder.findUnique({ where: { id: poId } })
-                if (!current) throw new Error("Purchase Order not found")
+            const current = await prisma.purchaseOrder.findUnique({ where: { id: poId } })
+            if (!current) throw new Error("Purchase Order not found")
 
-                assertPOTransition(current.status as any, "VENDOR_CONFIRMED")
+            assertPOTransition(current.status as any, "VENDOR_CONFIRMED")
 
-                await tx.purchaseOrder.update({
-                    where: { id: poId },
-                    data: {
-                        previousStatus: current.status as any,
-                        status: "VENDOR_CONFIRMED",
-                    }
-                })
-
-                await createPurchaseOrderEvent(tx as any, {
-                    purchaseOrderId: poId,
+            await prisma.purchaseOrder.update({
+                where: { id: poId },
+                data: {
+                    previousStatus: current.status as any,
                     status: "VENDOR_CONFIRMED",
-                    changedBy: user.id,
-                    action: "VENDOR_CONFIRM",
-                    notes,
-                    metadata: { source: "MANUAL_ENTRY" },
-                })
+                }
+            })
+
+            await createPurchaseOrderEvent(prisma as any, {
+                purchaseOrderId: poId,
+                status: "VENDOR_CONFIRMED",
+                changedBy: user.id,
+                action: "VENDOR_CONFIRM",
+                notes,
+                metadata: { source: "MANUAL_ENTRY" },
             })
         })
 
@@ -1142,27 +1127,25 @@ export async function markAsShipped(poId: string, trackingNumber?: string) {
 
         await withPrismaAuth(async (prisma) => {
             await requireActiveProcurementActor(prisma, user)
-            await prisma.$transaction(async (tx) => {
-                const current = await tx.purchaseOrder.findUnique({ where: { id: poId } })
-                if (!current) throw new Error("Purchase Order not found")
+            const current = await prisma.purchaseOrder.findUnique({ where: { id: poId } })
+            if (!current) throw new Error("Purchase Order not found")
 
-                assertPOTransition(current.status as any, "SHIPPED")
+            assertPOTransition(current.status as any, "SHIPPED")
 
-                await tx.purchaseOrder.update({
-                    where: { id: poId },
-                    data: {
-                        previousStatus: current.status as any,
-                        status: "SHIPPED",
-                    }
-                })
-
-                await createPurchaseOrderEvent(tx as any, {
-                    purchaseOrderId: poId,
+            await prisma.purchaseOrder.update({
+                where: { id: poId },
+                data: {
+                    previousStatus: current.status as any,
                     status: "SHIPPED",
-                    changedBy: user.id,
-                    action: "MARK_SHIPPED",
-                    metadata: { source: "MANUAL_ENTRY", trackingNumber },
-                })
+                }
+            })
+
+            await createPurchaseOrderEvent(prisma as any, {
+                purchaseOrderId: poId,
+                status: "SHIPPED",
+                changedBy: user.id,
+                action: "MARK_SHIPPED",
+                metadata: { source: "MANUAL_ENTRY", trackingNumber },
             })
         })
 
@@ -1179,32 +1162,30 @@ export async function confirmPurchaseOrder(id: string) {
 
         await withPrismaAuth(async (prisma) => {
             await requireActiveProcurementActor(prisma, user)
-            await prisma.$transaction(async (tx) => {
-                const po = await tx.purchaseOrder.findUnique({
-                    where: { id },
-                    include: { supplier: true, items: true }
-                })
+            const po = await prisma.purchaseOrder.findUnique({
+                where: { id },
+                include: { supplier: true, items: true }
+            })
 
-                if (!po) throw new Error("Purchase Order not found")
+            if (!po) throw new Error("Purchase Order not found")
 
-                assertPOTransition(po.status as any, "COMPLETED")
+            assertPOTransition(po.status as any, "COMPLETED")
 
-                await tx.purchaseOrder.update({
-                    where: { id },
-                    data: {
-                        previousStatus: po.status as any,
-                        status: 'COMPLETED',
-                        paymentStatus: 'UNPAID'
-                    }
-                })
+            await prisma.purchaseOrder.update({
+                where: { id },
+                data: {
+                    previousStatus: po.status as any,
+                    status: 'COMPLETED',
+                    paymentStatus: 'UNPAID'
+                }
+            })
 
-                await createPurchaseOrderEvent(tx as any, {
-                    purchaseOrderId: id,
-                    status: "COMPLETED",
-                    changedBy: user.id,
-                    action: "COMPLETE",
-                    metadata: { source: "SYSTEM" },
-                })
+            await createPurchaseOrderEvent(prisma as any, {
+                purchaseOrderId: id,
+                status: "COMPLETED",
+                changedBy: user.id,
+                action: "COMPLETE",
+                metadata: { source: "SYSTEM" },
             })
         })
 
@@ -1272,6 +1253,7 @@ export async function getAllPurchaseOrders() {
             return {
                 id: po.revision > 0 ? `${po.number} Rev.${po.revision}` : po.number,
                 dbId: po.id,
+                vendorId: po.supplierId,
                 vendor: po.supplier?.name || 'Unknown',
                 vendorEmail: po.supplier?.email || '',
                 vendorPhone: po.supplier?.phone || '',
@@ -1484,7 +1466,7 @@ export async function createVendor(data: {
                     officePhone: data.officePhone || null,
                     address: data.address || null,
                     address2: data.address2 || null,
-                    paymentTerm: (data.paymentTerm as import("@prisma/client").PaymentTerm) || "CASH",
+                    paymentTerm: (data.paymentTerm as import("@prisma/client").PaymentTermLegacy) || "CASH",
                     bankName: data.bankName || null,
                     bankAccountNumber: data.bankAccountNumber || null,
                     bankAccountName: data.bankAccountName || null,
@@ -1900,7 +1882,7 @@ export async function updateVendor(
                     address: data.address ?? undefined,
                     address2: data.address2 ?? undefined,
                     paymentTerm: data.paymentTerm
-                        ? (data.paymentTerm as import("@prisma/client").PaymentTerm)
+                        ? (data.paymentTerm as import("@prisma/client").PaymentTermLegacy)
                         : undefined,
                     bankName: data.bankName ?? undefined,
                     bankAccountNumber: data.bankAccountNumber ?? undefined,
@@ -2006,191 +1988,199 @@ export async function createDirectPurchase(input: DirectPurchaseInput) {
             if (!item.unitPrice || item.unitPrice < 0) throw new Error("Harga satuan tidak valid")
         }
 
-        // Get employee ID for GRN receivedBy
-        const employeeId = await getEmployeeIdForUserEmail(user.email)
-        if (!employeeId) throw new Error("Data karyawan tidak ditemukan untuk user ini")
+        // Get employee ID for GRN receivedBy (optional — users without Employee records can still receive)
+        const empRecord = await prisma.employee.findFirst({
+            where: { email: user.email ?? undefined },
+            select: { id: true }
+        })
+        const employeeId = empRecord?.id || null
 
         const result = await withPrismaAuth(async (prisma) => {
-            return await prisma.$transaction(async (tx) => {
-                const txAny = tx as any
-                const now = new Date()
-                const year = now.getFullYear()
-                const month = String(now.getMonth() + 1).padStart(2, '0')
+            const pAny = prisma as any
+            const now = new Date()
+            const year = now.getFullYear()
+            const month = String(now.getMonth() + 1).padStart(2, '0')
 
-                // ─── 1. Generate PO number ───
-                const poPrefix = `PO-${year}${month}`
-                const poCount = await tx.purchaseOrder.count({
-                    where: { number: { startsWith: poPrefix } }
-                })
-                const poNumber = `${poPrefix}-${String(poCount + 1).padStart(4, '0')}`
+            // ─── 1. Generate PO number ───
+            const poPrefix = `PO-${year}${month}`
+            const poCount = await prisma.purchaseOrder.count({
+                where: { number: { startsWith: poPrefix } }
+            })
+            const poNumber = `${poPrefix}-${String(poCount + 1).padStart(4, '0')}`
 
-                // ─── 2. Calculate totals ───
-                const poItems = input.items.map(item => ({
-                    productId: item.productId,
-                    quantity: item.quantity,
-                    unitPrice: item.unitPrice,
-                    totalPrice: item.quantity * item.unitPrice,
-                }))
-                const subtotal = poItems.reduce((sum, i) => sum + i.totalPrice, 0)
-                const taxAmount = Math.round(subtotal * 0.11)
-                const netAmount = subtotal + taxAmount
+            // ─── 2. Calculate totals ───
+            const poItems = input.items.map(item => ({
+                productId: item.productId,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                totalPrice: item.quantity * item.unitPrice,
+            }))
+            const subtotal = poItems.reduce((sum, i) => sum + i.totalPrice, 0)
+            const taxAmount = Math.round(subtotal * 0.11)
+            const netAmount = subtotal + taxAmount
 
-                // ─── 3. Create PO (COMPLETED) ───
-                const po = await tx.purchaseOrder.create({
-                    data: {
-                        number: poNumber,
-                        supplierId: input.supplierId,
-                        status: 'COMPLETED',
-                        previousStatus: 'RECEIVED',
-                        createdBy: user.id,
-                        orderDate: now,
-                        totalAmount: subtotal,
-                        taxAmount,
-                        netAmount,
-                        items: {
-                            create: poItems.map(item => ({
-                                productId: item.productId,
-                                quantity: item.quantity,
-                                receivedQty: item.quantity,
-                                unitPrice: item.unitPrice,
-                                totalPrice: item.totalPrice,
-                            }))
-                        }
-                    },
-                    include: { items: true }
-                })
-
-                // ─── 4. Record PO events ───
-                await txAny.purchaseOrderEvent.create({
-                    data: {
-                        purchaseOrderId: po.id,
-                        status: 'COMPLETED',
-                        changedBy: user.id,
-                        action: 'DIRECT_PURCHASE',
-                        notes: input.notes || 'Pembelian langsung — PO+GRN+Bill dibuat otomatis',
-                        metadata: { source: 'DIRECT_PURCHASE' },
+            // ─── 3. Create PO (COMPLETED) ───
+            const po = await prisma.purchaseOrder.create({
+                data: {
+                    number: poNumber,
+                    supplierId: input.supplierId,
+                    status: 'COMPLETED',
+                    previousStatus: 'RECEIVED',
+                    createdBy: user.id,
+                    orderDate: now,
+                    totalAmount: subtotal,
+                    taxAmount,
+                    netAmount,
+                    items: {
+                        create: poItems.map(item => ({
+                            productId: item.productId,
+                            quantity: item.quantity,
+                            receivedQty: item.quantity,
+                            unitPrice: item.unitPrice,
+                            totalPrice: item.totalPrice,
+                        }))
                     }
-                })
+                },
+                include: { items: true }
+            })
 
-                // ─── 5. Generate GRN number & create GRN (ACCEPTED) ───
-                const grnPrefix = `SJM-${year}${month}`
-                const grnCount = await txAny.goodsReceivedNote.count({
-                    where: { number: { startsWith: grnPrefix } }
-                })
-                const grnNumber = `${grnPrefix}-${String(grnCount + 1).padStart(4, '0')}`
+            // ─── 4. Record PO events ───
+            await pAny.purchaseOrderEvent.create({
+                data: {
+                    purchaseOrderId: po.id,
+                    status: 'COMPLETED',
+                    changedBy: user.id,
+                    action: 'DIRECT_PURCHASE',
+                    notes: input.notes || 'Pembelian langsung — PO+GRN+Bill dibuat otomatis',
+                    metadata: { source: 'DIRECT_PURCHASE' },
+                }
+            })
 
-                const grn = await txAny.goodsReceivedNote.create({
-                    data: {
-                        number: grnNumber,
-                        purchaseOrderId: po.id,
-                        warehouseId: input.warehouseId,
-                        receivedById: employeeId,
-                        status: 'ACCEPTED',
-                        acceptedBy: employeeId,
-                        acceptedAt: now,
-                        notes: input.notes || 'Pembelian langsung — otomatis diterima',
-                        items: {
-                            create: po.items.map(poItem => ({
-                                poItemId: poItem.id,
-                                productId: poItem.productId,
-                                quantityOrdered: poItem.quantity,
-                                quantityReceived: poItem.quantity,
-                                quantityAccepted: poItem.quantity,
-                                quantityRejected: 0,
-                                unitCost: poItem.unitPrice,
-                            }))
-                        }
-                    }
-                })
+            // ─── 5. Generate GRN number & create GRN (ACCEPTED) ───
+            const grnPrefix = `SJM-${year}${month}`
+            const grnCount = await pAny.goodsReceivedNote.count({
+                where: { number: { startsWith: grnPrefix } }
+            })
+            const grnNumber = `${grnPrefix}-${String(grnCount + 1).padStart(4, '0')}`
 
-                // ─── 6. Update stock levels & create inventory transactions ───
-                for (const poItem of po.items) {
-                    // Create inventory transaction
-                    await tx.inventoryTransaction.create({
-                        data: {
+            const grn = await pAny.goodsReceivedNote.create({
+                data: {
+                    number: grnNumber,
+                    purchaseOrderId: po.id,
+                    warehouseId: input.warehouseId,
+                    receivedById: employeeId || undefined,
+                    status: 'ACCEPTED',
+                    acceptedBy: employeeId || user.id,
+                    acceptedAt: now,
+                    notes: input.notes || 'Pembelian langsung — otomatis diterima',
+                    items: {
+                        create: po.items.map(poItem => ({
+                            poItemId: poItem.id,
                             productId: poItem.productId,
-                            warehouseId: input.warehouseId,
-                            type: 'PO_RECEIVE',
-                            quantity: poItem.quantity,
+                            quantityOrdered: poItem.quantity,
+                            quantityReceived: poItem.quantity,
+                            quantityAccepted: poItem.quantity,
+                            quantityRejected: 0,
                             unitCost: poItem.unitPrice,
-                            totalValue: Number(poItem.unitPrice) * poItem.quantity,
-                            purchaseOrderId: po.id,
-                            referenceId: grnNumber,
-                            performedBy: user.id,
-                            notes: `Pembelian Langsung via ${poNumber}`,
+                        }))
+                    }
+                }
+            })
+
+            // ─── 6. Update stock levels & create inventory transactions ───
+            for (const poItem of po.items) {
+                // Create inventory transaction
+                await prisma.inventoryTransaction.create({
+                    data: {
+                        productId: poItem.productId,
+                        warehouseId: input.warehouseId,
+                        type: 'PO_RECEIVE',
+                        quantity: poItem.quantity,
+                        unitCost: poItem.unitPrice,
+                        totalValue: Number(poItem.unitPrice) * poItem.quantity,
+                        purchaseOrderId: po.id,
+                        referenceId: grnNumber,
+                        performedBy: user.id,
+                        notes: `Pembelian Langsung via ${poNumber}`,
+                    }
+                })
+
+                // Update stock level (findFirst + create/update to avoid Prisma null-in-composite-key issue)
+                const existingStock = await prisma.stockLevel.findFirst({
+                    where: {
+                        productId: poItem.productId,
+                        warehouseId: input.warehouseId,
+                        locationId: null,
+                    }
+                })
+                if (existingStock) {
+                    await prisma.stockLevel.update({
+                        where: { id: existingStock.id },
+                        data: {
+                            quantity: { increment: poItem.quantity },
+                            availableQty: { increment: poItem.quantity },
                         }
                     })
-
-                    // Upsert stock level
-                    await tx.stockLevel.upsert({
-                        where: {
-                            productId_warehouseId_locationId: {
-                                productId: poItem.productId,
-                                warehouseId: input.warehouseId,
-                                locationId: null as any,
-                            }
-                        },
-                        create: {
+                } else {
+                    await prisma.stockLevel.create({
+                        data: {
                             productId: poItem.productId,
                             warehouseId: input.warehouseId,
                             quantity: poItem.quantity,
                             availableQty: poItem.quantity,
                             reservedQty: 0,
-                        },
-                        update: {
-                            quantity: { increment: poItem.quantity },
-                            availableQty: { increment: poItem.quantity },
                         }
                     })
                 }
+            }
 
-                // ─── 7. Create vendor bill (INV_IN, DRAFT) ───
-                const billPrefix = `BILL-${year}`
-                const billCount = await tx.invoice.count({
-                    where: { type: 'INV_IN', number: { startsWith: billPrefix } }
-                })
-                const billNumber = `${billPrefix}-${String(billCount + 1).padStart(4, '0')}`
+            // ─── 7. Create vendor bill (INV_IN, DRAFT) ───
+            const billPrefix = `BILL-${year}`
+            const billCount = await prisma.invoice.count({
+                where: { type: 'INV_IN', number: { startsWith: billPrefix } }
+            })
+            const billNumber = `${billPrefix}-${String(billCount + 1).padStart(4, '0')}`
 
-                const bill = await tx.invoice.create({
-                    data: {
-                        number: billNumber,
-                        type: 'INV_IN',
-                        supplierId: input.supplierId,
-                        purchaseOrderId: po.id,
-                        orderId: po.id,
-                        status: 'DRAFT',
-                        issueDate: now,
-                        dueDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
-                        subtotal,
-                        taxAmount,
-                        totalAmount: netAmount,
-                        balanceDue: netAmount,
-                        items: {
-                            create: po.items.map(poItem => ({
-                                description: `Produk ${poItem.productId}`,
-                                quantity: poItem.quantity,
-                                unitPrice: poItem.unitPrice,
-                                amount: poItem.totalPrice,
-                                productId: poItem.productId,
-                            }))
-                        }
-                    }
-                })
-
-                return {
-                    poId: po.id,
-                    poNumber: po.number,
-                    grnId: grn.id,
-                    grnNumber: grn.number,
-                    billId: bill.id,
-                    billNumber: bill.number,
+            const bill = await prisma.invoice.create({
+                data: {
+                    number: billNumber,
+                    type: 'INV_IN',
+                    supplierId: input.supplierId,
+                    purchaseOrderId: po.id,
+                    orderId: po.id,
+                    status: 'DRAFT',
+                    issueDate: now,
+                    dueDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+                    subtotal,
+                    taxAmount,
                     totalAmount: netAmount,
+                    balanceDue: netAmount,
+                    items: {
+                        create: po.items.map(poItem => ({
+                            description: `Produk ${poItem.productId}`,
+                            quantity: poItem.quantity,
+                            unitPrice: poItem.unitPrice,
+                            amount: poItem.totalPrice,
+                            productId: poItem.productId,
+                        }))
+                    }
                 }
             })
+
+            return {
+                poId: po.id,
+                poNumber: po.number,
+                grnId: grn.id,
+                grnNumber: grn.number,
+                billId: bill.id,
+                billNumber: bill.number,
+                totalAmount: netAmount,
+            }
         })
 
         // ─── 8. Post GL journal entry (outside transaction to avoid nested deadlock) ───
         try {
+            await assertPeriodOpen(new Date())
             const { postJournalEntry } = await import("./finance-gl")
             await postJournalEntry({
                 description: `Pembelian Langsung ${result.poNumber}`,

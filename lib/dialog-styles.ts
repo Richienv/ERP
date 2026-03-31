@@ -10,30 +10,30 @@ export const NB = {
   contentWide: "max-w-4xl sm:max-w-4xl p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0",
   contentNarrow: "max-w-xl sm:max-w-xl p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0",
 
-  // Header (always black)
-  header: "bg-black text-white px-6 py-4",
-  title: "text-lg font-black uppercase tracking-wider text-white flex items-center gap-2",
+  // Header (always black) — aligned with reference (Catat Penerimaan Baru)
+  header: "bg-black text-white px-5 py-3",
+  title: "text-sm font-black uppercase tracking-wider text-white flex items-center gap-2",
   subtitle: "text-zinc-400 text-[11px] font-bold mt-0.5",
 
   // Scroll wrapper
   scroll: "max-h-[72vh]",
 
-  // Section containers
-  section: "border-2 border-black",
-  sectionHead: "bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 border-b border-zinc-200 dark:border-zinc-700 flex items-center gap-2",
-  sectionTitle: "text-xs font-black uppercase tracking-widest",
+  // Section containers — aligned with reference (Catat Penerimaan Baru)
+  section: "border border-zinc-200 dark:border-zinc-700",
+  sectionHead: "bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700 flex items-center gap-2",
+  sectionTitle: "text-[10px] font-black uppercase tracking-widest text-zinc-500",
   sectionHint: "text-[10px] font-medium text-zinc-400 dark:text-zinc-500 ml-auto",
-  sectionBody: "p-4 space-y-4",
+  sectionBody: "p-3 space-y-3",
 
   // Form elements
   label: "text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block",
   labelRequired: "text-red-500",
   labelHint: "text-[10px] font-medium text-zinc-400 dark:text-zinc-500 mt-0.5 block",
-  input: "nb-input border-2 border-zinc-300 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-800/50 font-bold h-10 rounded-none placeholder:text-zinc-400 placeholder:italic placeholder:font-normal focus:border-black dark:focus:border-white focus:bg-white dark:focus:bg-zinc-900 transition-colors",
-  inputMono: "nb-input border-2 border-zinc-300 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-800/50 font-mono font-bold h-10 rounded-none placeholder:text-zinc-400 placeholder:italic placeholder:font-normal focus:border-black dark:focus:border-white focus:bg-white dark:focus:bg-zinc-900 transition-colors",
-  inputSm: "nb-input border border-zinc-200 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-800/50 font-medium h-8 text-sm rounded-none placeholder:text-zinc-400 placeholder:italic placeholder:font-normal focus:border-black dark:focus:border-white focus:bg-white dark:focus:bg-zinc-900 transition-colors",
-  select: "border-2 border-zinc-300 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-800/50 font-bold h-10 w-full rounded-none data-[placeholder]:italic data-[placeholder]:text-zinc-400 focus:border-black dark:focus:border-white transition-colors",
-  textarea: "nb-input border-2 border-zinc-300 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-800/50 font-medium min-h-[60px] rounded-none placeholder:text-zinc-400 placeholder:italic placeholder:font-normal focus:border-black dark:focus:border-white focus:bg-white dark:focus:bg-zinc-900 transition-colors",
+  // Form inputs — aligned with reference (h-8, border-1, text-sm)
+  input: "border font-medium h-8 text-sm rounded-none placeholder:text-zinc-400 placeholder:italic placeholder:font-normal transition-colors",
+  inputMono: "border font-mono font-bold h-8 text-sm rounded-none placeholder:text-zinc-400 placeholder:italic placeholder:font-normal transition-colors",
+  select: "h-8 text-sm rounded-none border transition-colors",
+  textarea: "border text-sm rounded-none px-3 py-2 min-h-[60px] placeholder:text-zinc-400 placeholder:italic placeholder:font-normal transition-colors resize-none",
 
   // Buttons
   cancelBtn: "border border-zinc-300 dark:border-zinc-600 text-zinc-500 dark:text-zinc-400 font-bold uppercase text-xs tracking-wider px-6 h-9 rounded-none bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700",

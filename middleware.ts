@@ -95,10 +95,28 @@ export async function middleware(request: NextRequest) {
     )
 
     if (isProtectedRoute && !user) {
+        // For RSC/prefetch requests (e.g., router.prefetch() during cache warming),
+        // do NOT redirect or clear cookies. During concurrent cache warming, multiple
+        // middleware calls race to refresh the same token — if one fails transiently,
+        // clearing cookies would wipe the valid session from the browser.
+        // The client-side RouteGuard handles unauthenticated state properly.
+        const isRSC = request.headers.get('rsc') === '1'
+        const isPrefetch = request.headers.get('next-router-prefetch') === '1'
+        if (isRSC || isPrefetch) {
+            return response
+        }
+
         const url = request.nextUrl.clone()
         url.pathname = '/login'
+
+        // If auth cookies exist but getUser() failed, this is a session expiry
+        // (not a first-time visit). Add ?expired=true so login page can show a message.
+        const hasAuthCookies = request.cookies.getAll().some(c => c.name.startsWith('sb-'))
+        if (hasAuthCookies) {
+            url.searchParams.set('expired', 'true')
+        }
+
         const redirectResponse = NextResponse.redirect(url)
-        // Also clear auth cookies on the redirect response to prevent loops
         clearAuthCookies(redirectResponse, request)
         return redirectResponse
     }

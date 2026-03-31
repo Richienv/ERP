@@ -5,11 +5,22 @@ import { withPrismaAuth } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import { logAudit } from "@/lib/audit-helpers"
 import { postJournalEntry } from "./finance-gl"
-import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts"
+import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts-server"
+import { assertPeriodOpen } from "@/lib/period-helpers"
+import { getPPhLiabilityAccount, type PPhTypeValue } from "@/lib/pph-helpers"
+import { toNum } from "@/lib/utils"
 
 // ==========================================
 // VENDOR BILLS (AP - From Purchase Orders)
 // ==========================================
+
+export interface VendorBillPayment {
+    id: string
+    amount: number
+    method: string
+    reference: string | null
+    date: Date
+}
 
 export interface VendorBill {
     id: string
@@ -28,6 +39,7 @@ export interface VendorBill {
     balanceDue: number
     status: string
     isOverdue: boolean
+    payments?: VendorBillPayment[]
 }
 
 type VendorBillQueryInput = {
@@ -104,8 +116,8 @@ export async function getVendorBills(): Promise<VendorBill[]> {
                 purchaseOrderNumber: (bill as any).purchaseOrderId || undefined,
                 date: bill.issueDate,
                 dueDate: bill.dueDate,
-                amount: Number(bill.totalAmount),
-                balanceDue: Number(bill.balanceDue),
+                amount: toNum(bill.totalAmount),
+                balanceDue: toNum(bill.balanceDue),
                 status: bill.status,
                 isOverdue: bill.dueDate < now && bill.status !== 'PAID'
             }))
@@ -123,7 +135,7 @@ export async function getVendorBillsRegistry(input?: VendorBillQueryInput): Prom
         return await withPrismaAuth(async (prisma) => {
             const where: any = {
                 type: 'INV_IN',
-                status: { in: ['DRAFT', 'ISSUED', 'PARTIAL', 'OVERDUE', 'DISPUTED'] }
+                status: { in: ['DRAFT', 'ISSUED', 'PARTIAL', 'OVERDUE', 'DISPUTED', 'PAID'] }
             }
 
             if (query.status) where.status = query.status
@@ -146,6 +158,17 @@ export async function getVendorBillsRegistry(input?: VendorBillQueryInput): Prom
                                 bankAccountNumber: true,
                                 bankAccountName: true
                             }
+                        },
+                        payments: {
+                            select: {
+                                id: true,
+                                amount: true,
+                                method: true,
+                                reference: true,
+                                date: true,
+                            },
+                            orderBy: { date: 'desc' },
+                            take: 3,
                         }
                     },
                     orderBy: [{ dueDate: 'asc' }, { issueDate: 'desc' }],
@@ -169,10 +192,17 @@ export async function getVendorBillsRegistry(input?: VendorBillQueryInput): Prom
                 purchaseOrderNumber: (bill as any).purchaseOrderId || undefined,
                 date: bill.issueDate,
                 dueDate: bill.dueDate,
-                amount: Number(bill.totalAmount),
-                balanceDue: Number(bill.balanceDue),
+                amount: toNum(bill.totalAmount),
+                balanceDue: toNum(bill.balanceDue),
                 status: bill.status,
-                isOverdue: bill.dueDate < now && bill.status !== 'PAID'
+                isOverdue: bill.dueDate < now && bill.status !== 'PAID',
+                payments: bill.payments?.map(p => ({
+                    id: p.id,
+                    amount: toNum(p.amount),
+                    method: p.method || 'TRANSFER',
+                    reference: p.reference,
+                    date: p.date,
+                })) ?? [],
             }))
 
             return {
@@ -219,6 +249,9 @@ export async function approveVendorBill(billId: string) {
             if (!bill) throw new Error("Bill not found")
             if (bill.status !== 'DRAFT') throw new Error("Bill already processed")
 
+            // Period lock: fail fast before mutation
+            await assertPeriodOpen(new Date())
+
             // 2. Update Status to ISSUED (Approved)
             await prisma.invoice.update({
                 where: { id: billId },
@@ -252,13 +285,12 @@ export async function approveVendorBill(billId: string) {
 
             // Determine Debit Accounts (Expenses/Assets)
             for (const item of bill.items) {
-                const amount = Number(item.amount)
+                const amount = toNum(item.amount)
                 totalAmount += amount
 
-                // Use product's expense account if set, otherwise fall back to default
-                const expenseAccount = item.product?.expenseAccountCode || SYS_ACCOUNTS.EXPENSE_DEFAULT
+                // TODO: enhance with product-specific accounts in future
                 glLines.push({
-                    accountCode: expenseAccount,
+                    accountCode: SYS_ACCOUNTS.EXPENSE_DEFAULT,
                     debit: amount,
                     credit: 0,
                     description: `${item.description} (Qty: ${item.quantity})`
@@ -266,14 +298,14 @@ export async function approveVendorBill(billId: string) {
             }
 
             // Add Tax if applicable (Input VAT - Asset)
-            if (Number(bill.taxAmount) > 0) {
+            if (toNum(bill.taxAmount) > 0) {
                 glLines.push({
                     accountCode: SYS_ACCOUNTS.PPN_MASUKAN,
-                    debit: Number(bill.taxAmount),
+                    debit: toNum(bill.taxAmount),
                     credit: 0,
                     description: `PPN Masukan - Bill ${bill.number}`
                 })
-                totalAmount += Number(bill.taxAmount)
+                totalAmount += toNum(bill.taxAmount)
             }
 
             // Add AP Credit Line
@@ -356,7 +388,7 @@ export async function getVendorPayments(): Promise<VendorPayment[]> {
                         ? { id: "PAYROLL", name: "Payroll Disbursement Batch" }
                         : null),
                 date: p.date,
-                amount: Number(p.amount),
+                amount: toNum(p.amount),
                 method: p.method,
                 reference: p.reference || undefined,
                 billNumber: p.invoice?.number,
@@ -371,17 +403,6 @@ export async function getVendorPayments(): Promise<VendorPayment[]> {
 
 /**
  * Record a vendor payment (pay a bill)
- *
- * PPh 23 withholding logic:
- * If the supplier has isServiceVendor === true AND pph23Rate > 0,
- * the system withholds PPh 23 from the payment:
- *   withholding = paymentAmount x (pph23Rate / 100)
- *   netPayment  = paymentAmount - withholding
- *
- * GL entry becomes:
- *   DR  AP (2000)            = paymentAmount   (full invoice amount settled)
- *     CR  Bank/Cash          = netPayment      (actual cash out)
- *     CR  PPh 23 Payable     = withholding     (tax liability to remit to DJP)
  */
 export async function recordVendorPayment(data: {
     supplierId: string
@@ -391,6 +412,14 @@ export async function recordVendorPayment(data: {
     reference?: string
     notes?: string
     bankAccountCode?: string
+    withholding?: {
+        type: PPhTypeValue
+        rate: number
+        baseAmount: number
+        buktiPotongNo?: string
+    }
+    whtAmount?: number  // Withholding tax amount (PPh 23)
+    whtRate?: number    // WHT rate (e.g. 0.02 for 2%)
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
@@ -404,23 +433,16 @@ export async function recordVendorPayment(data: {
                 throw new Error("Check number/reference is required for CHECK payments")
             }
 
-            // Fetch supplier to check PPh 23 applicability
-            const supplier = await prisma.supplier.findUnique({
-                where: { id: data.supplierId },
-                select: { isServiceVendor: true, pph23Rate: true, name: true }
-            })
-            if (!supplier) {
-                throw new Error("Supplier tidak ditemukan")
-            }
+            // Period lock: fail fast before mutation
+            await assertPeriodOpen(new Date())
 
-            // Calculate PPh 23 withholding
-            const pph23Rate = supplier.isServiceVendor && supplier.pph23Rate
-                ? Number(supplier.pph23Rate)
-                : 0
-            const pph23Amount = pph23Rate > 0
-                ? Math.round(data.amount * (pph23Rate / 100))
-                : 0
-            const netPayment = data.amount - pph23Amount
+            const whtAmount = data.whtAmount && data.whtAmount > 0 ? data.whtAmount : 0
+            const grossAmount = data.amount  // Total amount applied against invoice
+            const netBankAmount = grossAmount - whtAmount  // Amount actually paid to vendor
+
+            if (whtAmount > 0 && netBankAmount <= 0) {
+                throw new Error("WHT amount cannot exceed or equal payment amount")
+            }
 
             // Generate payment number
             const year = new Date().getFullYear()
@@ -434,14 +456,13 @@ export async function recordVendorPayment(data: {
                     number: paymentNumber,
                     supplierId: data.supplierId,
                     invoiceId: data.billId,
-                    amount: data.amount,
-                    pph23Amount: pph23Amount > 0 ? pph23Amount : 0,
+                    amount: grossAmount,
                     date: new Date(),
                     method: data.method || 'TRANSFER',
                     reference: data.reference,
-                    notes: pph23Amount > 0
-                        ? `${data.notes || ''} [PPh 23: ${pph23Rate}% = Rp ${pph23Amount.toLocaleString('id-ID')}]`.trim()
-                        : data.notes
+                    notes: data.notes,
+                    whtAmount: whtAmount > 0 ? whtAmount : null,
+                    whtRate: data.whtRate && data.whtRate > 0 ? data.whtRate : null,
                 }
             })
 
@@ -456,23 +477,17 @@ export async function recordVendorPayment(data: {
                         action: "CREATE",
                         userId: authUser.id,
                         userName: authUser.email || undefined,
-                        changes: pph23Amount > 0 ? {
-                            pph23Rate: { from: null, to: `${pph23Rate}%` },
-                            pph23Amount: { from: 0, to: pph23Amount },
-                            netPayment: { from: data.amount, to: netPayment },
-                        } : undefined,
                     })
                 }
             } catch { /* audit is best-effort */ }
 
-            // If linked to bill, update bill balance
-            // The full amount (before withholding) settles the bill — PPh 23 is the vendor's tax obligation
+            // If linked to bill, update bill balance (gross amount reduces invoice)
             if (data.billId) {
                 const bill = await prisma.invoice.findUnique({
                     where: { id: data.billId }
                 })
                 if (bill) {
-                    const newBalance = Number(bill.balanceDue) - data.amount
+                    const newBalance = toNum(bill.balanceDue) - grossAmount
                     await prisma.invoice.update({
                         where: { id: data.billId },
                         data: {
@@ -483,7 +498,7 @@ export async function recordVendorPayment(data: {
                 }
             }
 
-            // Post GL entry
+            // Post GL entry: DR AP, CR Cash/Bank [, CR Utang PPh if withholding]
             await ensureSystemAccounts()
             const bankCode = getCashAccountCode(data.method || 'TRANSFER', data.bankAccountCode)
             const bankAccount = await prisma.gLAccount.findFirst({
@@ -492,37 +507,76 @@ export async function recordVendorPayment(data: {
             })
             const bankAccountName = bankAccount?.name || 'Kas Besar'
 
-            // Build GL lines — PPh 23 splits the credit side
-            const glLines: { accountCode: string; debit: number; credit: number; description: string }[] = [
-                { accountCode: SYS_ACCOUNTS.AP, debit: data.amount, credit: 0, description: 'Hutang Usaha' },
-                { accountCode: bankCode, debit: 0, credit: netPayment, description: bankAccountName },
-            ]
-            if (pph23Amount > 0) {
+            // Withholding tax: prefer structured `withholding` field, fall back to simple `whtAmount`
+            const pphAmount = data.withholding
+                ? Math.round((data.withholding.rate / 100) * data.withholding.baseAmount)
+                : whtAmount
+            const netCashAmount = grossAmount - pphAmount
+
+            // Build journal lines
+            const glLines: Array<{ accountCode: string; debit: number; credit: number; description: string }> = []
+
+            // DR AP (gross — full invoice reduction)
+            glLines.push({
+                accountCode: SYS_ACCOUNTS.AP,
+                debit: grossAmount,
+                credit: 0,
+                description: 'Hutang Usaha'
+            })
+
+            // CR Bank (net — actual cash paid)
+            glLines.push({
+                accountCode: bankCode,
+                debit: 0,
+                credit: netCashAmount,
+                description: bankAccountName
+            })
+
+            // CR PPh Payable (WHT — tax withheld on behalf of vendor)
+            if (pphAmount > 0) {
+                const pphAccountCode = data.withholding
+                    ? getPPhLiabilityAccount(data.withholding.type)
+                    : SYS_ACCOUNTS.PPH23_PAYABLE
+                const pphDesc = data.withholding
+                    ? `PPh ${data.withholding.type === 'PPH_23' ? '23' : '4(2)'} - ${paymentNumber}`
+                    : `PPh 23 dipotong (${data.whtRate ? (data.whtRate * 100).toFixed(1) : '?'}%)`
                 glLines.push({
-                    accountCode: SYS_ACCOUNTS.PPH23_PAYABLE,
+                    accountCode: pphAccountCode,
                     debit: 0,
-                    credit: pph23Amount,
-                    description: `PPh 23 (${pph23Rate}%) - ${supplier.name}`
+                    credit: pphAmount,
+                    description: pphDesc
                 })
             }
 
             const glResult = await postJournalEntry({
-                description: `Vendor Payment ${paymentNumber}${pph23Amount > 0 ? ` (PPh 23: Rp ${pph23Amount.toLocaleString('id-ID')})` : ''}`,
+                description: `Vendor Payment ${paymentNumber}`,
                 date: new Date(),
                 reference: paymentNumber,
-                lines: glLines
+                lines: glLines,
             })
             if (!glResult?.success) {
-                console.error("GL posting failed for vendor payment:", (glResult as any)?.error)
+                // Atomic: GL gagal → lempar error agar withPrismaAuth rollback payment + bill update
+                throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(glResult as any)?.error || 'Unknown GL error'}`)
             }
 
-            return {
-                success: true,
-                paymentId: payment.id,
-                paymentNumber,
-                pph23Amount,
-                netPayment,
+            // Create WithholdingTax record if applicable
+            if (data.withholding && pphAmount > 0) {
+                await prisma.withholdingTax.create({
+                    data: {
+                        paymentId: payment.id,
+                        invoiceId: data.billId || null,
+                        type: data.withholding.type,
+                        direction: 'OUT',
+                        rate: data.withholding.rate,
+                        baseAmount: data.withholding.baseAmount,
+                        amount: pphAmount,
+                        buktiPotongNo: data.withholding.buktiPotongNo || null,
+                        buktiPotongDate: data.withholding.buktiPotongNo ? new Date() : null,
+                    },
+                })
             }
+
+            return { success: true, paymentId: payment.id, paymentNumber }
         })
     } catch (error: any) {
         console.error("Failed to record vendor payment:", error)
@@ -551,6 +605,12 @@ export async function recordMultiBillPayment(data: {
     reference?: string
     notes?: string
     bankAccountCode?: string // GL code for bank/cash account (default 1010)
+    withholding?: {
+        type: PPhTypeValue
+        rate: number
+        baseAmount: number
+        buktiPotongNo?: string
+    }
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
@@ -576,6 +636,9 @@ export async function recordMultiBillPayment(data: {
                 throw new Error("Nomor cek/referensi wajib diisi untuk metode CHECK")
             }
 
+            // Period lock: fail fast before mutation
+            await assertPeriodOpen(new Date())
+
             // Generate payment number
             const year = new Date().getFullYear()
             const count = await prisma.payment.count({
@@ -597,7 +660,7 @@ export async function recordMultiBillPayment(data: {
                     throw new Error(`Tagihan ${bill.number} bukan milik vendor yang dipilih`)
                 }
 
-                const currentBalance = Number(bill.balanceDue)
+                const currentBalance = toNum(bill.balanceDue)
                 if (alloc.amount > currentBalance + 0.01) {
                     throw new Error(`Alokasi untuk ${bill.number} (${alloc.amount}) melebihi sisa tagihan (${currentBalance})`)
                 }
@@ -640,19 +703,60 @@ export async function recordMultiBillPayment(data: {
                 })
             }
 
-            // Post single GL entry for total amount: DR AP, CR Bank/Cash
+            // Post single GL entry for total amount: DR AP, CR Bank/Cash [, CR Utang PPh if withholding]
             const bankCode = getCashAccountCode(data.method || 'TRANSFER', data.bankAccountCode)
+            const bankAccount = await prisma.gLAccount.findFirst({
+                where: { code: bankCode },
+                select: { name: true }
+            })
+            const bankAccountName = bankAccount?.name || 'Kas Besar'
+
+            const pphAmount = data.withholding
+                ? Math.round((data.withholding.rate / 100) * data.withholding.baseAmount)
+                : 0
+            const netCashAmount = totalAmount - pphAmount
+
+            const multiGlLines: { accountCode: string; debit: number; credit: number; description: string }[] = [
+                { accountCode: SYS_ACCOUNTS.AP, debit: totalAmount, credit: 0, description: 'Pelunasan Hutang Usaha' },
+                { accountCode: bankCode, debit: 0, credit: netCashAmount, description: bankAccountName },
+            ]
+
+            if (data.withholding && pphAmount > 0) {
+                const pphAccountCode = getPPhLiabilityAccount(data.withholding.type)
+                multiGlLines.push({
+                    accountCode: pphAccountCode,
+                    debit: 0,
+                    credit: pphAmount,
+                    description: `PPh ${data.withholding.type === 'PPH_23' ? '23' : '4(2)'} - ${paymentNumber}`,
+                })
+            }
+
             const multiGlResult = await postJournalEntry({
                 description: `Pembayaran Vendor Multi-Bill ${paymentNumber}`,
                 date: new Date(),
                 reference: paymentNumber,
-                lines: [
-                    { accountCode: SYS_ACCOUNTS.AP, debit: totalAmount, credit: 0, description: 'Pelunasan Hutang Usaha' },
-                    { accountCode: bankCode, debit: 0, credit: totalAmount, description: `Pembayaran via ${data.method || 'TRANSFER'}` }
-                ]
+                lines: multiGlLines,
             })
             if (!multiGlResult?.success) {
-                console.error("GL posting failed for multi-bill payment:", (multiGlResult as any)?.error)
+                // Atomic: GL gagal → lempar error agar withPrismaAuth rollback semua pembayaran + bill updates
+                throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(multiGlResult as any)?.error || 'Unknown GL error'}`)
+            }
+
+            // Create WithholdingTax record if applicable
+            if (data.withholding && pphAmount > 0) {
+                await prisma.withholdingTax.create({
+                    data: {
+                        paymentId: paymentIds[0],
+                        invoiceId: null,
+                        type: data.withholding.type,
+                        direction: 'OUT',
+                        rate: data.withholding.rate,
+                        baseAmount: data.withholding.baseAmount,
+                        amount: pphAmount,
+                        buktiPotongNo: data.withholding.buktiPotongNo || null,
+                        buktiPotongDate: data.withholding.buktiPotongNo ? new Date() : null,
+                    },
+                })
             }
 
             return { success: true, paymentNumber, paymentIds, totalAmount }
@@ -823,6 +927,9 @@ export async function approveAndPayBill(
             })
             if (!bill) throw new Error("Bill not found")
 
+            // Period lock: fail fast before mutation
+            await assertPeriodOpen(new Date())
+
             await ensureSystemAccounts()
 
             // 2. Update Supplier Bank Details if provided
@@ -848,13 +955,13 @@ export async function approveAndPayBill(
                 const glLines: any[] = []
                 let totalAmount = 0
 
-                // Add Expense Lines — use product's expense account if set
+                // Add Expense Lines
+                // Vendor bills debit EXPENSE_DEFAULT (6900). COGS (5000) is only debited when inventory items are SOLD, not when purchased.
                 for (const item of bill.items) {
-                    const amount = Number(item.amount)
+                    const amount = toNum(item.amount)
                     totalAmount += amount
-                    const expenseAccount = item.product?.expenseAccountCode || SYS_ACCOUNTS.EXPENSE_DEFAULT
                     glLines.push({
-                        accountCode: expenseAccount,
+                        accountCode: SYS_ACCOUNTS.EXPENSE_DEFAULT,
                         debit: amount,
                         credit: 0,
                         description: `${item.description}`
@@ -862,14 +969,14 @@ export async function approveAndPayBill(
                 }
 
                 // Add Tax
-                if (Number(bill.taxAmount) > 0) {
+                if (toNum(bill.taxAmount) > 0) {
                     glLines.push({
                         accountCode: SYS_ACCOUNTS.PPN_MASUKAN,
-                        debit: Number(bill.taxAmount),
+                        debit: toNum(bill.taxAmount),
                         credit: 0,
                         description: `PPN Masukan - Bill ${bill.number}`
                     })
-                    totalAmount += Number(bill.taxAmount)
+                    totalAmount += toNum(bill.taxAmount)
                 }
 
                 // Add AP Credit
@@ -925,7 +1032,8 @@ export async function approveAndPayBill(
                 ]
             })
             if (!payGl?.success) {
-                console.error("GL posting failed for payment:", (payGl as any)?.error)
+                // Atomic: GL gagal → lempar error agar withPrismaAuth rollback approval + payment
+                throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(payGl as any)?.error || 'Unknown GL error'}`)
             }
 
             return { success: true }

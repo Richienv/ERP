@@ -1,23 +1,20 @@
 "use client"
 
 import { useState } from "react"
-import { CheckCircle2, XCircle, Package, Loader2, Calendar, User, Warehouse, Printer } from "lucide-react"
+import { CheckCircle2, XCircle, Package, Loader2, Calendar, User, Warehouse, Printer, AlertTriangle } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
-import { Button } from "@/components/ui/button"
+import { NB } from "@/lib/dialog-styles"
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Textarea } from "@/components/ui/textarea"
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBSection,
+    NBTextarea,
+} from "@/components/ui/nb-dialog"
 import { toast } from "sonner"
 import { acceptGRN, rejectGRN } from "@/lib/actions/grn"
 import { queryKeys } from "@/lib/query-keys"
+import { StatusBadge } from "@/components/module"
 
 interface GRNItem {
     id: string
@@ -63,19 +60,14 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
 
     if (!grn) return null
 
-    const getStatusStyle = (status: string) => {
-        switch (status) {
-            case 'ACCEPTED':
-                return 'bg-emerald-100 text-emerald-700 border-emerald-200'
-            case 'DRAFT':
-                return 'bg-amber-100 text-amber-700 border-amber-200'
-            case 'INSPECTING':
-                return 'bg-blue-100 text-blue-700 border-blue-200'
-            case 'REJECTED':
-                return 'bg-red-100 text-red-700 border-red-200'
-            default:
-                return 'bg-zinc-100 text-zinc-600 border-zinc-200'
-        }
+    const invalidateAll = () => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.receiving.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.all })
     }
 
     const handleAccept = async () => {
@@ -87,19 +79,13 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
         setLoading(true)
         try {
             const result = await acceptGRN(grn.id, sodMode ? sodReason : undefined)
-            
+
             if (result.success) {
                 toast.success("Surat Jalan Masuk diterima dan stok diperbarui")
                 setSodMode(false)
                 setSodReason("")
                 onClose()
-                queryClient.invalidateQueries({ queryKey: queryKeys.receiving.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.all })
+                invalidateAll()
             } else if ('sodViolation' in result && result.sodViolation) {
                 setSodMode(true)
                 toast.warning(result.error || "Peringatan SoD: Konfirmasi diperlukan")
@@ -126,8 +112,7 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
                 toast.success("Surat Jalan Masuk ditolak")
                 setRejectMode(false)
                 onClose()
-                queryClient.invalidateQueries({ queryKey: queryKeys.receiving.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
+                invalidateAll()
             } else {
                 toast.error(result.error || "Gagal menolak Surat Jalan")
             }
@@ -141,235 +126,240 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
     const canProcess = grn.status === 'DRAFT'
 
     return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-3xl border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] max-h-[85vh] overflow-y-auto">
-                <DialogHeader>
-                    <div className="flex items-center justify-between">
-                        <DialogTitle className="font-black uppercase flex items-center gap-2">
-                            <Package className="h-5 w-5 text-emerald-600" />
-                            {grn.number}
-                        </DialogTitle>
-                        {(grn.status === 'DRAFT' || grn.status === 'ACCEPTED') && (
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="border-2 border-black text-[10px] font-black uppercase tracking-widest h-8 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
-                                onClick={() => window.open(`/api/documents/surat-jalan-masuk/${grn.id}?disposition=inline`, '_blank')}
-                            >
-                                <Printer className="h-3.5 w-3.5 mr-1.5" />
-                                Cetak Surat Jalan
-                            </Button>
-                        )}
+        <NBDialog open={isOpen} onOpenChange={onClose} size="wide">
+            <NBDialogHeader
+                icon={Package}
+                title={grn.number}
+                subtitle={`PO: ${grn.poNumber}`}
+            />
+
+            <NBDialogBody>
+                {/* ── Status + Print row ── */}
+                <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Status</span>
+                        <StatusBadge
+                            status={grn.status}
+                            variant={grn.status === "ACCEPTED" ? "approved" : grn.status === "INSPECTING" ? "production" : undefined}
+                        />
                     </div>
-                    <DialogDescription>
-                        PO: <span className="font-bold text-blue-600">{grn.poNumber}</span>
-                    </DialogDescription>
-                </DialogHeader>
+                    {(grn.status === 'DRAFT' || grn.status === 'ACCEPTED') && (
+                        <button
+                            type="button"
+                            className={NB.toolbarBtn + " flex items-center gap-1.5"}
+                            onClick={() => window.open(`/api/documents/surat-jalan-masuk/${grn.id}?disposition=inline`, '_blank')}
+                        >
+                            <Printer className="h-3.5 w-3.5" />
+                            Cetak Surat Jalan
+                        </button>
+                    )}
+                </div>
 
-                <div className="py-6 space-y-6">
-                    {/* Status Badge */}
-                    <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground font-bold uppercase">Status</span>
-                        <Badge variant="outline" className={`font-bold uppercase text-xs ${getStatusStyle(grn.status)}`}>
-                            {grn.status}
-                        </Badge>
-                    </div>
-
-                    <Separator />
-
-                    {/* Info Grid */}
+                {/* ── Info Grid ── */}
+                <NBSection icon={User} title="Informasi Penerimaan">
                     <div className="grid grid-cols-2 gap-4 text-sm">
                         <div className="flex items-start gap-2">
-                            <User className="h-4 w-4 text-muted-foreground mt-0.5" />
+                            <User className="h-4 w-4 text-zinc-400 mt-0.5" />
                             <div>
-                                <div className="text-[10px] uppercase text-muted-foreground font-bold">Vendor</div>
+                                <div className="text-[10px] uppercase text-zinc-500 font-bold">Vendor</div>
                                 <div className="font-bold">{grn.vendorName}</div>
                             </div>
                         </div>
                         <div className="flex items-start gap-2">
-                            <Warehouse className="h-4 w-4 text-muted-foreground mt-0.5" />
+                            <Warehouse className="h-4 w-4 text-zinc-400 mt-0.5" />
                             <div>
-                                <div className="text-[10px] uppercase text-muted-foreground font-bold">Gudang</div>
+                                <div className="text-[10px] uppercase text-zinc-500 font-bold">Gudang</div>
                                 <div className="font-bold">{grn.warehouseName}</div>
                             </div>
                         </div>
                         <div className="flex items-start gap-2">
-                            <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
+                            <Calendar className="h-4 w-4 text-zinc-400 mt-0.5" />
                             <div>
-                                <div className="text-[10px] uppercase text-muted-foreground font-bold">Tanggal</div>
+                                <div className="text-[10px] uppercase text-zinc-500 font-bold">Tanggal</div>
                                 <div className="font-medium">{new Date(grn.receivedDate).toLocaleDateString('id-ID')}</div>
                             </div>
                         </div>
                         <div className="flex items-start gap-2">
-                            <User className="h-4 w-4 text-muted-foreground mt-0.5" />
+                            <User className="h-4 w-4 text-zinc-400 mt-0.5" />
                             <div>
-                                <div className="text-[10px] uppercase text-muted-foreground font-bold">Penerima</div>
+                                <div className="text-[10px] uppercase text-zinc-500 font-bold">Penerima</div>
                                 <div className="font-medium">{grn.receivedBy}</div>
                             </div>
                         </div>
                     </div>
+                </NBSection>
 
-                    <Separator />
-
-                    {/* Summary */}
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                        <div className="bg-zinc-50 p-3 rounded-lg border">
-                            <div className="text-2xl font-black">{grn.itemCount}</div>
-                            <div className="text-[10px] uppercase text-muted-foreground font-bold">Items</div>
-                        </div>
-                        <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-200">
-                            <div className="text-2xl font-black text-emerald-600">{grn.totalAccepted}</div>
-                            <div className="text-[10px] uppercase text-emerald-600 font-bold">Diterima</div>
-                        </div>
-                        <div className="bg-red-50 p-3 rounded-lg border border-red-200">
-                            <div className="text-2xl font-black text-red-600">{grn.totalRejected}</div>
-                            <div className="text-[10px] uppercase text-red-600 font-bold">Ditolak</div>
-                        </div>
+                {/* ── Summary KPI ── */}
+                <div className="grid grid-cols-3 gap-0 border-2 border-black overflow-hidden">
+                    <div className="p-3 text-center border-r-2 border-black">
+                        <div className="text-2xl font-black">{grn.itemCount}</div>
+                        <div className="text-[10px] uppercase text-zinc-500 font-bold">Items</div>
                     </div>
-
-                    <Separator />
-
-                    {/* Items List */}
-                    <div>
-                        <h4 className="font-black uppercase text-xs text-muted-foreground mb-3">Detail Items</h4>
-                        <div className="space-y-3">
-                            {grn.items.map((item) => (
-                                <div key={item.id} className="bg-zinc-50 p-3 rounded-lg border">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <div>
-                                            <div className="font-bold text-sm">{item.productName}</div>
-                                            <div className="text-xs text-muted-foreground">{item.productCode}</div>
-                                        </div>
-                                        <div className="text-right">
-                                            <div className="font-mono text-sm">
-                                                <span className="text-emerald-600 font-bold">{item.quantityAccepted}</span>
-                                                {item.quantityRejected > 0 && (
-                                                    <span className="text-red-500 ml-1">(-{item.quantityRejected})</span>
-                                                )}
-                                            </div>
-                                            <div className="text-[10px] text-muted-foreground">
-                                                dari {item.quantityReceived} diterima
-                                            </div>
-                                        </div>
-                                    </div>
-                                    {item.inspectionNotes && (
-                                        <div className="text-xs text-muted-foreground bg-white p-2 rounded border mt-2">
-                                            {item.inspectionNotes}
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
+                    <div className="p-3 text-center bg-emerald-50/50 border-r-2 border-black">
+                        <div className="text-2xl font-black text-emerald-600">{grn.totalAccepted}</div>
+                        <div className="text-[10px] uppercase text-emerald-600 font-bold">Diterima</div>
                     </div>
-
-                    {/* Notes */}
-                    {grn.notes && (
-                        <>
-                            <Separator />
-                            <div>
-                                <h4 className="font-black uppercase text-xs text-muted-foreground mb-2">Catatan</h4>
-                                <p className="text-sm text-muted-foreground bg-zinc-50 p-3 rounded border">
-                                    {grn.notes}
-                                </p>
-                            </div>
-                        </>
-                    )}
-
-                    {/* Reject Mode */}
-                    {rejectMode && (
-                        <div className="bg-red-50 p-4 rounded-lg border border-red-200 animate-in fade-in">
-                            <label className="text-xs font-bold text-red-700 uppercase mb-2 block">
-                                Alasan Penolakan *
-                            </label>
-                            <Textarea
-                                placeholder="Mengapa Surat Jalan ini ditolak?"
-                                value={rejectReason}
-                                onChange={(e) => setRejectReason(e.target.value)}
-                                className="bg-white"
-                            />
-                            <div className="flex gap-2 mt-3 justify-end">
-                                <Button size="sm" variant="ghost" onClick={() => setRejectMode(false)}>
-                                    Batal
-                                </Button>
-                                <Button size="sm" variant="destructive" onClick={handleReject} disabled={loading}>
-                                    {loading && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
-                                    Konfirmasi Tolak
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* SoD Warning & Override */}
-                    {sodMode && (
-                        <div className="bg-amber-50 p-4 rounded-lg border border-amber-200 animate-in fade-in">
-                            <div className="flex items-start gap-3 mb-3">
-                                <div className="p-2 bg-amber-100 rounded-full">
-                                    <User className="h-4 w-4 text-amber-600" />
-                                </div>
-                                <div>
-                                    <h4 className="text-sm font-bold text-amber-800">Peringatan Segregation of Duties</h4>
-                                    <p className="text-xs text-amber-700 mt-1">
-                                        Anda adalah approver untuk PO ini. Menerima barang sendiri berpotensi melanggar kebijakan audit.
-                                        Mohon berikan alasan untuk melanjutkan.
-                                    </p>
-                                </div>
-                            </div>
-                            <label className="text-xs font-bold text-amber-700 uppercase mb-2 block">
-                                Alasan Override *
-                            </label>
-                            <Textarea
-                                placeholder="Saya melakukan penerimaan karena..."
-                                value={sodReason}
-                                onChange={(e) => setSodReason(e.target.value)}
-                                className="bg-white border-amber-200 focus:ring-amber-200"
-                            />
-                            <div className="flex gap-2 mt-3 justify-end">
-                                <Button size="sm" variant="ghost" onClick={() => { setSodMode(false); setSodReason(""); }}>
-                                    Batal
-                                </Button>
-                                <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white" onClick={handleAccept} disabled={loading}>
-                                    {loading && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
-                                    Konfirmasi & Terima
-                                </Button>
-                            </div>
-                        </div>
-                    )}
+                    <div className="p-3 text-center bg-red-50/50">
+                        <div className="text-2xl font-black text-red-600">{grn.totalRejected}</div>
+                        <div className="text-[10px] uppercase text-red-600 font-bold">Ditolak</div>
+                    </div>
                 </div>
 
-                {canProcess && !rejectMode && !sodMode && (
-                    <DialogFooter className="flex-col gap-2">
-                        <Button
-                            onClick={handleAccept}
-                            disabled={loading}
-                            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-                        >
-                            {loading ? (
-                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            ) : (
-                                <CheckCircle2 className="h-4 w-4 mr-2" />
-                            )}
-                            Terima & Update Stok
-                        </Button>
-                        <Button
-                            variant="destructive"
-                            onClick={() => setRejectMode(true)}
-                            disabled={loading}
-                            className="w-full"
-                        >
-                            <XCircle className="h-4 w-4 mr-2" />
-                            Tolak Surat Jalan
-                        </Button>
-                    </DialogFooter>
+                {/* ── Items List ── */}
+                <NBSection icon={Package} title="Detail Items">
+                    <div className="space-y-2">
+                        {grn.items.map((item) => (
+                            <div key={item.id} className="bg-zinc-50 dark:bg-zinc-800/50 p-3 border border-zinc-200 dark:border-zinc-700">
+                                <div className="flex justify-between items-start mb-1">
+                                    <div>
+                                        <div className="font-bold text-sm">{item.productName}</div>
+                                        <div className="text-xs text-zinc-500 font-mono">{item.productCode}</div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="font-mono text-sm">
+                                            <span className="text-emerald-600 font-bold">{item.quantityAccepted}</span>
+                                            {item.quantityRejected > 0 && (
+                                                <span className="text-red-500 ml-1">(-{item.quantityRejected})</span>
+                                            )}
+                                        </div>
+                                        <div className="text-[10px] text-zinc-500">
+                                            dari {item.quantityReceived} diterima
+                                        </div>
+                                    </div>
+                                </div>
+                                {item.inspectionNotes && (
+                                    <div className="text-xs text-zinc-500 bg-white dark:bg-zinc-900 p-2 border border-zinc-200 dark:border-zinc-700 mt-2">
+                                        {item.inspectionNotes}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </NBSection>
+
+                {/* ── Notes ── */}
+                {grn.notes && (
+                    <NBSection icon={Package} title="Catatan" optional>
+                        <p className="text-sm text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 p-3 border border-zinc-200 dark:border-zinc-700">
+                            {grn.notes}
+                        </p>
+                    </NBSection>
                 )}
 
-                {!canProcess && (
-                    <DialogFooter>
-                        <Button variant="secondary" onClick={onClose} className="w-full">
-                            Tutup
-                        </Button>
-                    </DialogFooter>
+                {/* ── Reject Mode ── */}
+                {rejectMode && (
+                    <div className="bg-red-50 dark:bg-red-950/20 p-4 border-2 border-red-300 dark:border-red-800 animate-in fade-in">
+                        <NBTextarea
+                            label="Alasan Penolakan"
+                            required
+                            placeholder="Mengapa Surat Jalan ini ditolak?"
+                            value={rejectReason}
+                            onChange={setRejectReason}
+                        />
+                        <div className="flex gap-3 mt-3 justify-end">
+                            <button
+                                type="button"
+                                onClick={() => setRejectMode(false)}
+                                className={NB.cancelBtn}
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleReject}
+                                disabled={loading}
+                                className={"bg-red-600 text-white border-2 border-red-700 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-red-700 hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] active:translate-y-[4px] active:shadow-none transition-all font-black uppercase text-xs tracking-wider px-6 h-10 rounded-none flex items-center gap-1.5 disabled:opacity-50"}
+                            >
+                                {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                                Konfirmasi Tolak
+                            </button>
+                        </div>
+                    </div>
                 )}
-            </DialogContent>
-        </Dialog>
+
+                {/* ── SoD Warning & Override ── */}
+                {sodMode && (
+                    <div className="bg-amber-50 dark:bg-amber-950/20 p-4 border-2 border-amber-300 dark:border-amber-800 animate-in fade-in">
+                        <div className="flex items-start gap-3 mb-3">
+                            <div className="p-2 bg-amber-100 dark:bg-amber-900/50 border border-amber-300">
+                                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                            </div>
+                            <div>
+                                <h4 className="text-sm font-bold text-amber-800 dark:text-amber-300">Peringatan Segregation of Duties</h4>
+                                <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                                    Anda adalah approver untuk PO ini. Menerima barang sendiri berpotensi melanggar kebijakan audit.
+                                    Mohon berikan alasan untuk melanjutkan.
+                                </p>
+                            </div>
+                        </div>
+                        <NBTextarea
+                            label="Alasan Override"
+                            required
+                            placeholder="Saya melakukan penerimaan karena..."
+                            value={sodReason}
+                            onChange={setSodReason}
+                        />
+                        <div className="flex gap-3 mt-3 justify-end">
+                            <button
+                                type="button"
+                                onClick={() => { setSodMode(false); setSodReason(""); }}
+                                className={NB.cancelBtn}
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleAccept}
+                                disabled={loading}
+                                className={NB.submitBtnOrange + " flex items-center gap-1.5 disabled:opacity-50"}
+                            >
+                                {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                                Konfirmasi & Terima
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </NBDialogBody>
+
+            {/* ── NB Footer — action buttons with full shadow/press animation ── */}
+            {canProcess && !rejectMode && !sodMode && (
+                <div className="border-t-2 border-black bg-zinc-50 dark:bg-zinc-800/50 px-5 py-3 flex flex-col gap-2">
+                    <button
+                        type="button"
+                        onClick={handleAccept}
+                        disabled={loading}
+                        className={NB.submitBtnGreen + " w-full flex items-center justify-center gap-2 disabled:opacity-50"}
+                    >
+                        {loading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <CheckCircle2 className="h-4 w-4" />
+                        )}
+                        Terima & Update Stok
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setRejectMode(true)}
+                        disabled={loading}
+                        className={"w-full bg-red-600 text-white border-2 border-red-700 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-red-700 hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] active:translate-y-[4px] active:shadow-none transition-all font-black uppercase text-xs tracking-wider h-11 rounded-none flex items-center justify-center gap-2 disabled:opacity-50"}
+                    >
+                        <XCircle className="h-4 w-4" />
+                        Tolak Surat Jalan
+                    </button>
+                </div>
+            )}
+
+            {!canProcess && (
+                <div className="border-t-2 border-black bg-zinc-50 dark:bg-zinc-800/50 px-5 py-3">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className={NB.cancelBtn + " w-full"}
+                    >
+                        Tutup
+                    </button>
+                </div>
+            )}
+        </NBDialog>
     )
 }

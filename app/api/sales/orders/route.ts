@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PaymentTerm, SalesOrderStatus } from '@prisma/client'
+import { PaymentTermLegacy, SalesOrderStatus } from '@prisma/client'
 
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
@@ -293,11 +293,12 @@ export async function POST(request: NextRequest) {
     const taxAmount = normalizedItems.reduce((sum, item) => sum + item.taxAmount, 0)
     const total = normalizedItems.reduce((sum, item) => sum + item.lineTotal, 0)
 
+    let quotationCurrencyCode: string | undefined
     const quotationId = toText(orderPayload.quotationId)
     if (quotationId) {
       const quotation = await prisma.quotation.findUnique({
         where: { id: quotationId },
-        select: { id: true, customerId: true },
+        select: { id: true, customerId: true, currencyCode: true },
       })
 
       if (!quotation) {
@@ -323,11 +324,13 @@ export async function POST(request: NextRequest) {
           }
         )
       }
+
+      quotationCurrencyCode = quotation.currencyCode || undefined
     }
 
-    const paymentTerm = isEnumValue(orderPayload.paymentTerm, Object.values(PaymentTerm))
+    const paymentTerm = isEnumValue(orderPayload.paymentTerm, Object.values(PaymentTermLegacy))
       ? orderPayload.paymentTerm
-      : PaymentTerm.NET_30
+      : PaymentTermLegacy.NET_30
 
     const orderDate = orderPayload.orderDate ? new Date(orderPayload.orderDate) : new Date()
     const requestedDate = orderPayload.requestedDate ? new Date(orderPayload.requestedDate) : null
@@ -437,6 +440,7 @@ export async function POST(request: NextRequest) {
           taxAmount,
           discountAmount,
           total,
+          currencyCode: toText(orderPayload.currencyCode) || quotationCurrencyCode || "IDR",
           status: SalesOrderStatus.DRAFT,
           notes: toText(orderPayload.notes),
           internalNotes: toText(orderPayload.internalNotes),

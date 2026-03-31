@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useMemo, useTransition } from "react"
+import React, { useState, useEffect, useMemo, useRef, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
@@ -18,12 +18,15 @@ import {
     MinusSquare,
 } from "lucide-react"
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-} from "@/components/ui/dialog"
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBDialogFooter,
+    NBSection,
+    NBInput,
+    NBCurrencyInput,
+    NBSelect,
+} from "@/components/ui/nb-dialog"
 import { Input } from "@/components/ui/input"
 import {
     Select,
@@ -32,8 +35,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { NB } from "@/lib/dialog-styles"
 import { toast } from "sonner"
 import {
     createEmployee,
@@ -45,6 +46,7 @@ import {
     getDistinctPositions,
 } from "@/app/actions/hcm"
 import { ComboboxWithCreate, type ComboboxOption } from "@/components/ui/combobox-with-create"
+import { useVirtualizer } from "@tanstack/react-virtual"
 
 // ==============================================================================
 // Types
@@ -318,6 +320,17 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
         return emp && emp.status !== "INACTIVE" && emp.status !== "TERMINATED"
     })
 
+    // Virtual scrolling for large lists
+    const scrollRef = useRef<HTMLDivElement>(null)
+    const shouldVirtualize = filteredEmployees.length > 50
+    const rowVirtualizer = useVirtualizer({
+        count: filteredEmployees.length,
+        getScrollElement: () => scrollRef.current,
+        estimateSize: () => 52,
+        overscan: 10,
+        enabled: shouldVirtualize,
+    })
+
     return (
         <div className="space-y-6">
             {/* ── Header ── */}
@@ -468,9 +481,9 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
                             </span>
                         </div>
 
-                        <div className="overflow-x-auto">
+                        <div ref={shouldVirtualize ? scrollRef : undefined} className={`overflow-x-auto ${shouldVirtualize ? "max-h-[600px] overflow-y-auto" : ""}`}>
                             <table className="w-full">
-                                <thead>
+                                <thead className={shouldVirtualize ? "sticky top-0 z-10" : ""}>
                                     <tr className="bg-zinc-100 border-b-2 border-black">
                                         <th className="text-left px-3 py-2 w-10">
                                             <button onClick={toggleSelectAll} className="text-zinc-500 hover:text-black">
@@ -501,6 +514,85 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
                                                 Data karyawan tidak ditemukan
                                             </td>
                                         </tr>
+                                    ) : shouldVirtualize ? (
+                                        <>
+                                            {/* Spacer row for total virtual height */}
+                                            <tr style={{ height: rowVirtualizer.getTotalSize() }}>
+                                                <td colSpan={10} className="p-0 border-0" style={{ padding: 0, height: 0, lineHeight: 0 }}>
+                                                    <div style={{ height: rowVirtualizer.getTotalSize(), position: "relative" }} />
+                                                </td>
+                                            </tr>
+                                            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                                                const emp = filteredEmployees[virtualRow.index]
+                                                const isSelected = selectedIds.has(emp.id)
+                                                return (
+                                                    <tr
+                                                        key={emp.id}
+                                                        data-index={virtualRow.index}
+                                                        ref={rowVirtualizer.measureElement}
+                                                        className={`border-b border-zinc-200 last:border-b-0 transition-colors ${
+                                                            isSelected ? "bg-blue-50" : "hover:bg-zinc-50"
+                                                        }`}
+                                                        style={{
+                                                            position: "absolute",
+                                                            top: 0,
+                                                            left: 0,
+                                                            width: "100%",
+                                                            transform: `translateY(${virtualRow.start}px)`,
+                                                        }}
+                                                    >
+                                                        <td className="px-3 py-2">
+                                                            <button
+                                                                onClick={() => toggleSelect(emp.id)}
+                                                                className="text-zinc-500 hover:text-black"
+                                                            >
+                                                                {isSelected ? (
+                                                                    <CheckSquare className="h-4 w-4 text-blue-600" />
+                                                                ) : (
+                                                                    <Square className="h-4 w-4" />
+                                                                )}
+                                                            </button>
+                                                        </td>
+                                                        <td className="px-3 py-2 text-xs font-mono font-bold">{emp.employeeCode}</td>
+                                                        <td className="px-3 py-2 text-sm font-bold">{emp.name}</td>
+                                                        <td className="px-3 py-2 text-xs text-zinc-600">{emp.position}</td>
+                                                        <td className="px-3 py-2 text-xs text-zinc-600">{emp.department}</td>
+                                                        <td className="px-3 py-2">
+                                                            <span className={`inline-block text-[9px] font-bold px-2 py-0.5 border ${STATUS_BADGE[emp.status] || "bg-zinc-100 text-zinc-600 border-zinc-300"}`}>
+                                                                {STATUS_LABEL[emp.status] || emp.status}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-3 py-2 text-xs font-mono text-zinc-600">
+                                                            {new Date(emp.joinDate).toLocaleDateString("id-ID")}
+                                                        </td>
+                                                        <td className="px-3 py-2 text-xs font-mono text-right">
+                                                            {formatIDR(emp.baseSalary || 0)}
+                                                        </td>
+                                                        <td className="px-3 py-2 text-xs text-zinc-500">{emp.email || "-"}</td>
+                                                        <td className="px-3 py-2">
+                                                            <div className="flex items-center justify-center gap-1">
+                                                                <button
+                                                                    onClick={() => openEditDialog(emp)}
+                                                                    className="p-1.5 border border-zinc-300 hover:border-black hover:bg-zinc-100 transition-colors"
+                                                                    title="Edit"
+                                                                >
+                                                                    <Pencil className="h-3 w-3" />
+                                                                </button>
+                                                                {emp.status !== "INACTIVE" && emp.status !== "TERMINATED" && (
+                                                                    <button
+                                                                        onClick={() => handleDeactivate(emp)}
+                                                                        className="p-1.5 border border-red-300 text-red-600 hover:border-red-600 hover:bg-red-50 transition-colors"
+                                                                        title="Nonaktifkan"
+                                                                    >
+                                                                        <Trash2 className="h-3 w-3" />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )
+                                            })}
+                                        </>
                                     ) : (
                                         filteredEmployees.map((emp) => {
                                             const isSelected = selectedIds.has(emp.id)
@@ -646,235 +738,157 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
             )}
 
             {/* ── Create/Edit Employee Dialog ── */}
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent className={NB.content}>
-                    <DialogHeader className={NB.header}>
-                        <DialogTitle className={NB.title}>
-                            <UserPlus className="h-5 w-5" />
-                            {editing ? "Edit Karyawan" : "Tambah Karyawan"}
-                        </DialogTitle>
-                        <p className={NB.subtitle}>
-                            Lengkapi informasi master karyawan
-                        </p>
-                    </DialogHeader>
+            <NBDialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <NBDialogHeader
+                    icon={UserPlus}
+                    title={editing ? "Edit Karyawan" : "Tambah Karyawan"}
+                    subtitle="Lengkapi informasi master karyawan"
+                />
 
-                    <ScrollArea className={NB.scroll}>
-                        <div className="p-6 space-y-6">
-                            {/* Identity section */}
-                            <div className={NB.section}>
-                                <div className={NB.sectionHead}>
-                                    <span className={NB.sectionTitle}>Identitas</span>
-                                </div>
-                                <div className={`${NB.sectionBody} grid gap-4 md:grid-cols-2`}>
-                                    {!editing && (
-                                        <div>
-                                            <label className={NB.label}>Kode Karyawan</label>
-                                            <Input
-                                                className={NB.inputMono}
-                                                value={form.employeeCode}
-                                                onChange={(e) => setForm((p) => ({ ...p, employeeCode: e.target.value }))}
-                                                placeholder="EMP-2026-001 (opsional)"
-                                            />
-                                        </div>
-                                    )}
-                                    <div>
-                                        <label className={NB.label}>
-                                            Nama Depan <span className={NB.labelRequired}>*</span>
-                                        </label>
-                                        <Input
-                                            className={NB.input}
-                                            value={form.firstName}
-                                            onChange={(e) => setForm((p) => ({ ...p, firstName: e.target.value }))}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Nama Belakang</label>
-                                        <Input
-                                            className={NB.input}
-                                            value={form.lastName}
-                                            onChange={(e) => setForm((p) => ({ ...p, lastName: e.target.value }))}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Email</label>
-                                        <Input
-                                            type="email"
-                                            className={NB.input}
-                                            value={form.email}
-                                            onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Telepon</label>
-                                        <Input
-                                            className={NB.input}
-                                            value={form.phone}
-                                            onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Employment section */}
-                            <div className={NB.section}>
-                                <div className={NB.sectionHead}>
-                                    <span className={NB.sectionTitle}>Data Kepegawaian</span>
-                                </div>
-                                <div className={`${NB.sectionBody} grid gap-4 md:grid-cols-2`}>
-                                    <div>
-                                        <label className={NB.label}>
-                                            Departemen <span className={NB.labelRequired}>*</span>
-                                        </label>
-                                        <ComboboxWithCreate
-                                            options={departmentOptions}
-                                            value={form.department}
-                                            onChange={(v) => setForm((p) => ({ ...p, department: v }))}
-                                            placeholder="Pilih departemen..."
-                                            searchPlaceholder="Cari departemen..."
-                                            emptyMessage="Departemen tidak ditemukan."
-                                            createLabel="+ Tambah Departemen"
-                                            onCreate={async (name) => {
-                                                setDepartmentOptions(prev => [...prev, { value: name, label: name }].sort((a, b) => a.label.localeCompare(b.label)))
-                                                return name
-                                            }}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>
-                                            Posisi <span className={NB.labelRequired}>*</span>
-                                        </label>
-                                        <ComboboxWithCreate
-                                            options={positionOptions}
-                                            value={form.position}
-                                            onChange={(v) => setForm((p) => ({ ...p, position: v }))}
-                                            placeholder="Pilih posisi..."
-                                            searchPlaceholder="Cari posisi..."
-                                            emptyMessage="Posisi tidak ditemukan."
-                                            createLabel="+ Tambah Posisi"
-                                            onCreate={async (name) => {
-                                                setPositionOptions(prev => [...prev, { value: name, label: name }].sort((a, b) => a.label.localeCompare(b.label)))
-                                                return name
-                                            }}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>
-                                            Tanggal Masuk <span className={NB.labelRequired}>*</span>
-                                        </label>
-                                        <Input
-                                            type="date"
-                                            className={NB.inputMono}
-                                            value={form.joinDate}
-                                            onChange={(e) => setForm((p) => ({ ...p, joinDate: e.target.value }))}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Status</label>
-                                        <Select
-                                            value={form.status}
-                                            onValueChange={(v) => setForm((p) => ({ ...p, status: v as EmployeeRow["status"] }))}
-                                        >
-                                            <SelectTrigger className={NB.select}>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="ACTIVE">Aktif</SelectItem>
-                                                <SelectItem value="ON_LEAVE">Sedang Cuti</SelectItem>
-                                                <SelectItem value="INACTIVE">Non-Aktif</SelectItem>
-                                                <SelectItem value="TERMINATED">Terminasi</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label className={NB.label}>Gaji Pokok (Rp)</label>
-                                        <Input
-                                            type="number"
-                                            min={0}
-                                            className={NB.inputMono}
-                                            value={form.baseSalary}
-                                            onChange={(e) => setForm((p) => ({ ...p, baseSalary: e.target.value }))}
-                                            placeholder="7500000"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
+                <NBDialogBody>
+                    {/* Identity section */}
+                    <NBSection icon={Users} title="Identitas">
+                        <div className="grid gap-3 md:grid-cols-2">
+                            {!editing && (
+                                <NBInput
+                                    label="Kode Karyawan"
+                                    value={form.employeeCode}
+                                    onChange={(v) => setForm((p) => ({ ...p, employeeCode: v }))}
+                                    placeholder="EMP-2026-001 (opsional)"
+                                />
+                            )}
+                            <NBInput
+                                label="Nama Depan"
+                                required
+                                value={form.firstName}
+                                onChange={(v) => setForm((p) => ({ ...p, firstName: v }))}
+                            />
+                            <NBInput
+                                label="Nama Belakang"
+                                value={form.lastName}
+                                onChange={(v) => setForm((p) => ({ ...p, lastName: v }))}
+                            />
+                            <NBInput
+                                label="Email"
+                                value={form.email}
+                                onChange={(v) => setForm((p) => ({ ...p, email: v }))}
+                            />
+                            <NBInput
+                                label="Telepon"
+                                value={form.phone}
+                                onChange={(v) => setForm((p) => ({ ...p, phone: v }))}
+                            />
                         </div>
-                    </ScrollArea>
+                    </NBSection>
 
-                    <DialogFooter className="px-6 py-4 border-t-2 border-black bg-zinc-50">
-                        <div className={NB.footer}>
-                            <button
-                                onClick={() => setDialogOpen(false)}
-                                className={NB.cancelBtn}
-                            >
-                                Batal
-                            </button>
-                            <button
-                                onClick={handleSubmit}
-                                disabled={submitting}
-                                className={NB.submitBtn}
-                            >
-                                {submitting
-                                    ? "Menyimpan..."
-                                    : editing
-                                        ? "Simpan Perubahan"
-                                        : "Tambah Karyawan"}
-                            </button>
+                    {/* Employment section */}
+                    <NBSection icon={FileText} title="Data Kepegawaian">
+                        <div className="grid gap-3 md:grid-cols-2">
+                            <div>
+                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                                    Departemen <span className="text-red-500">*</span>
+                                </label>
+                                <ComboboxWithCreate
+                                    options={departmentOptions}
+                                    value={form.department}
+                                    onChange={(v) => setForm((p) => ({ ...p, department: v }))}
+                                    placeholder="Pilih departemen..."
+                                    searchPlaceholder="Cari departemen..."
+                                    emptyMessage="Departemen tidak ditemukan."
+                                    createLabel="+ Tambah Departemen"
+                                    onCreate={async (name) => {
+                                        setDepartmentOptions(prev => [...prev, { value: name, label: name }].sort((a, b) => a.label.localeCompare(b.label)))
+                                        return name
+                                    }}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                                    Posisi <span className="text-red-500">*</span>
+                                </label>
+                                <ComboboxWithCreate
+                                    options={positionOptions}
+                                    value={form.position}
+                                    onChange={(v) => setForm((p) => ({ ...p, position: v }))}
+                                    placeholder="Pilih posisi..."
+                                    searchPlaceholder="Cari posisi..."
+                                    emptyMessage="Posisi tidak ditemukan."
+                                    createLabel="+ Tambah Posisi"
+                                    onCreate={async (name) => {
+                                        setPositionOptions(prev => [...prev, { value: name, label: name }].sort((a, b) => a.label.localeCompare(b.label)))
+                                        return name
+                                    }}
+                                />
+                            </div>
+                            <NBInput
+                                label="Tanggal Masuk"
+                                required
+                                type="date"
+                                value={form.joinDate}
+                                onChange={(v) => setForm((p) => ({ ...p, joinDate: v }))}
+                            />
+                            <NBSelect
+                                label="Status"
+                                value={form.status}
+                                onValueChange={(v) => setForm((p) => ({ ...p, status: v as EmployeeRow["status"] }))}
+                                options={[
+                                    { value: "ACTIVE", label: "Aktif" },
+                                    { value: "ON_LEAVE", label: "Sedang Cuti" },
+                                    { value: "INACTIVE", label: "Non-Aktif" },
+                                    { value: "TERMINATED", label: "Terminasi" },
+                                ]}
+                            />
+                            <NBCurrencyInput
+                                label="Gaji Pokok"
+                                value={form.baseSalary}
+                                onChange={(v) => setForm((p) => ({ ...p, baseSalary: v }))}
+                                className="md:col-span-2"
+                            />
                         </div>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                    </NBSection>
+                </NBDialogBody>
+
+                <NBDialogFooter
+                    onCancel={() => setDialogOpen(false)}
+                    onSubmit={handleSubmit}
+                    submitting={submitting}
+                    submitLabel={editing ? "Simpan Perubahan" : "Tambah Karyawan"}
+                />
+            </NBDialog>
 
             {/* ── Confirm Bulk Delete Dialog ── */}
-            <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-                <DialogContent className={NB.contentNarrow}>
-                    <DialogHeader className="bg-red-600 text-white px-6 py-4">
-                        <DialogTitle className="text-lg font-black uppercase tracking-wider text-white flex items-center gap-2">
-                            <Trash2 className="h-5 w-5" />
-                            Konfirmasi Nonaktifkan
-                        </DialogTitle>
-                        <p className="text-red-200 text-[11px] font-bold mt-0.5">
-                            Tindakan ini akan menonaktifkan karyawan yang dipilih
-                        </p>
-                    </DialogHeader>
+            <NBDialog open={confirmOpen} onOpenChange={setConfirmOpen} size="narrow">
+                <NBDialogHeader
+                    icon={Trash2}
+                    title="Konfirmasi Nonaktifkan"
+                    subtitle="Tindakan ini akan menonaktifkan karyawan yang dipilih"
+                />
 
-                    <div className="p-6 space-y-4">
-                        <p className="text-sm font-bold">
-                            Anda akan menonaktifkan <span className="text-red-600">{deactivatableSelected.length}</span> karyawan:
-                        </p>
-                        <div className="border-2 border-black max-h-40 overflow-y-auto">
-                            {deactivatableSelected.map((id) => {
-                                const emp = employees.find((e) => e.id === id)
-                                if (!emp) return null
-                                return (
-                                    <div key={id} className="px-3 py-1.5 border-b border-zinc-200 last:border-b-0 flex items-center justify-between">
-                                        <span className="text-xs font-bold">{emp.name}</span>
-                                        <span className="text-[9px] font-mono text-zinc-400">{emp.employeeCode}</span>
-                                    </div>
-                                )
-                            })}
-                        </div>
+                <NBDialogBody>
+                    <p className="text-sm font-bold">
+                        Anda akan menonaktifkan <span className="text-red-600">{deactivatableSelected.length}</span> karyawan:
+                    </p>
+                    <div className="border border-zinc-200 dark:border-zinc-700 max-h-40 overflow-y-auto">
+                        {deactivatableSelected.map((id) => {
+                            const emp = employees.find((e) => e.id === id)
+                            if (!emp) return null
+                            return (
+                                <div key={id} className="px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700 last:border-b-0 flex items-center justify-between">
+                                    <span className="text-xs font-bold">{emp.name}</span>
+                                    <span className="text-[9px] font-mono text-zinc-400">{emp.employeeCode}</span>
+                                </div>
+                            )
+                        })}
                     </div>
+                </NBDialogBody>
 
-                    <DialogFooter className="px-6 py-4 border-t-2 border-black bg-zinc-50">
-                        <div className={NB.footer}>
-                            <button
-                                onClick={() => setConfirmOpen(false)}
-                                className={NB.cancelBtn}
-                            >
-                                Batal
-                            </button>
-                            <button
-                                onClick={handleBulkDeactivate}
-                                disabled={bulkDeleting}
-                                className="bg-red-600 text-white border-2 border-red-700 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider px-8 h-9 rounded-none"
-                            >
-                                {bulkDeleting ? "Memproses..." : "Ya, Nonaktifkan"}
-                            </button>
-                        </div>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                <NBDialogFooter
+                    onCancel={() => setConfirmOpen(false)}
+                    onSubmit={handleBulkDeactivate}
+                    submitting={bulkDeleting}
+                    submitLabel="Ya, Nonaktifkan"
+                />
+            </NBDialog>
         </div>
     )
 }

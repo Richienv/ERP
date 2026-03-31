@@ -6,18 +6,17 @@ import { toast } from "sonner"
 import { Edit3, Loader2, Plus, Trash2 } from "lucide-react"
 import { queryKeys } from "@/lib/query-keys"
 import { amendSalesOrder } from "@/lib/actions/order-amendments"
-import { NB } from "@/lib/dialog-styles"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog"
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBDialogFooter,
+    NBSection,
+    NBTextarea,
+} from "@/components/ui/nb-dialog"
+import { Package } from "lucide-react"
 
 interface OrderItem {
     id: string
@@ -150,89 +149,80 @@ export function AmendOrderDialog({ orderId, orderNumber, currentItems, status }:
     }
 
     return (
-        <Dialog open={open} onOpenChange={handleOpen}>
-            <DialogTrigger asChild>
-                <Button
-                    variant="outline"
-                    className="border-2 border-black rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none font-black uppercase text-[10px] tracking-wider h-9 px-4 hover:bg-amber-50"
-                >
-                    <Edit3 className="h-3.5 w-3.5 mr-1.5" />
-                    Amandemen
-                </Button>
-            </DialogTrigger>
-            <DialogContent className={NB.contentWide}>
-                <DialogHeader className={NB.header}>
-                    <DialogTitle className={NB.title}>
-                        <Edit3 className="h-5 w-5" />
-                        Amandemen {orderNumber}
-                    </DialogTitle>
-                    <DialogDescription className={NB.subtitle}>
-                        Ubah item atau nilai order. Revisi sebelumnya akan tersimpan dalam riwayat.
-                    </DialogDescription>
-                </DialogHeader>
+        <>
+            <Button
+                variant="outline"
+                onClick={() => handleOpen(true)}
+                className="border-2 border-black rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none font-black uppercase text-[10px] tracking-wider h-9 px-4 hover:bg-amber-50"
+            >
+                <Edit3 className="h-3.5 w-3.5 mr-1.5" />
+                Amandemen
+            </Button>
 
-                <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+            <NBDialog open={open} onOpenChange={handleOpen} size="wide">
+                <NBDialogHeader
+                    icon={Edit3}
+                    title={`Amandemen ${orderNumber}`}
+                    subtitle="Ubah item atau nilai order. Revisi sebelumnya akan tersimpan dalam riwayat."
+                />
+
+                <NBDialogBody>
                     {/* Reason */}
-                    <div>
-                        <label className={NB.label}>
-                            Alasan Revisi <span className={NB.labelRequired}>*</span>
-                        </label>
-                        <Textarea
-                            value={reason}
-                            onChange={(e) => setReason(e.target.value)}
-                            placeholder="Perubahan harga, qty, atau kesepakatan baru..."
-                            className={NB.textarea}
-                        />
-                    </div>
+                    <NBTextarea
+                        label="Alasan Revisi"
+                        required
+                        value={reason}
+                        onChange={setReason}
+                        placeholder="Perubahan harga, qty, atau kesepakatan baru..."
+                    />
 
-                    {/* Items table */}
-                    <div>
-                        <label className={NB.label}>Item Order</label>
-                        <div className={NB.tableWrap}>
+                    {/* Items table — complex, keep as-is inside NBSection */}
+                    <NBSection icon={Package} title="Item Order">
+                        <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-700">
                             <table className="w-full text-xs">
-                                <thead>
-                                    <tr className={NB.tableHead}>
-                                        <th className={`${NB.tableHeadCell} text-left`}>Produk</th>
-                                        <th className={`${NB.tableHeadCell} text-right w-24`}>Qty</th>
-                                        <th className={`${NB.tableHeadCell} text-right w-32`}>Harga Satuan</th>
-                                        <th className={`${NB.tableHeadCell} text-right w-20`}>Disc %</th>
-                                        <th className={`${NB.tableHeadCell} text-right w-32`}>Total</th>
-                                        <th className={`${NB.tableHeadCell} w-10`}></th>
+                                <thead className="bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700">
+                                    <tr>
+                                        <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left">Produk</th>
+                                        <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right w-24">Qty</th>
+                                        <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right w-32">Harga Satuan</th>
+                                        <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right w-20">Disc %</th>
+                                        <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right w-32">Total</th>
+                                        <th className="px-3 py-2 w-10"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {items.map((item, idx) => (
-                                        <tr key={idx} className={NB.tableRow}>
-                                            <td className={NB.tableCell}>
+                                        <tr key={idx} className="border-b border-zinc-100 dark:border-zinc-800">
+                                            <td className="px-3 py-2">
                                                 <span className="font-bold">{item.productName}</span>
                                                 <span className="text-zinc-400 font-mono ml-1 text-[10px]">
                                                     {item.productCode}
                                                 </span>
                                             </td>
-                                            <td className={NB.tableCell}>
+                                            <td className="px-3 py-2">
                                                 <Input
                                                     type="number"
                                                     value={item.quantity}
                                                     onChange={(e) =>
                                                         updateItem(idx, "quantity", Math.max(0.001, Number(e.target.value)))
                                                     }
-                                                    className="border-2 border-black font-bold h-8 rounded-none text-right text-xs w-full"
+                                                    className="border border-zinc-300 font-bold h-8 rounded-none text-right text-xs w-full"
                                                     min={0.001}
                                                     step="any"
                                                 />
                                             </td>
-                                            <td className={NB.tableCell}>
+                                            <td className="px-3 py-2">
                                                 <Input
                                                     type="number"
                                                     value={item.unitPrice}
                                                     onChange={(e) =>
                                                         updateItem(idx, "unitPrice", Math.max(0, Number(e.target.value)))
                                                     }
-                                                    className="border-2 border-black font-bold h-8 rounded-none text-right text-xs w-full"
+                                                    className="border border-zinc-300 font-bold h-8 rounded-none text-right text-xs w-full"
                                                     min={0}
                                                 />
                                             </td>
-                                            <td className={NB.tableCell}>
+                                            <td className="px-3 py-2">
                                                 <Input
                                                     type="number"
                                                     value={item.discount}
@@ -243,15 +233,15 @@ export function AmendOrderDialog({ orderId, orderNumber, currentItems, status }:
                                                             Math.max(0, Math.min(100, Number(e.target.value)))
                                                         )
                                                     }
-                                                    className="border-2 border-black font-bold h-8 rounded-none text-right text-xs w-full"
+                                                    className="border border-zinc-300 font-bold h-8 rounded-none text-right text-xs w-full"
                                                     min={0}
                                                     max={100}
                                                 />
                                             </td>
-                                            <td className={`${NB.tableCell} text-right font-black`}>
+                                            <td className="px-3 py-2 text-right font-black">
                                                 {formatIDR(calcLineTotal(item))}
                                             </td>
-                                            <td className={NB.tableCell}>
+                                            <td className="px-3 py-2">
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
@@ -277,33 +267,17 @@ export function AmendOrderDialog({ orderId, orderNumber, currentItems, status }:
                                 </tfoot>
                             </table>
                         </div>
-                    </div>
+                    </NBSection>
+                </NBDialogBody>
 
-                    {/* Actions */}
-                    <div className={NB.footer}>
-                        <Button
-                            variant="outline"
-                            onClick={() => setOpen(false)}
-                            className={NB.cancelBtn}
-                            disabled={submitting}
-                        >
-                            Batal
-                        </Button>
-                        <Button
-                            onClick={handleSubmit}
-                            disabled={submitting || !reason.trim()}
-                            className={NB.submitBtn}
-                        >
-                            {submitting ? (
-                                <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
-                            ) : (
-                                <Edit3 className="h-4 w-4 mr-1.5" />
-                            )}
-                            Simpan Amandemen
-                        </Button>
-                    </div>
-                </div>
-            </DialogContent>
-        </Dialog>
+                <NBDialogFooter
+                    onCancel={() => setOpen(false)}
+                    onSubmit={handleSubmit}
+                    submitting={submitting}
+                    submitLabel="Simpan Amandemen"
+                    disabled={!reason.trim()}
+                />
+            </NBDialog>
+        </>
     )
 }

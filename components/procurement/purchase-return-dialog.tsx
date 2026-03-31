@@ -5,13 +5,6 @@ import { RotateCcw, Loader2, Package, AlertTriangle } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog"
-import {
     Select,
     SelectContent,
     SelectItem,
@@ -19,13 +12,20 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
 import { getReturnablePurchaseOrders, createPurchaseReturn } from "@/lib/actions/procurement"
 import { NB } from "@/lib/dialog-styles"
 import { queryKeys } from "@/lib/query-keys"
 import { formatIDR } from "@/lib/utils"
+import {
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBDialogFooter,
+    NBSection,
+    NBSelect,
+    NBTextarea,
+} from "@/components/ui/nb-dialog"
 
 interface ReturnablePO {
     id: string
@@ -185,228 +185,177 @@ export function PurchaseReturnDialog({ warehouses }: Props) {
     }
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button
-                    variant="outline"
-                    className="border-2 border-black font-black uppercase text-xs tracking-wider h-9 rounded-none hover:bg-red-50 hover:text-red-700 gap-2"
-                >
-                    <RotateCcw className="h-3.5 w-3.5" />
-                    Retur Pembelian
-                </Button>
-            </DialogTrigger>
-            <DialogContent className={NB.contentWide}>
-                <DialogHeader className={NB.header}>
-                    <DialogTitle className={NB.title}>
-                        <RotateCcw className="h-5 w-5" />
-                        Retur Pembelian
-                    </DialogTitle>
-                    <p className={NB.subtitle}>
-                        Kembalikan barang ke supplier dan buat nota debit
-                    </p>
-                </DialogHeader>
+        <>
+            <Button
+                variant="outline"
+                onClick={() => setOpen(true)}
+                className="border-2 border-black font-black uppercase text-xs tracking-wider h-9 rounded-none hover:bg-red-50 hover:text-red-700 gap-2"
+            >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Retur Pembelian
+            </Button>
 
-                <ScrollArea className={NB.scroll}>
-                    <div className="p-6 space-y-6">
-                        {loading ? (
-                            <div className="flex items-center justify-center py-12">
-                                <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
-                                <span className="ml-2 text-sm font-bold text-zinc-400">Memuat data PO...</span>
-                            </div>
-                        ) : (
-                            <>
-                                {/* PO & Warehouse Selection */}
-                                <div className={NB.section}>
-                                    <div className={NB.sectionHead}>
-                                        <Package className="h-4 w-4" />
-                                        <span className={NB.sectionTitle}>Pilih PO & Gudang</span>
-                                    </div>
-                                    <div className={NB.sectionBody}>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div>
-                                                <label className={NB.label}>
-                                                    Purchase Order <span className={NB.labelRequired}>*</span>
-                                                </label>
-                                                <Select value={selectedPOId} onValueChange={setSelectedPOId}>
-                                                    <SelectTrigger className={NB.select}>
-                                                        <SelectValue placeholder="Pilih PO..." />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {purchaseOrders.length === 0 && (
-                                                            <SelectItem value="__none" disabled>
-                                                                Tidak ada PO yang bisa diretur
-                                                            </SelectItem>
-                                                        )}
-                                                        {purchaseOrders.map(po => (
-                                                            <SelectItem key={po.id} value={po.id}>
-                                                                {po.number} — {po.supplierName}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <div>
-                                                <label className={NB.label}>
-                                                    Gudang Asal <span className={NB.labelRequired}>*</span>
-                                                </label>
-                                                <Select value={selectedWarehouseId} onValueChange={setSelectedWarehouseId}>
-                                                    <SelectTrigger className={NB.select}>
-                                                        <SelectValue placeholder="Pilih gudang..." />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {warehouses.map(wh => (
-                                                            <SelectItem key={wh.id} value={wh.id}>
-                                                                {wh.name}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+            <NBDialog open={open} onOpenChange={setOpen} size="wide">
+                <NBDialogHeader
+                    icon={RotateCcw}
+                    title="Retur Pembelian"
+                    subtitle="Kembalikan barang ke supplier dan buat nota debit"
+                />
 
-                                {/* Return Items */}
-                                {selectedPO && returnItems.length > 0 && (
-                                    <div className={NB.section}>
-                                        <div className={NB.sectionHead}>
-                                            <RotateCcw className="h-4 w-4" />
-                                            <span className={NB.sectionTitle}>Item Retur</span>
-                                        </div>
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-sm">
-                                                <thead className={NB.tableHead}>
-                                                    <tr>
-                                                        <th className={NB.tableHeadCell}>Produk</th>
-                                                        <th className={NB.tableHeadCell + " text-center"}>Diterima</th>
-                                                        <th className={NB.tableHeadCell + " text-center"}>Maks Retur</th>
-                                                        <th className={NB.tableHeadCell + " text-center w-[100px]"}>Qty Retur</th>
-                                                        <th className={NB.tableHeadCell + " w-[180px]"}>Alasan</th>
-                                                        <th className={NB.tableHeadCell + " text-right"}>Subtotal</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {returnItems.map((item, idx) => (
-                                                        <tr key={item.poItemId} className={NB.tableRow}>
-                                                            <td className={NB.tableCell}>
-                                                                <div className="font-bold text-xs text-zinc-900">{item.productName}</div>
-                                                                <div className="text-[10px] text-zinc-400 font-medium">{item.productCode}</div>
-                                                            </td>
-                                                            <td className={NB.tableCell + " text-center font-bold"}>{item.maxQty + (returnItems.find(r => r.poItemId === item.poItemId) ? 0 : 0)}</td>
-                                                            <td className={NB.tableCell + " text-center"}>
-                                                                <span className="text-xs font-black text-amber-600">{item.maxQty}</span>
-                                                            </td>
-                                                            <td className={NB.tableCell + " text-center"}>
-                                                                <Input
-                                                                    type="number"
-                                                                    min={0}
-                                                                    max={item.maxQty}
-                                                                    value={item.quantity || ""}
-                                                                    onChange={(e) => updateItemQty(idx, parseInt(e.target.value) || 0)}
-                                                                    className="border-2 border-black font-bold h-8 w-20 text-center rounded-none mx-auto"
-                                                                    placeholder="0"
-                                                                />
-                                                            </td>
-                                                            <td className={NB.tableCell}>
-                                                                <Select value={item.reason} onValueChange={(val) => updateItemReason(idx, val)}>
-                                                                    <SelectTrigger className="border-2 border-black font-bold h-8 text-[10px] rounded-none">
-                                                                        <SelectValue />
-                                                                    </SelectTrigger>
-                                                                    <SelectContent>
-                                                                        {REASON_OPTIONS.map(r => (
-                                                                            <SelectItem key={r.value} value={r.value} className="text-xs">
-                                                                                {r.label}
-                                                                            </SelectItem>
-                                                                        ))}
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </td>
-                                                            <td className={NB.tableCell + " text-right font-bold text-xs"}>
-                                                                {item.quantity > 0 ? formatIDR(item.quantity * item.unitPrice) : "—"}
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {selectedPO && returnItems.length === 0 && (
-                                    <div className="flex items-center gap-2 p-4 bg-amber-50 border-2 border-amber-300">
-                                        <AlertTriangle className="h-4 w-4 text-amber-600" />
-                                        <span className="text-xs font-bold text-amber-700">
-                                            Semua item dari PO ini sudah diretur sepenuhnya
-                                        </span>
-                                    </div>
-                                )}
-
-                                {/* Notes */}
-                                <div>
-                                    <label className={NB.label}>Catatan</label>
-                                    <Textarea
-                                        value={notes}
-                                        onChange={(e) => setNotes(e.target.value)}
-                                        className={NB.textarea}
-                                        placeholder="Catatan retur..."
-                                        rows={2}
+                <NBDialogBody>
+                    {loading ? (
+                        <div className="flex items-center justify-center py-12">
+                            <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
+                            <span className="ml-2 text-sm font-bold text-zinc-400">Memuat data PO...</span>
+                        </div>
+                    ) : (
+                        <>
+                            {/* PO & Warehouse Selection */}
+                            <NBSection icon={Package} title="Pilih PO & Gudang">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <NBSelect
+                                        label="Purchase Order"
+                                        required
+                                        value={selectedPOId}
+                                        onValueChange={setSelectedPOId}
+                                        placeholder="Pilih PO..."
+                                        emptyLabel="Pilih PO..."
+                                    >
+                                        {purchaseOrders.length === 0 && (
+                                            <SelectItem value="__none" disabled>
+                                                Tidak ada PO yang bisa diretur
+                                            </SelectItem>
+                                        )}
+                                        {purchaseOrders.map(po => (
+                                            <SelectItem key={po.id} value={po.id}>
+                                                {po.number} — {po.supplierName}
+                                            </SelectItem>
+                                        ))}
+                                    </NBSelect>
+                                    <NBSelect
+                                        label="Gudang Asal"
+                                        required
+                                        value={selectedWarehouseId}
+                                        onValueChange={setSelectedWarehouseId}
+                                        placeholder="Pilih gudang..."
+                                        options={warehouses.map(wh => ({
+                                            value: wh.id,
+                                            label: wh.name,
+                                        }))}
                                     />
                                 </div>
+                            </NBSection>
 
-                                {/* Summary & Submit */}
-                                {activeItems.length > 0 && (
-                                    <div className="bg-zinc-50 border-2 border-black p-4">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                                    Total Retur ({activeItems.length} item)
-                                                </div>
-                                                <div className="text-lg font-black text-zinc-900 mt-1">
-                                                    {formatIDR(totalReturn)}
-                                                </div>
-                                                <div className="text-[10px] text-zinc-400 font-medium">
-                                                    + PPN 11% = {formatIDR(Math.round(totalReturn * 1.11))}
-                                                </div>
+                            {/* Return Items — complex table, kept as-is */}
+                            {selectedPO && returnItems.length > 0 && (
+                                <NBSection icon={RotateCcw} title="Item Retur">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm">
+                                            <thead className={NB.tableHead}>
+                                                <tr>
+                                                    <th className={NB.tableHeadCell}>Produk</th>
+                                                    <th className={NB.tableHeadCell + " text-center"}>Diterima</th>
+                                                    <th className={NB.tableHeadCell + " text-center"}>Maks Retur</th>
+                                                    <th className={NB.tableHeadCell + " text-center w-[100px]"}>Qty Retur</th>
+                                                    <th className={NB.tableHeadCell + " w-[180px]"}>Alasan</th>
+                                                    <th className={NB.tableHeadCell + " text-right"}>Subtotal</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {returnItems.map((item, idx) => (
+                                                    <tr key={item.poItemId} className={NB.tableRow}>
+                                                        <td className={NB.tableCell}>
+                                                            <div className="font-bold text-xs text-zinc-900">{item.productName}</div>
+                                                            <div className="text-[10px] text-zinc-400 font-medium">{item.productCode}</div>
+                                                        </td>
+                                                        <td className={NB.tableCell + " text-center font-bold"}>{item.maxQty + (returnItems.find(r => r.poItemId === item.poItemId) ? 0 : 0)}</td>
+                                                        <td className={NB.tableCell + " text-center"}>
+                                                            <span className="text-xs font-black text-amber-600">{item.maxQty}</span>
+                                                        </td>
+                                                        <td className={NB.tableCell + " text-center"}>
+                                                            <Input
+                                                                type="number"
+                                                                min={0}
+                                                                max={item.maxQty}
+                                                                value={item.quantity || ""}
+                                                                onChange={(e) => updateItemQty(idx, parseInt(e.target.value) || 0)}
+                                                                className="border-2 border-black font-bold h-8 w-20 text-center rounded-none mx-auto"
+                                                                placeholder="0"
+                                                            />
+                                                        </td>
+                                                        <td className={NB.tableCell}>
+                                                            <Select value={item.reason} onValueChange={(val) => updateItemReason(idx, val)}>
+                                                                <SelectTrigger className="border-2 border-black font-bold h-8 text-[10px] rounded-none">
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {REASON_OPTIONS.map(r => (
+                                                                        <SelectItem key={r.value} value={r.value} className="text-xs">
+                                                                            {r.label}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </td>
+                                                        <td className={NB.tableCell + " text-right font-bold text-xs"}>
+                                                            {item.quantity > 0 ? formatIDR(item.quantity * item.unitPrice) : "—"}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </NBSection>
+                            )}
+
+                            {selectedPO && returnItems.length === 0 && (
+                                <div className="flex items-center gap-2 p-4 bg-amber-50 border-2 border-amber-300">
+                                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                                    <span className="text-xs font-bold text-amber-700">
+                                        Semua item dari PO ini sudah diretur sepenuhnya
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* Notes */}
+                            <NBTextarea
+                                label="Catatan"
+                                value={notes}
+                                onChange={setNotes}
+                                placeholder="Catatan retur..."
+                                rows={2}
+                            />
+
+                            {/* Summary */}
+                            {activeItems.length > 0 && (
+                                <div className="bg-zinc-50 border-2 border-black p-4">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                                Total Retur ({activeItems.length} item)
+                                            </div>
+                                            <div className="text-lg font-black text-zinc-900 mt-1">
+                                                {formatIDR(totalReturn)}
+                                            </div>
+                                            <div className="text-[10px] text-zinc-400 font-medium">
+                                                + PPN 11% = {formatIDR(Math.round(totalReturn * 1.11))}
                                             </div>
                                         </div>
                                     </div>
-                                )}
-                            </>
-                        )}
-                    </div>
-                </ScrollArea>
-
-                {/* Footer */}
-                <div className="border-t-2 border-black px-6 py-4">
-                    <div className={NB.footer}>
-                        <Button
-                            variant="outline"
-                            className={NB.cancelBtn}
-                            onClick={() => setOpen(false)}
-                            disabled={submitting}
-                        >
-                            Batal
-                        </Button>
-                        <Button
-                            className={NB.submitBtn}
-                            onClick={handleSubmit}
-                            disabled={submitting || activeItems.length === 0 || !selectedPOId || !selectedWarehouseId}
-                        >
-                            {submitting ? (
-                                <>
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />
-                                    Memproses...
-                                </>
-                            ) : (
-                                <>
-                                    <RotateCcw className="h-3.5 w-3.5 mr-2" />
-                                    Proses Retur
-                                </>
+                                </div>
                             )}
-                        </Button>
-                    </div>
-                </div>
-            </DialogContent>
-        </Dialog>
+                        </>
+                    )}
+                </NBDialogBody>
+
+                <NBDialogFooter
+                    onCancel={() => setOpen(false)}
+                    onSubmit={handleSubmit}
+                    submitting={submitting}
+                    submitLabel="Proses Retur"
+                    disabled={activeItems.length === 0 || !selectedPOId || !selectedWarehouseId}
+                />
+            </NBDialog>
+        </>
     )
 }

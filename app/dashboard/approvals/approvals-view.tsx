@@ -52,6 +52,13 @@ export function ApprovalsView({ pendingPOs }: ApprovalsViewProps) {
     const queryClient = useQueryClient()
 
     const handleApprove = async (po: PendingPO) => {
+        // Optimistic: remove PO from pending list
+        const prevApprovals = queryClient.getQueryData(queryKeys.approvals.list())
+        queryClient.setQueryData(queryKeys.approvals.list(), (old: any) => {
+            if (!old?.pendingPOs) return old
+            return { ...old, pendingPOs: old.pendingPOs.filter((p: any) => p.id !== po.id) }
+        })
+
         setProcessing(true)
         try {
             const result = await approvePurchaseOrder(po.id)
@@ -60,9 +67,11 @@ export function ApprovalsView({ pendingPOs }: ApprovalsViewProps) {
                 setSelectedPO(null)
                 queryClient.invalidateQueries({ queryKey: queryKeys.approvals.all })
             } else {
+                if (prevApprovals) queryClient.setQueryData(queryKeys.approvals.list(), prevApprovals)
                 toast.error(result.error || "Failed to approve")
             }
         } catch (error) {
+            if (prevApprovals) queryClient.setQueryData(queryKeys.approvals.list(), prevApprovals)
             toast.error("Error approving PO")
         } finally {
             setProcessing(false)

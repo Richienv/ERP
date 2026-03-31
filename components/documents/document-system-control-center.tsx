@@ -9,11 +9,20 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBDialogFooter,
+    NBSection,
+    NBInput,
+    NBSelect,
+    NBTextarea,
+} from "@/components/ui/nb-dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
@@ -1750,217 +1759,213 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                 </TabsContent>
             </Tabs>
 
-            <Dialog open={categoryModalOpen} onOpenChange={setCategoryModalOpen}>
-                <DialogContent className="max-w-xl">
-                    <DialogHeader>
-                        <DialogTitle>{editingCategory ? "Edit Kategori" : "Tambah Kategori Baru"}</DialogTitle>
-                        <DialogDescription>
-                            Data kategori ini akan dipakai lintas modul (inventory, procurement, manufacturing, finance).
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-2">
-                        <div className="grid gap-2">
-                            <Label>Kode</Label>
-                            <Input value={categoryForm.code} onChange={(event) => setCategoryForm((prev) => ({ ...prev, code: event.target.value }))} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Nama</Label>
-                            <Input value={categoryForm.name} onChange={(event) => setCategoryForm((prev) => ({ ...prev, name: event.target.value }))} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Deskripsi</Label>
-                            <Textarea
-                                value={categoryForm.description}
-                                onChange={(event) => setCategoryForm((prev) => ({ ...prev, description: event.target.value }))}
-                            />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Parent Category (Opsional)</Label>
-                            <Select
-                                value={categoryForm.parentId || "__none__"}
-                                onValueChange={(value) => setCategoryForm((prev) => ({ ...prev, parentId: value === "__none__" ? "" : value }))}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Pilih parent category" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="__none__">Tanpa Parent</SelectItem>
-                                    {availableParentCategories.map((category) => (
-                                        <SelectItem key={category.id} value={category.id}>
-                                            {category.code} - {category.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+            <NBDialog open={categoryModalOpen} onOpenChange={setCategoryModalOpen} size="narrow">
+                <NBDialogHeader
+                    icon={FolderKanban}
+                    title={editingCategory ? "Edit Kategori" : "Tambah Kategori Baru"}
+                    subtitle="Data kategori ini akan dipakai lintas modul (inventory, procurement, manufacturing, finance)."
+                />
+                <NBDialogBody>
+                    <NBSection icon={FolderKanban} title="Detail Kategori">
+                        <NBInput
+                            label="Kode"
+                            required
+                            value={categoryForm.code}
+                            onChange={(v) => setCategoryForm((prev) => ({ ...prev, code: v }))}
+                        />
+                        <NBInput
+                            label="Nama"
+                            required
+                            value={categoryForm.name}
+                            onChange={(v) => setCategoryForm((prev) => ({ ...prev, name: v }))}
+                        />
+                        <NBTextarea
+                            label="Deskripsi"
+                            value={categoryForm.description}
+                            onChange={(v) => setCategoryForm((prev) => ({ ...prev, description: v }))}
+                            rows={2}
+                        />
+                        <NBSelect
+                            label="Parent Category"
+                            value={categoryForm.parentId || ""}
+                            onValueChange={(v) => setCategoryForm((prev) => ({ ...prev, parentId: v || "" }))}
+                            placeholder="Pilih parent category"
+                            emptyLabel="Tanpa Parent"
+                            options={availableParentCategories.map((category) => ({
+                                value: category.id,
+                                label: `${category.code} - ${category.name}`,
+                            }))}
+                        />
                         <div className="flex items-center gap-2">
                             <Checkbox
                                 checked={categoryForm.isActive}
                                 onCheckedChange={(checked) => setCategoryForm((prev) => ({ ...prev, isActive: Boolean(checked) }))}
                             />
-                            <Label>Aktif</Label>
+                            <Label className="text-sm font-bold">Aktif</Label>
                         </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setCategoryModalOpen(false)}>Batal</Button>
-                        <Button onClick={submitCategory} disabled={isPending || !data.canManage}>Simpan</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                    </NBSection>
+                </NBDialogBody>
+                <NBDialogFooter
+                    onCancel={() => setCategoryModalOpen(false)}
+                    onSubmit={submitCategory}
+                    submitting={isPending}
+                    submitLabel="Simpan"
+                    disabled={!data.canManage}
+                />
+            </NBDialog>
 
-            <Dialog open={warehouseModalOpen} onOpenChange={setWarehouseModalOpen}>
-                <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                        <DialogTitle>{editingWarehouse ? "Edit Gudang" : "Tambah Gudang Baru"}</DialogTitle>
-                        <DialogDescription>
-                            Master gudang menentukan transaksi receiving, transfer, stock opname, dan valuation.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-2 md:grid-cols-2">
-                        <div className="grid gap-2">
-                            <Label>Kode</Label>
-                            <Input value={warehouseForm.code} onChange={(event) => setWarehouseForm((prev) => ({ ...prev, code: event.target.value }))} />
+            <NBDialog open={warehouseModalOpen} onOpenChange={setWarehouseModalOpen}>
+                <NBDialogHeader
+                    icon={Warehouse}
+                    title={editingWarehouse ? "Edit Gudang" : "Tambah Gudang Baru"}
+                    subtitle="Master gudang menentukan transaksi receiving, transfer, stock opname, dan valuation."
+                />
+                <NBDialogBody>
+                    <NBSection icon={Warehouse} title="Data Gudang">
+                        <div className="grid gap-3 md:grid-cols-2">
+                            <NBInput
+                                label="Kode"
+                                required
+                                value={warehouseForm.code}
+                                onChange={(v) => setWarehouseForm((prev) => ({ ...prev, code: v }))}
+                            />
+                            <NBInput
+                                label="Nama"
+                                required
+                                value={warehouseForm.name}
+                                onChange={(v) => setWarehouseForm((prev) => ({ ...prev, name: v }))}
+                            />
+                            <NBInput
+                                label="Alamat"
+                                value={warehouseForm.address}
+                                onChange={(v) => setWarehouseForm((prev) => ({ ...prev, address: v }))}
+                                className="md:col-span-2"
+                            />
+                            <NBInput
+                                label="Kota"
+                                value={warehouseForm.city}
+                                onChange={(v) => setWarehouseForm((prev) => ({ ...prev, city: v }))}
+                            />
+                            <NBInput
+                                label="Provinsi"
+                                value={warehouseForm.province}
+                                onChange={(v) => setWarehouseForm((prev) => ({ ...prev, province: v }))}
+                            />
+                            <NBInput
+                                label="Kapasitas"
+                                value={warehouseForm.capacity}
+                                onChange={(v) => setWarehouseForm((prev) => ({ ...prev, capacity: v }))}
+                            />
+                            <NBSelect
+                                label="Manager Gudang"
+                                value={warehouseForm.managerId || ""}
+                                onValueChange={(v) => setWarehouseForm((prev) => ({ ...prev, managerId: v || "" }))}
+                                placeholder="Pilih manager"
+                                emptyLabel="Tanpa Manager"
+                                options={data.managerOptions.map((manager) => ({
+                                    value: manager.id,
+                                    label: `${manager.employeeCode} - ${manager.name} (${manager.department})`,
+                                }))}
+                            />
                         </div>
-                        <div className="grid gap-2">
-                            <Label>Nama</Label>
-                            <Input value={warehouseForm.name} onChange={(event) => setWarehouseForm((prev) => ({ ...prev, name: event.target.value }))} />
-                        </div>
-                        <div className="grid gap-2 md:col-span-2">
-                            <Label>Alamat</Label>
-                            <Input value={warehouseForm.address} onChange={(event) => setWarehouseForm((prev) => ({ ...prev, address: event.target.value }))} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Kota</Label>
-                            <Input value={warehouseForm.city} onChange={(event) => setWarehouseForm((prev) => ({ ...prev, city: event.target.value }))} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Provinsi</Label>
-                            <Input value={warehouseForm.province} onChange={(event) => setWarehouseForm((prev) => ({ ...prev, province: event.target.value }))} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Kapasitas</Label>
-                            <Input value={warehouseForm.capacity} onChange={(event) => setWarehouseForm((prev) => ({ ...prev, capacity: event.target.value }))} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Manager Gudang</Label>
-                            <Select
-                                value={warehouseForm.managerId || "__none__"}
-                                onValueChange={(value) => setWarehouseForm((prev) => ({ ...prev, managerId: value === "__none__" ? "" : value }))}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Pilih manager" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="__none__">Tanpa Manager</SelectItem>
-                                    {data.managerOptions.map((manager) => (
-                                        <SelectItem key={manager.id} value={manager.id}>
-                                            {manager.employeeCode} - {manager.name} ({manager.department})
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="flex items-center gap-2 md:col-span-2">
+                        <div className="flex items-center gap-2">
                             <Checkbox
                                 checked={warehouseForm.isActive}
                                 onCheckedChange={(checked) => setWarehouseForm((prev) => ({ ...prev, isActive: Boolean(checked) }))}
                             />
-                            <Label>Aktif</Label>
+                            <Label className="text-sm font-bold">Aktif</Label>
                         </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setWarehouseModalOpen(false)}>Batal</Button>
-                        <Button onClick={submitWarehouse} disabled={isPending || !data.canManage}>Simpan</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                    </NBSection>
+                </NBDialogBody>
+                <NBDialogFooter
+                    onCancel={() => setWarehouseModalOpen(false)}
+                    onSubmit={submitWarehouse}
+                    submitting={isPending}
+                    submitLabel="Simpan"
+                    disabled={!data.canManage}
+                />
+            </NBDialog>
 
-            <Dialog open={roleModalOpen} onOpenChange={setRoleModalOpen}>
-                <DialogContent className="max-w-xl">
-                    <DialogHeader>
-                        <DialogTitle>{editingRole ? "Edit Role Sistem" : "Tambah Role Sistem"}</DialogTitle>
-                        <DialogDescription>
-                            Role ini mengatur modul yang terlihat di ERP dan alur kerja yang bisa dijalankan user.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-2">
-                        <div className="grid gap-2">
-                            <Label>Role Code</Label>
-                            <Input
-                                value={roleForm.code}
-                                onChange={(event) => setRoleForm((prev) => ({ ...prev, code: event.target.value }))}
-                                disabled={Boolean(editingRole?.isSystem)}
-                            />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Role Name</Label>
-                            <Input
-                                value={roleForm.name}
-                                onChange={(event) => setRoleForm((prev) => ({ ...prev, name: event.target.value }))}
-                                disabled={Boolean(editingRole?.isSystem)}
-                            />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Deskripsi</Label>
-                            <Textarea
-                                value={roleForm.description}
-                                onChange={(event) => setRoleForm((prev) => ({ ...prev, description: event.target.value }))}
-                                disabled={Boolean(editingRole?.isSystem)}
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setRoleModalOpen(false)}>Batal</Button>
-                        <Button onClick={submitRole} disabled={isPending || !data.canManage}>Simpan</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <NBDialog open={roleModalOpen} onOpenChange={setRoleModalOpen} size="narrow">
+                <NBDialogHeader
+                    icon={ShieldCheck}
+                    title={editingRole ? "Edit Role Sistem" : "Tambah Role Sistem"}
+                    subtitle="Role ini mengatur modul yang terlihat di ERP dan alur kerja yang bisa dijalankan user."
+                />
+                <NBDialogBody>
+                    <NBSection icon={ShieldCheck} title="Detail Role">
+                        <NBInput
+                            label="Role Code"
+                            required
+                            value={roleForm.code}
+                            onChange={(v) => setRoleForm((prev) => ({ ...prev, code: v }))}
+                            disabled={Boolean(editingRole?.isSystem)}
+                        />
+                        <NBInput
+                            label="Role Name"
+                            required
+                            value={roleForm.name}
+                            onChange={(v) => setRoleForm((prev) => ({ ...prev, name: v }))}
+                            disabled={Boolean(editingRole?.isSystem)}
+                        />
+                        <NBTextarea
+                            label="Deskripsi"
+                            value={roleForm.description}
+                            onChange={(v) => setRoleForm((prev) => ({ ...prev, description: v }))}
+                            disabled={Boolean(editingRole?.isSystem)}
+                            rows={2}
+                        />
+                    </NBSection>
+                </NBDialogBody>
+                <NBDialogFooter
+                    onCancel={() => setRoleModalOpen(false)}
+                    onSubmit={submitRole}
+                    submitting={isPending}
+                    submitLabel="Simpan"
+                    disabled={!data.canManage}
+                />
+            </NBDialog>
 
-            <Dialog open={permissionModalOpen} onOpenChange={setPermissionModalOpen}>
-                <DialogContent className="max-w-4xl">
-                    <DialogHeader>
-                        <DialogTitle>Kelola Permission Role: {permissionRole?.code}</DialogTitle>
-                        <DialogDescription>
-                            Pilih permission modul untuk role ini. Perubahan akan direfleksikan ke navigasi ERP.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <ScrollArea className="max-h-[60vh] pr-4">
-                        <div className="space-y-5 py-2">
-                            {Object.entries(permissionOptionsByGroup).map(([group, options]) => (
-                                <div key={group} className="rounded-lg border p-4">
-                                    <div className="mb-3 text-sm font-semibold">{group}</div>
-                                    <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-                                        {options.map((option) => {
-                                            const checked = selectedPermissions.includes(option.key)
-                                            return (
-                                                <label
-                                                    key={option.key}
-                                                    className="flex cursor-pointer items-start gap-2 rounded border p-2 hover:bg-zinc-50"
-                                                >
-                                                    <Checkbox
-                                                        checked={checked}
-                                                        onCheckedChange={() => togglePermission(option.key)}
-                                                    />
-                                                    <span className="text-sm">
-                                                        <span className="block font-medium">{option.label}</span>
-                                                        <span className="font-mono text-xs text-muted-foreground">{option.key}</span>
-                                                    </span>
-                                                </label>
-                                            )
-                                        })}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </ScrollArea>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setPermissionModalOpen(false)}>Batal</Button>
-                        <Button onClick={savePermissions} disabled={isPending || !data.canManage}>
-                            Simpan Permission
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <NBDialog open={permissionModalOpen} onOpenChange={setPermissionModalOpen} size="wide">
+                <NBDialogHeader
+                    icon={Layers}
+                    title={`Kelola Permission Role: ${permissionRole?.code || ""}`}
+                    subtitle="Pilih permission modul untuk role ini. Perubahan akan direfleksikan ke navigasi ERP."
+                />
+                <NBDialogBody>
+                    {Object.entries(permissionOptionsByGroup).map(([group, options]) => (
+                        <NBSection key={group} icon={Layers} title={group}>
+                            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                                {options.map((option) => {
+                                    const checked = selectedPermissions.includes(option.key)
+                                    return (
+                                        <label
+                                            key={option.key}
+                                            className="flex cursor-pointer items-start gap-2 border border-zinc-200 dark:border-zinc-700 p-2 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                                        >
+                                            <Checkbox
+                                                checked={checked}
+                                                onCheckedChange={() => togglePermission(option.key)}
+                                            />
+                                            <span className="text-sm">
+                                                <span className="block font-medium">{option.label}</span>
+                                                <span className="font-mono text-xs text-muted-foreground">{option.key}</span>
+                                            </span>
+                                        </label>
+                                    )
+                                })}
+                            </div>
+                        </NBSection>
+                    ))}
+                </NBDialogBody>
+                <NBDialogFooter
+                    onCancel={() => setPermissionModalOpen(false)}
+                    onSubmit={savePermissions}
+                    submitting={isPending}
+                    submitLabel="Simpan Permission"
+                    disabled={!data.canManage}
+                />
+            </NBDialog>
         </div>
     )
 }

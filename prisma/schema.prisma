@@ -209,25 +209,21 @@ enum ProductType {
 }
 
 model Product {
-  id            String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  code          String        @unique
-  name          String
-  description   String?
-  categoryId    String?       @db.Uuid
-  productType   ProductType   @default(TRADING)
-  unit          String // pcs, kg, liter, etc
-  costPrice     Decimal       @default(0) @db.Decimal(15, 2)
-  costingMethod CostingMethod @default(AVERAGE)
-  sellingPrice  Decimal       @default(0) @db.Decimal(15, 2)
-  minStock      Int           @default(0)
-  maxStock      Int           @default(0)
-  reorderLevel  Int           @default(0)
-  barcode       String?
-  isActive      Boolean       @default(true)
-
-  // GL expense account for AP bill approval (HPP routing)
-  // e.g. "5000" for HPP/COGS, null → falls back to SYS_ACCOUNTS.EXPENSE_DEFAULT ("6900")
-  expenseAccountCode String?
+  id           String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code         String      @unique
+  name         String
+  description  String?
+  categoryId   String?     @db.Uuid
+  productType  ProductType @default(TRADING)
+  unit         String // pcs, kg, liter, etc
+  costPrice      Decimal       @default(0) @db.Decimal(15, 2)
+  costingMethod  CostingMethod @default(AVERAGE)
+  sellingPrice   Decimal       @default(0) @db.Decimal(15, 2)
+  minStock     Int         @default(0)
+  maxStock     Int         @default(0)
+  reorderLevel Int         @default(0)
+  barcode      String?
+  isActive     Boolean     @default(true)
 
   // Textile-specific fields
   color       String?
@@ -254,20 +250,30 @@ model Product {
   stockAuditItems      StockAuditItem[]
   workOrders           WorkOrder[]
 
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  InvoiceItem          InvoiceItem[]
-  BillOfMaterials      BillOfMaterials[]
-  BOMItem              BOMItem[]
-  productionBOMs       ProductionBOM[]
-  productionBOMItems   ProductionBOMItem[]   @relation("ProductionBOMMaterial")
-  inspections          QualityInspection[]
-  supplierItems        SupplierProduct[]
-  grnItems             GRNItem[]
-  routingSteps         RoutingStep[]
-  debitCreditNoteItems DebitCreditNoteItem[]
-  costLayers           CostLayer[]
-  stockReservations    StockReservation[]
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  InvoiceItem     InvoiceItem[]
+  BillOfMaterials    BillOfMaterials[]
+  BOMItem            BOMItem[]
+  productionBOMs     ProductionBOM[]
+  productionBOMItems ProductionBOMItem[] @relation("ProductionBOMMaterial")
+  inspections            QualityInspection[]
+  supplierItems          SupplierProduct[]
+  grnItems               GRNItem[]
+  routingSteps           RoutingStep[]
+  debitCreditNoteItems   DebitCreditNoteItem[]
+  costLayers             CostLayer[]
+  stockReservations      StockReservation[]
+
+  // Accounting Fields — link product to GL accounts for automated posting
+  cogsAccountId      String?    @db.Uuid
+  inventoryAccountId String?    @db.Uuid
+  incomeAccountId    String?    @db.Uuid
+  purchaseAccountId  String?    @db.Uuid
+  cogsAccount        GLAccount? @relation("ProductCogs", fields: [cogsAccountId], references: [id])
+  inventoryAccount   GLAccount? @relation("ProductInventory", fields: [inventoryAccountId], references: [id])
+  incomeAccount      GLAccount? @relation("ProductIncome", fields: [incomeAccountId], references: [id])
+  purchaseAccount    GLAccount? @relation("ProductPurchase", fields: [purchaseAccountId], references: [id])
 
   // Alternative / Substitute Products (Self-relation)
   alternativeProductId String?   @db.Uuid
@@ -293,13 +299,13 @@ model Product {
 // ================================
 
 model Salesperson {
-  id             String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  code           String  @unique // SP-001
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code           String   @unique // SP-001
   name           String
   phone          String?
   email          String?
-  commissionRate Decimal @default(0) @db.Decimal(5, 2) // percentage of SO total
-  isActive       Boolean @default(true)
+  commissionRate Decimal  @default(0) @db.Decimal(5, 2) // percentage of SO total
+  isActive       Boolean  @default(true)
 
   salesOrders SalesOrder[]
   quotations  Quotation[]
@@ -516,7 +522,7 @@ model Customer {
   // Credit Management
   creditLimit  Decimal      @default(0) @db.Decimal(15, 2)
   creditTerm   Int          @default(30) // days
-  paymentTerm  PaymentTerm  @default(NET_30)
+  paymentTerm  PaymentTermLegacy  @default(NET_30)
   creditStatus CreditStatus @default(GOOD)
 
   // Business Settings
@@ -536,15 +542,15 @@ model Customer {
   salesPerson User?             @relation(fields: [salesPersonId], references: [id])
 
   // Related entities
-  addresses        CustomerAddress[]
-  contacts         CustomerContact[]
-  quotations       Quotation[]
-  salesOrders      SalesOrder[]
+  addresses   CustomerAddress[]
+  contacts    CustomerContact[]
+  quotations  Quotation[]
+  salesOrders SalesOrder[]
   debitCreditNotes DebitCreditNote[]
-  leads            Lead[]
+  leads       Lead[]
 
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   Invoice         Invoice[]
   Payment         Payment[]
   discountSchemes DiscountScheme[]
@@ -659,7 +665,7 @@ model Quotation {
   validUntil    DateTime
 
   // Terms
-  paymentTerm  PaymentTerm @default(NET_30)
+  paymentTerm  PaymentTermLegacy @default(NET_30)
   deliveryTerm String?
 
   // Amounts
@@ -667,6 +673,10 @@ model Quotation {
   taxAmount      Decimal @default(0) @db.Decimal(15, 2)
   discountAmount Decimal @default(0) @db.Decimal(15, 2)
   total          Decimal @default(0) @db.Decimal(15, 2)
+
+  // Multi-currency
+  currencyCode  String   @default("IDR")
+  exchangeRate  Decimal  @default(1) @db.Decimal(15, 4)
 
   // Status
   status QuotationStatus @default(DRAFT)
@@ -738,7 +748,7 @@ model SalesOrder {
   confirmedDate DateTime?
 
   // Terms
-  paymentTerm  PaymentTerm @default(NET_30)
+  paymentTerm  PaymentTermLegacy @default(NET_30)
   deliveryTerm String?
 
   // Amounts
@@ -747,12 +757,16 @@ model SalesOrder {
   discountAmount Decimal @default(0) @db.Decimal(15, 2)
   total          Decimal @default(0) @db.Decimal(15, 2)
 
+  // Multi-currency
+  currencyCode  String   @default("IDR")
+  exchangeRate  Decimal  @default(1) @db.Decimal(15, 4)
+
   // Status
   status SalesOrderStatus @default(DRAFT)
 
   // Revision tracking
-  revision        Int   @default(0)
-  revisionHistory Json? // Array of { revision, changedAt, changedBy, reason, snapshot }
+  revision        Int    @default(0)
+  revisionHistory Json?  // Array of { revision, changedAt, changedBy, reason, snapshot }
 
   // Notes
   notes         String?
@@ -871,7 +885,35 @@ enum TaxStatus {
   EXEMPT // Bebas Pajak
 }
 
-enum PaymentTerm {
+model PaymentTerm {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code      String   @unique
+  name      String
+  days      Int      @default(30)
+  isDefault Boolean  @default(false)
+  isActive  Boolean  @default(true)
+
+  lines     PaymentTermLine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("payment_terms")
+}
+
+model PaymentTermLine {
+  id            String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  paymentTermId String      @db.Uuid
+  paymentTerm   PaymentTerm @relation(fields: [paymentTermId], references: [id], onDelete: Cascade)
+  sequence      Int
+  percentage    Decimal     @db.Decimal(5, 2)
+  days          Int
+
+  @@index([paymentTermId])
+  @@map("payment_term_lines")
+}
+
+enum PaymentTermLegacy {
   CASH // Tunai
   NET_15 // 15 hari
   NET_30 // 30 hari
@@ -944,37 +986,37 @@ enum Priority {
 // ================================
 
 enum DCNoteType {
-  SALES_CN // Nota Kredit Penjualan (seller issues to buyer — reduces AR)
-  SALES_DN // Nota Debit Penjualan (buyer requests from seller — claim)
-  PURCHASE_DN // Nota Debit Pembelian (buyer issues to seller — reduces AP)
-  PURCHASE_CN // Nota Kredit Pembelian (seller issues to buyer — reduces AP)
+  SALES_CN      // Nota Kredit Penjualan (seller issues to buyer — reduces AR)
+  SALES_DN      // Nota Debit Penjualan (buyer requests from seller — claim)
+  PURCHASE_DN   // Nota Debit Pembelian (buyer issues to seller — reduces AP)
+  PURCHASE_CN   // Nota Kredit Pembelian (seller issues to buyer — reduces AP)
 }
 
 enum DCNoteStatus {
   DRAFT
   POSTED
-  APPLIED // Fully settled against invoice(s)
-  PARTIAL // Partially settled
+  APPLIED      // Fully settled against invoice(s)
+  PARTIAL      // Partially settled
   VOID
   CANCELLED
 }
 
 enum DCNoteReasonCode {
-  RET_DEFECT // Barang cacat/rusak
-  RET_WRONG // Barang tidak sesuai pesanan
-  RET_QUALITY // Kualitas tidak standar
-  RET_EXCESS // Kelebihan kirim
-  RET_EXPIRED // Barang kadaluarsa
-  ADJ_OVERCHARGE // Kelebihan tagih
-  ADJ_DISCOUNT // Diskon belum dipotong
-  ADJ_UNDERCHARGE // Kekurangan tagih
-  ADJ_ADDCHARGE // Biaya tambahan
-  SVC_CANCEL // Pembatalan jasa
-  SVC_SHORT // Jasa tidak lengkap
-  ORD_CANCEL // Pembatalan pesanan
-  ADJ_PENALTY // Penalti/denda
-  ADJ_REBATE // Potongan volume
-  ADJ_GOODWILL // Penyesuaian goodwill
+  RET_DEFECT       // Barang cacat/rusak
+  RET_WRONG        // Barang tidak sesuai pesanan
+  RET_QUALITY      // Kualitas tidak standar
+  RET_EXCESS       // Kelebihan kirim
+  RET_EXPIRED      // Barang kadaluarsa
+  ADJ_OVERCHARGE   // Kelebihan tagih
+  ADJ_DISCOUNT     // Diskon belum dipotong
+  ADJ_UNDERCHARGE  // Kekurangan tagih
+  ADJ_ADDCHARGE    // Biaya tambahan
+  SVC_CANCEL       // Pembatalan jasa
+  SVC_SHORT        // Jasa tidak lengkap
+  ORD_CANCEL       // Pembatalan pesanan
+  ADJ_PENALTY      // Penalti/denda
+  ADJ_REBATE       // Potongan volume
+  ADJ_GOODWILL     // Penyesuaian goodwill
 }
 
 // ================================
@@ -1032,18 +1074,18 @@ enum GoalStatus {
 // ================================
 
 model Supplier {
-  id           String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  code         String      @unique
-  name         String
-  contactName  String?
-  email        String?
-  phone        String?
-  address      String?
-  address2     String? // Secondary/branch address
-  officePhone  String? // Office landline
-  picPhone     String? // PIC mobile (separate from office)
-  contactTitle String? // Mr/Mrs/etc title for contact person
-  paymentTerm  PaymentTerm @default(CASH) // Terms of payment
+  id          String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code        String  @unique
+  name        String
+  contactName String?
+  email       String?
+  phone       String?
+  address       String?
+  address2      String?    // Secondary/branch address
+  officePhone   String?    // Office landline
+  picPhone      String?    // PIC mobile (separate from office)
+  contactTitle  String?    // Mr/Mrs/etc title for contact person
+  paymentTerm   PaymentTermLegacy @default(CASH) // Terms of payment
 
   // Performance
   rating         Int      @default(0) // 1-5 stars
@@ -1056,18 +1098,14 @@ model Supplier {
   bankAccountNumber String?
   bankAccountName   String?
 
-  // PPh 23 Withholding Tax
-  pph23Rate       Decimal? @db.Decimal(5, 2) // Default 2% for services, 15% for dividends
-  isServiceVendor Boolean  @default(false) // Flag for PPh 23 applicability
-
   isActive Boolean @default(true)
 
-  purchaseOrders   PurchaseOrder[]
-  supplierItems    SupplierProduct[]
-  categories       SupplierCategory[]
-  debitCreditNotes DebitCreditNote[]
-  fixedAssets      FixedAsset[]
-  preferredPRItems PurchaseRequestItem[] @relation("PRItemPreferredSupplier")
+  purchaseOrders       PurchaseOrder[]
+  supplierItems        SupplierProduct[]
+  categories           SupplierCategory[]
+  debitCreditNotes     DebitCreditNote[]
+  fixedAssets          FixedAsset[]
+  preferredPRItems     PurchaseRequestItem[] @relation("PRItemPreferredSupplier")
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -1142,8 +1180,8 @@ model PurchaseOrder {
   datePaid DateTime?
 
   // Revision tracking
-  revision        Int   @default(0)
-  revisionHistory Json? // Array of { revision, changedAt, changedBy, reason, snapshot }
+  revision        Int    @default(0)
+  revisionHistory Json?  // Array of { revision, changedAt, changedBy, reason, snapshot }
 
   // Textile upgrade: templates & landed cost
   templateName    String?
@@ -1330,7 +1368,7 @@ model GoodsReceivedNote {
   warehouseId     String @db.Uuid
 
   receivedDate DateTime @default(now())
-  receivedById String   @db.Uuid
+  receivedById String?  @db.Uuid
 
   status GRNStatus @default(DRAFT)
   notes  String?
@@ -1344,7 +1382,7 @@ model GoodsReceivedNote {
   // Relations
   purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
   warehouse     Warehouse     @relation(fields: [warehouseId], references: [id])
-  receivedBy    Employee      @relation(fields: [receivedById], references: [id])
+  receivedBy    Employee?     @relation(fields: [receivedById], references: [id])
   items         GRNItem[]
 
   createdAt DateTime @default(now())
@@ -1416,11 +1454,6 @@ model Employee {
   shiftType           ShiftType? // Default shift assignment
   hourlyRate          Decimal?   @db.Decimal(15, 2) // Upah per jam
   pieceRate           Decimal?   @db.Decimal(15, 2) // Upah per potong
-
-  // PPh 21 / PTKP (Per-employee tax bracket)
-  maritalStatus    String?  @default("TK")   // TK = Tidak Kawin, K = Kawin
-  dependentCount   Int      @default(0)       // Jumlah tanggungan (0-3)
-  ptkpCategory     String?                    // e.g. "TK/0", "K/2" — auto-derived if null
 
   // Relations
   attendance         Attendance[]
@@ -1709,14 +1742,9 @@ model WorkOrder {
 
   status WOStatus @default(PLANNED)
 
-  estimatedCostTotal Decimal? @db.Decimal(15, 2)
-  actualCostTotal    Decimal? @db.Decimal(15, 2)
-  costVariancePct    Decimal? @db.Decimal(8, 2)
-
-  // WIP Valuation (P3.1)
-  completionPct        Decimal?  @db.Decimal(5, 2)
-  wipValue             Decimal?  @db.Decimal(15, 2)
-  lastWIPValuationDate DateTime?
+  estimatedCostTotal  Decimal?  @db.Decimal(15, 2)
+  actualCostTotal     Decimal?  @db.Decimal(15, 2)
+  costVariancePct     Decimal?  @db.Decimal(8, 2)
 
   product        Product         @relation(fields: [productId], references: [id])
   salesOrder     SalesOrder?     @relation(fields: [salesOrderId], references: [id])
@@ -1766,13 +1794,13 @@ enum WOStatus {
 // ================================
 
 model Invoice {
-  id                String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  number            String  @unique
-  quoteId           String? @db.Uuid // Optional link to quote
-  orderId           String? @db.Uuid // Legacy polymorphic reference (prefer explicit relations below)
-  salesOrderId      String? @db.Uuid
-  purchaseOrderId   String? @db.Uuid
-  purchaseRequestId String? @db.Uuid
+  id              String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  number          String  @unique
+  quoteId         String? @db.Uuid // Optional link to quote
+  orderId         String? @db.Uuid // Legacy polymorphic reference (prefer explicit relations below)
+  salesOrderId       String? @db.Uuid
+  purchaseOrderId    String? @db.Uuid
+  purchaseRequestId  String? @db.Uuid
 
   // Polymorphic-ish Relation
   customerId String? @db.Uuid // For AR (Sales)
@@ -1780,10 +1808,9 @@ model Invoice {
 
   type InvoiceType // INV_OUT (Customer), INV_IN (Supplier)
 
-  // Dates & Terms
-  issueDate   DateTime     @default(now())
-  dueDate     DateTime
-  paymentTerm PaymentTerm? // Stored for reference / auto-calculation
+  // Dates
+  issueDate DateTime @default(now())
+  dueDate   DateTime
 
   // Amounts
   subtotal       Decimal @db.Decimal(15, 2)
@@ -1792,33 +1819,26 @@ model Invoice {
   totalAmount    Decimal @db.Decimal(15, 2)
   balanceDue     Decimal @db.Decimal(15, 2) // Sisa tagihan
 
+  // Multi-currency
+  currencyCode  String   @default("IDR")
+  exchangeRate  Decimal  @default(1) @db.Decimal(15, 4)
+  amountInIDR   Decimal  @default(0) @db.Decimal(15, 2)
+
   status InvoiceStatus @default(DRAFT)
 
   // Relations
-  customer             Customer?                   @relation(fields: [customerId], references: [id])
-  supplier             Supplier?                   @relation(fields: [supplierId], references: [id])
-  salesOrder           SalesOrder?                 @relation(fields: [salesOrderId], references: [id])
-  purchaseOrder        PurchaseOrder?              @relation(fields: [purchaseOrderId], references: [id])
-  purchaseRequest      PurchaseRequest?            @relation(fields: [purchaseRequestId], references: [id])
-  items                InvoiceItem[]
-  payments             Payment[]
-  journalEntries       JournalEntry[]
-  dcNoteOrigins        DebitCreditNote[]           @relation("DCNoteOriginalInvoice")
-  dcNoteSettlements    DebitCreditNoteSettlement[] @relation("DCNoteSettlements")
-  attachments          InvoiceAttachment[]
-  bankStatements       BankStatement[]             @relation("BankStatementInvoice")
-  collectionActivities CollectionActivity[]
-
-  // Dunning workflow
-  lastDunningLevel Int?
-  nextDunningDate  DateTime?
-
-  // e-Faktur Integration
-  kodeTransaksi   String?   @db.VarChar(2) // 01=domestik, 02=pemerintah, 07=tidak dipungut
-  nsfpNumber      String?   @db.VarChar(17) // Nomor Seri Faktur Pajak from DJP
-  fakturPajakDate DateTime? @db.Date // Tanggal faktur pajak (may differ from issueDate)
-  dppType         String?   @default("STANDARD") // STANDARD, NILAI_LAIN, DEEMED
-  taxRate         Decimal?  @db.Decimal(5, 2) // Actual PPN rate (11, 12, 0, etc.)
+  customer       Customer?      @relation(fields: [customerId], references: [id])
+  supplier       Supplier?      @relation(fields: [supplierId], references: [id])
+  salesOrder     SalesOrder?    @relation(fields: [salesOrderId], references: [id])
+  purchaseOrder   PurchaseOrder?  @relation(fields: [purchaseOrderId], references: [id])
+  purchaseRequest PurchaseRequest? @relation(fields: [purchaseRequestId], references: [id])
+  items              InvoiceItem[]
+  payments           Payment[]
+  journalEntries     JournalEntry[]
+  dcNoteOrigins      DebitCreditNote[]           @relation("DCNoteOriginalInvoice")
+  dcNoteSettlements  DebitCreditNoteSettlement[]  @relation("DCNoteSettlements")
+  attachments        InvoiceAttachment[]
+  withholdingTaxes   WithholdingTax[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1828,7 +1848,6 @@ model Invoice {
   @@index([dueDate])
   @@index([customerId])
   @@index([supplierId])
-  @@index([nsfpNumber])
   @@map("invoices")
 }
 
@@ -1875,17 +1894,18 @@ model Payment {
   method    PaymentMethod @default(TRANSFER)
   reference String? // Cheque Num, Transfer Ref
 
-  pph23Amount Decimal? @default(0) @db.Decimal(15, 2) // PPh 23 withholding amount (if applicable)
+  whtAmount Decimal?      @db.Decimal(15, 2) // Withholding tax amount (PPh 23/PPh 21)
+  whtRate   Decimal?      @db.Decimal(5, 4)  // WHT rate (e.g. 0.0200 = 2%)
 
   notes String?
 
-  isReconciled Boolean @default(false)
+  glPostingStatus String @default("POSTED") // PENDING | POSTED | FAILED
 
-  invoice        Invoice?        @relation(fields: [invoiceId], references: [id])
-  customer       Customer?       @relation(fields: [customerId], references: [id])
-  supplier       Supplier?       @relation(fields: [supplierId], references: [id])
-  journalEntries JournalEntry[]
-  bankStatements BankStatement[] @relation("BankStatementPayment")
+  invoice          Invoice?       @relation(fields: [invoiceId], references: [id])
+  customer         Customer?      @relation(fields: [customerId], references: [id])
+  supplier         Supplier?      @relation(fields: [supplierId], references: [id])
+  journalEntries   JournalEntry[]
+  withholdingTaxes WithholdingTax[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1917,6 +1937,47 @@ enum PaymentMethod {
   GIRO
   CREDIT_CARD
   OTHER
+}
+
+enum PPhType {
+  PPH_21
+  PPH_23
+  PPH_4_2
+}
+
+enum WithholdingDirection {
+  OUT // We withhold from vendor (AP)
+  IN  // Customer withholds from us (AR)
+}
+
+model WithholdingTax {
+  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  paymentId       String   @db.Uuid
+  invoiceId       String?  @db.Uuid
+
+  type            PPhType
+  direction       WithholdingDirection
+
+  rate            Decimal  @db.Decimal(5, 2)
+  baseAmount      Decimal  @db.Decimal(15, 2)
+  amount          Decimal  @db.Decimal(15, 2)
+
+  buktiPotongNo   String?
+  buktiPotongDate DateTime?
+
+  deposited       Boolean  @default(false)
+  depositDate     DateTime?
+  depositRef      String?
+
+  payment         Payment  @relation(fields: [paymentId], references: [id])
+  invoice         Invoice? @relation(fields: [invoiceId], references: [id])
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([type, deposited])
+  @@index([paymentId])
+  @@map("withholding_taxes")
 }
 
 // ================================
@@ -2102,22 +2163,35 @@ model GLAccount {
   id       String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   code     String      @unique // e.g. "1010"
   name     String // e.g. "Bank BCA"
-  type     AccountType // ASSET, LIABILITY, etc.
-  balance  Decimal     @default(0) @db.Decimal(15, 2)
+  type     AccountType    // ASSET, LIABILITY, etc.
+  subType  AccountSubType @default(GENERAL)
+  balance  Decimal        @default(0) @db.Decimal(15, 2)
   isSystem Boolean     @default(false) // If true, cannot be deleted (e.g. Retained Earnings)
+  isControlAccount  Boolean @default(false) // AR, AP, Inventory — sub-ledger controlled
+  allowDirectPosting Boolean @default(true) // false = block manual journal entries
 
-  lines                JournalLine[]
-  bankReconciliations  BankReconciliation[]
-  bankStatements       BankStatement[]        @relation("BankStatements")
-  pettyCashBankTxns    PettyCashTransaction[] @relation("PettyCashBank")
-  pettyCashExpenseTxns PettyCashTransaction[] @relation("PettyCashExpense")
-  budgetLines          BudgetLine[]
-  cashflowPlanItems    CashflowPlanItem[]
+  // Hierarchy
+  parentId  String?     @db.Uuid
+  parent    GLAccount?  @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children  GLAccount[] @relation("AccountHierarchy")
+
+  lines               JournalLine[]
+  bankReconciliations BankReconciliation[]
+  pettyCashBankTxns     PettyCashTransaction[] @relation("PettyCashBank")
+  pettyCashExpenseTxns  PettyCashTransaction[] @relation("PettyCashExpense")
+  budgetLines           BudgetLine[]
+  cashflowPlanItems     CashflowPlanItem[]
+
+  // Product accounting relations
+  productsAsCogs      Product[] @relation("ProductCogs")
+  productsAsInventory Product[] @relation("ProductInventory")
+  productsAsIncome    Product[] @relation("ProductIncome")
+  productsAsPurchase  Product[] @relation("ProductPurchase")
 
   // Fixed Asset relations
-  fixedAssetCategoriesAsset    FixedAssetCategory[] @relation("CategoryAssetAccount")
-  fixedAssetCategoriesAccDep   FixedAssetCategory[] @relation("CategoryAccDepAccount")
-  fixedAssetCategoriesDepExp   FixedAssetCategory[] @relation("CategoryDepExpAccount")
+  fixedAssetCategoriesAsset   FixedAssetCategory[] @relation("CategoryAssetAccount")
+  fixedAssetCategoriesAccDep  FixedAssetCategory[] @relation("CategoryAccDepAccount")
+  fixedAssetCategoriesDepExp  FixedAssetCategory[] @relation("CategoryDepExpAccount")
   fixedAssetCategoriesGainLoss FixedAssetCategory[] @relation("CategoryGainLossAccount")
 
   createdAt DateTime @default(now())
@@ -2141,20 +2215,26 @@ model JournalEntry {
   recurringPattern  String? // e.g. "MONTHLY", "WEEKLY"
   nextRecurringDate DateTime?
 
+  // Reversal tracking
+  isReversed   Boolean  @default(false) @map("is_reversed")
+  reversedById String?  @unique @db.Uuid @map("reversed_by_id")
+  reversedBy   JournalEntry? @relation("JournalReversal", fields: [reversedById], references: [id])
+  reversalOf   JournalEntry? @relation("JournalReversal")
+
   invoiceId              String? @db.Uuid
   paymentId              String? @db.Uuid
   salesOrderId           String? @db.Uuid
   purchaseOrderId        String? @db.Uuid
   inventoryTransactionId String? @db.Uuid
 
-  lines                   JournalLine[]
-  invoice                 Invoice?                @relation(fields: [invoiceId], references: [id])
-  payment                 Payment?                @relation(fields: [paymentId], references: [id])
-  salesOrder              SalesOrder?             @relation(fields: [salesOrderId], references: [id])
-  purchaseOrder           PurchaseOrder?          @relation(fields: [purchaseOrderId], references: [id])
-  inventoryTransaction    InventoryTransaction?   @relation(fields: [inventoryTransactionId], references: [id])
-  pettyCashTransaction    PettyCashTransaction?
-  debitCreditNote         DebitCreditNote?
+  lines                JournalLine[]
+  invoice              Invoice?              @relation(fields: [invoiceId], references: [id])
+  payment              Payment?              @relation(fields: [paymentId], references: [id])
+  salesOrder           SalesOrder?           @relation(fields: [salesOrderId], references: [id])
+  purchaseOrder        PurchaseOrder?        @relation(fields: [purchaseOrderId], references: [id])
+  inventoryTransaction InventoryTransaction? @relation(fields: [inventoryTransactionId], references: [id])
+  pettyCashTransaction  PettyCashTransaction?
+  debitCreditNote      DebitCreditNote?
   fixedAssetDeprecEntries FixedAssetDeprecEntry[]
   fixedAssetMovements     FixedAssetMovement[]
 
@@ -2174,15 +2254,10 @@ model JournalLine {
   debit       Decimal @default(0) @db.Decimal(15, 2)
   credit      Decimal @default(0) @db.Decimal(15, 2)
 
-  // Cost Center (P3.2)
-  costCenterId String?     @db.Uuid
-  costCenter   CostCenter? @relation(fields: [costCenterId], references: [id])
-
   entry   JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
   account GLAccount    @relation(fields: [accountId], references: [id])
 
   @@index([entryId])
-  @@index([costCenterId])
   @@index([accountId])
   @@map("journal_lines")
 }
@@ -2193,6 +2268,26 @@ enum AccountType {
   EQUITY
   REVENUE
   EXPENSE
+}
+
+enum AccountSubType {
+  ASSET_RECEIVABLE
+  ASSET_CASH
+  ASSET_CURRENT
+  ASSET_NON_CURRENT
+  ASSET_PREPAYMENTS
+  ASSET_FIXED
+  LIABILITY_PAYABLE
+  LIABILITY_CURRENT
+  LIABILITY_NON_CURRENT
+  EQUITY
+  EQUITY_UNAFFECTED
+  INCOME
+  INCOME_OTHER
+  EXPENSE
+  EXPENSE_DEPRECIATION
+  EXPENSE_DIRECT_COST
+  GENERAL
 }
 
 enum EntryStatus {
@@ -2206,13 +2301,13 @@ enum EntryStatus {
 // ================================
 
 model FiscalPeriod {
-  id        String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   year      Int
   month     Int // 1-12
   name      String // e.g. "Januari 2026"
-  startDate DateTime  @db.Date
-  endDate   DateTime  @db.Date
-  isClosed  Boolean   @default(false)
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  isClosed  Boolean  @default(false)
   closedAt  DateTime?
   closedBy  String? // user email who closed the period
 
@@ -2513,12 +2608,12 @@ model Subcontractor {
   npwp                String?
   address             String?
   capabilities        SubcontractCapability[]
-  capacityUnitsPerDay Int?
-  maxCapacityPerMonth Int? // Max pcs per month
-  leadTimeDays        Int? // Default lead time in days
-  rating              Int                     @default(0) // 1-5 stars
-  onTimeRate          Int                     @default(0) // percentage
-  qualityScore        Decimal?                @db.Decimal(5, 2) // Quality score 0-100
+  capacityUnitsPerDay   Int?
+  maxCapacityPerMonth   Int?       // Max pcs per month
+  leadTimeDays          Int?       // Default lead time in days
+  rating                Int        @default(0) // 1-5 stars
+  onTimeRate            Int        @default(0) // percentage
+  qualityScore          Decimal?   @db.Decimal(5, 2) // Quality score 0-100
   contactPerson       String?
   phone               String?
   email               String?
@@ -2776,9 +2871,9 @@ model BankReconciliation {
   periodEnd     DateTime             @db.Date
   status        ReconciliationStatus @default(REC_DRAFT)
 
-  bankStatementBalance Decimal? @db.Decimal(15, 2) // Saldo akhir per laporan bank
-  bookBalanceSnapshot  Decimal? @db.Decimal(15, 2) // Snapshot saldo buku saat rekonsiliasi
-  notes                String? // Catatan akuntan
+  bankStatementBalance Decimal?  @db.Decimal(15, 2) // Saldo akhir per laporan bank
+  bookBalanceSnapshot  Decimal?  @db.Decimal(15, 2) // Snapshot saldo buku saat rekonsiliasi
+  notes                String?                       // Catatan akuntan
 
   closedBy String?   @db.Uuid
   closedAt DateTime?
@@ -2802,7 +2897,8 @@ model BankReconciliationItem {
   bankDescription     String?
   systemTransactionId String?     @db.Uuid // JournalEntry or Payment ID
   matchStatus         MatchStatus @default(UNMATCHED)
-  excludeReason       String? // Alasan jika EXCLUDED
+  excludeReason       String?                         // Alasan jika EXCLUDED
+  itemType            String?                         // BANK_CHARGE, INTEREST_INCOME, or null (regular)
   matchedBy           String?     @db.Uuid
   matchedAt           DateTime?
 
@@ -2846,102 +2942,102 @@ model GarmentMeasurement {
 // ================================
 
 model ProcessStation {
-  id              String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  code            String                    @unique
+  id              String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code            String         @unique
   name            String
   stationType     StationType
   operationType   OperationType
-  subcontractorId String?                   @db.Uuid
-  subcontractor   Subcontractor?            @relation(fields: [subcontractorId], references: [id])
-  machineId       String?                   @db.Uuid
-  machine         Machine?                  @relation(fields: [machineId], references: [id])
-  costPerUnit     Decimal                   @default(0) @db.Decimal(12, 2)
-  overheadPct     Decimal?                  @db.Decimal(5, 2)
+  subcontractorId String?        @db.Uuid
+  subcontractor   Subcontractor? @relation(fields: [subcontractorId], references: [id])
+  machineId       String?        @db.Uuid
+  machine         Machine?       @relation(fields: [machineId], references: [id])
+  costPerUnit     Decimal        @default(0) @db.Decimal(12, 2)
+  overheadPct     Decimal?       @db.Decimal(5, 2)
   description     String?
-  iconName        String? // Lucide icon name for custom OTHER stations (e.g. "Flame", "Zap")
-  colorTheme      String? // Color theme key (e.g. "red", "orange") for toolbar/canvas
-  isActive        Boolean                   @default(true)
-  groupId         String?                   @db.Uuid
-  group           WorkCenterGroup?          @relation(fields: [groupId], references: [id])
-  parentStationId String?                   @db.Uuid
-  parentStation   ProcessStation?           @relation("StationHierarchy", fields: [parentStationId], references: [id])
-  childStations   ProcessStation[]          @relation("StationHierarchy")
+  iconName        String?                // Lucide icon name for custom OTHER stations (e.g. "Flame", "Zap")
+  colorTheme      String?                // Color theme key (e.g. "red", "orange") for toolbar/canvas
+  isActive        Boolean        @default(true)
+  groupId         String?        @db.Uuid
+  group           WorkCenterGroup? @relation(fields: [groupId], references: [id])
+  parentStationId String?        @db.Uuid
+  parentStation   ProcessStation?  @relation("StationHierarchy", fields: [parentStationId], references: [id])
+  childStations   ProcessStation[] @relation("StationHierarchy")
   bomSteps        ProductionBOMStep[]
   allocations     ProductionBOMAllocation[]
-  createdAt       DateTime                  @default(now())
-  updatedAt       DateTime                  @updatedAt
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   @@map("process_stations")
 }
 
 model ProductionBOM {
-  id                 String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  productId          String              @db.Uuid
-  product            Product             @relation(fields: [productId], references: [id])
-  version            String              @default("v1")
-  isActive           Boolean             @default(true)
-  totalProductionQty Int                 @default(0)
+  id                 String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  productId          String   @db.Uuid
+  product            Product  @relation(fields: [productId], references: [id])
+  version            String   @default("v1")
+  isActive           Boolean  @default(true)
+  totalProductionQty Int      @default(0)
   notes              String?
-  draftSnapshot      Json? // Auto-saved draft (not yet manually published)
+  draftSnapshot      Json?     // Auto-saved draft (not yet manually published)
   draftUpdatedAt     DateTime? // When the draft was last auto-saved
   items              ProductionBOMItem[]
   steps              ProductionBOMStep[]
   workOrders         WorkOrder[]
   editLogs           BOMEditLog[]
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   @@unique([productId, version])
   @@map("production_boms")
 }
 
 model ProductionBOMItem {
-  id                String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  bomId             String                      @db.Uuid
-  bom               ProductionBOM               @relation(fields: [bomId], references: [id], onDelete: Cascade)
-  materialId        String                      @db.Uuid
-  material          Product                     @relation("ProductionBOMMaterial", fields: [materialId], references: [id])
-  quantityPerUnit   Decimal                     @db.Decimal(10, 4)
-  unit              String?
-  wastePct          Decimal                     @default(0) @db.Decimal(5, 2)
-  notes             String?
-  snapshotCostPrice Decimal?                    @db.Decimal(12, 4) // Price at last manual save — used for drift detection
-  stepMaterials     ProductionBOMStepMaterial[]
+  id              String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  bomId           String        @db.Uuid
+  bom             ProductionBOM @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  materialId      String        @db.Uuid
+  material        Product       @relation("ProductionBOMMaterial", fields: [materialId], references: [id])
+  quantityPerUnit Decimal       @db.Decimal(10, 4)
+  unit            String?
+  wastePct        Decimal       @default(0) @db.Decimal(5, 2)
+  notes           String?
+  snapshotCostPrice Decimal? @db.Decimal(12, 4) // Price at last manual save — used for drift detection
+  stepMaterials   ProductionBOMStepMaterial[]
 
   @@map("production_bom_items")
 }
 
 model ProductionBOMStep {
-  id                 String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  bomId              String         @db.Uuid
-  bom                ProductionBOM  @relation(fields: [bomId], references: [id], onDelete: Cascade)
-  stationId          String         @db.Uuid
-  station            ProcessStation @relation(fields: [stationId], references: [id])
-  sequence           Int
-  durationMinutes    Int?
-  notes              String?
-  parentStepIds      String[]       @default([]) // IDs of parent steps (DAG edges)
-  startOffsetMinutes Int            @default(0) // manual start time in minutes (free-position on timeline)
-  positionX          Float? // Canvas node X position (persisted)
-  positionY          Float? // Canvas node Y position (persisted)
-  useSubkon          Boolean? // per-step override: true=subkon, false=in-house, null=use station default
-  subkonProcessType  String? // Label tipe proses subkon (e.g. "Jahit Lining", "Obras")
-  operatorName       String? // Nama operator yang ditugaskan ke step ini
+  id              String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  bomId           String        @db.Uuid
+  bom             ProductionBOM @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  stationId       String        @db.Uuid
+  station         ProcessStation @relation(fields: [stationId], references: [id])
+  sequence        Int
+  durationMinutes Int?
+  notes           String?
+  parentStepIds      String[]  @default([])  // IDs of parent steps (DAG edges)
+  startOffsetMinutes Int       @default(0)   // manual start time in minutes (free-position on timeline)
+  positionX          Float?                 // Canvas node X position (persisted)
+  positionY          Float?                 // Canvas node Y position (persisted)
+  useSubkon          Boolean?               // per-step override: true=subkon, false=in-house, null=use station default
+  subkonProcessType  String?                // Label tipe proses subkon (e.g. "Jahit Lining", "Obras")
+  operatorName       String?                // Nama operator yang ditugaskan ke step ini
 
   // Labour cost calculation
-  laborMonthlySalary Decimal? @db.Decimal(12, 2) // Gaji bulanan operator (IDR) for labour cost calc
+  laborMonthlySalary    Decimal?  @db.Decimal(12, 2) // Gaji bulanan operator (IDR) for labour cost calc
 
   // Time tracking & production progress
-  estimatedTimePerUnit Decimal?  @db.Decimal(8, 2) // minutes per unit
-  actualTimeTotal      Decimal?  @db.Decimal(10, 2) // actual total minutes spent
-  completedQty         Int       @default(0) // e.g. 150 of 900
-  startedAt            DateTime?
-  completedAt          DateTime?
+  estimatedTimePerUnit  Decimal?  @db.Decimal(8, 2)  // minutes per unit
+  actualTimeTotal       Decimal?  @db.Decimal(10, 2) // actual total minutes spent
+  completedQty          Int       @default(0)        // e.g. 150 of 900
+  startedAt             DateTime?
+  completedAt           DateTime?
 
-  materials   ProductionBOMStepMaterial[]
-  allocations ProductionBOMAllocation[]
-  attachments ProductionBOMAttachment[]
-  workOrders  WorkOrder[]
+  materials       ProductionBOMStepMaterial[]
+  allocations     ProductionBOMAllocation[]
+  attachments     ProductionBOMAttachment[]
+  workOrders      WorkOrder[]
 
   @@unique([bomId, sequence])
   @@map("production_bom_steps")
@@ -2959,13 +3055,13 @@ model ProductionBOMStepMaterial {
 }
 
 model ProductionBOMAllocation {
-  id          String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  stepId      String            @db.Uuid
-  step        ProductionBOMStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
-  stationId   String            @db.Uuid
-  station     ProcessStation    @relation(fields: [stationId], references: [id])
+  id        String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  stepId    String            @db.Uuid
+  step      ProductionBOMStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  stationId String            @db.Uuid
+  station   ProcessStation    @relation(fields: [stationId], references: [id])
   quantity    Int
-  pricePerPcs Decimal?          @db.Decimal(12, 2) // Harga subkon per pcs
+  pricePerPcs Decimal?  @db.Decimal(12, 2) // Harga subkon per pcs
   notes       String?
 
   @@map("production_bom_allocations")
@@ -2992,9 +3088,9 @@ model BOMTemplate {
   id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   name        String
   description String?
-  stepsJson   Json // Array of { stationType, durationMinutes, sequence, useSubkon }
+  stepsJson   Json     // Array of { stationType, durationMinutes, sequence, useSubkon }
   isBuiltIn   Boolean  @default(false)
-  createdBy   String? // userId
+  createdBy   String?  // userId
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -3005,9 +3101,9 @@ model BOMEditLog {
   id        String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   bomId     String        @db.Uuid
   bom       ProductionBOM @relation(fields: [bomId], references: [id], onDelete: Cascade)
-  action    String // SAVE, ADD_STEP, REMOVE_STEP, ADD_MATERIAL, GENERATE_SPK
-  summary   String // human-readable description
-  details   Json? // optional diff payload
+  action    String        // SAVE, ADD_STEP, REMOVE_STEP, ADD_MATERIAL, GENERATE_SPK
+  summary   String        // human-readable description
+  details   Json?         // optional diff payload
   userId    String?       @db.Uuid
   createdAt DateTime      @default(now())
 
@@ -3021,20 +3117,20 @@ enum PettyCashType {
 }
 
 model PettyCashTransaction {
-  id               String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  date             DateTime      @default(now())
+  id               String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  date             DateTime       @default(now())
   type             PettyCashType
-  amount           Decimal       @db.Decimal(15, 2)
+  amount           Decimal        @db.Decimal(15, 2)
   recipientName    String?
   description      String
-  bankAccountId    String?       @db.Uuid
-  bankAccount      GLAccount?    @relation("PettyCashBank", fields: [bankAccountId], references: [id])
-  expenseAccountId String?       @db.Uuid
-  expenseAccount   GLAccount?    @relation("PettyCashExpense", fields: [expenseAccountId], references: [id])
-  journalEntryId   String?       @unique @db.Uuid
-  journalEntry     JournalEntry? @relation(fields: [journalEntryId], references: [id])
-  balanceAfter     Decimal       @db.Decimal(15, 2)
-  createdAt        DateTime      @default(now())
+  bankAccountId    String?        @db.Uuid
+  bankAccount      GLAccount?     @relation("PettyCashBank", fields: [bankAccountId], references: [id])
+  expenseAccountId String?        @db.Uuid
+  expenseAccount   GLAccount?     @relation("PettyCashExpense", fields: [expenseAccountId], references: [id])
+  journalEntryId   String?        @unique @db.Uuid
+  journalEntry     JournalEntry?  @relation(fields: [journalEntryId], references: [id])
+  balanceAfter     Decimal        @db.Decimal(15, 2)
+  createdAt        DateTime       @default(now())
 
   @@map("petty_cash_transactions")
 }
@@ -3044,40 +3140,40 @@ model PettyCashTransaction {
 // ================================
 
 model DebitCreditNote {
-  id         String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  number     String           @unique
-  type       DCNoteType
-  status     DCNoteStatus     @default(DRAFT)
-  reasonCode DCNoteReasonCode
+  id            String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  number        String         @unique
+  type          DCNoteType
+  status        DCNoteStatus   @default(DRAFT)
+  reasonCode    DCNoteReasonCode
 
-  customerId String? @db.Uuid
-  supplierId String? @db.Uuid
+  customerId    String?        @db.Uuid
+  supplierId    String?        @db.Uuid
 
-  originalInvoiceId String? @db.Uuid
-  originalReference String?
+  originalInvoiceId  String?   @db.Uuid
+  originalReference  String?
 
-  subtotal      Decimal @db.Decimal(15, 2)
-  ppnAmount     Decimal @default(0) @db.Decimal(15, 2)
-  totalAmount   Decimal @db.Decimal(15, 2)
-  settledAmount Decimal @default(0) @db.Decimal(15, 2)
+  subtotal      Decimal        @db.Decimal(15, 2)
+  ppnAmount     Decimal        @default(0) @db.Decimal(15, 2)
+  totalAmount   Decimal        @db.Decimal(15, 2)
+  settledAmount Decimal        @default(0) @db.Decimal(15, 2)
 
-  issueDate   DateTime  @default(now())
-  postingDate DateTime?
+  issueDate     DateTime       @default(now())
+  postingDate   DateTime?
 
-  notes       String?
-  description String?
+  notes         String?
+  description   String?
 
-  journalEntryId String? @unique @db.Uuid
+  journalEntryId String?       @unique @db.Uuid
 
-  customer        Customer?                   @relation(fields: [customerId], references: [id])
-  supplier        Supplier?                   @relation(fields: [supplierId], references: [id])
-  originalInvoice Invoice?                    @relation("DCNoteOriginalInvoice", fields: [originalInvoiceId], references: [id])
-  journalEntry    JournalEntry?               @relation(fields: [journalEntryId], references: [id])
-  items           DebitCreditNoteItem[]
-  settlements     DebitCreditNoteSettlement[]
+  customer      Customer?      @relation(fields: [customerId], references: [id])
+  supplier      Supplier?      @relation(fields: [supplierId], references: [id])
+  originalInvoice Invoice?     @relation("DCNoteOriginalInvoice", fields: [originalInvoiceId], references: [id])
+  journalEntry  JournalEntry?  @relation(fields: [journalEntryId], references: [id])
+  items         DebitCreditNoteItem[]
+  settlements   DebitCreditNoteSettlement[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   @@index([type])
   @@index([status])
@@ -3087,37 +3183,37 @@ model DebitCreditNote {
 }
 
 model DebitCreditNoteItem {
-  id     String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  noteId String @db.Uuid
+  id            String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  noteId        String         @db.Uuid
 
-  productId   String? @db.Uuid
-  description String
+  productId     String?        @db.Uuid
+  description   String
 
-  quantity    Decimal @db.Decimal(15, 2)
-  unitPrice   Decimal @db.Decimal(15, 2)
-  amount      Decimal @db.Decimal(15, 2)
-  ppnAmount   Decimal @default(0) @db.Decimal(15, 2)
-  totalAmount Decimal @db.Decimal(15, 2)
+  quantity      Decimal        @db.Decimal(15, 2)
+  unitPrice     Decimal        @db.Decimal(15, 2)
+  amount        Decimal        @db.Decimal(15, 2)
+  ppnAmount     Decimal        @default(0) @db.Decimal(15, 2)
+  totalAmount   Decimal        @db.Decimal(15, 2)
 
-  note    DebitCreditNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
-  product Product?        @relation(fields: [productId], references: [id])
+  note          DebitCreditNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  product       Product?       @relation(fields: [productId], references: [id])
 
-  createdAt DateTime @default(now())
+  createdAt     DateTime       @default(now())
 
   @@map("debit_credit_note_items")
 }
 
 model DebitCreditNoteSettlement {
-  id        String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  noteId    String @db.Uuid
-  invoiceId String @db.Uuid
+  id            String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  noteId        String         @db.Uuid
+  invoiceId     String         @db.Uuid
 
-  amount Decimal @db.Decimal(15, 2)
+  amount        Decimal        @db.Decimal(15, 2)
 
-  note    DebitCreditNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
-  invoice Invoice         @relation("DCNoteSettlements", fields: [invoiceId], references: [id])
+  note          DebitCreditNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  invoice       Invoice        @relation("DCNoteSettlements", fields: [invoiceId], references: [id])
 
-  createdAt DateTime @default(now())
+  createdAt     DateTime       @default(now())
 
   @@map("debit_credit_note_settlements")
 }
@@ -3127,8 +3223,8 @@ model DebitCreditNoteSettlement {
 // ================================
 
 model Currency {
-  id     String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  code   String @unique // ISO 4217: USD, EUR, SGD, CNY, KRW, JPY
+  id     String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code   String  @unique // ISO 4217: USD, EUR, SGD, CNY, KRW, JPY
   name   String // e.g. "Dolar Amerika", "Yuan Tiongkok"
   symbol String // e.g. "$", "¥", "€"
 
@@ -3169,7 +3265,7 @@ model ExchangeRate {
 
 model Budget {
   id          String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  name        String // e.g. "Anggaran 2026"
+  name        String                               // e.g. "Anggaran 2026"
   year        Int
   description String?
   isActive    Boolean      @default(true)
@@ -3182,20 +3278,15 @@ model Budget {
 }
 
 model BudgetLine {
-  id        String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  budgetId  String    @db.Uuid
-  budget    Budget    @relation(fields: [budgetId], references: [id], onDelete: Cascade)
-  accountId String    @db.Uuid
-  account   GLAccount @relation(fields: [accountId], references: [id])
-  month     Int // 1-12
-  amount    Decimal   @db.Decimal(15, 2)
-
-  // Cost Center (P3.2)
-  costCenterId String?     @db.Uuid
-  costCenter   CostCenter? @relation(fields: [costCenterId], references: [id])
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  budgetId    String    @db.Uuid
+  budget      Budget    @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  accountId   String    @db.Uuid
+  account     GLAccount @relation(fields: [accountId], references: [id])
+  month       Int                                  // 1-12
+  amount      Decimal   @db.Decimal(15, 2)
 
   @@unique([budgetId, accountId, month])
-  @@index([costCenterId])
   @@map("budget_lines")
 }
 
@@ -3205,16 +3296,16 @@ model BudgetLine {
 
 enum DiscountType {
   PERCENTAGE // Persentase potongan (5%, 10%)
-  FIXED // Potongan tetap (Rp 5.000/unit)
-  TIERED // Bertingkat berdasarkan kuantitas
+  FIXED      // Potongan tetap (Rp 5.000/unit)
+  TIERED     // Bertingkat berdasarkan kuantitas
 }
 
 enum DiscountScope {
-  GLOBAL // Berlaku untuk semua produk
-  PRICELIST // Berlaku pada daftar harga tertentu
-  CUSTOMER // Berlaku untuk pelanggan tertentu
-  PRODUCT // Berlaku untuk produk tertentu
-  CATEGORY // Berlaku untuk kategori tertentu
+  GLOBAL      // Berlaku untuk semua produk
+  PRICELIST   // Berlaku pada daftar harga tertentu
+  CUSTOMER    // Berlaku untuk pelanggan tertentu
+  PRODUCT     // Berlaku untuk produk tertentu
+  CATEGORY    // Berlaku untuk kategori tertentu
 }
 
 model DiscountScheme {
@@ -3233,10 +3324,10 @@ model DiscountScheme {
   tieredRules Json?
 
   // Scope relations (nullable — set based on scope)
-  priceListId String? @db.Uuid
-  customerId  String? @db.Uuid
-  productId   String? @db.Uuid
-  categoryId  String? @db.Uuid
+  priceListId String?   @db.Uuid
+  customerId  String?   @db.Uuid
+  productId   String?   @db.Uuid
+  categoryId  String?   @db.Uuid
 
   priceList PriceList? @relation(fields: [priceListId], references: [id])
   customer  Customer?  @relation(fields: [customerId], references: [id])
@@ -3373,10 +3464,10 @@ enum CashflowCategory {
   MANUAL
   RECURRING_EXPENSE
   RECURRING_INCOME
-  FUNDING_CAPITAL // Modal masuk dari pemilik
-  EQUITY_WITHDRAWAL // Dividen / penarikan pemilik
-  LOAN_DISBURSEMENT // Pencairan pinjaman
-  LOAN_REPAYMENT // Pembayaran cicilan pinjaman
+  FUNDING_CAPITAL      // Modal masuk dari pemilik
+  EQUITY_WITHDRAWAL    // Dividen / penarikan pemilik
+  LOAN_DISBURSEMENT    // Pencairan pinjaman
+  LOAN_REPAYMENT       // Pembayaran cicilan pinjaman
 }
 
 model CashflowPlanItem {
@@ -3425,9 +3516,9 @@ model CashflowScenario {
   month     Int
   year      Int
   config    Json     @default("{}")
-  totalIn   Decimal  @default(0) @db.Decimal(20, 2)
-  totalOut  Decimal  @default(0) @db.Decimal(20, 2)
-  netFlow   Decimal  @default(0) @db.Decimal(20, 2)
+  totalIn   Decimal  @default(0)  @db.Decimal(20, 2)
+  totalOut  Decimal  @default(0)  @db.Decimal(20, 2)
+  netFlow   Decimal  @default(0)  @db.Decimal(20, 2)
   createdBy String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3436,15 +3527,15 @@ model CashflowScenario {
 }
 
 model AuditLog {
-  id         String   @id @default(cuid())
-  entityType String // "JournalEntry", "Invoice", "Payment", "Product", etc.
-  entityId   String
-  action     String // "CREATE", "UPDATE", "DELETE", "STATUS_CHANGE"
-  userId     String
-  userName   String? // Denormalized for display
-  changes    Json? // { field: { from: oldVal, to: newVal } }
-  narrative  String? // Auto-generated Indonesian description
-  createdAt  DateTime @default(now())
+  id          String   @id @default(cuid())
+  entityType  String   // "JournalEntry", "Invoice", "Payment", "Product", etc.
+  entityId    String
+  action      String   // "CREATE", "UPDATE", "DELETE", "STATUS_CHANGE"
+  userId      String
+  userName    String?  // Denormalized for display
+  changes     Json?    // { field: { from: oldVal, to: newVal } }
+  narrative   String?  // Auto-generated Indonesian description
+  createdAt   DateTime @default(now())
 
   @@index([entityType, entityId])
   @@index([userId])
@@ -3487,35 +3578,35 @@ model CeoFlag {
 // ================================
 
 enum DepreciationMethod {
-  STRAIGHT_LINE // Garis Lurus
-  DECLINING_BALANCE // Saldo Menurun
+  STRAIGHT_LINE      // Garis Lurus
+  DECLINING_BALANCE  // Saldo Menurun
   UNITS_OF_PRODUCTION // Unit Produksi
 }
 
 enum DepreciationFrequency {
   MONTHLY // Bulanan
-  YEARLY // Tahunan
+  YEARLY  // Tahunan
 }
 
 enum AssetStatus {
-  DRAFT // Draf
-  ACTIVE // Aktif
-  FULLY_DEPRECIATED // Disusutkan Penuh
-  DISPOSED // Dihapus
-  SOLD // Dijual
-  WRITTEN_OFF // Dihapusbukukan
+  DRAFT              // Draf
+  ACTIVE             // Aktif
+  FULLY_DEPRECIATED  // Disusutkan Penuh
+  DISPOSED           // Dihapus
+  SOLD               // Dijual
+  WRITTEN_OFF        // Dihapusbukukan
 }
 
 enum AssetMovementType {
-  DISPOSAL // Penghapusan
-  SALE // Penjualan
-  WRITE_OFF // Hapus Buku
-  TRANSFER // Transfer
+  DISPOSAL   // Penghapusan
+  SALE       // Penjualan
+  WRITE_OFF  // Hapus Buku
+  TRANSFER   // Transfer
 }
 
 enum DepreciationRunStatus {
-  PREVIEW // Pratinjau
-  POSTED // Diposting
+  PREVIEW  // Pratinjau
+  POSTED   // Diposting
   REVERSED // Dibatalkan
 }
 
@@ -3525,22 +3616,22 @@ model FixedAssetCategory {
   name        String // e.g. "Mesin", "Kendaraan", "Komputer", "Furnitur", "Bangunan"
   description String?
 
-  defaultMethod      DepreciationMethod @default(STRAIGHT_LINE)
-  defaultUsefulLife  Int                @default(60) // bulan
-  defaultResidualPct Decimal            @default(0) @db.Decimal(5, 2) // % dari harga beli
+  defaultMethod       DepreciationMethod    @default(STRAIGHT_LINE)
+  defaultUsefulLife    Int                   @default(60) // bulan
+  defaultResidualPct  Decimal               @default(0) @db.Decimal(5, 2) // % dari harga beli
 
   // Akun GL default untuk kategori ini
-  assetAccountId    String? @db.Uuid
-  accDepAccountId   String? @db.Uuid
-  depExpAccountId   String? @db.Uuid
-  gainLossAccountId String? @db.Uuid
+  assetAccountId      String?  @db.Uuid
+  accDepAccountId     String?  @db.Uuid
+  depExpAccountId     String?  @db.Uuid
+  gainLossAccountId   String?  @db.Uuid
 
   assetAccount    GLAccount? @relation("CategoryAssetAccount", fields: [assetAccountId], references: [id])
   accDepAccount   GLAccount? @relation("CategoryAccDepAccount", fields: [accDepAccountId], references: [id])
   depExpAccount   GLAccount? @relation("CategoryDepExpAccount", fields: [depExpAccountId], references: [id])
   gainLossAccount GLAccount? @relation("CategoryGainLossAccount", fields: [gainLossAccountId], references: [id])
 
-  isActive Boolean      @default(true)
+  isActive Boolean @default(true)
   assets   FixedAsset[]
 
   createdAt DateTime @default(now())
@@ -3556,17 +3647,17 @@ model FixedAsset {
   categoryId String @db.Uuid
 
   // Informasi pembelian
-  purchaseDate       DateTime @db.Date
+  purchaseDate      DateTime  @db.Date
   capitalizationDate DateTime @db.Date
-  supplierId         String?  @db.Uuid
-  purchaseCost       Decimal  @db.Decimal(15, 2)
-  residualValue      Decimal  @default(0) @db.Decimal(15, 2)
+  supplierId        String?   @db.Uuid
+  purchaseCost      Decimal   @db.Decimal(15, 2)
+  residualValue     Decimal   @default(0) @db.Decimal(15, 2)
 
   // Penyusutan
-  usefulLifeMonths      Int
-  depreciationMethod    DepreciationMethod    @default(STRAIGHT_LINE)
+  usefulLifeMonths     Int
+  depreciationMethod   DepreciationMethod @default(STRAIGHT_LINE)
   depreciationFrequency DepreciationFrequency @default(MONTHLY)
-  depreciationStartDate DateTime              @db.Date
+  depreciationStartDate DateTime @db.Date
 
   // Akumulasi (denormalized for performance)
   accumulatedDepreciation Decimal @default(0) @db.Decimal(15, 2)
@@ -3581,8 +3672,8 @@ model FixedAsset {
   status AssetStatus @default(DRAFT)
 
   // Relasi
-  category FixedAssetCategory @relation(fields: [categoryId], references: [id])
-  supplier Supplier?          @relation(fields: [supplierId], references: [id])
+  category  FixedAssetCategory @relation(fields: [categoryId], references: [id])
+  supplier  Supplier?          @relation(fields: [supplierId], references: [id])
 
   depreciationSchedules FixedAssetDeprecSchedule[]
   depreciationEntries   FixedAssetDeprecEntry[]
@@ -3617,10 +3708,10 @@ model FixedAssetDeprecSchedule {
 }
 
 model FixedAssetDeprecRun {
-  id          String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  runDate     DateTime              @default(now())
-  periodStart DateTime              @db.Date
-  periodEnd   DateTime              @db.Date
+  id          String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  runDate     DateTime             @default(now())
+  periodStart DateTime             @db.Date
+  periodEnd   DateTime             @db.Date
   status      DepreciationRunStatus @default(PREVIEW)
 
   totalAssets       Int
@@ -3643,13 +3734,13 @@ model FixedAssetDeprecRun {
 }
 
 model FixedAssetDeprecEntry {
-  id      String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  runId   String @db.Uuid
+  id    String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  runId String @db.Uuid
   assetId String @db.Uuid
 
-  depreciationAmount Decimal @db.Decimal(15, 2)
-  accumulatedAfter   Decimal @db.Decimal(15, 2)
-  bookValueAfter     Decimal @db.Decimal(15, 2)
+  depreciationAmount    Decimal @db.Decimal(15, 2)
+  accumulatedAfter      Decimal @db.Decimal(15, 2)
+  bookValueAfter        Decimal @db.Decimal(15, 2)
 
   journalEntryId String? @db.Uuid
 
@@ -3670,8 +3761,8 @@ model FixedAssetMovement {
   date    DateTime          @db.Date
 
   // Disposal / Sale fields
-  proceeds Decimal? @db.Decimal(15, 2) // Hasil penjualan
-  gainLoss Decimal? @db.Decimal(15, 2) // Laba/Rugi disposal
+  proceeds     Decimal? @db.Decimal(15, 2) // Hasil penjualan
+  gainLoss     Decimal? @db.Decimal(15, 2) // Laba/Rugi disposal
 
   // Transfer fields
   fromLocation   String?
@@ -3692,107 +3783,4 @@ model FixedAssetMovement {
   @@index([assetId])
   @@index([type])
   @@map("fixed_asset_movements")
-}
-
-// ─── Bank Statement (imported bank lines for reconciliation) ─────────
-model BankStatement {
-  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  bankAccountId    String    @db.Uuid
-  date             DateTime  @db.Date
-  description      String
-  reference        String?
-  debit            Decimal   @default(0) @db.Decimal(15, 2)
-  credit           Decimal   @default(0) @db.Decimal(15, 2)
-  isReconciled     Boolean   @default(false)
-  matchedPaymentId String?   @db.Uuid
-  matchedInvoiceId String?   @db.Uuid
-  reconciledAt     DateTime?
-  importBatchId    String?
-
-  bankAccount    GLAccount @relation("BankStatements", fields: [bankAccountId], references: [id])
-  matchedPayment Payment?  @relation("BankStatementPayment", fields: [matchedPaymentId], references: [id])
-  matchedInvoice Invoice?  @relation("BankStatementInvoice", fields: [matchedInvoiceId], references: [id])
-
-  createdAt DateTime @default(now())
-
-  @@index([bankAccountId])
-  @@index([isReconciled])
-  @@index([date])
-  @@map("bank_statements")
-}
-
-// ================================
-// e-Faktur NSFP Management
-// ================================
-
-model NSFPRange {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  year           Int
-  startNumber    BigInt
-  endNumber      BigInt
-  currentCounter BigInt
-  status         String   @default("ACTIVE") // ACTIVE, EXHAUSTED
-  createdAt      DateTime @default(now())
-
-  @@unique([year, startNumber])
-  @@index([year, status])
-  @@map("nsfp_ranges")
-}
-
-// ================================
-// Cost Center (P3.2)
-// ================================
-
-model CostCenter {
-  id       String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  code     String  @unique
-  name     String
-  type     String // PRODUCTION, ADMIN, SALES
-  isActive Boolean @default(true)
-
-  budgetLines  BudgetLine[]
-  journalLines JournalLine[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([type])
-  @@map("cost_centers")
-}
-
-// ================================
-// Dunning & Collection Management
-// ================================
-
-model DunningRule {
-  id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  level        Int // 1, 2, 3
-  daysAfterDue Int // e.g., 7, 30, 60
-  action       String // EMAIL, SMS, LETTER, BLOCK
-  template     String? // Email/letter template text
-  isActive     Boolean @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([level])
-  @@map("dunning_rules")
-}
-
-model CollectionActivity {
-  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  invoiceId  String    @db.Uuid
-  type       String // CALL, EMAIL, SMS, LETTER, VISIT
-  date       DateTime  @default(now())
-  notes      String?
-  outcome    String? // PROMISED, NO_ANSWER, DISPUTED, PAID
-  nextAction DateTime?
-  createdBy  String?
-
-  invoice Invoice @relation(fields: [invoiceId], references: [id])
-
-  createdAt DateTime @default(now())
-
-  @@index([invoiceId])
-  @@map("collection_activities")
 }

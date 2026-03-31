@@ -7,14 +7,13 @@ import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog"
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBSection,
+} from "@/components/ui/nb-dialog"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { NB } from "@/lib/dialog-styles"
 import { queryKeys } from "@/lib/query-keys"
 import {
     bulkImportMovements,
@@ -279,289 +278,269 @@ export function ImportMovementsDialog() {
                 Import
             </Button>
 
-            <Dialog open={open} onOpenChange={handleOpenChange}>
-                <DialogContent className={NB.contentWide}>
-                    <DialogHeader className={NB.header}>
-                        <DialogTitle className={NB.title}>
-                            <FileSpreadsheet className="h-5 w-5 text-violet-400" />
-                            Import Pergerakan Stok
-                        </DialogTitle>
-                        <p className={NB.subtitle}>
-                            Upload file Excel atau CSV untuk mencatat banyak pergerakan stok sekaligus
-                        </p>
-                    </DialogHeader>
+            <NBDialog open={open} onOpenChange={handleOpenChange} size="wide">
+                <NBDialogHeader
+                    icon={FileSpreadsheet}
+                    title="Import Pergerakan Stok"
+                    subtitle="Upload file Excel atau CSV untuk mencatat banyak pergerakan stok sekaligus"
+                />
 
-                    <div className="p-6 space-y-5">
-
-                        {/* ── Step: Idle / File picker ── */}
-                        {(step === "idle" || step === "preview") && (
-                            <div className="space-y-4">
-                                <div
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="border-2 border-dashed border-black bg-zinc-50 hover:bg-violet-50 transition-colors cursor-pointer p-8 flex flex-col items-center gap-3 rounded-none"
-                                >
-                                    <Upload className="h-8 w-8 text-zinc-400" />
-                                    <div className="text-center">
-                                        <p className="text-sm font-black uppercase tracking-wider text-zinc-700">
-                                            {fileName ? fileName : "Pilih File Excel atau CSV"}
-                                        </p>
-                                        <p className="text-xs text-zinc-400 mt-1">
-                                            Format yang diterima: .xlsx, .xls, .csv
-                                        </p>
-                                    </div>
-                                    <input
-                                        ref={fileInputRef}
-                                        type="file"
-                                        accept=".xlsx,.xls,.csv"
-                                        className="hidden"
-                                        onChange={handleFileChange}
-                                    />
+                <NBDialogBody>
+                    {/* ── Step: Idle / File picker ── */}
+                    {(step === "idle" || step === "preview") && (
+                        <>
+                            <div
+                                onClick={() => fileInputRef.current?.click()}
+                                className="border-2 border-dashed border-black bg-zinc-50 hover:bg-violet-50 transition-colors cursor-pointer p-8 flex flex-col items-center gap-3 rounded-none"
+                            >
+                                <Upload className="h-8 w-8 text-zinc-400" />
+                                <div className="text-center">
+                                    <p className="text-sm font-black uppercase tracking-wider text-zinc-700">
+                                        {fileName ? fileName : "Pilih File Excel atau CSV"}
+                                    </p>
+                                    <p className="text-xs text-zinc-400 mt-1">
+                                        Format yang diterima: .xlsx, .xls, .csv
+                                    </p>
                                 </div>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept=".xlsx,.xls,.csv"
+                                    className="hidden"
+                                    onChange={handleFileChange}
+                                />
+                            </div>
 
-                                {parseError && (
-                                    <div className="flex items-start gap-2 border-2 border-red-500 bg-red-50 p-3">
-                                        <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
-                                        <p className="text-xs font-bold text-red-600">{parseError}</p>
+                            {parseError && (
+                                <div className="flex items-start gap-2 border border-red-500 bg-red-50 p-3">
+                                    <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+                                    <p className="text-xs font-bold text-red-600">{parseError}</p>
+                                </div>
+                            )}
+
+                            <NBSection icon={FileSpreadsheet} title="Panduan Kolom">
+                                <div className="overflow-x-auto -mx-3 -mb-3">
+                                    <table className="w-full text-xs">
+                                        <thead>
+                                            <tr className="bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-200">
+                                                <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left">Header Kolom</th>
+                                                <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left">Wajib?</th>
+                                                <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left">Keterangan</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {[
+                                                ["Kode Produk", "Ya", "Kode produk yang sudah ada di sistem"],
+                                                ["Gudang", "Ya", "Nama gudang asal (harus cocok)"],
+                                                ["Tipe", "Ya", "ADJUSTMENT_IN, ADJUSTMENT_OUT, TRANSFER, atau SCRAP"],
+                                                ["Jumlah", "Ya", "Jumlah unit (harus > 0)"],
+                                                ["Gudang Tujuan", "Untuk Transfer", "Wajib jika tipe = TRANSFER"],
+                                                ["Catatan", "Tidak", "Keterangan tambahan"],
+                                            ].map(([col, req, note]) => (
+                                                <tr key={col} className="border-b border-zinc-100">
+                                                    <td className="px-3 py-2 font-mono text-violet-700">{col}</td>
+                                                    <td className="px-3 py-2">
+                                                        {req === "Ya"
+                                                            ? <span className="text-red-600 font-black">Wajib</span>
+                                                            : req === "Tidak"
+                                                            ? <span className="text-zinc-400">Opsional</span>
+                                                            : <span className="text-amber-600 font-bold">{req}</span>}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-zinc-500">{note}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </NBSection>
+
+                            <button
+                                onClick={handleDownloadTemplate}
+                                className="text-xs font-black text-violet-700 underline underline-offset-2 hover:text-violet-900"
+                            >
+                                Download template Excel
+                            </button>
+                        </>
+                    )}
+
+                    {/* ── Step: Preview ── */}
+                    {step === "preview" && rows.length > 0 && (
+                        <>
+                            <div className="flex items-center gap-3 flex-wrap">
+                                <div className="border border-black bg-emerald-50 px-3 py-1.5 flex items-center gap-1.5">
+                                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                    <span className="text-xs font-black text-emerald-700">
+                                        {validRows.length} baris siap diimport
+                                    </span>
+                                </div>
+                                {errorRows.length > 0 && (
+                                    <div className="border border-red-500 bg-red-50 px-3 py-1.5 flex items-center gap-1.5">
+                                        <AlertTriangle className="h-3.5 w-3.5 text-red-600" />
+                                        <span className="text-xs font-black text-red-700">
+                                            {errorRows.length} baris bermasalah (akan dilewati)
+                                        </span>
                                     </div>
                                 )}
+                            </div>
 
-                                {/* Column mapping guide */}
-                                <div className={NB.section}>
-                                    <div className={NB.sectionHead}>
-                                        <span className={NB.sectionTitle}>Panduan Kolom</span>
-                                    </div>
+                            <NBSection icon={FileSpreadsheet} title={`Pratinjau Data — ${fileName}`}>
+                                <ScrollArea className="h-64 -mx-3 -mb-3">
                                     <div className="overflow-x-auto">
-                                        <table className="w-full text-xs">
-                                            <thead>
-                                                <tr className={NB.tableHead}>
-                                                    <th className={NB.tableHeadCell + " text-left"}>Header Kolom</th>
-                                                    <th className={NB.tableHeadCell + " text-left"}>Wajib?</th>
-                                                    <th className={NB.tableHeadCell + " text-left"}>Keterangan</th>
+                                        <table className="w-full text-xs min-w-[700px]">
+                                            <thead className="sticky top-0 z-10">
+                                                <tr className="bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-200">
+                                                    <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left w-8">#</th>
+                                                    <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left">Kode Produk</th>
+                                                    <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left">Gudang</th>
+                                                    <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left">Tipe</th>
+                                                    <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Jumlah</th>
+                                                    <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left">Gudang Tujuan</th>
+                                                    <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left">Catatan</th>
+                                                    <th className="px-3 py-2 w-8"></th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {[
-                                                    ["Kode Produk", "Ya", "Kode produk yang sudah ada di sistem"],
-                                                    ["Gudang", "Ya", "Nama gudang asal (harus cocok)"],
-                                                    ["Tipe", "Ya", "ADJUSTMENT_IN, ADJUSTMENT_OUT, TRANSFER, atau SCRAP"],
-                                                    ["Jumlah", "Ya", "Jumlah unit (harus > 0)"],
-                                                    ["Gudang Tujuan", "Untuk Transfer", "Wajib jika tipe = TRANSFER"],
-                                                    ["Catatan", "Tidak", "Keterangan tambahan"],
-                                                ].map(([col, req, note]) => (
-                                                    <tr key={col} className={NB.tableRow}>
-                                                        <td className={NB.tableCell + " font-mono text-violet-700"}>{col}</td>
-                                                        <td className={NB.tableCell}>
-                                                            {req === "Ya"
-                                                                ? <span className="text-red-600 font-black">Wajib</span>
-                                                                : req === "Tidak"
-                                                                ? <span className="text-zinc-400">Opsional</span>
-                                                                : <span className="text-amber-600 font-bold">{req}</span>}
+                                                {rows.map((row) => (
+                                                    <tr
+                                                        key={row._rowIndex}
+                                                        className={`border-b border-zinc-100 ${row._hasError ? "bg-red-50" : "hover:bg-zinc-50"}`}
+                                                    >
+                                                        <td className="px-3 py-2 text-zinc-400">{row._rowIndex}</td>
+                                                        <td className="px-3 py-2 font-mono font-bold">
+                                                            {row.productCode || <span className="text-red-500 italic">Kosong!</span>}
                                                         </td>
-                                                        <td className={NB.tableCell + " text-zinc-500"}>{note}</td>
+                                                        <td className="px-3 py-2">
+                                                            {row.warehouseName || <span className="text-red-500 italic">Kosong!</span>}
+                                                        </td>
+                                                        <td className="px-3 py-2">
+                                                            <span className={`font-black text-[10px] uppercase ${typeColor(row.type)}`}>
+                                                                {typeLabel(row.type)}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-3 py-2 text-right tabular-nums font-bold">
+                                                            {row.quantity || 0}
+                                                        </td>
+                                                        <td className="px-3 py-2 text-zinc-500">
+                                                            {row.targetWarehouseName || <span className="text-zinc-300">—</span>}
+                                                        </td>
+                                                        <td className="px-3 py-2 text-zinc-500 truncate max-w-[120px]">
+                                                            {row.notes || <span className="text-zinc-300">—</span>}
+                                                        </td>
+                                                        <td className="px-3 py-2">
+                                                            {row._hasError && (
+                                                                <span title={row._errorMsg}>
+                                                                    <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
+                                                                </span>
+                                                            )}
+                                                        </td>
                                                     </tr>
                                                 ))}
                                             </tbody>
                                         </table>
                                     </div>
+                                </ScrollArea>
+                            </NBSection>
+
+                            {errorRows.length > 0 && (
+                                <div className="border border-amber-400 bg-amber-50 p-3 space-y-1">
+                                    <p className="text-xs font-black uppercase tracking-wider text-amber-700 mb-2">
+                                        Baris yang akan dilewati:
+                                    </p>
+                                    {errorRows.map((r) => (
+                                        <p key={r._rowIndex} className="text-xs text-amber-800">
+                                            <span className="font-bold">Baris {r._rowIndex}:</span> {r._errorMsg}
+                                        </p>
+                                    ))}
                                 </div>
+                            )}
+                        </>
+                    )}
 
-                                <button
-                                    onClick={handleDownloadTemplate}
-                                    className="text-xs font-black text-violet-700 underline underline-offset-2 hover:text-violet-900"
-                                >
-                                    Download template Excel
-                                </button>
+                    {/* ── Step: Importing ── */}
+                    {step === "importing" && (
+                        <div className="py-8 flex flex-col items-center gap-4">
+                            <Loader2 className="h-10 w-10 animate-spin text-violet-500" />
+                            <p className="text-sm font-black uppercase tracking-wider">
+                                Mengimport {validRows.length} pergerakan stok...
+                            </p>
+                            <div className="w-full border border-black bg-zinc-100 h-3 overflow-hidden">
+                                <div
+                                    className="h-full bg-violet-400 transition-all duration-500"
+                                    style={{ width: `${progress}%` }}
+                                />
                             </div>
-                        )}
+                            <p className="text-xs text-zinc-400">Mohon tunggu, jangan tutup halaman ini.</p>
+                        </div>
+                    )}
 
-                        {/* ── Step: Preview ── */}
-                        {step === "preview" && rows.length > 0 && (
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-3 flex-wrap">
-                                    <div className="border-2 border-black bg-emerald-50 px-3 py-1.5 flex items-center gap-1.5">
-                                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                                        <span className="text-xs font-black text-emerald-700">
-                                            {validRows.length} baris siap diimport
-                                        </span>
-                                    </div>
-                                    {errorRows.length > 0 && (
-                                        <div className="border-2 border-red-500 bg-red-50 px-3 py-1.5 flex items-center gap-1.5">
-                                            <AlertTriangle className="h-3.5 w-3.5 text-red-600" />
-                                            <span className="text-xs font-black text-red-700">
-                                                {errorRows.length} baris bermasalah (akan dilewati)
-                                            </span>
-                                        </div>
+                    {/* ── Step: Done ── */}
+                    {step === "done" && importResult && (
+                        <>
+                            <div className="border border-black p-5 flex items-center gap-4 bg-zinc-50">
+                                {importResult.imported > 0
+                                    ? <CheckCircle2 className="h-10 w-10 text-emerald-500 shrink-0" />
+                                    : <X className="h-10 w-10 text-red-500 shrink-0" />
+                                }
+                                <div>
+                                    <p className="text-xl font-black">
+                                        {importResult.imported} pergerakan stok berhasil diimport
+                                    </p>
+                                    {importResult.errors.length > 0 && (
+                                        <p className="text-xs text-zinc-500 mt-0.5">
+                                            {importResult.errors.length} baris gagal
+                                        </p>
                                     )}
                                 </div>
+                            </div>
 
-                                <div className={NB.section}>
-                                    <div className={NB.sectionHead}>
-                                        <span className={NB.sectionTitle}>Pratinjau Data — {fileName}</span>
-                                    </div>
-                                    <ScrollArea className="h-64">
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-xs min-w-[700px]">
-                                                <thead className="sticky top-0 z-10">
-                                                    <tr className={NB.tableHead}>
-                                                        <th className={NB.tableHeadCell + " text-left w-8"}>#</th>
-                                                        <th className={NB.tableHeadCell + " text-left"}>Kode Produk</th>
-                                                        <th className={NB.tableHeadCell + " text-left"}>Gudang</th>
-                                                        <th className={NB.tableHeadCell + " text-left"}>Tipe</th>
-                                                        <th className={NB.tableHeadCell + " text-right"}>Jumlah</th>
-                                                        <th className={NB.tableHeadCell + " text-left"}>Gudang Tujuan</th>
-                                                        <th className={NB.tableHeadCell + " text-left"}>Catatan</th>
-                                                        <th className={NB.tableHeadCell + " w-8"}></th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {rows.map((row) => (
-                                                        <tr
-                                                            key={row._rowIndex}
-                                                            className={`${NB.tableRow} ${row._hasError ? "bg-red-50" : "hover:bg-zinc-50"}`}
-                                                        >
-                                                            <td className={NB.tableCell + " text-zinc-400"}>{row._rowIndex}</td>
-                                                            <td className={NB.tableCell + " font-mono font-bold"}>
-                                                                {row.productCode || <span className="text-red-500 italic">Kosong!</span>}
-                                                            </td>
-                                                            <td className={NB.tableCell}>
-                                                                {row.warehouseName || <span className="text-red-500 italic">Kosong!</span>}
-                                                            </td>
-                                                            <td className={NB.tableCell}>
-                                                                <span className={`font-black text-[10px] uppercase ${typeColor(row.type)}`}>
-                                                                    {typeLabel(row.type)}
-                                                                </span>
-                                                            </td>
-                                                            <td className={NB.tableCell + " text-right tabular-nums font-bold"}>
-                                                                {row.quantity || 0}
-                                                            </td>
-                                                            <td className={NB.tableCell + " text-zinc-500"}>
-                                                                {row.targetWarehouseName || <span className="text-zinc-300">—</span>}
-                                                            </td>
-                                                            <td className={NB.tableCell + " text-zinc-500 truncate max-w-[120px]"}>
-                                                                {row.notes || <span className="text-zinc-300">—</span>}
-                                                            </td>
-                                                            <td className={NB.tableCell}>
-                                                                {row._hasError && (
-                                                                    <span title={row._errorMsg}>
-                                                                        <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
-                                                                    </span>
-                                                                )}
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
+                            {importResult.errors.length > 0 && (
+                                <NBSection icon={AlertTriangle} title={`Detail Error (${importResult.errors.length})`}>
+                                    <ScrollArea className="h-40 -mx-3 -mb-3">
+                                        <div className="p-3 space-y-1">
+                                            {importResult.errors.map((err, i) => (
+                                                <p key={i} className="text-xs text-red-700 font-medium">
+                                                    {err}
+                                                </p>
+                                            ))}
                                         </div>
                                     </ScrollArea>
-                                </div>
+                                </NBSection>
+                            )}
+                        </>
+                    )}
 
-                                {errorRows.length > 0 && (
-                                    <div className="border-2 border-amber-400 bg-amber-50 p-3 space-y-1">
-                                        <p className="text-xs font-black uppercase tracking-wider text-amber-700 mb-2">
-                                            Baris yang akan dilewati:
-                                        </p>
-                                        {errorRows.map((r) => (
-                                            <p key={r._rowIndex} className="text-xs text-amber-800">
-                                                <span className="font-bold">Baris {r._rowIndex}:</span> {r._errorMsg}
-                                            </p>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* ── Step: Importing ── */}
-                        {step === "importing" && (
-                            <div className="py-8 flex flex-col items-center gap-4">
-                                <Loader2 className="h-10 w-10 animate-spin text-violet-500" />
-                                <p className="text-sm font-black uppercase tracking-wider">
-                                    Mengimport {validRows.length} pergerakan stok...
-                                </p>
-                                <div className="w-full border-2 border-black bg-zinc-100 h-3 overflow-hidden">
-                                    <div
-                                        className="h-full bg-violet-400 transition-all duration-500"
-                                        style={{ width: `${progress}%` }}
-                                    />
-                                </div>
-                                <p className="text-xs text-zinc-400">Mohon tunggu, jangan tutup halaman ini.</p>
-                            </div>
-                        )}
-
-                        {/* ── Step: Done ── */}
-                        {step === "done" && importResult && (
-                            <div className="space-y-4">
-                                <div className="border-2 border-black p-5 flex items-center gap-4 bg-zinc-50">
-                                    {importResult.imported > 0
-                                        ? <CheckCircle2 className="h-10 w-10 text-emerald-500 shrink-0" />
-                                        : <X className="h-10 w-10 text-red-500 shrink-0" />
-                                    }
-                                    <div>
-                                        <p className="text-xl font-black">
-                                            {importResult.imported} pergerakan stok berhasil diimport
-                                        </p>
-                                        {importResult.errors.length > 0 && (
-                                            <p className="text-xs text-zinc-500 mt-0.5">
-                                                {importResult.errors.length} baris gagal
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {importResult.errors.length > 0 && (
-                                    <div className={NB.section}>
-                                        <div className={NB.sectionHead}>
-                                            <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
-                                            <span className={NB.sectionTitle + " text-red-700"}>
-                                                Detail Error ({importResult.errors.length})
-                                            </span>
-                                        </div>
-                                        <ScrollArea className="h-40">
-                                            <div className="p-3 space-y-1">
-                                                {importResult.errors.map((err, i) => (
-                                                    <p key={i} className="text-xs text-red-700 font-medium">
-                                                        {err}
-                                                    </p>
-                                                ))}
-                                            </div>
-                                        </ScrollArea>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* ── Footer actions ── */}
-                        <div className={NB.footer}>
-                            {step === "idle" || step === "preview" ? (
-                                <>
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => handleOpenChange(false)}
-                                        className={NB.cancelBtn}
-                                    >
-                                        Batal
-                                    </Button>
-                                    {step === "preview" && validRows.length > 0 && (
-                                        <Button
-                                            onClick={handleImport}
-                                            className={NB.submitBtn + " bg-violet-600 border-violet-600 hover:bg-violet-700"}
-                                        >
-                                            <Upload className="h-3.5 w-3.5 mr-1.5" />
-                                            Mulai Import ({validRows.length} pergerakan)
-                                        </Button>
-                                    )}
-                                </>
-                            ) : step === "done" ? (
+                    {/* ── Footer actions ── */}
+                    <div className="border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2.5 flex items-center justify-end gap-2 -mx-4 -mb-4 mt-1">
+                        {step === "idle" || step === "preview" ? (
+                            <>
                                 <Button
+                                    variant="outline"
                                     onClick={() => handleOpenChange(false)}
-                                    className={NB.submitBtn}
+                                    className="border border-zinc-300 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none"
                                 >
-                                    Selesai
+                                    Batal
                                 </Button>
-                            ) : null}
-                        </div>
+                                {step === "preview" && validRows.length > 0 && (
+                                    <Button
+                                        onClick={handleImport}
+                                        className="bg-violet-600 text-white border border-violet-600 hover:bg-violet-700 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none gap-1.5"
+                                    >
+                                        <Upload className="h-3.5 w-3.5 mr-1.5" />
+                                        Mulai Import ({validRows.length} pergerakan)
+                                    </Button>
+                                )}
+                            </>
+                        ) : step === "done" ? (
+                            <Button
+                                onClick={() => handleOpenChange(false)}
+                                className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none"
+                            >
+                                Selesai
+                            </Button>
+                        ) : null}
                     </div>
-                </DialogContent>
-            </Dialog>
+                </NBDialogBody>
+            </NBDialog>
         </>
     )
 }

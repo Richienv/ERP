@@ -67,12 +67,26 @@ export function useCloseFiscalPeriod() {
             if (!res.ok) throw new Error(json.error)
             return json
         },
+        onMutate: async (id: string) => {
+            await queryClient.cancelQueries({ queryKey: queryKeys.fiscalPeriods.all })
+            const queries = queryClient.getQueriesData<FiscalPeriod[]>({ queryKey: queryKeys.fiscalPeriods.all })
+            // Optimistically mark period as closed
+            queryClient.setQueriesData<FiscalPeriod[]>({ queryKey: queryKeys.fiscalPeriods.all }, (old) =>
+                old?.map((p) => p.id === id ? { ...p, isClosed: true, closedAt: new Date().toISOString() } : p)
+            )
+            return { queries }
+        },
         onSuccess: (data) => {
             toast.success(data.message)
-            queryClient.invalidateQueries({ queryKey: queryKeys.fiscalPeriods.all })
         },
-        onError: (error: Error) => {
+        onError: (error: Error, _vars, context) => {
+            context?.queries?.forEach(([key, data]) => {
+                if (data) queryClient.setQueryData(key, data)
+            })
             toast.error(error.message)
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.fiscalPeriods.all })
         },
     })
 }
@@ -90,12 +104,26 @@ export function useReopenFiscalPeriod() {
             if (!res.ok) throw new Error(json.error)
             return json
         },
+        onMutate: async (id: string) => {
+            await queryClient.cancelQueries({ queryKey: queryKeys.fiscalPeriods.all })
+            const queries = queryClient.getQueriesData<FiscalPeriod[]>({ queryKey: queryKeys.fiscalPeriods.all })
+            // Optimistically mark period as open
+            queryClient.setQueriesData<FiscalPeriod[]>({ queryKey: queryKeys.fiscalPeriods.all }, (old) =>
+                old?.map((p) => p.id === id ? { ...p, isClosed: false, closedAt: null, closedBy: null } : p)
+            )
+            return { queries }
+        },
         onSuccess: (data) => {
             toast.success(data.message)
-            queryClient.invalidateQueries({ queryKey: queryKeys.fiscalPeriods.all })
         },
-        onError: (error: Error) => {
+        onError: (error: Error, _vars, context) => {
+            context?.queries?.forEach(([key, data]) => {
+                if (data) queryClient.setQueryData(key, data)
+            })
             toast.error(error.message)
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.fiscalPeriods.all })
         },
     })
 }

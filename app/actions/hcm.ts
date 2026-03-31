@@ -13,25 +13,14 @@ import {
 import { withPrismaAuth } from '@/lib/db'
 import { assertRole, getAuthzUser } from '@/lib/authz'
 import { postJournalEntry } from '@/lib/actions/finance-gl'
-import { SYS_ACCOUNTS, ensureSystemAccounts } from '@/lib/gl-accounts'
+import { SYS_ACCOUNTS, ensureSystemAccounts } from '@/lib/gl-accounts-server'
 import {
     calculateBPJS,
     calculateMonthlyPPh21,
-    calculateDecemberPPh21,
     calculateWorkdayOvertimePay,
-    getPTKP,
     STANDARD_DAILY_HOURS,
-    BPJS_KES_EMPLOYEE_RATE,
-    BPJS_KES_EMPLOYER_RATE,
-    BPJS_KES_MAX_SALARY,
-    BPJS_JHT_EMPLOYEE_RATE,
-    BPJS_JHT_EMPLOYER_RATE,
-    BPJS_JP_EMPLOYEE_RATE,
-    BPJS_JP_EMPLOYER_RATE,
-    BPJS_JP_MAX_SALARY,
-    BPJS_JKK_RATE,
-    BPJS_JKM_RATE,
 } from '@/lib/hcm-calculations'
+import { assertPeriodOpen } from '@/lib/period-helpers'
 
 const LEAVE_APPROVAL_PREFIX = 'LEAVE_APPROVAL::'
 const PAYROLL_RUN_PREFIX = 'PAYROLL_RUN::'
@@ -422,62 +411,33 @@ async function resolvePayrollApproverId(prisma: any) {
     return fallback?.id || null
 }
 
-async function resolvePayrollAccounts(prisma: any) {
-    const accounts = await prisma.gLAccount.findMany({
-        select: { code: true, type: true, name: true },
-    })
-
-    const findByKeyword = (type: string, keywords: string[]) =>
-        accounts.find(
-            (account: any) =>
-                account.type === type &&
-                keywords.some((keyword) =>
-                    `${account.code} ${account.name}`.toLowerCase().includes(keyword.toLowerCase())
-                )
-        )
-
-    const expenseAccount =
-        findByKeyword('EXPENSE', ['gaji', 'salary', 'payroll', 'upah']) ||
-        accounts.find((account: any) => account.type === 'EXPENSE')
-    const cashAccount =
-        findByKeyword('ASSET', ['kas', 'bank', 'cash']) ||
-        accounts.find((account: any) => account.type === 'ASSET')
-    const taxAccount =
-        findByKeyword('LIABILITY', ['pph', 'tax', 'pajak']) ||
-        accounts.find((account: any) => account.type === 'LIABILITY')
-    const bpjsAccount =
-        findByKeyword('LIABILITY', ['bpjs', 'jaminan', 'benefit']) ||
-        accounts.find(
-            (account: any) =>
-                account.type === 'LIABILITY' && (!taxAccount || account.code !== taxAccount.code)
-        ) ||
-        taxAccount
-    const payrollPayableAccount =
-        findByKeyword('LIABILITY', ['payroll payable', 'utang gaji', 'gaji payable', 'payable gaji']) ||
-        accounts.find(
-            (account: any) =>
-                account.type === 'LIABILITY' &&
-                account.code !== taxAccount?.code &&
-                account.code !== bpjsAccount?.code
-        ) ||
-        taxAccount
-
-    if (!expenseAccount || !cashAccount || !taxAccount || !bpjsAccount || !payrollPayableAccount) {
+/**
+ * Returns payroll GL account codes from SYS_ACCOUNTS constants.
+ * Calls ensureSystemAccounts() to guarantee accounts exist in the database.
+ * No keyword-matching — direct, deterministic account references.
+ */
+async function resolvePayrollAccounts(): Promise<
+    | { success: true; data: { expenseCode: string; cashCode: string; taxCode: string; bpjsTkCode: string; bpjsKesCode: string; payrollPayableCode: string } }
+    | { success: false; error: string }
+> {
+    try {
+        await ensureSystemAccounts()
+    } catch {
         return {
-            success: false as const,
-            error:
-                'Konfigurasi COA payroll belum lengkap. Pastikan akun Expense, Asset (Kas/Bank), dan Liability tersedia.',
+            success: false,
+            error: 'Gagal memastikan akun sistem payroll. Periksa koneksi database.',
         }
     }
 
     return {
-        success: true as const,
+        success: true,
         data: {
-            expenseCode: expenseAccount.code,
-            cashCode: cashAccount.code,
-            taxCode: taxAccount.code,
-            bpjsCode: bpjsAccount.code,
-            payrollPayableCode: payrollPayableAccount.code,
+            expenseCode: SYS_ACCOUNTS.SALARY_EXPENSE,       // 6100 — Beban Gaji
+            cashCode: SYS_ACCOUNTS.BANK_BCA,                // 1110 — Bank BCA (default)
+            taxCode: SYS_ACCOUNTS.PPH21_PAYABLE,            // 2310 — Utang PPh 21
+            bpjsTkCode: SYS_ACCOUNTS.BPJS_TK_PAYABLE,      // 2320 — Utang BPJS Ketenagakerjaan
+            bpjsKesCode: SYS_ACCOUNTS.BPJS_KES_PAYABLE,    // 2330 — Utang BPJS Kesehatan
+            payrollPayableCode: SYS_ACCOUNTS.SALARY_PAYABLE, // 2200 — Utang Gaji
         },
     }
 }
@@ -485,12 +445,6 @@ async function resolvePayrollAccounts(prisma: any) {
 async function buildPayrollDraft(prisma: any, period: string, generatedBy: string) {
     const { start, end } = createPayrollPeriodWindow(period)
     const periodLabel = start.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
-
-    // Determine if this is a December payroll (triggers annual PPh 21 true-up)
-    const [yearRaw, monthRaw] = period.split('-')
-    const payrollYear = Number(yearRaw)
-    const payrollMonth = Number(monthRaw)
-    const isDecember = payrollMonth === 12
 
     const employees = await prisma.employee.findMany({
         where: {
@@ -505,9 +459,6 @@ async function buildPayrollDraft(prisma: any, period: string, generatedBy: strin
             department: true,
             position: true,
             baseSalary: true,
-            maritalStatus: true,
-            dependentCount: true,
-            ptkpCategory: true,
         },
     })
 
@@ -530,41 +481,6 @@ async function buildPayrollDraft(prisma: any, period: string, generatedBy: strin
         const list = rowsByEmployeeId.get(row.employeeId) || []
         list.push(row)
         rowsByEmployeeId.set(row.employeeId, list)
-    }
-
-    // For December true-up: collect Jan-Nov payroll data per employee
-    // by summing PPh 21 already withheld from prior posted payroll runs
-    let priorPayrollByEmployee = new Map<string, { grossTotal: number; bpjsTotal: number; pph21Total: number }>()
-    if (isDecember) {
-        // Find all posted payroll runs for Jan-Nov of the same year
-        const janStart = new Date(payrollYear, 0, 1)
-        const priorPayrollTasks = await prisma.employeeTask.findMany({
-            where: {
-                relatedId: { startsWith: `PAYROLL-${payrollYear}-` },
-                notes: { startsWith: PAYROLL_RUN_PREFIX },
-                status: { in: ['COMPLETED', 'IN_PROGRESS'] }, // COMPLETED = posted, IN_PROGRESS = approved
-            },
-            select: { relatedId: true, notes: true },
-        })
-
-        for (const task of priorPayrollTasks) {
-            const taskPeriod = task.relatedId?.replace('PAYROLL-', '') || ''
-            // Skip December itself (we're calculating it now)
-            if (taskPeriod === period) continue
-            // Only include same-year periods
-            if (!taskPeriod.startsWith(`${payrollYear}-`)) continue
-
-            const payload = parsePayrollPayload(task.notes)
-            if (!payload?.lines) continue
-
-            for (const line of payload.lines) {
-                const existing = priorPayrollByEmployee.get(line.employeeId) || { grossTotal: 0, bpjsTotal: 0, pph21Total: 0 }
-                existing.grossTotal += line.grossSalary
-                existing.bpjsTotal += line.bpjsKesehatan + line.bpjsKetenagakerjaan
-                existing.pph21Total += line.pph21
-                priorPayrollByEmployee.set(line.employeeId, existing)
-            }
-        }
     }
 
     const lines: PayrollLineData[] = employees.map((employee: any) => {
@@ -598,27 +514,8 @@ async function buildPayrollDraft(prisma: any, period: string, generatedBy: strin
         const bpjsJHT = bpjs.jhtEmployee
         const bpjsJP = bpjs.jpEmployee
 
-        // Per-employee PTKP based on marital status & dependents
-        const ptkp = getPTKP(employee.maritalStatus, employee.dependentCount)
-
-        // PPh 21: December true-up vs normal monthly calculation
-        let pph21: number
-        if (isDecember) {
-            // December: calculate actual annual tax, subtract Jan-Nov withholdings
-            const prior = priorPayrollByEmployee.get(employee.id) || { grossTotal: 0, bpjsTotal: 0, pph21Total: 0 }
-            const annualGross = prior.grossTotal + grossSalary
-            const annualBPJS = prior.bpjsTotal + bpjs.totalEmployee
-            pph21 = calculateDecemberPPh21({
-                annualGross,
-                annualBPJSEmployee: annualBPJS,
-                ptkp,
-                sumJanNovPPh21: prior.pph21Total,
-            })
-        } else {
-            // Jan-Nov: normal monthly projection (1/12 of projected annual tax)
-            pph21 = calculateMonthlyPPh21(grossSalary, bpjs.totalEmployee, ptkp)
-        }
-
+        // PPh21: Progressive brackets per UU HPP
+        const pph21 = calculateMonthlyPPh21(grossSalary, bpjs.totalEmployee)
         const totalDeductions = bpjs.totalEmployee + pph21
         const netSalary = Math.max(0, grossSalary - totalDeductions)
 
@@ -669,7 +566,7 @@ async function buildPayrollDraft(prisma: any, period: string, generatedBy: strin
         periodLabel,
         generatedAt: new Date().toISOString(),
         generatedBy,
-        formulaVersion: '2026.03', // Updated: per-employee PTKP + December true-up
+        formulaVersion: '2026.02',
         status: 'PENDING_APPROVAL',
         summary,
         lines,
@@ -1650,6 +1547,8 @@ export async function createPayrollDisbursementBatch(period: string, options?: {
 
         const method = options?.method || 'TRANSFER'
 
+        await assertPeriodOpen(new Date())
+
         return await withPrismaAuth(async (prisma) => {
             const runTask = await prisma.employeeTask.findFirst({
                 where: {
@@ -1676,7 +1575,8 @@ export async function createPayrollDisbursementBatch(period: string, options?: {
                 }
             }
 
-            await ensureSystemAccounts()
+            const accounts = await resolvePayrollAccounts()
+            if (!accounts.success) return { success: false, error: accounts.error }
 
             const year = new Date().getFullYear()
             const paymentCount = await prisma.payment.count({
@@ -1713,13 +1613,13 @@ export async function createPayrollDisbursementBatch(period: string, options?: {
                 reference: disbursementJournalRef,
                 lines: [
                     {
-                        accountCode: SYS_ACCOUNTS.PAYROLL_PAYABLE,
+                        accountCode: accounts.data.payrollPayableCode,
                         debit: payload.summary.net,
                         credit: 0,
                         description: `Pelunasan utang gaji ${payload.periodLabel}`,
                     },
                     {
-                        accountCode: SYS_ACCOUNTS.BANK_BCA,
+                        accountCode: accounts.data.cashCode,
                         debit: 0,
                         credit: payload.summary.net,
                         description: `Pembayaran payroll ${payload.periodLabel}`,
@@ -1846,6 +1746,8 @@ export async function approvePayrollRun(period: string) {
             return { success: false, error: 'Format periode tidak valid. Gunakan YYYY-MM.' }
         }
 
+        await assertPeriodOpen(new Date())
+
         return await withPrismaAuth(async (prisma) => {
             const runTask = await prisma.employeeTask.findFirst({
                 where: {
@@ -1867,70 +1769,19 @@ export async function approvePayrollRun(period: string) {
                 }
             }
 
-            // Ensure all payroll GL accounts exist before posting
-            await ensureSystemAccounts()
+            const accounts = await resolvePayrollAccounts()
+            if (!accounts.success) return { success: false, error: accounts.error }
 
             const payrollLines = payload.lines || []
-
-            // --- Aggregate employee-side deductions from stored payroll lines ---
-            const pph21Total = payrollLines.reduce((sum, l) => sum + l.pph21, 0)
-            const empKesTotal = payrollLines.reduce((sum, l) => sum + l.bpjsKesehatan, 0)
-            const empJHTTotal = payrollLines.reduce((sum, l) => sum + l.bpjsJHT, 0)
-            const empJPTotal = payrollLines.reduce((sum, l) => sum + l.bpjsJP, 0)
-
-            // --- Recalculate employer BPJS from basicSalary (not stored in payload) ---
-            let erKesTotal = 0
-            let erJHTTotal = 0
-            let erJPTotal = 0
-            let erJKKTotal = 0
-            let erJKMTotal = 0
-            for (const l of payrollLines) {
-                const kesSalary = Math.min(l.basicSalary, BPJS_KES_MAX_SALARY)
-                erKesTotal += Math.round(kesSalary * BPJS_KES_EMPLOYER_RATE)
-                erJHTTotal += Math.round(l.basicSalary * BPJS_JHT_EMPLOYER_RATE)
-                const jpSalary = Math.min(l.basicSalary, BPJS_JP_MAX_SALARY)
-                erJPTotal += Math.round(jpSalary * BPJS_JP_EMPLOYER_RATE)
-                erJKKTotal += Math.round(l.basicSalary * BPJS_JKK_RATE)
-                erJKMTotal += Math.round(l.basicSalary * BPJS_JKM_RATE)
-            }
-            const employerBPJSTotal = erKesTotal + erJHTTotal + erJPTotal + erJKKTotal + erJKMTotal
-
-            // --- BPJS payable totals (employee + employer combined per program) ---
-            const bpjsKesPayable = empKesTotal + erKesTotal
-            const bpjsJHTPayable = empJHTTotal + erJHTTotal
-            const bpjsJPPayable = empJPTotal + erJPTotal
-            const bpjsJKKPayable = erJKKTotal   // employer-only
-            const bpjsJKMPayable = erJKMTotal   // employer-only
-
-            // --- Build journal lines ---
-            // DEBIT side:
-            //   Beban Gaji (6200)              = gross
-            //   Beban BPJS Perusahaan (6210)   = employer BPJS total
-            // CREDIT side:
-            //   Hutang Gaji (2130)             = net
-            //   Hutang PPh 21 (2111)           = PPh 21
-            //   Hutang BPJS Kes (2140)         = employee + employer Kes
-            //   Hutang BPJS JHT (2141)         = employee + employer JHT
-            //   Hutang BPJS JP (2142)          = employee + employer JP
-            //   Hutang BPJS JKK (2143)         = employer JKK
-            //   Hutang BPJS JKM (2144)         = employer JKM
-            //
-            // Balance check:
-            //   gross + employerBPJS = net + pph21 + bpjsKes + bpjsJHT + bpjsJP + bpjsJKK + bpjsJKM
-
-            const totalDebit = payload.summary.gross + employerBPJSTotal
-            const totalCredit = payload.summary.net + pph21Total
-                + bpjsKesPayable + bpjsJHTPayable + bpjsJPPayable
-                + bpjsJKKPayable + bpjsJKMPayable
-
-            // Safety: verify balance before posting (should always match if payroll calc is correct)
-            if (Math.abs(totalDebit - totalCredit) > 1) {
-                console.error(`Payroll GL imbalance: debit=${totalDebit}, credit=${totalCredit}, diff=${totalDebit - totalCredit}`)
-                return {
-                    success: false,
-                    error: `Jurnal payroll tidak seimbang (selisih Rp ${Math.abs(totalDebit - totalCredit).toLocaleString('id-ID')}). Periksa data payroll.`,
-                }
-            }
+            const bpjsTkTotal = payrollLines.reduce(
+                (sum, line) => sum + line.bpjsKetenagakerjaan,
+                0
+            )
+            const bpjsKesTotal = payrollLines.reduce(
+                (sum, line) => sum + line.bpjsKesehatan,
+                0
+            )
+            const taxTotal = payrollLines.reduce((sum, line) => sum + line.pph21, 0)
 
             const lines: Array<{
                 accountCode: string
@@ -1938,90 +1789,44 @@ export async function approvePayrollRun(period: string) {
                 credit: number
                 description?: string
             }> = [
-                // DEBIT: Salary expense
                 {
-                    accountCode: SYS_ACCOUNTS.SALARY_EXPENSE,
+                    accountCode: accounts.data.expenseCode,
                     debit: payload.summary.gross,
                     credit: 0,
                     description: `Beban gaji ${payload.periodLabel}`,
                 },
+                {
+                    accountCode: accounts.data.payrollPayableCode,
+                    debit: 0,
+                    credit: payload.summary.net,
+                    description: `Utang gaji ${payload.periodLabel}`,
+                },
             ]
 
-            // DEBIT: Employer BPJS expense (only if > 0)
-            if (employerBPJSTotal > 0) {
+            if (bpjsTkTotal > 0) {
                 lines.push({
-                    accountCode: SYS_ACCOUNTS.BPJS_EMPLOYER_EXPENSE,
-                    debit: employerBPJSTotal,
-                    credit: 0,
-                    description: `Beban BPJS perusahaan ${payload.periodLabel}`,
+                    accountCode: accounts.data.bpjsTkCode,
+                    debit: 0,
+                    credit: bpjsTkTotal,
+                    description: `Utang BPJS Ketenagakerjaan ${payload.periodLabel}`,
                 })
             }
 
-            // CREDIT: Net salary payable
-            lines.push({
-                accountCode: SYS_ACCOUNTS.PAYROLL_PAYABLE,
-                debit: 0,
-                credit: payload.summary.net,
-                description: `Hutang gaji karyawan ${payload.periodLabel}`,
-            })
-
-            // CREDIT: PPh 21 payable
-            if (pph21Total > 0) {
+            if (bpjsKesTotal > 0) {
                 lines.push({
-                    accountCode: SYS_ACCOUNTS.PPH21_PAYABLE,
+                    accountCode: accounts.data.bpjsKesCode,
                     debit: 0,
-                    credit: pph21Total,
-                    description: `Hutang PPh 21 ${payload.periodLabel}`,
+                    credit: bpjsKesTotal,
+                    description: `Utang BPJS Kesehatan ${payload.periodLabel}`,
                 })
             }
 
-            // CREDIT: BPJS Kesehatan payable (employee 1% + employer 4%)
-            if (bpjsKesPayable > 0) {
+            if (taxTotal > 0) {
                 lines.push({
-                    accountCode: SYS_ACCOUNTS.BPJS_KES_PAYABLE,
+                    accountCode: accounts.data.taxCode,
                     debit: 0,
-                    credit: bpjsKesPayable,
-                    description: `Hutang BPJS Kesehatan ${payload.periodLabel}`,
-                })
-            }
-
-            // CREDIT: BPJS JHT payable (employee 2% + employer 3.7%)
-            if (bpjsJHTPayable > 0) {
-                lines.push({
-                    accountCode: SYS_ACCOUNTS.BPJS_JHT_PAYABLE,
-                    debit: 0,
-                    credit: bpjsJHTPayable,
-                    description: `Hutang BPJS JHT ${payload.periodLabel}`,
-                })
-            }
-
-            // CREDIT: BPJS JP payable (employee 1% + employer 2%)
-            if (bpjsJPPayable > 0) {
-                lines.push({
-                    accountCode: SYS_ACCOUNTS.BPJS_JP_PAYABLE,
-                    debit: 0,
-                    credit: bpjsJPPayable,
-                    description: `Hutang BPJS JP ${payload.periodLabel}`,
-                })
-            }
-
-            // CREDIT: BPJS JKK payable (employer 0.89%)
-            if (bpjsJKKPayable > 0) {
-                lines.push({
-                    accountCode: SYS_ACCOUNTS.BPJS_JKK_PAYABLE,
-                    debit: 0,
-                    credit: bpjsJKKPayable,
-                    description: `Hutang BPJS JKK ${payload.periodLabel}`,
-                })
-            }
-
-            // CREDIT: BPJS JKM payable (employer 0.3%)
-            if (bpjsJKMPayable > 0) {
-                lines.push({
-                    accountCode: SYS_ACCOUNTS.BPJS_JKM_PAYABLE,
-                    debit: 0,
-                    credit: bpjsJKMPayable,
-                    description: `Hutang BPJS JKM ${payload.periodLabel}`,
+                    credit: taxTotal,
+                    description: `Utang PPh 21 ${payload.periodLabel}`,
                 })
             }
 

@@ -26,16 +26,16 @@ import {
 } from "@/components/ui/sidebar"
 
 /* ── Accent color mapping ──────────────────────────────── */
-const accentMap: Record<string, { bg: string; text: string; border: string; light: string; dot: string }> = {
-  "bg-blue-500":   { bg: "bg-blue-500",   text: "text-blue-600 dark:text-blue-400",   border: "border-blue-500",   light: "bg-blue-50 dark:bg-blue-950/40",   dot: "bg-blue-400" },
-  "bg-green-500":  { bg: "bg-green-500",  text: "text-green-600 dark:text-green-400",  border: "border-green-500",  light: "bg-green-50 dark:bg-green-950/40",  dot: "bg-green-400" },
-  "bg-orange-500": { bg: "bg-orange-500", text: "text-orange-600 dark:text-orange-400", border: "border-orange-500", light: "bg-orange-50 dark:bg-orange-950/40", dot: "bg-orange-400" },
-  "bg-purple-500": { bg: "bg-purple-500", text: "text-purple-600 dark:text-purple-400", border: "border-purple-500", light: "bg-purple-50 dark:bg-purple-950/40", dot: "bg-purple-400" },
-  "bg-slate-500":  { bg: "bg-slate-500",  text: "text-slate-600 dark:text-slate-400",  border: "border-slate-500",  light: "bg-slate-50 dark:bg-slate-900/40",  dot: "bg-slate-400" },
-  "bg-amber-700":  { bg: "bg-amber-600",  text: "text-amber-700 dark:text-amber-400",  border: "border-amber-600",  light: "bg-amber-50 dark:bg-amber-950/40",  dot: "bg-amber-400" },
-  "bg-zinc-400":   { bg: "bg-zinc-400",   text: "text-zinc-500 dark:text-zinc-400",   border: "border-zinc-400",   light: "bg-zinc-50 dark:bg-zinc-800/40",   dot: "bg-zinc-400" },
+const accentMap: Record<string, { bg: string; text: string; border: string; borderLight: string; light: string; dot: string }> = {
+  "bg-blue-500":   { bg: "bg-blue-500",   text: "text-blue-600 dark:text-blue-400",   border: "border-blue-500",   borderLight: "border-blue-200 dark:border-blue-800",   light: "bg-blue-50 dark:bg-blue-950/40",   dot: "bg-blue-400" },
+  "bg-green-500":  { bg: "bg-green-500",  text: "text-green-600 dark:text-green-400",  border: "border-green-500",  borderLight: "border-green-200 dark:border-green-800",  light: "bg-green-50 dark:bg-green-950/40",  dot: "bg-green-400" },
+  "bg-orange-500": { bg: "bg-orange-500", text: "text-orange-600 dark:text-orange-400", border: "border-orange-500", borderLight: "border-orange-200 dark:border-orange-800", light: "bg-orange-50 dark:bg-orange-950/40", dot: "bg-orange-400" },
+  "bg-purple-500": { bg: "bg-purple-500", text: "text-purple-600 dark:text-purple-400", border: "border-purple-500", borderLight: "border-purple-200 dark:border-purple-800", light: "bg-purple-50 dark:bg-purple-950/40", dot: "bg-purple-400" },
+  "bg-slate-500":  { bg: "bg-slate-500",  text: "text-slate-600 dark:text-slate-400",  border: "border-slate-500",  borderLight: "border-slate-200 dark:border-slate-700",  light: "bg-slate-50 dark:bg-slate-900/40",  dot: "bg-slate-400" },
+  "bg-amber-700":  { bg: "bg-amber-600",  text: "text-amber-700 dark:text-amber-400",  border: "border-amber-600",  borderLight: "border-amber-200 dark:border-amber-800",  light: "bg-amber-50 dark:bg-amber-950/40",  dot: "bg-amber-400" },
+  "bg-zinc-400":   { bg: "bg-zinc-400",   text: "text-zinc-500 dark:text-zinc-400",   border: "border-zinc-400",   borderLight: "border-zinc-200 dark:border-zinc-700",   light: "bg-zinc-50 dark:bg-zinc-800/40",   dot: "bg-zinc-400" },
 }
-const defaultAccent = { bg: "bg-zinc-800", text: "text-zinc-600", border: "border-zinc-800", light: "bg-zinc-50", dot: "bg-zinc-400" }
+const defaultAccent = { bg: "bg-zinc-800", text: "text-zinc-600", border: "border-zinc-800", borderLight: "border-zinc-200 dark:border-zinc-700", light: "bg-zinc-50", dot: "bg-zinc-400" }
 
 function getAccent(accentColor?: string) {
   return accentColor ? (accentMap[accentColor] || defaultAccent) : defaultAccent
@@ -113,7 +113,7 @@ export function NavMain({ items }: { items: SidebarNavItem[] }) {
                           <div className={`size-2 rounded-full ${accent.bg}`} />
                           <p className={`text-[11px] font-bold uppercase tracking-wider ${accent.text}`}>{item.title}</p>
                         </div>
-                        {item.items!.map((subItem) => {
+                        {(item.items ?? []).map((subItem) => {
                           if (subItem.locked) {
                             return (
                               <div key={subItem.title} className="flex items-center gap-2 px-2.5 py-1.5 text-[12.5px] text-zinc-300 dark:text-zinc-600 cursor-not-allowed">
@@ -142,10 +142,10 @@ export function NavMain({ items }: { items: SidebarNavItem[] }) {
                                   router.push(subItem.url)
                                 }}
                                 onMouseEnter={() => prefetchRoute(subItem.url)}
-                                className={`flex w-full items-center gap-2 px-2.5 py-1.5 text-[12.5px] rounded-sm transition-all duration-100 ${
+                                className={`flex w-full items-center gap-2 px-2.5 py-1.5 text-[12.5px] rounded-r-sm transition-all duration-150 ease-out ${
                                   isSubActive
-                                    ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]"
-                                    : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 hover:translate-x-0.5 active:bg-zinc-200 dark:active:bg-zinc-800"
+                                    ? `${accent.light} ${accent.text} font-semibold border-l-[3px] ${accent.border} pl-[7px]`
+                                    : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40 hover:translate-x-0.5 active:scale-[0.98] border-l-[3px] border-transparent"
                                 }`}
                               >
                                 {subItem.icon && <subItem.icon className="size-3.5 shrink-0 opacity-70" />}
@@ -198,10 +198,10 @@ export function NavMain({ items }: { items: SidebarNavItem[] }) {
                       </button>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                      <div className={`ml-[18px] pl-4 border-l-2 ${accent.border} mt-1 mb-2`}>
+                      <div className={`ml-[18px] pl-3 border-l ${accent.borderLight} mt-1 mb-2 space-y-0.5`}>
                         {(() => {
                           let lastGroup: string | undefined
-                          return item.items!.map((subItem) => {
+                          return (item.items ?? []).map((subItem) => {
                             const showGroupHeader = subItem.group && subItem.group !== lastGroup
                             const isFirstGroup = !lastGroup && subItem.group
                             if (subItem.group) lastGroup = subItem.group
@@ -238,13 +238,13 @@ export function NavMain({ items }: { items: SidebarNavItem[] }) {
                                   href={subItem.url}
                                   prefetch
                                   onMouseEnter={() => prefetchRoute(subItem.url)}
-                                  className={`flex items-center gap-2 px-2.5 py-[7px] rounded-sm text-[12.5px] transition-all duration-100 ${
+                                  className={`relative flex items-center gap-2 px-2.5 py-[7px] rounded-r-sm text-[12.5px] transition-all duration-150 ease-out ${
                                     isSubActive
-                                      ? `bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,0.15)]`
-                                      : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 hover:translate-x-0.5 active:bg-zinc-200 dark:active:bg-zinc-700 active:scale-[0.98]"
+                                      ? `${accent.light} ${accent.text} font-semibold border-l-[3px] ${accent.border} pl-[7px]`
+                                      : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40 hover:translate-x-0.5 active:scale-[0.98] border-l-[3px] border-transparent"
                                   }`}
                                 >
-                                  {subItem.icon && <subItem.icon className={`size-3.5 shrink-0 ${isSubActive ? "opacity-100" : "opacity-50"}`} />}
+                                  {subItem.icon && <subItem.icon className={`size-3.5 shrink-0 transition-opacity duration-150 ${isSubActive ? "opacity-100" : "opacity-50 group-hover:opacity-70"}`} />}
                                   <span>{subItem.title}</span>
                                   {subItem.badge && subItem.badge > 0 ? (
                                     <span className={`ml-auto text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-sm ${getBadgeColor(subItem.badgeSeverity)}`}>

@@ -1115,7 +1115,7 @@ export async function receiveGoodsFromPO(data: {
                 },
             })
 
-            // B2. Post GL Journal Entry (fire-and-forget)
+            // B2. Post GL Journal Entry (blocking — GL failure rolls back stock changes)
             if (totalValue > 0) {
                 const product = await prisma.product.findUnique({
                     where: { id: data.itemId },

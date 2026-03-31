@@ -2,12 +2,16 @@
 
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { Plus, Trash2, LayoutTemplate, ChevronRight, Lock } from "lucide-react"
+import {
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBInput,
+} from "@/components/ui/nb-dialog"
 
 const ALL_TYPES = ["CUTTING", "SEWING", "WASHING", "PRINTING", "EMBROIDERY", "QC", "PACKING", "FINISHING", "OTHER"] as const
 const TYPE_LABELS: Record<string, string> = {
@@ -85,27 +89,24 @@ export function TemplateManagerDialog({ open, onClose, onApply }: Props) {
     }
 
     return (
-        <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-            <DialogContent className="max-w-lg border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-none">
-                <DialogHeader>
-                    <DialogTitle className="text-base font-black uppercase flex items-center gap-2">
-                        <LayoutTemplate className="h-4 w-4" />
-                        Template Proses
-                    </DialogTitle>
-                    <DialogDescription className="text-xs text-zinc-500">
-                        Pilih template untuk menambah urutan proses ke kanvas BOM.
-                    </DialogDescription>
-                </DialogHeader>
+        <NBDialog open={open} onOpenChange={(v) => !v && onClose()} size="narrow">
+            <NBDialogHeader
+                icon={LayoutTemplate}
+                title="Template Proses"
+                subtitle="Pilih template untuk menambah urutan proses ke kanvas BOM."
+            />
 
-                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+            <NBDialogBody>
+                {/* Template list */}
+                <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
                     {isLoading && <p className="text-xs text-zinc-400 text-center py-4">Memuat...</p>}
 
                     {templates.map((t) => (
-                        <div key={t.id} className="border-2 border-zinc-200 p-3 flex items-start gap-3 hover:border-zinc-400 transition-colors">
+                        <div key={t.id} className="border border-zinc-200 p-3 flex items-start gap-3 hover:border-zinc-400 transition-colors">
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1.5">
                                     <span className="text-sm font-black truncate">{t.name}</span>
-                                    {t.isBuiltIn && <Lock className="h-3 w-3 text-zinc-400 shrink-0" title="Template bawaan" />}
+                                    {t.isBuiltIn && <span title="Template bawaan"><Lock className="h-3 w-3 text-zinc-400 shrink-0" /></span>}
                                 </div>
                                 {t.description && <p className="text-[10px] text-zinc-400 mt-0.5">{t.description}</p>}
                                 <div className="flex flex-wrap gap-1 mt-1.5">
@@ -129,7 +130,7 @@ export function TemplateManagerDialog({ open, onClose, onApply }: Props) {
                                 <Button
                                     size="sm"
                                     onClick={() => { onApply(t.stepsJson); onClose() }}
-                                    className="h-7 px-3 text-[10px] font-bold bg-black hover:bg-zinc-800 rounded-none border-2 border-black"
+                                    className="h-7 px-3 text-[10px] font-bold bg-black hover:bg-zinc-800 rounded-none border border-black"
                                 >
                                     Terapkan <ChevronRight className="h-3 w-3 ml-0.5" />
                                 </Button>
@@ -140,24 +141,30 @@ export function TemplateManagerDialog({ open, onClose, onApply }: Props) {
 
                 {/* Create new template */}
                 {creating ? (
-                    <div className="border-2 border-orange-300 bg-orange-50 p-3 space-y-3 mt-2">
+                    <div className="border border-orange-300 bg-orange-50 p-3 space-y-3">
                         <p className="text-xs font-black uppercase text-orange-700">Template Baru</p>
-                        <div className="space-y-1">
-                            <Label className="text-[10px] font-bold">Nama Template</Label>
-                            <Input value={name} onChange={e => setName(e.target.value)} placeholder="cth: CMT Export" className="h-8 text-xs rounded-none border-2 border-black" />
-                        </div>
-                        <div className="space-y-1">
-                            <Label className="text-[10px] font-bold">Deskripsi (opsional)</Label>
-                            <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Keterangan singkat..." className="h-8 text-xs rounded-none border-2 border-black" />
-                        </div>
-                        <div className="space-y-1">
-                            <Label className="text-[10px] font-bold">Urutan Proses</Label>
+                        <NBInput
+                            label="Nama Template"
+                            value={name}
+                            onChange={setName}
+                            placeholder="cth: CMT Export"
+                        />
+                        <NBInput
+                            label="Deskripsi (opsional)"
+                            value={description}
+                            onChange={setDescription}
+                            placeholder="Keterangan singkat..."
+                        />
+                        <div>
+                            <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">
+                                Urutan Proses
+                            </label>
                             <div className="flex flex-wrap gap-1.5">
                                 {ALL_TYPES.map(type => (
                                     <button
                                         key={type}
                                         onClick={() => toggleType(type)}
-                                        className={`text-[9px] font-bold px-2 py-1 border-2 transition-all ${selectedTypes.includes(type) ? "bg-black text-white border-black" : "bg-white text-zinc-600 border-zinc-300 hover:border-zinc-500"}`}
+                                        className={`text-[9px] font-bold px-2 py-1 border transition-all ${selectedTypes.includes(type) ? "bg-black text-white border-black" : "bg-white text-zinc-600 border-zinc-300 hover:border-zinc-500"}`}
                                     >
                                         {TYPE_LABELS[type]}
                                     </button>
@@ -174,7 +181,7 @@ export function TemplateManagerDialog({ open, onClose, onApply }: Props) {
                                 size="sm"
                                 onClick={() => createMutation.mutate()}
                                 disabled={!name || selectedTypes.length === 0 || createMutation.isPending}
-                                className="h-7 text-[10px] font-bold bg-black hover:bg-zinc-800 rounded-none border-2 border-black"
+                                className="h-7 text-[10px] font-bold bg-black hover:bg-zinc-800 rounded-none border border-black"
                             >
                                 {createMutation.isPending ? "Menyimpan..." : "Simpan Template"}
                             </Button>
@@ -182,7 +189,7 @@ export function TemplateManagerDialog({ open, onClose, onApply }: Props) {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => setCreating(false)}
-                                className="h-7 text-[10px] font-bold rounded-none border-2 border-zinc-300"
+                                className="h-7 text-[10px] font-bold rounded-none border border-zinc-300"
                             >
                                 Batal
                             </Button>
@@ -193,13 +200,13 @@ export function TemplateManagerDialog({ open, onClose, onApply }: Props) {
                         variant="outline"
                         size="sm"
                         onClick={() => setCreating(true)}
-                        className="mt-2 h-8 text-[10px] font-bold rounded-none border-2 border-dashed border-zinc-400 hover:border-black w-full"
+                        className="h-8 text-[10px] font-bold rounded-none border border-dashed border-zinc-400 hover:border-black w-full"
                     >
                         <Plus className="h-3.5 w-3.5 mr-1.5" />
                         Buat Template Baru
                     </Button>
                 )}
-            </DialogContent>
-        </Dialog>
+            </NBDialogBody>
+        </NBDialog>
     )
 }

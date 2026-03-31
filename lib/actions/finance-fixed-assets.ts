@@ -2,6 +2,8 @@
 
 import { withPrismaAuth } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
+import { postJournalEntry } from "./finance-gl"
+import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts-server"
 import type { Prisma } from "@prisma/client"
 
 async function getAuthUserId(): Promise<string> {
@@ -677,36 +679,38 @@ export async function postDepreciationRun(periodStart: string, periodEnd: string
             })
 
             // Create entries + journal entries + update asset balances
+            // Uses postJournalEntry() which correctly handles GL balance direction per account type
+            await ensureSystemAccounts()
+
             for (const entry of entryData) {
                 let journalEntryId: string | null = null
 
                 if (entry.depExpAccountId && entry.accDepAccountId) {
                     const assetInfo = eligibleAssets.find(a => a.id === entry.assetId)!
-                    const je = await prisma.journalEntry.create({
-                        data: {
-                            date: end,
-                            description: `Penyusutan ${assetInfo.name} (${assetInfo.assetCode}) - ${periodStart} s/d ${periodEnd}`,
-                            reference: `DEP-${run.id.substring(0, 8)}`,
-                            status: "POSTED",
-                            lines: {
-                                create: [
-                                    { accountId: entry.depExpAccountId, debit: entry.depreciationAmount, credit: 0, description: `Beban penyusutan - ${assetInfo.name}` },
-                                    { accountId: entry.accDepAccountId, debit: 0, credit: entry.depreciationAmount, description: `Akumulasi penyusutan - ${assetInfo.name}` },
-                                ],
-                            },
-                        },
-                    })
-                    journalEntryId = je.id
+                    // Look up account codes for postJournalEntry (it uses codes, not IDs)
+                    const depExpAccount = await prisma.gLAccount.findUnique({ where: { id: entry.depExpAccountId }, select: { code: true } })
+                    const accDepAccount = await prisma.gLAccount.findUnique({ where: { id: entry.accDepAccountId }, select: { code: true } })
 
-                    // Update GL balances
-                    await prisma.gLAccount.update({
-                        where: { id: entry.depExpAccountId },
-                        data: { balance: { increment: entry.depreciationAmount } },
-                    })
-                    await prisma.gLAccount.update({
-                        where: { id: entry.accDepAccountId },
-                        data: { balance: { increment: entry.depreciationAmount } },
-                    })
+                    if (depExpAccount && accDepAccount) {
+                        // DR Beban Penyusutan (6290), CR Akumulasi Penyusutan (1590)
+                        // postJournalEntry handles GL balance updates correctly per account type
+                        const glResult = await postJournalEntry({
+                            description: `Penyusutan ${assetInfo.name} (${assetInfo.assetCode}) - ${periodStart} s/d ${periodEnd}`,
+                            date: end,
+                            reference: `DEP-${run.id.substring(0, 8)}`,
+                            lines: [
+                                { accountCode: depExpAccount.code, debit: entry.depreciationAmount, credit: 0, description: `Beban penyusutan - ${assetInfo.name}` },
+                                { accountCode: accDepAccount.code, debit: 0, credit: entry.depreciationAmount, description: `Akumulasi penyusutan - ${assetInfo.name}` },
+                            ],
+                        })
+                        if (glResult?.success && (glResult as any).id) {
+                            journalEntryId = (glResult as any).id
+                        } else {
+                            throw new Error(`Jurnal penyusutan gagal untuk ${assetInfo.name}: ${(glResult as any)?.error || 'Unknown error'}`)
+                        }
+                    } else {
+                        throw new Error(`Akun GL tidak ditemukan untuk kategori ${assetInfo.category.name}. Pastikan kategori memiliki akun Beban Penyusutan dan Akumulasi Penyusutan.`)
+                    }
                 }
 
                 await prisma.fixedAssetDeprecEntry.create({
@@ -817,25 +821,55 @@ export async function reverseDepreciationRun(runId: string) {
                 return { success: false, error: `Periode ${lockedPeriod.name} sudah dikunci. Tidak dapat membatalkan penyusutan.` }
             }
 
-            // Reverse each entry
+            // Reverse each entry — create proper reversal journal entries (not just VOID)
             for (const entry of run.entries) {
-                // Void journal entry
-                if (entry.journalEntryId) {
-                    await prisma.journalEntry.update({
-                        where: { id: entry.journalEntryId },
-                        data: { status: "VOID" },
+                if (entry.journalEntryId && entry.journalEntry) {
+                    // Create reversal journal entry with swapped debit/credit
+                    const reversal = await prisma.journalEntry.create({
+                        data: {
+                            date: new Date(),
+                            description: `Pembalikan Penyusutan: ${entry.journalEntry.description}`,
+                            reference: entry.journalEntry.reference
+                                ? `REV-${entry.journalEntry.reference}`
+                                : `REV-DEP-${entry.journalEntryId.slice(0, 8)}`,
+                            status: 'POSTED',
+                            lines: {
+                                create: entry.journalEntry.lines.map((line: any) => ({
+                                    accountId: line.accountId,
+                                    debit: Number(line.credit),   // swap
+                                    credit: Number(line.debit),   // swap
+                                    description: `Pembalikan: ${line.description || entry.journalEntry!.description}`,
+                                })),
+                            },
+                        },
                     })
 
-                    // Reverse GL balances
-                    if (entry.journalEntry) {
-                        for (const line of entry.journalEntry.lines) {
-                            const adjustment = Number(line.debit) - Number(line.credit)
-                            if (adjustment !== 0) {
-                                await prisma.gLAccount.update({
-                                    where: { id: line.accountId },
-                                    data: { balance: { decrement: Math.abs(adjustment) * (adjustment > 0 ? 1 : -1) } },
-                                })
-                            }
+                    // Mark original as reversed, link to reversal entry
+                    await prisma.journalEntry.update({
+                        where: { id: entry.journalEntryId },
+                        data: { isReversed: true, reversedById: reversal.id },
+                    })
+
+                    // Update GL balances using correct account-type convention
+                    for (const line of entry.journalEntry.lines) {
+                        const account = await prisma.gLAccount.findUnique({
+                            where: { id: line.accountId },
+                            select: { type: true },
+                        })
+                        if (!account) continue
+
+                        // Reversal amounts (swapped from original)
+                        const revDebit = Number(line.credit)
+                        const revCredit = Number(line.debit)
+                        const balanceChange = ['ASSET', 'EXPENSE'].includes(account.type)
+                            ? revDebit - revCredit
+                            : revCredit - revDebit
+
+                        if (balanceChange !== 0) {
+                            await prisma.gLAccount.update({
+                                where: { id: line.accountId },
+                                data: { balance: { increment: balanceChange } },
+                            })
                         }
                     }
                 }
@@ -950,47 +984,50 @@ export async function createAssetMovement(data: MovementInput) {
                 const gainLossAccountId = asset.category.gainLossAccountId
 
                 if (assetAccountId && accDepAccountId) {
-                    const lines: Array<{ accountId: string; debit: number; credit: number; description: string }> = []
+                    // Look up account codes for postJournalEntry
+                    const assetAcc = await prisma.gLAccount.findUnique({ where: { id: assetAccountId }, select: { code: true } })
+                    const accDepAcc = await prisma.gLAccount.findUnique({ where: { id: accDepAccountId }, select: { code: true } })
+                    const gainLossAcc = gainLossAccountId
+                        ? await prisma.gLAccount.findUnique({ where: { id: gainLossAccountId }, select: { code: true } })
+                        : null
 
-                    // Dr: Akumulasi Penyusutan (remove)
-                    if (accDep > 0) {
-                        lines.push({ accountId: accDepAccountId, debit: accDep, credit: 0, description: `Hapus akumulasi penyusutan - ${asset.name}` })
-                    }
+                    if (assetAcc && accDepAcc) {
+                        const glLines: { accountCode: string; debit: number; credit: number; description: string }[] = []
 
-                    // Cr: Aset (remove cost)
-                    lines.push({ accountId: assetAccountId, debit: 0, credit: cost, description: `Hapus harga perolehan - ${asset.name}` })
-
-                    // Gain/Loss
-                    if (gainLoss !== 0 && gainLossAccountId) {
-                        if (gainLoss > 0) {
-                            lines.push({ accountId: gainLossAccountId, debit: 0, credit: gainLoss, description: `Keuntungan ${data.type === "SALE" ? "penjualan" : "penghapusan"} - ${asset.name}` })
-                        } else {
-                            lines.push({ accountId: gainLossAccountId, debit: Math.abs(gainLoss), credit: 0, description: `Kerugian ${data.type === "SALE" ? "penjualan" : "penghapusan"} - ${asset.name}` })
+                        // DR: Bank/Cash for sale proceeds (if SALE with proceeds > 0)
+                        if (data.type === "SALE" && proceeds > 0) {
+                            glLines.push({ accountCode: SYS_ACCOUNTS.BANK_BCA, debit: proceeds, credit: 0, description: `Hasil penjualan aset - ${asset.name}` })
                         }
-                    }
 
-                    // If sale, Dr: Cash/Bank for proceeds (use asset account as placeholder — user should configure)
-                    // In a real implementation, we'd ask for the cash/bank account
+                        // DR: Akumulasi Penyusutan (remove contra-asset)
+                        if (accDep > 0) {
+                            glLines.push({ accountCode: accDepAcc.code, debit: accDep, credit: 0, description: `Hapus akumulasi penyusutan - ${asset.name}` })
+                        }
 
-                    const je = await prisma.journalEntry.create({
-                        data: {
-                            date: movementDate,
+                        // DR/CR: Gain/Loss on disposal
+                        if (gainLoss !== 0 && gainLossAcc) {
+                            if (gainLoss > 0) {
+                                glLines.push({ accountCode: gainLossAcc.code, debit: 0, credit: gainLoss, description: `Keuntungan ${data.type === "SALE" ? "penjualan" : "penghapusan"} - ${asset.name}` })
+                            } else {
+                                glLines.push({ accountCode: gainLossAcc.code, debit: Math.abs(gainLoss), credit: 0, description: `Kerugian ${data.type === "SALE" ? "penjualan" : "penghapusan"} - ${asset.name}` })
+                            }
+                        }
+
+                        // CR: Fixed Asset (remove original cost)
+                        glLines.push({ accountCode: assetAcc.code, debit: 0, credit: cost, description: `Hapus harga perolehan - ${asset.name}` })
+
+                        // Post via postJournalEntry (handles GL balance direction correctly)
+                        await ensureSystemAccounts()
+                        const glResult = await postJournalEntry({
                             description: `${data.type === "SALE" ? "Penjualan" : data.type === "WRITE_OFF" ? "Hapus buku" : "Penghapusan"} aset ${asset.name} (${asset.assetCode})`,
+                            date: movementDate,
                             reference: `FA-${data.type}-${asset.assetCode}`,
-                            status: "POSTED",
-                            lines: { create: lines },
-                        },
-                    })
-                    journalEntryId = je.id
-
-                    // Update GL balances
-                    for (const line of lines) {
-                        const net = line.debit - line.credit
-                        if (net !== 0) {
-                            await prisma.gLAccount.update({
-                                where: { id: line.accountId },
-                                data: { balance: { increment: net } },
-                            })
+                            lines: glLines,
+                        })
+                        if (glResult?.success && (glResult as any).id) {
+                            journalEntryId = (glResult as any).id
+                        } else {
+                            throw new Error(`Jurnal pelepasan aset gagal: ${(glResult as any)?.error || 'Unknown error'}`)
                         }
                     }
                 }

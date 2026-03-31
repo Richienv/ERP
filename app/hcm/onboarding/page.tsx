@@ -18,6 +18,15 @@ import {
 } from "lucide-react"
 
 import { NB } from "@/lib/dialog-styles"
+import {
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBDialogFooter,
+    NBSection,
+    NBInput,
+    NBSelect,
+} from "@/components/ui/nb-dialog"
 import { queryKeys } from "@/lib/query-keys"
 import { useOnboarding } from "@/hooks/use-onboarding"
 import { getEmployees } from "@/app/actions/hcm"
@@ -33,13 +42,6 @@ import { OnboardingChecklist } from "@/components/hcm/onboarding-checklist"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog"
 import {
     Select,
     SelectContent,
@@ -47,7 +49,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { ScrollArea } from "@/components/ui/scroll-area"
 
 /* ─── Animation ─── */
 const fadeUp = {
@@ -119,170 +120,104 @@ function CreateTemplateDialog({
     }
 
     return (
-        <Dialog
+        <NBDialog
             open={open}
             onOpenChange={(v) => {
                 if (!v) reset()
                 onOpenChange(v)
             }}
+            size="wide"
         >
-            <DialogContent className={NB.contentWide}>
-                <DialogHeader className={NB.header}>
-                    <div className="h-1 bg-gradient-to-r from-teal-500 via-emerald-400 to-teal-500 -mx-6 -mt-4 mb-3" />
-                    <DialogTitle className={NB.title}>
-                        <ClipboardCheck className="h-5 w-5" /> Buat Template Onboarding
-                    </DialogTitle>
-                    <p className={NB.subtitle}>
-                        Buat template baru dengan daftar tugas onboarding
-                    </p>
-                </DialogHeader>
+            <NBDialogHeader
+                icon={ClipboardCheck}
+                title="Buat Template Onboarding"
+                subtitle="Buat template baru dengan daftar tugas onboarding"
+            />
 
-                <ScrollArea className={NB.scroll}>
-                    <div className="p-5 space-y-4">
-                        {/* Template Name */}
-                        <div className={NB.section}>
-                            <div className={NB.sectionHead}>
-                                <ClipboardCheck className="h-3.5 w-3.5 text-zinc-500" />
-                                <span className={NB.sectionTitle}>Info Template</span>
-                            </div>
-                            <div className={NB.sectionBody}>
-                                <label className={NB.label}>
-                                    Nama Template <span className={NB.labelRequired}>*</span>
-                                </label>
-                                <Input
-                                    className={NB.input}
-                                    placeholder="e.g. Onboarding Staff Produksi"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
+            <NBDialogBody>
+                {/* Template Name */}
+                <NBSection icon={ClipboardCheck} title="Info Template">
+                    <NBInput
+                        label="Nama Template"
+                        required
+                        placeholder="e.g. Onboarding Staff Produksi"
+                        value={name}
+                        onChange={setName}
+                    />
+                </NBSection>
+
+                {/* Tasks */}
+                <NBSection icon={ListChecks} title="Daftar Tugas">
+                    <div className="space-y-3">
+                        {tasks.map((task, index) => (
+                            <div
+                                key={`task-${index}-${task.key}`}
+                                className="border border-zinc-200 dark:border-zinc-700 p-3 space-y-2 relative"
+                            >
+                                <div className="flex items-center justify-between mb-1">
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                                        Tugas #{index + 1}
+                                    </span>
+                                    {tasks.length > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => removeTask(index)}
+                                            className="text-red-400 hover:text-red-600 transition-colors"
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <NBInput
+                                        label="Key"
+                                        required
+                                        placeholder="e.g. safety-training"
+                                        value={task.key}
+                                        onChange={(v) => updateTask(index, "key", v)}
+                                    />
+                                    <NBInput
+                                        label="Departemen"
+                                        required
+                                        placeholder="e.g. HRD"
+                                        value={task.department}
+                                        onChange={(v) => updateTask(index, "department", v)}
+                                    />
+                                </div>
+                                <NBInput
+                                    label="Judul"
+                                    required
+                                    placeholder="e.g. Pelatihan Keselamatan Kerja"
+                                    value={task.title}
+                                    onChange={(v) => updateTask(index, "title", v)}
+                                />
+                                <NBInput
+                                    label="Deskripsi"
+                                    placeholder="Opsional"
+                                    value={task.description}
+                                    onChange={(v) => updateTask(index, "description", v)}
                                 />
                             </div>
-                        </div>
-
-                        {/* Tasks */}
-                        <div className={NB.section}>
-                            <div className={NB.sectionHead}>
-                                <ListChecks className="h-3.5 w-3.5 text-zinc-500" />
-                                <span className={NB.sectionTitle}>Daftar Tugas</span>
-                                <span className={NB.sectionHint}>{tasks.length} tugas</span>
-                            </div>
-                            <div className={NB.sectionBody}>
-                                <div className="space-y-3">
-                                    {tasks.map((task, index) => (
-                                        <div
-                                            key={`task-${index}-${task.key}`}
-                                            className="border-2 border-zinc-200 dark:border-zinc-700 p-3 space-y-2 relative"
-                                        >
-                                            <div className="flex items-center justify-between mb-1">
-                                                <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
-                                                    Tugas #{index + 1}
-                                                </span>
-                                                {tasks.length > 1 && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removeTask(index)}
-                                                        className="text-red-400 hover:text-red-600 transition-colors"
-                                                    >
-                                                        <Trash2 className="h-3.5 w-3.5" />
-                                                    </button>
-                                                )}
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <div>
-                                                    <label className={NB.label}>
-                                                        Key <span className={NB.labelRequired}>*</span>
-                                                    </label>
-                                                    <Input
-                                                        className={NB.inputSm}
-                                                        placeholder="e.g. safety-training"
-                                                        value={task.key}
-                                                        onChange={(e) =>
-                                                            updateTask(index, "key", e.target.value)
-                                                        }
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className={NB.label}>
-                                                        Departemen <span className={NB.labelRequired}>*</span>
-                                                    </label>
-                                                    <Input
-                                                        className={NB.inputSm}
-                                                        placeholder="e.g. HRD"
-                                                        value={task.department}
-                                                        onChange={(e) =>
-                                                            updateTask(index, "department", e.target.value)
-                                                        }
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <label className={NB.label}>
-                                                    Judul <span className={NB.labelRequired}>*</span>
-                                                </label>
-                                                <Input
-                                                    className={NB.inputSm}
-                                                    placeholder="e.g. Pelatihan Keselamatan Kerja"
-                                                    value={task.title}
-                                                    onChange={(e) =>
-                                                        updateTask(index, "title", e.target.value)
-                                                    }
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className={NB.label}>Deskripsi</label>
-                                                <Input
-                                                    className={NB.inputSm}
-                                                    placeholder="Opsional"
-                                                    value={task.description}
-                                                    onChange={(e) =>
-                                                        updateTask(index, "description", e.target.value)
-                                                    }
-                                                />
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="border-dashed border-2 text-[10px] font-bold uppercase w-full hover:bg-teal-50 hover:border-teal-300 rounded-none mt-3"
-                                    onClick={addTask}
-                                >
-                                    <Plus className="h-3 w-3 mr-1" /> Tambah Tugas
-                                </Button>
-                            </div>
-                        </div>
-
-                        {/* Footer */}
-                        <div className={NB.footer}>
-                            <Button
-                                variant="outline"
-                                className={NB.cancelBtn}
-                                onClick={() => {
-                                    reset()
-                                    onOpenChange(false)
-                                }}
-                            >
-                                Batal
-                            </Button>
-                            <Button
-                                className={NB.submitBtn}
-                                onClick={handleSubmit}
-                                disabled={submitting}
-                            >
-                                {submitting ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
-                                        Menyimpan...
-                                    </>
-                                ) : (
-                                    "Simpan Template"
-                                )}
-                            </Button>
-                        </div>
+                        ))}
                     </div>
-                </ScrollArea>
-            </DialogContent>
-        </Dialog>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-dashed border-2 text-[10px] font-bold uppercase w-full hover:bg-teal-50 hover:border-teal-300 rounded-none mt-3"
+                        onClick={addTask}
+                    >
+                        <Plus className="h-3 w-3 mr-1" /> Tambah Tugas
+                    </Button>
+                </NBSection>
+            </NBDialogBody>
+
+            <NBDialogFooter
+                onCancel={() => { reset(); onOpenChange(false) }}
+                onSubmit={handleSubmit}
+                submitting={submitting}
+                submitLabel="Simpan Template"
+            />
+        </NBDialog>
     )
 }
 
@@ -336,92 +271,53 @@ function StartOnboardingDialog({
     }
 
     return (
-        <Dialog
+        <NBDialog
             open={open}
             onOpenChange={(v) => {
                 if (!v) reset()
                 onOpenChange(v)
             }}
+            size="narrow"
         >
-            <DialogContent className={NB.contentNarrow}>
-                <DialogHeader className={NB.header}>
-                    <div className="h-1 bg-gradient-to-r from-teal-500 via-emerald-400 to-teal-500 -mx-6 -mt-4 mb-3" />
-                    <DialogTitle className={NB.title}>
-                        <UserPlus className="h-5 w-5" /> Mulai Onboarding
-                    </DialogTitle>
-                    <p className={NB.subtitle}>Pilih karyawan dan template onboarding</p>
-                </DialogHeader>
+            <NBDialogHeader
+                icon={UserPlus}
+                title="Mulai Onboarding"
+                subtitle="Pilih karyawan dan template onboarding"
+            />
 
-                <div className="p-5 space-y-4">
-                    <div>
-                        <label className={NB.label}>
-                            Karyawan <span className={NB.labelRequired}>*</span>
-                        </label>
-                        <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                            <SelectTrigger className={NB.select}>
-                                <SelectValue placeholder="Pilih karyawan" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {employees.map((e) => (
-                                    <SelectItem key={e.id} value={e.id}>
-                                        {e.name}
-                                        {e.department && (
-                                            <span className="text-zinc-400 ml-1">
-                                                — {e.department}
-                                            </span>
-                                        )}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
+            <NBDialogBody>
+                <NBSelect
+                    label="Karyawan"
+                    required
+                    value={selectedEmployee}
+                    onValueChange={setSelectedEmployee}
+                    placeholder="Pilih karyawan"
+                    options={employees.map((e) => ({
+                        value: e.id,
+                        label: e.department ? `${e.name} — ${e.department}` : e.name,
+                    }))}
+                />
+                <NBSelect
+                    label="Template"
+                    required
+                    value={selectedTemplate}
+                    onValueChange={setSelectedTemplate}
+                    placeholder="Pilih template"
+                    options={templates.map((t) => ({
+                        value: t.id,
+                        label: `${t.name} (${t.taskCount} tugas)`,
+                    }))}
+                />
+            </NBDialogBody>
 
-                    <div>
-                        <label className={NB.label}>
-                            Template <span className={NB.labelRequired}>*</span>
-                        </label>
-                        <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
-                            <SelectTrigger className={NB.select}>
-                                <SelectValue placeholder="Pilih template" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {templates.map((t) => (
-                                    <SelectItem key={t.id} value={t.id}>
-                                        {t.name} ({t.taskCount} tugas)
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    <div className={NB.footer}>
-                        <Button
-                            variant="outline"
-                            className={NB.cancelBtn}
-                            onClick={() => {
-                                reset()
-                                onOpenChange(false)
-                            }}
-                        >
-                            Batal
-                        </Button>
-                        <Button
-                            className={NB.submitBtnGreen}
-                            onClick={handleStart}
-                            disabled={submitting || !selectedEmployee || !selectedTemplate}
-                        >
-                            {submitting ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Memulai...
-                                </>
-                            ) : (
-                                "Mulai Onboarding"
-                            )}
-                        </Button>
-                    </div>
-                </div>
-            </DialogContent>
-        </Dialog>
+            <NBDialogFooter
+                onCancel={() => { reset(); onOpenChange(false) }}
+                onSubmit={handleStart}
+                submitting={submitting}
+                disabled={!selectedEmployee || !selectedTemplate}
+                submitLabel="Mulai Onboarding"
+            />
+        </NBDialog>
     )
 }
 

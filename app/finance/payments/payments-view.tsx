@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { formatIDR } from "@/lib/utils"
+import { PaymentHistoryTable, type PaymentHistoryRow } from "@/components/finance/payment-history-table"
 import {
     ArrowRightLeft,
+    ArrowUpRight,
     BadgeCheck,
     Check,
     ChevronLeft,
@@ -29,22 +31,31 @@ import {
     SelectTrigger,
     SelectValue
 } from "@/components/ui/select"
-// Textarea removed — using Input for compact layout
 import {
     Dialog,
     DialogContent,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
+import {
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBDialogFooter,
+    NBSection,
+    NBInput,
+    NBCurrencyInput,
+    NBSelect,
+} from "@/components/ui/nb-dialog"
 import { NB } from "@/lib/dialog-styles"
-import { matchPaymentToInvoice, recordARPayment, getBankCashAccounts } from "@/lib/actions/finance-ar"
-import { Landmark } from "lucide-react"
+import { matchPaymentToInvoice, recordARPayment } from "@/lib/actions/finance-ar"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { exportToExcel } from "@/lib/table-export"
+import { useChartOfAccounts } from "@/hooks/use-chart-accounts"
 
-type PaymentMethod = "CASH" | "TRANSFER" | "CHECK" | "GIRO" | "CARD"
+type PaymentMethod = "CASH" | "TRANSFER" | "CHECK" | "GIRO" | "CREDIT_CARD" | "OTHER"
 
 interface UnallocatedPayment {
     id: string
@@ -56,24 +67,31 @@ interface UnallocatedPayment {
     method: string
     reference: string | null
     allocated?: boolean
+    invoiceId?: string | null
     invoiceNumber?: string | null
+    invoiceStatus?: string | null
 }
 
 interface OpenInvoice {
     id: string
     number: string
     customer: { id: string; name: string } | null
+    amount: number
     balanceDue: number
     dueDate: Date
     isOverdue: boolean
+    status: string
 }
 
 interface RecentPayment {
     id: string
+    number: string
     amount: number
     method: string
     reference: string | null
+    date: Date
     createdAt: Date
+    customerName: string | null
     invoice: { id: string; number: string; status: string } | null
 }
 
@@ -106,7 +124,8 @@ const METHOD_LABEL: Record<PaymentMethod, string> = {
     TRANSFER: "Transfer Bank",
     CHECK: "Cek",
     GIRO: "Giro",
-    CARD: "Kartu Kredit"
+    CREDIT_CARD: "Kartu Kredit",
+    OTHER: "Lainnya"
 }
 
 const EMPTY_INVOICE_VALUE = "__NO_INVOICE__"
@@ -118,6 +137,38 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
     const queryClient = useQueryClient()
     const pathname = usePathname()
     const searchParams = useSearchParams()
+    const { data: coaTree } = useChartOfAccounts()
+    const { bankAccounts, cashAccounts } = useMemo(() => {
+        if (!coaTree) return { bankAccounts: [] as { code: string; name: string }[], cashAccounts: [] as { code: string; name: string }[] }
+        // Flatten tree: collect all leaf nodes (no children = not a header/parent)
+        const flat: any[] = []
+        const walk = (nodes: any[]) => {
+            for (const n of nodes) {
+                if (n.children?.length) {
+                    walk(n.children) // parent/header — skip it, recurse children
+                } else {
+                    flat.push(n)
+                }
+            }
+        }
+        walk(Array.isArray(coaTree) ? coaTree : [])
+        const cashBankLeafs = flat
+            .filter((a) => a.type === "ASSET" && (a.subType === "ASSET_CASH" || (a.code >= "1000" && a.code < "1200")))
+            .map((a) => ({ code: a.code as string, name: a.name as string }))
+            .sort((a, b) => a.code.localeCompare(b.code))
+
+        const bank: { code: string; name: string }[] = []
+        const cash: { code: string; name: string }[] = []
+        for (const acc of cashBankLeafs) {
+            const lower = acc.name.toLowerCase()
+            if (lower.includes("bank")) {
+                bank.push(acc)
+            } else if (lower.includes("kas") || lower.includes("cash") || lower.includes("petty")) {
+                cash.push(acc)
+            }
+        }
+        return { bankAccounts: bank, cashAccounts: cash }
+    }, [coaTree])
     const [processing, setProcessing] = useState<string | null>(null)
     const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(highlightPaymentId ?? null)
     const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null)
@@ -130,17 +181,14 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
         amount: "",
         date: todayAsInput(),
         method: "TRANSFER" as PaymentMethod,
+        bankAccountCode: "",
         reference: "",
         notes: "",
-        invoiceId: "",
-        bankAccountCode: ""
+        invoiceId: ""
     })
-    const [bankAccounts, setBankAccounts] = useState<{ code: string; name: string }[]>([])
 
-    // Fetch bank/cash accounts for COA selector
-    useEffect(() => {
-        getBankCashAccounts().then(setBankAccounts)
-    }, [])
+    // NEW: tab state for combined panel
+    const [activeTab, setActiveTab] = useState<"payments" | "invoices">("payments")
 
     // Auto-scroll to highlighted payment from ?highlight= param
     useEffect(() => {
@@ -158,8 +206,6 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
         const qs = next.toString()
         router.replace(qs ? `${pathname}?${qs}` : pathname)
     }
-
-
 
     const selectedPayment = useMemo(
         () => unallocated.find((item) => item.id === selectedPaymentId) ?? null,
@@ -198,7 +244,9 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                 toast.success("message" in result ? result.message : "Pembayaran berhasil dialokasikan")
                 setSelectedPaymentId(null)
                 setSelectedInvoiceId(null)
+                setActiveTab("payments")
                 queryClient.invalidateQueries({ queryKey: queryKeys.arPayments.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.arAging.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
@@ -221,23 +269,19 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
             toast.error("Pilih pelanggan terlebih dahulu")
             return
         }
-        // invoiceId is optional — payment can be saved as unallocated
         if (!Number.isFinite(amount) || amount <= 0) {
             toast.error("Nominal penerimaan harus lebih besar dari 0")
             return
         }
-        if (createForm.method !== "CARD" && !createForm.bankAccountCode) {
-            toast.error("Pilih akun bank/kas terlebih dahulu")
-            return
-        }
 
+        const prevPayments = queryClient.getQueryData(queryKeys.arPayments.all)
         setSubmittingPayment(true)
         try {
             const result = await recordARPayment({
                 customerId: createForm.customerId,
                 amount,
                 date: createForm.date ? new Date(`${createForm.date}T00:00:00`) : new Date(),
-                method: createForm.method,
+                method: createForm.method as PaymentMethod,
                 reference: createForm.reference.trim() || undefined,
                 notes: createForm.notes.trim() || undefined,
                 invoiceId: createForm.invoiceId || undefined,
@@ -256,12 +300,13 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                 amount: "",
                 date: todayAsInput(),
                 method: "TRANSFER",
+                bankAccountCode: "",
                 reference: "",
                 notes: "",
-                invoiceId: "",
-                bankAccountCode: ""
+                invoiceId: ""
             })
             queryClient.invalidateQueries({ queryKey: queryKeys.arPayments.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.arAging.all })
             queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
             queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
             queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
@@ -269,6 +314,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
             queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
             queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
         } catch {
+            if (prevPayments) queryClient.setQueryData(queryKeys.arPayments.all, prevPayments)
             toast.error("Terjadi kesalahan saat mencatat penerimaan")
         } finally {
             setSubmittingPayment(false)
@@ -277,7 +323,14 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
 
     const canMatch = Boolean(selectedPayment && selectedInvoice && !paymentInvoiceMismatch && !processing)
 
-    const applyRegistryFilters = () => {
+    // Unified search — contextual to active tab
+    const displayedQuery = activeTab === "payments" ? paymentQuery : invoiceQuery
+    const setDisplayedQuery = (v: string) => {
+        if (activeTab === "payments") setPaymentQuery(v)
+        else setInvoiceQuery(v)
+    }
+
+    const applySearch = () => {
         pushSearchParams((params) => {
             const payQ = paymentQuery.trim()
             const invQ = invoiceQuery.trim()
@@ -290,65 +343,74 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
         })
     }
 
-    const resetRegistryFilters = () => {
-        setPaymentQuery("")
-        setInvoiceQuery("")
-        pushSearchParams((params) => {
-            params.delete("pay_q")
-            params.delete("inv_q")
-            params.delete("pay_page")
-            params.delete("inv_page")
-        })
+    const handleSelectPayment = (id: string) => {
+        setSelectedPaymentId(id)
+        setSelectedInvoiceId(null)
+        setActiveTab("invoices")
     }
 
-    // Determine workflow step
-    const currentStep = selectedPayment && selectedInvoice ? 3 : selectedPayment ? 2 : 1
+    const activePagination = activeTab === "payments" ? registryMeta.payments : registryMeta.invoices
+    const activePageParam = activeTab === "payments" ? "pay_page" : "inv_page"
 
     return (
         <div className="mf-page">
 
-            {/* ─── TOOLBAR ─── */}
+            {/* ═══════════════════════════════════════════ */}
+            {/* HEADER CARD                                 */}
+            {/* ═══════════════════════════════════════════ */}
             <div className={NB.pageCard}>
                 <div className={NB.pageAccent} />
 
-                {/* Row 1: KPI Strip — big, colorful */}
+                {/* KPI Strip — compact */}
                 <div className={`grid grid-cols-3 ${NB.pageRowBorder}`}>
-                    {/* Belum Dialokasi */}
-                    <div className={`px-5 py-4 border-r border-zinc-200 dark:border-zinc-800 ${stats.unallocatedCount > 0 ? "bg-amber-50/50 dark:bg-amber-950/10" : ""}`}>
-                        <div className="flex items-center gap-1.5 mb-1">
-                            <span className={`w-2 h-2 rounded-full ${stats.unallocatedCount > 0 ? "bg-amber-500" : "bg-zinc-300"}`} />
-                            <span className={`text-[10px] font-black uppercase tracking-widest ${stats.unallocatedCount > 0 ? "text-amber-600 dark:text-amber-400" : "text-zinc-400"}`}>Belum Dialokasi</span>
+                    <div className={`px-4 py-2.5 border-r border-zinc-200 dark:border-zinc-800 ${stats.unallocatedCount > 0 ? "bg-amber-50/40 dark:bg-amber-950/10" : ""}`}>
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className={`w-1.5 h-1.5 rounded-full ${stats.unallocatedCount > 0 ? "bg-amber-500" : "bg-zinc-300"}`} />
+                            <span className={`text-[10px] font-bold uppercase tracking-widest ${stats.unallocatedCount > 0 ? "text-amber-600 dark:text-amber-400" : "text-zinc-400"}`}>Belum Dialokasi</span>
                         </div>
-                        <span className={`text-3xl font-black tabular-nums ${stats.unallocatedCount > 0 ? "text-amber-600 dark:text-amber-400" : "text-zinc-300 dark:text-zinc-600"}`}>{stats.unallocatedCount}</span>
+                        <span className={`text-2xl font-black tabular-nums ${stats.unallocatedCount > 0 ? "text-amber-600 dark:text-amber-400" : "text-zinc-300 dark:text-zinc-600"}`}>{stats.unallocatedCount}</span>
                     </div>
-                    {/* Invoice Terbuka */}
-                    <div className="px-5 py-4 border-r border-zinc-200 dark:border-zinc-800 bg-blue-50/50 dark:bg-blue-950/10">
-                        <div className="flex items-center gap-1.5 mb-1">
-                            <span className="w-2 h-2 bg-blue-500 rounded-full" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">Invoice Terbuka</span>
+                    <div className="px-4 py-2.5 border-r border-zinc-200 dark:border-zinc-800 bg-blue-50/40 dark:bg-blue-950/10">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">Invoice Terbuka</span>
                         </div>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-black text-blue-700 dark:text-blue-300 tabular-nums">{stats.openInvoicesCount}</span>
-                            <span className="text-sm font-mono font-bold text-blue-500 dark:text-blue-400">{formatIDR(stats.outstandingAmount)}</span>
+                            <span className="text-2xl font-black text-blue-700 dark:text-blue-300 tabular-nums">{stats.openInvoicesCount}</span>
+                            <span className="text-xs font-mono font-bold text-blue-500 dark:text-blue-400">{formatIDR(stats.outstandingAmount)}</span>
                         </div>
                     </div>
-                    {/* Hari Ini */}
-                    <div className={`px-5 py-4 ${stats.todayPayments > 0 ? "bg-emerald-50/50 dark:bg-emerald-950/10" : ""}`}>
-                        <div className="flex items-center gap-1.5 mb-1">
-                            <span className={`w-2 h-2 rounded-full ${stats.todayPayments > 0 ? "bg-emerald-500" : "bg-zinc-300"}`} />
-                            <span className={`text-[10px] font-black uppercase tracking-widest ${stats.todayPayments > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-400"}`}>Penerimaan Hari Ini</span>
+                    <div className={`px-4 py-2.5 ${stats.todayPayments > 0 ? "bg-emerald-50/40 dark:bg-emerald-950/10" : ""}`}>
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className={`w-1.5 h-1.5 rounded-full ${stats.todayPayments > 0 ? "bg-emerald-500" : "bg-zinc-300"}`} />
+                            <span className={`text-[10px] font-bold uppercase tracking-widest ${stats.todayPayments > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-400"}`}>Penerimaan Hari Ini</span>
                         </div>
-                        <span className={`text-3xl font-black tabular-nums ${stats.todayPayments > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-300 dark:text-zinc-600"}`}>{formatIDR(stats.todayPayments)}</span>
+                        <span className={`text-2xl font-black tabular-nums ${stats.todayPayments > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-300 dark:text-zinc-600"}`}>{formatIDR(stats.todayPayments)}</span>
                     </div>
                 </div>
 
-                {/* Row 2: Actions */}
-                <div className={`px-5 py-2.5 flex items-center justify-end ${NB.pageRowBorder}`}>
-                    <div className="flex items-center gap-0">
-                        <Button variant="outline" onClick={() => { exportToExcel([{ header: "No.", accessorKey: "number" },{ header: "Dari", accessorKey: "from" },{ header: "Jumlah", accessorKey: "amount" },{ header: "Metode", accessorKey: "method" },{ header: "Referensi", accessorKey: "reference" },{ header: "Tanggal", accessorKey: "date" },{ header: "Status", accessorKey: "allocated" }], unallocated.map(p => ({ number: p.number, from: p.from, amount: p.amount, method: p.method, reference: p.reference || "-", date: new Date(p.date).toLocaleDateString("id-ID"), allocated: p.allocated ? "Teralokasi" : "Belum" })) as Record<string, unknown>[], { filename: "penerimaan-ar" }) }} className={`${NB.toolbarBtn} ${NB.toolbarBtnJoin}`}>
+                {/* Actions + Search — single row */}
+                <div className="px-4 py-2 flex items-center gap-2 bg-zinc-50/50 dark:bg-zinc-800/20">
+                    <div className="relative flex-1 max-w-xs">
+                        <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
+                        <input
+                            className="border border-zinc-200 dark:border-zinc-700 font-medium h-8 w-full text-xs rounded-none pl-8 pr-3 outline-none placeholder:text-zinc-400 bg-white dark:bg-zinc-900 focus:border-zinc-900 dark:focus:border-zinc-400 transition-colors"
+                            placeholder={activeTab === "payments" ? "Cari pembayaran..." : "Cari invoice..."}
+                            value={displayedQuery}
+                            onChange={(e) => setDisplayedQuery(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && applySearch()}
+                        />
+                    </div>
+                    <button onClick={applySearch} className="h-8 px-3 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[10px] font-bold uppercase tracking-wider hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-colors">Cari</button>
+                    {(paymentQuery || invoiceQuery) && (
+                        <button onClick={() => { setPaymentQuery(""); setInvoiceQuery(""); pushSearchParams((p) => { p.delete("pay_q"); p.delete("inv_q"); p.delete("pay_page"); p.delete("inv_page") }) }} className="text-[10px] font-bold text-zinc-400 hover:text-zinc-600 transition-colors">Reset</button>
+                    )}
+
+                    <div className="ml-auto flex items-center gap-0">
+                        <Button variant="outline" onClick={() => { exportToExcel([{ header: "No.", accessorKey: "number" }, { header: "Dari", accessorKey: "from" }, { header: "Jumlah", accessorKey: "amount" }, { header: "Metode", accessorKey: "method" }, { header: "Referensi", accessorKey: "reference" }, { header: "Tanggal", accessorKey: "date" }, { header: "Status", accessorKey: "allocated" }], unallocated.map(p => ({ number: p.number, from: p.from, amount: p.amount, method: p.method, reference: p.reference || "-", date: new Date(p.date).toLocaleDateString("id-ID"), allocated: p.allocated ? "Teralokasi" : "Belum" })) as Record<string, unknown>[], { filename: "penerimaan-ar" }) }} className={`${NB.toolbarBtn} ${NB.toolbarBtnJoin}`}>
                             <Download className="h-3.5 w-3.5 mr-1" /> Export
                         </Button>
-                        <Button variant="outline" onClick={() => { queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all }); queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all }); queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all }); queryClient.invalidateQueries({ queryKey: queryKeys.journal.all }) }} className={NB.toolbarBtn}>
+                        <Button variant="outline" onClick={() => { queryClient.invalidateQueries({ queryKey: queryKeys.arPayments.all }); queryClient.invalidateQueries({ queryKey: queryKeys.arAging.all }); queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all }); queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all }); queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all }); queryClient.invalidateQueries({ queryKey: queryKeys.journal.all }) }} className={NB.toolbarBtn}>
                             <RefreshCcw className="h-3.5 w-3.5 mr-1" /> Refresh
                         </Button>
                         <Button onClick={() => setIsCreateDialogOpen(true)} className={NB.toolbarBtnPrimary}>
@@ -356,121 +418,234 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                         </Button>
                     </div>
                 </div>
-                {/* Row 2: Search + Steps */}
-                <div className="px-5 py-2.5 flex items-center gap-3 bg-zinc-50/50 dark:bg-zinc-800/20">
-                    <div className="relative flex-1">
-                        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
-                        <input className="border border-zinc-200 dark:border-zinc-700 font-medium h-8 w-full text-xs rounded-none pl-9 pr-3 outline-none placeholder:text-zinc-400 bg-white dark:bg-zinc-900 focus:border-zinc-900 dark:focus:border-zinc-400 transition-colors" placeholder="Cari pembayaran..." value={paymentQuery} onChange={(e) => setPaymentQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && applyRegistryFilters()} />
-                    </div>
-                    <div className="relative flex-1">
-                        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
-                        <input className="border border-zinc-200 dark:border-zinc-700 font-medium h-8 w-full text-xs rounded-none pl-9 pr-3 outline-none placeholder:text-zinc-400 bg-white dark:bg-zinc-900 focus:border-zinc-900 dark:focus:border-zinc-400 transition-colors" placeholder="Cari invoice..." value={invoiceQuery} onChange={(e) => setInvoiceQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && applyRegistryFilters()} />
-                    </div>
-                    <button onClick={applyRegistryFilters} className="h-8 px-3 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[10px] font-bold uppercase tracking-wider hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-colors">Cari</button>
-                    {(paymentQuery || invoiceQuery) && <button onClick={resetRegistryFilters} className="text-[10px] font-bold text-zinc-400 hover:text-zinc-600 transition-colors">Reset</button>}
-                    {/* Minimal step indicator */}
-                    <div className="hidden md:flex items-center gap-1.5 ml-auto pl-4 border-l border-zinc-200 dark:border-zinc-700">
-                        {[{ s: 1, l: "Pembayaran" }, { s: 2, l: "Invoice" }, { s: 3, l: "Alokasi" }].map(({ s, l }) => (
-                            <div key={s} className="flex items-center gap-1">
-                                {s > 1 && <div className={`w-4 h-px ${currentStep >= s ? "bg-zinc-900 dark:bg-zinc-300" : "bg-zinc-200 dark:bg-zinc-700"}`} />}
-                                <div className={`h-5 w-5 flex items-center justify-center text-[9px] font-bold transition-colors ${currentStep >= s ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400"}`}>
-                                    {currentStep > s ? <Check className="h-3 w-3" /> : s}
-                                </div>
-                                <span className={`text-[10px] font-bold ${currentStep >= s ? "text-zinc-700 dark:text-zinc-300" : "text-zinc-400"}`}>{l}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
             </div>
 
-            {/* ─── TWO PANELS ─── */}
-            <div className="grid gap-4 xl:grid-cols-2">
-                {/* ── LEFT: Payments ── */}
-                <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex flex-col" style={{ minHeight: 420 }}>
-                    <div className="px-5 py-2.5 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-                        <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Pembayaran Masuk</h3>
-                        <span className="text-[10px] font-bold text-zinc-400">{registryMeta.payments.total}</span>
+            {/* ═══════════════════════════════════════════ */}
+            {/* INVOICE TERBUKA — open invoices table        */}
+            {/* ═══════════════════════════════════════════ */}
+            {openInvoices.length > 0 && (
+                <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                    <div className="px-4 py-2.5 border-b-2 border-black bg-blue-50/40 dark:bg-blue-950/20 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                            <span className="text-[11px] font-black uppercase tracking-wider text-zinc-900 dark:text-white">Invoice Terbuka</span>
+                            <span className="text-[10px] font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/40 px-1.5 py-0.5">{openInvoices.length}</span>
+                        </div>
+                        <span className="text-xs font-mono font-bold text-blue-700 dark:text-blue-300">
+                            {formatIDR(openInvoices.reduce((sum, inv) => sum + inv.balanceDue, 0))}
+                        </span>
                     </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="text-[10px] uppercase text-zinc-500 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/30">
+                                    <th className="text-left px-4 py-2 font-bold tracking-wider">No. Invoice</th>
+                                    <th className="text-left px-4 py-2 font-bold tracking-wider">Pelanggan</th>
+                                    <th className="text-center px-4 py-2 font-bold tracking-wider">Status</th>
+                                    <th className="text-right px-4 py-2 font-bold tracking-wider">Total</th>
+                                    <th className="text-right px-4 py-2 font-bold tracking-wider">Dibayar</th>
+                                    <th className="text-right px-4 py-2 font-bold tracking-wider">Sisa</th>
+                                    <th className="text-right px-4 py-2 font-bold tracking-wider">Jatuh Tempo</th>
+                                    <th className="text-center px-4 py-2 font-bold tracking-wider">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                {openInvoices.map((inv) => {
+                                    const paid = (inv.amount || 0) - inv.balanceDue
+                                    const statusLabel = inv.status === "ISSUED" ? "Terkirim" : inv.status === "PARTIAL" ? "Sebagian" : inv.status === "OVERDUE" ? "Jatuh Tempo" : inv.status
+                                    const statusColor = inv.status === "OVERDUE" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-300 dark:border-red-700" : inv.status === "PARTIAL" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-300 dark:border-amber-700" : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-300 dark:border-blue-700"
+                                    return (
+                                        <tr key={inv.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors">
+                                            <td className="px-4 py-2.5 font-mono font-bold text-zinc-900 dark:text-zinc-100">{inv.number}</td>
+                                            <td className="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">{inv.customer?.name ?? "—"}</td>
+                                            <td className="px-4 py-2.5 text-center">
+                                                <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 border ${statusColor}`}>{statusLabel}</span>
+                                            </td>
+                                            <td className="px-4 py-2.5 text-right font-mono text-zinc-700 dark:text-zinc-300">{formatIDR(inv.amount || 0)}</td>
+                                            <td className="px-4 py-2.5 text-right font-mono text-emerald-600 dark:text-emerald-400">{paid > 0 ? formatIDR(paid) : "—"}</td>
+                                            <td className="px-4 py-2.5 text-right font-mono font-bold text-zinc-900 dark:text-zinc-100">{formatIDR(inv.balanceDue)}</td>
+                                            <td className={`px-4 py-2.5 text-right font-mono text-xs ${inv.isOverdue ? "text-red-600 dark:text-red-400 font-bold" : "text-zinc-500"}`}>
+                                                {new Date(inv.dueDate).toLocaleDateString("id-ID")}
+                                                {inv.isOverdue && <AlertTriangle className="inline h-3 w-3 ml-1 text-red-500" />}
+                                            </td>
+                                            <td className="px-4 py-2.5 text-center">
+                                                <button
+                                                    onClick={() => {
+                                                        setCreateForm({
+                                                            customerId: inv.customer?.id ?? "",
+                                                            amount: String(inv.balanceDue),
+                                                            date: todayAsInput(),
+                                                            method: "TRANSFER",
+                                                            bankAccountCode: "",
+                                                            reference: "",
+                                                            notes: "",
+                                                            invoiceId: inv.id,
+                                                        })
+                                                        setIsCreateDialogOpen(true)
+                                                    }}
+                                                    className="h-7 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black uppercase tracking-wider transition-colors"
+                                                >
+                                                    Terima
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    )
+                                })}
+                            </tbody>
+                            <tfoot>
+                                <tr className="border-t-2 border-black bg-zinc-50 dark:bg-zinc-800/50">
+                                    <td colSpan={3} className="px-4 py-2 text-[10px] uppercase text-zinc-500 font-bold tracking-wider">
+                                        Total {openInvoices.length} invoice terbuka
+                                    </td>
+                                    <td className="px-4 py-2 text-right font-mono font-bold text-zinc-700 dark:text-zinc-300">
+                                        {formatIDR(openInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0))}
+                                    </td>
+                                    <td className="px-4 py-2 text-right font-mono font-bold text-emerald-600">
+                                        {formatIDR(openInvoices.reduce((sum, inv) => sum + ((inv.amount || 0) - inv.balanceDue), 0))}
+                                    </td>
+                                    <td className="px-4 py-2 text-right font-mono font-black text-orange-600">
+                                        {formatIDR(openInvoices.reduce((sum, inv) => sum + inv.balanceDue, 0))}
+                                    </td>
+                                    <td colSpan={2} />
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            )}
 
-                    {/* Payment Items */}
-                    <div className="flex-1 overflow-auto divide-y divide-zinc-100 dark:divide-zinc-800">
-                        {filteredPayments.length === 0 ? (
-                            <div className="flex-1 flex items-center justify-center py-16 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+            {/* ═══════════════════════════════════════════ */}
+            {/* RIWAYAT TERAKHIR — shared component         */}
+            {/* ═══════════════════════════════════════════ */}
+            <PaymentHistoryTable
+                title="Riwayat Terakhir"
+                rows={recentPayments.map((p): PaymentHistoryRow => ({
+                    id: p.id,
+                    documentNumber: p.invoice?.number ?? p.number,
+                    counterpartyName: p.customerName ?? "—",
+                    method: p.method,
+                    methodLabel: METHOD_LABEL[p.method as PaymentMethod]?.split(" ")[0] ?? p.method,
+                    reference: p.reference,
+                    amount: p.amount,
+                    date: p.date,
+                    status: p.invoice?.status,
+                }))}
+                documentLabel="Invoice"
+                counterpartyLabel="Pelanggan"
+                onRowClick={(row) => {
+                    const match = recentPayments.find(p => p.id === row.id)
+                    if (match?.invoice?.id) router.push(`/finance/invoices?highlight=${match.invoice.id}`)
+                }}
+            />
+
+            {/* ═══════════════════════════════════════════ */}
+            {/* COMBINED PANEL — tabs + items + pagination  */}
+            {/* ═══════════════════════════════════════════ */}
+            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex flex-col" style={{ minHeight: 360 }}>
+                {/* Tab header */}
+                <div className="flex border-b-2 border-black">
+                    <button
+                        onClick={() => setActiveTab("payments")}
+                        className={`flex-1 px-4 py-2 text-[11px] font-black uppercase tracking-wider transition-colors relative ${activeTab === "payments"
+                            ? "bg-black text-white"
+                            : "bg-zinc-50 dark:bg-zinc-800 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                            }`}
+                    >
+                        <div className="flex items-center justify-center gap-2">
+                            {selectedPayment && activeTab !== "payments" && <Check className="h-3 w-3 text-emerald-400" />}
+                            <Wallet className="h-3.5 w-3.5" />
+                            Pembayaran Masuk
+                            <span className={`text-[10px] font-mono ${activeTab === "payments" ? "text-zinc-500" : "text-zinc-300 dark:text-zinc-600"}`}>{registryMeta.payments.total}</span>
+                        </div>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("invoices")}
+                        className={`flex-1 px-4 py-2 text-[11px] font-black uppercase tracking-wider transition-colors relative ${activeTab === "invoices"
+                            ? "bg-black text-white"
+                            : "bg-zinc-50 dark:bg-zinc-800 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                            }`}
+                    >
+                        <div className="flex items-center justify-center gap-2">
+                            {selectedInvoice && activeTab !== "invoices" && <Check className="h-3 w-3 text-blue-400" />}
+                            <FileText className="h-3.5 w-3.5" />
+                            Invoice Tujuan
+                            <span className={`text-[10px] font-mono ${activeTab === "invoices" ? "text-zinc-500" : "text-zinc-300 dark:text-zinc-600"}`}>{filteredInvoices.length}</span>
+                        </div>
+                    </button>
+                </div>
+
+                {/* Context bar — shows selected payment when on invoices tab */}
+                {activeTab === "invoices" && selectedPayment && (
+                    <div className="px-4 py-1.5 bg-emerald-50/60 dark:bg-emerald-950/20 border-b border-emerald-200 dark:border-emerald-900 flex items-center gap-2">
+                        <Check className="h-3 w-3 text-emerald-500 shrink-0" />
+                        <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 truncate">
+                            {selectedPayment.number} &middot; {selectedPayment.from} &middot; {formatIDR(selectedPayment.amount)}
+                        </span>
+                        <button
+                            onClick={() => { setSelectedPaymentId(null); setSelectedInvoiceId(null); setActiveTab("payments") }}
+                            className="ml-auto text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-200 transition-colors shrink-0"
+                        >
+                            Ubah
+                        </button>
+                    </div>
+                )}
+
+                {/* Items list */}
+                <div className="flex-1 overflow-auto divide-y divide-zinc-100 dark:divide-zinc-800">
+                    {activeTab === "payments" ? (
+                        filteredPayments.length === 0 ? (
+                            <div className="flex items-center justify-center py-16 text-zinc-400 text-xs font-bold uppercase tracking-widest">
                                 Tidak ada pembayaran ditemukan
                             </div>
                         ) : (
                             filteredPayments.map((item) => {
                                 const isSelected = selectedPaymentId === item.id
+                                const isAllocated = item.allocated === true
                                 return (
                                     <button
-                                        type="button"
                                         key={item.id}
                                         data-payment-id={item.id}
-                                        className={`w-full px-5 py-3 text-left transition-colors ${isSelected
+                                        type="button"
+                                        className={`w-full px-4 py-2.5 text-left transition-colors ${isSelected
                                             ? "bg-emerald-50 dark:bg-emerald-950/30 border-l-4 border-l-emerald-500"
+                                            : isAllocated
+                                            ? "bg-zinc-50/40 dark:bg-zinc-800/20 border-l-4 border-l-transparent"
                                             : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50 border-l-4 border-l-transparent"
                                             }`}
-                                        onClick={() => {
-                                            setSelectedPaymentId(item.id)
-                                            setSelectedInvoiceId(null)
-                                        }}
+                                        onClick={() => { if (!isAllocated) handleSelectPayment(item.id) }}
                                     >
-                                        <div className="flex items-center justify-between gap-2 mb-1">
-                                            <span className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100">{item.number}</span>
-                                            <span className="text-[10px] font-bold text-zinc-400">
-                                                {new Date(item.date).toLocaleDateString("id-ID")}
-                                            </span>
-                                        </div>
                                         <div className="flex items-center justify-between gap-2">
-                                            <span className="text-sm font-medium text-zinc-600 dark:text-zinc-300 truncate">{item.from}</span>
-                                            <span className="font-mono font-black text-sm text-emerald-700 dark:text-emerald-400 whitespace-nowrap">{formatIDR(item.amount)}</span>
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <span className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100">{item.number}</span>
+                                                <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 truncate">{item.from}</span>
+                                                {isAllocated && (
+                                                    <span className="text-[8px] font-black uppercase px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700 shrink-0">
+                                                        {item.invoiceStatus === "PAID" ? "Lunas" : "Dialokasi"} &middot; {item.invoiceNumber}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-2.5 shrink-0">
+                                                <span className={`font-mono font-black text-sm ${isAllocated ? "text-zinc-500 dark:text-zinc-400" : "text-emerald-700 dark:text-emerald-400"}`}>{formatIDR(item.amount)}</span>
+                                                <span className="text-[10px] font-bold text-zinc-400">{new Date(item.date).toLocaleDateString("id-ID")}</span>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-2 mt-1 text-[10px]">
+                                        <div className="flex items-center gap-2 mt-0.5 text-[10px]">
                                             <span className="font-bold text-zinc-400">{METHOD_LABEL[item.method as PaymentMethod] ?? item.method}</span>
-                                            <span className="text-zinc-200 dark:text-zinc-700">&middot;</span>
-                                            <span className={`font-bold ${item.allocated ? "text-zinc-600 dark:text-zinc-300" : "text-zinc-400"}`}>
-                                                {item.allocated ? (item.invoiceNumber ? `→ ${item.invoiceNumber}` : "Teralokasi") : "Belum dialokasi"}
-                                            </span>
-                                            {item.reference && <span className="font-medium text-zinc-300 dark:text-zinc-600 truncate">Ref: {item.reference}</span>}
+                                            {item.reference && (
+                                                <>
+                                                    <span className="text-zinc-200 dark:text-zinc-700">&middot;</span>
+                                                    <span className="text-zinc-300 dark:text-zinc-600 truncate">Ref: {item.reference}</span>
+                                                </>
+                                            )}
                                         </div>
                                     </button>
                                 )
                             })
-                        )}
-                    </div>
-
-                    {/* Pagination */}
-                    <div className="px-5 py-2 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-zinc-400">{registryMeta.payments.page}/{registryMeta.payments.totalPages}</span>
-                        <div className="flex items-center gap-1">
-                            <button className="h-7 w-7 flex items-center justify-center border border-zinc-200 dark:border-zinc-700 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-30 transition-colors" disabled={registryMeta.payments.page <= 1} onClick={() => pushSearchParams((p) => { p.set("pay_page", String(Math.max(1, registryMeta.payments.page - 1))) })}><ChevronLeft className="h-3.5 w-3.5" /></button>
-                            <button className="h-7 w-7 flex items-center justify-center border border-zinc-200 dark:border-zinc-700 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-30 transition-colors" disabled={registryMeta.payments.page >= registryMeta.payments.totalPages} onClick={() => pushSearchParams((p) => { p.set("pay_page", String(Math.min(registryMeta.payments.totalPages, registryMeta.payments.page + 1))) })}><ChevronRight className="h-3.5 w-3.5" /></button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* ── RIGHT: Invoices ── */}
-                <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex flex-col" style={{ minHeight: 420 }}>
-                    <div className="px-5 py-2.5 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-                        <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Invoice Tujuan</h3>
-                        {selectedPayment && <span className="text-[10px] font-bold text-zinc-400">{filteredInvoices.length}</span>}
-                    </div>
-                    {selectedPayment && (
-                        <div className="px-5 py-1.5 border-b border-zinc-100 dark:border-zinc-800">
-                            <span className="text-[10px] font-bold text-zinc-500">Difilter: {selectedPayment.from}</span>
-                        </div>
-                    )}
-
-                    {/* Invoice Items */}
-                    <div className="flex-1 overflow-auto divide-y divide-zinc-100 dark:divide-zinc-800">
-                        {!selectedPayment ? (
-                            <div className="flex-1 flex flex-col items-center justify-center py-16 gap-2 text-zinc-400">
-                                <ArrowRightLeft className="h-6 w-6 text-zinc-300" />
-                                <span className="text-xs font-bold uppercase tracking-widest">Pilih pembayaran terlebih dahulu</span>
-                            </div>
-                        ) : filteredInvoices.length === 0 ? (
-                            <div className="flex-1 flex items-center justify-center py-16 text-zinc-400 text-xs font-bold uppercase tracking-widest">
-                                Tidak ada invoice yang cocok
+                        )
+                    ) : (
+                        filteredInvoices.length === 0 ? (
+                            <div className="flex items-center justify-center py-16 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                                {selectedPayment ? "Tidak ada invoice yang cocok" : "Tidak ada invoice terbuka"}
                             </div>
                         ) : (
                             filteredInvoices.map((invoice) => {
@@ -480,465 +655,262 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                         key={invoice.id}
                                         type="button"
                                         onClick={() => setSelectedInvoiceId(invoice.id)}
-                                        className={`w-full px-5 py-3 text-left transition-colors ${isSelected
+                                        className={`w-full px-4 py-2.5 text-left transition-colors ${isSelected
                                             ? "bg-blue-50 dark:bg-blue-950/30 border-l-4 border-l-blue-500"
                                             : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50 border-l-4 border-l-transparent"
                                             }`}
                                     >
-                                        <div className="flex items-center justify-between gap-2 mb-1">
-                                            <span className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100">{invoice.number}</span>
-                                            <Badge
-                                                variant={invoice.isOverdue ? "destructive" : "outline"}
-                                                className={invoice.isOverdue
-                                                    ? "text-[10px] font-black uppercase"
-                                                    : "text-[10px] font-black uppercase border-zinc-300 text-zinc-500"}
-                                            >
-                                                {invoice.isOverdue ? "Jatuh Tempo" : "On Time"}
-                                            </Badge>
-                                        </div>
                                         <div className="flex items-center justify-between gap-2">
-                                            <span className="text-sm font-medium text-zinc-600 dark:text-zinc-300 truncate">
-                                                {invoice.customer?.name ?? "Tanpa pelanggan"}
-                                            </span>
-                                            <span className={`font-mono font-black text-sm whitespace-nowrap ${invoice.isOverdue ? "text-red-700 dark:text-red-400" : "text-zinc-900 dark:text-zinc-100"
-                                                }`}>
-                                                {formatIDR(invoice.balanceDue)}
-                                            </span>
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <span className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100">{invoice.number}</span>
+                                                <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 truncate">{invoice.customer?.name ?? "—"}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                <span className={`font-mono font-black text-sm ${invoice.isOverdue ? "text-red-700 dark:text-red-400" : "text-zinc-900 dark:text-zinc-100"}`}>{formatIDR(invoice.balanceDue)}</span>
+                                                {invoice.isOverdue && <Badge variant="destructive" className="text-[9px] font-black uppercase px-1.5 py-0 h-4 rounded-none">Overdue</Badge>}
+                                            </div>
                                         </div>
-                                        <div className="mt-1 text-[10px] font-medium text-zinc-400">
+                                        <div className="mt-0.5 text-[10px] font-medium text-zinc-400">
                                             Jatuh tempo {new Date(invoice.dueDate).toLocaleDateString("id-ID")}
                                         </div>
                                     </button>
                                 )
                             })
-                        )}
-                    </div>
+                        )
+                    )}
+                </div>
 
-                    {/* Pagination */}
-                    <div className="px-5 py-2 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-zinc-400">{registryMeta.invoices.page}/{registryMeta.invoices.totalPages}</span>
-                        <div className="flex items-center gap-1">
-                            <button className="h-7 w-7 flex items-center justify-center border border-zinc-200 dark:border-zinc-700 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-30 transition-colors" disabled={registryMeta.invoices.page <= 1} onClick={() => pushSearchParams((p) => { p.set("inv_page", String(Math.max(1, registryMeta.invoices.page - 1))) })}><ChevronLeft className="h-3.5 w-3.5" /></button>
-                            <button className="h-7 w-7 flex items-center justify-center border border-zinc-200 dark:border-zinc-700 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-30 transition-colors" disabled={registryMeta.invoices.page >= registryMeta.invoices.totalPages} onClick={() => pushSearchParams((p) => { p.set("inv_page", String(Math.min(registryMeta.invoices.totalPages, registryMeta.invoices.page + 1))) })}><ChevronRight className="h-3.5 w-3.5" /></button>
-                        </div>
+                {/* Pagination */}
+                <div className="px-4 py-1.5 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-zinc-400">{activePagination.page}/{activePagination.totalPages}</span>
+                    <div className="flex items-center gap-1">
+                        <button
+                            className="h-6 w-6 flex items-center justify-center border border-zinc-200 dark:border-zinc-700 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-30 transition-colors"
+                            disabled={activePagination.page <= 1}
+                            onClick={() => pushSearchParams((p) => { p.set(activePageParam, String(Math.max(1, activePagination.page - 1))) })}
+                        >
+                            <ChevronLeft className="h-3 w-3" />
+                        </button>
+                        <button
+                            className="h-6 w-6 flex items-center justify-center border border-zinc-200 dark:border-zinc-700 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-30 transition-colors"
+                            disabled={activePagination.page >= activePagination.totalPages}
+                            onClick={() => pushSearchParams((p) => { p.set(activePageParam, String(Math.min(activePagination.totalPages, activePagination.page + 1))) })}
+                        >
+                            <ChevronRight className="h-3 w-3" />
+                        </button>
                     </div>
                 </div>
             </div>
 
             {/* ═══════════════════════════════════════════ */}
-            {/* RECENT ALLOCATED PAYMENTS                   */}
-            {/* ═══════════════════════════════════════════ */}
-            {recentPayments.length > 0 && (
-                <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-                    <div className="px-5 py-2.5 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-                        <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Riwayat Terakhir</h3>
-                        <span className="text-[10px] font-bold text-zinc-400">{recentPayments.length}</span>
-                    </div>
-                    <div className="divide-y divide-zinc-100 dark:divide-zinc-800 max-h-[320px] overflow-auto">
-                        {recentPayments.map((payment) => (
-                            <div key={payment.id} className="px-5 py-2.5 flex items-center gap-4">
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                        {payment.invoice && <span className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">{payment.invoice.number}</span>}
-                                        <span className="text-[10px] font-bold text-zinc-400">{METHOD_LABEL[payment.method as PaymentMethod] ?? payment.method}</span>
-                                        {payment.reference && <span className="text-[10px] text-zinc-300 dark:text-zinc-600 truncate">Ref: {payment.reference}</span>}
-                                    </div>
-                                </div>
-                                <div className="text-right shrink-0 flex items-center gap-3">
-                                    <span className="font-mono font-bold text-sm text-zinc-900 dark:text-zinc-100">{formatIDR(payment.amount)}</span>
-                                    <span className="text-[10px] font-bold text-zinc-400">{new Date(payment.createdAt).toLocaleDateString("id-ID")}</span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* ═══════════════════════════════════════════ */}
-            {/* CONFIRMATION PANEL                         */}
+            {/* ALLOCATION BAR — compact inline             */}
             {/* ═══════════════════════════════════════════ */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-                <div className="px-5 py-2.5 border-b border-zinc-100 dark:border-zinc-800 flex items-center gap-2">
-                    <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Konfirmasi Alokasi</h3>
-                </div>
-
-                <div className="p-5 space-y-4">
-                    {/* Summary Cards */}
-                    <div className="grid gap-4 md:grid-cols-2">
-                        {/* Selected Payment */}
-                        <div className={`border p-4 ${selectedPayment ? "border-zinc-300 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-800/50" : "border-zinc-200 dark:border-zinc-700 bg-zinc-50/30 dark:bg-zinc-800/30"}`}>
-                            <div className="flex items-center gap-2 mb-3">
-                                <Wallet className="h-4 w-4 text-zinc-400" />
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Pembayaran Terpilih</span>
-                            </div>
-                            {selectedPayment ? (
-                                <div className="space-y-1.5">
-                                    <p className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100">{selectedPayment.number}</p>
-                                    <p className="text-sm font-medium text-zinc-600 dark:text-zinc-300">{selectedPayment.from}</p>
-                                    <p className="font-mono font-black text-lg text-emerald-700 dark:text-emerald-400">{formatIDR(selectedPayment.amount)}</p>
-                                    <span className="text-[10px] font-bold text-zinc-400">
-                                        Metode: {METHOD_LABEL[selectedPayment.method as PaymentMethod] ?? selectedPayment.method}
-                                    </span>
-                                </div>
-                            ) : (
-                                <p className="text-sm text-zinc-400 font-medium">Belum ada pembayaran dipilih.</p>
-                            )}
-                        </div>
-
-                        {/* Selected Invoice */}
-                        <div className={`border p-4 ${selectedInvoice ? "border-zinc-300 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-800/50" : "border-zinc-200 dark:border-zinc-700 bg-zinc-50/30 dark:bg-zinc-800/30"}`}>
-                            <div className="flex items-center gap-2 mb-3">
-                                <FileText className="h-4 w-4 text-zinc-400" />
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Invoice Tujuan</span>
-                            </div>
-                            {selectedInvoice ? (
-                                <div className="space-y-1.5">
-                                    <p className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100">{selectedInvoice.number}</p>
-                                    <p className="text-sm font-medium text-zinc-600 dark:text-zinc-300">{selectedInvoice.customer?.name ?? "Tanpa pelanggan"}</p>
-                                    <p className={`font-mono font-black text-lg ${selectedInvoice.isOverdue ? "text-red-700 dark:text-red-400" : "text-zinc-900 dark:text-zinc-100"}`}>
-                                        {formatIDR(selectedInvoice.balanceDue)}
-                                    </p>
-                                    <span className="text-[10px] font-bold text-zinc-400">
-                                        Jatuh tempo: {new Date(selectedInvoice.dueDate).toLocaleDateString("id-ID")}
-                                    </span>
-                                </div>
-                            ) : (
-                                <p className="text-sm text-zinc-400 font-medium">Belum ada invoice dipilih.</p>
-                            )}
-                        </div>
+                {!selectedPayment && !selectedInvoice ? (
+                    /* Empty — subtle hint */
+                    <div className="px-4 py-2.5 flex items-center justify-center gap-2 text-zinc-300 dark:text-zinc-600">
+                        <ArrowRightLeft className="h-3.5 w-3.5" />
+                        <span className="text-[10px] font-bold uppercase tracking-wider">Pilih pembayaran lalu invoice untuk dialokasikan</span>
                     </div>
-
-                    {/* Amount Comparison */}
-                    {selectedPayment && selectedInvoice && (
-                        <div className="border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/30 p-4">
-                            <div className="flex items-center justify-between">
-                                <div className="text-center flex-1">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block mb-1">Pembayaran</span>
-                                    <span className="font-mono font-black text-lg text-emerald-700">{formatIDR(selectedPayment.amount)}</span>
+                ) : selectedPayment && !selectedInvoice ? (
+                    /* Payment selected — waiting for invoice */
+                    <div className="px-4 py-2.5 flex items-center gap-3">
+                        <div className="h-5 w-5 bg-emerald-500 flex items-center justify-center shrink-0">
+                            <Check className="h-3 w-3 text-white" />
+                        </div>
+                        <span className="font-mono text-xs font-bold text-zinc-700 dark:text-zinc-200">{selectedPayment.number}</span>
+                        <span className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{selectedPayment.from}</span>
+                        <span className="font-mono font-bold text-xs text-emerald-700 dark:text-emerald-400">{formatIDR(selectedPayment.amount)}</span>
+                        <span className="ml-auto text-[10px] font-bold text-zinc-400 uppercase tracking-wider">&rarr; Pilih invoice</span>
+                    </div>
+                ) : selectedPayment && selectedInvoice ? (
+                    /* Both selected — show comparison + action */
+                    <div className="px-4 py-2.5 space-y-2">
+                        {paymentInvoiceMismatch && (
+                            <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                                <span className="text-[10px] font-bold">Pelanggan pembayaran tidak sama dengan pelanggan invoice</span>
+                            </div>
+                        )}
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 flex-1 min-w-0 overflow-x-auto">
+                                {/* Payment */}
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">PAY</span>
+                                    <span className="font-mono text-xs font-bold text-zinc-700 dark:text-zinc-200">{selectedPayment.number}</span>
+                                    <span className="font-mono font-bold text-xs text-emerald-700 dark:text-emerald-400">{formatIDR(selectedPayment.amount)}</span>
                                 </div>
-                                <div className="px-4">
-                                    <ArrowRightLeft className="h-5 w-5 text-zinc-400" />
+                                <span className="text-zinc-300 dark:text-zinc-600 shrink-0">&rarr;</span>
+                                {/* Invoice */}
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">INV</span>
+                                    <span className="font-mono text-xs font-bold text-zinc-700 dark:text-zinc-200">{selectedInvoice.number}</span>
+                                    <span className={`font-mono font-bold text-xs ${selectedInvoice.isOverdue ? "text-red-700 dark:text-red-400" : "text-zinc-700 dark:text-zinc-200"}`}>{formatIDR(selectedInvoice.balanceDue)}</span>
                                 </div>
-                                <div className="text-center flex-1">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block mb-1">Sisa Invoice</span>
-                                    <span className="font-mono font-black text-lg text-zinc-900 dark:text-zinc-100">{formatIDR(selectedInvoice.balanceDue)}</span>
-                                </div>
-                                <div className="px-4">
-                                    <span className="text-zinc-400">=</span>
-                                </div>
-                                <div className="text-center flex-1">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block mb-1">Selisih</span>
-                                    <span className={`font-mono font-black text-lg ${selectedPayment.amount - selectedInvoice.balanceDue >= 0 ? "text-emerald-700" : "text-red-700"
-                                        }`}>
+                                {/* Diff */}
+                                <div className="flex items-center gap-1.5 pl-2.5 border-l border-zinc-200 dark:border-zinc-700 shrink-0">
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Selisih</span>
+                                    <span className={`font-mono font-bold text-xs ${(selectedPayment.amount - selectedInvoice.balanceDue) >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400"}`}>
                                         {formatIDR(selectedPayment.amount - selectedInvoice.balanceDue)}
                                     </span>
                                 </div>
                             </div>
+                            <Button
+                                disabled={!canMatch}
+                                onClick={() => handleMatch(selectedPayment.id, selectedInvoice.id)}
+                                className="bg-black dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200 text-[10px] font-bold uppercase tracking-wider h-8 px-5 rounded-none transition-colors disabled:opacity-30 shrink-0"
+                            >
+                                {processing ? (
+                                    <><Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> Memproses...</>
+                                ) : (
+                                    <><BadgeCheck className="mr-1.5 h-3 w-3" /> Alokasikan</>
+                                )}
+                            </Button>
                         </div>
-                    )}
-
-                    {/* Mismatch Warning */}
-                    {paymentInvoiceMismatch && (
-                        <div className="border border-red-200 bg-red-50/50 dark:bg-red-950/10 p-3 flex items-center gap-3">
-                            <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0" />
-                            <span className="text-sm font-bold text-red-700 dark:text-red-400">
-                                Pelanggan pembayaran tidak sama dengan pelanggan invoice. Pilih invoice yang sesuai.
-                            </span>
-                        </div>
-                    )}
-
-                    {/* Action Row */}
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-sm text-zinc-400">
-                            <ArrowRightLeft className="h-4 w-4" />
-                            <span className="text-[10px] font-bold uppercase tracking-wide">Alokasi akan mengurangi saldo invoice & membuat jurnal otomatis</span>
-                        </div>
-                        <Button
-                            disabled={!canMatch}
-                            onClick={() => selectedPayment && selectedInvoice && handleMatch(selectedPayment.id, selectedInvoice.id)}
-                            className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-[10px] font-bold uppercase tracking-wider h-9 px-6 rounded-none transition-colors disabled:opacity-30"
-                        >
-                            {processing ? (
-                                <>
-                                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Memproses...
-                                </>
-                            ) : (
-                                <>
-                                    <BadgeCheck className="mr-1.5 h-3.5 w-3.5" /> Alokasikan Pembayaran
-                                </>
-                            )}
-                        </Button>
                     </div>
-                </div>
+                ) : null}
             </div>
 
             {/* ═══════════════════════════════════════════ */}
-            {/* CREATE PAYMENT DIALOG                      */}
+            {/* CREATE PAYMENT DIALOG                       */}
             {/* ═══════════════════════════════════════════ */}
-            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                <DialogContent className="max-w-3xl sm:max-w-3xl p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0">
-                    {/* Black header */}
-                    <DialogHeader className="bg-black text-white px-5 py-3">
-                        <DialogTitle className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
-                            <Wallet className="h-4 w-4" /> Catat Penerimaan Baru
-                        </DialogTitle>
-                        <p className={NB.subtitle}>
-                            Catat penerimaan pelanggan — bisa langsung dialokasikan atau disimpan dulu
-                        </p>
-                    </DialogHeader>
-
-                    <div className={NB.scroll}>
-                        <div className="p-4 space-y-3">
-                            {/* Data Penerimaan Section */}
-                            <div className="border border-zinc-200 dark:border-zinc-700">
-                                <div className="bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700 flex items-center gap-2">
-                                    <CircleDollarSign className="h-3.5 w-3.5 text-zinc-400" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Data Penerimaan</span>
-                                </div>
-                                <div className="p-3 space-y-3">
-                                    <div>
-                                        <label className={NB.label}>Pelanggan <span className="text-red-500">*</span></label>
-                                        <Select
-                                            value={createForm.customerId || EMPTY_INVOICE_VALUE}
-                                            onValueChange={(value) =>
-                                                setCreateForm((prev) => ({
-                                                    ...prev,
-                                                    customerId: value === EMPTY_INVOICE_VALUE ? "" : value,
-                                                    invoiceId: ""
-                                                }))
-                                            }
-                                        >
-                                            <SelectTrigger className={`h-8 text-sm rounded-none border ${
-                                                createForm.customerId
-                                                    ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 font-bold"
-                                                    : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
-                                            }`}>
-                                                <SelectValue placeholder="Pilih pelanggan" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value={EMPTY_INVOICE_VALUE}>Pilih pelanggan</SelectItem>
-                                                {allCustomers.map((customer) => (
-                                                    <SelectItem key={customer.id} value={customer.id}>
-                                                        {customer.code ? `[${customer.code}] ` : ""}{customer.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="grid grid-cols-3 gap-3">
-                                        <div>
-                                            <label className={NB.label}>Nominal <span className="text-red-500">*</span></label>
-                                            <div className={`flex items-center border h-8 rounded-none transition-colors ${
-                                                Number(createForm.amount) > 0
-                                                    ? "border-emerald-400 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-950/20"
-                                                    : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
-                                            }`}>
-                                                <span className={`pl-2 text-[10px] font-bold select-none ${
-                                                    Number(createForm.amount) > 0 ? "text-emerald-500" : "text-zinc-300 dark:text-zinc-600"
-                                                }`}>Rp</span>
-                                                <input
-                                                    type="text"
-                                                    inputMode="numeric"
-                                                    placeholder="0"
-                                                    className={`w-full h-full bg-transparent text-right text-sm font-mono font-bold pr-2 pl-1 outline-none placeholder:text-zinc-300 placeholder:font-normal ${
-                                                        Number(createForm.amount) > 0 ? "text-emerald-700 dark:text-emerald-400" : ""
-                                                    }`}
-                                                    value={Number(createForm.amount) ? Number(createForm.amount).toLocaleString("id-ID") : createForm.amount}
-                                                    onChange={(e) => {
-                                                        const raw = e.target.value.replace(/\D/g, "")
-                                                        setCreateForm((prev) => ({ ...prev, amount: raw }))
-                                                    }}
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <label className={NB.label}>Tanggal</label>
-                                            <Input
-                                                type="date"
-                                                value={createForm.date}
-                                                onChange={(event) =>
-                                                    setCreateForm((prev) => ({ ...prev, date: event.target.value }))
-                                                }
-                                                className={`border font-medium h-8 text-sm rounded-none transition-colors ${
-                                                    createForm.date
-                                                        ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20"
-                                                        : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
-                                                }`}
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className={NB.label}>Metode</label>
-                                            <Select
-                                                value={createForm.method}
-                                                onValueChange={(value) =>
-                                                    setCreateForm((prev) => ({ ...prev, method: value as PaymentMethod, bankAccountCode: "" }))
-                                                }
-                                            >
-                                                <SelectTrigger className={`h-8 text-sm rounded-none border ${
-                                                    createForm.method
-                                                        ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 font-bold"
-                                                        : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
-                                                }`}>
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="TRANSFER">Transfer Bank</SelectItem>
-                                                    <SelectItem value="CASH">Tunai</SelectItem>
-                                                    <SelectItem value="CHECK">Cek</SelectItem>
-                                                    <SelectItem value="GIRO">Giro</SelectItem>
-                                                    <SelectItem value="CARD">Kartu</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-
-                                    {/* COA Bank/Cash Account Selector */}
-                                    {createForm.method !== "CARD" && (
-                                        <div>
-                                            <label className={NB.label}>
-                                                <Landmark className="inline h-3 w-3 mr-1" />
-                                                {createForm.method === "CASH" ? "Akun Kas" : createForm.method === "GIRO" ? "Akun Giro" : "Akun Bank"} <span className="text-red-500">*</span>
-                                            </label>
-                                            <Select
-                                                value={createForm.bankAccountCode || EMPTY_INVOICE_VALUE}
-                                                onValueChange={(value) =>
-                                                    setCreateForm((prev) => ({
-                                                        ...prev,
-                                                        bankAccountCode: value === EMPTY_INVOICE_VALUE ? "" : value,
-                                                    }))
-                                                }
-                                            >
-                                                <SelectTrigger className={`h-8 text-sm rounded-none border ${
-                                                    createForm.bankAccountCode
-                                                        ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 font-bold"
-                                                        : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
-                                                }`}>
-                                                    <SelectValue placeholder="Pilih akun bank/kas" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value={EMPTY_INVOICE_VALUE}>Pilih akun bank/kas</SelectItem>
-                                                    {bankAccounts.map((acc) => (
-                                                        <SelectItem key={acc.code} value={acc.code}>
-                                                            {acc.code} — {acc.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Invoice Link Section */}
-                            <div className="border border-zinc-200 dark:border-zinc-700">
-                                <div className="bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700 flex items-center gap-2">
-                                    <FileText className="h-3.5 w-3.5 text-zinc-400" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Hubungkan ke Invoice</span>
-                                    <span className="text-[10px] font-medium text-zinc-400 ml-auto">opsional</span>
-                                </div>
-                                <div className="p-3 space-y-3">
-                                    <div>
-                                        <label className={NB.label}>Invoice Penjualan</label>
-                                        <Select
-                                            value={createForm.invoiceId || EMPTY_INVOICE_VALUE}
-                                            onValueChange={(value) => {
-                                                if (value === EMPTY_INVOICE_VALUE) {
-                                                    setCreateForm((prev) => ({ ...prev, invoiceId: "" }))
-                                                    return
-                                                }
-                                                const invoice = openInvoices.find((item) => item.id === value)
-                                                setCreateForm((prev) => ({
-                                                    ...prev,
-                                                    invoiceId: value,
-                                                    customerId: invoice?.customer?.id ?? prev.customerId
-                                                }))
-                                            }}
-                                        >
-                                            <SelectTrigger className={`h-8 text-sm rounded-none border ${
-                                                createForm.invoiceId
-                                                    ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 font-bold"
-                                                    : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
-                                            }`}>
-                                                <SelectValue placeholder="Kosongkan untuk simpan tanpa alokasi" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value={EMPTY_INVOICE_VALUE}>Tanpa alokasi</SelectItem>
-                                                {openInvoices
-                                                    .filter((inv) => !createForm.customerId || inv.customer?.id === createForm.customerId)
-                                                    .map((invoice) => (
-                                                        <SelectItem key={invoice.id} value={invoice.id}>
-                                                            {invoice.number} {"\u2014"} {invoice.customer?.name ?? "?"} {"\u2014"} Sisa: {formatIDR(invoice.balanceDue)} {invoice.isOverdue ? " OVERDUE" : ""}
-                                                        </SelectItem>
-                                                    ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className={NB.label}>Referensi</label>
-                                            <Input
-                                                value={createForm.reference}
-                                                onChange={(event) =>
-                                                    setCreateForm((prev) => ({ ...prev, reference: event.target.value }))
-                                                }
-                                                placeholder="No. transfer / no. cek"
-                                                className={`border font-medium h-8 text-sm rounded-none placeholder:text-zinc-400 placeholder:italic placeholder:font-normal transition-colors ${
-                                                    createForm.reference
-                                                        ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20"
-                                                        : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
-                                                }`}
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className={NB.label}>Catatan</label>
-                                            <Input
-                                                value={createForm.notes}
-                                                onChange={(event) =>
-                                                    setCreateForm((prev) => ({ ...prev, notes: event.target.value }))
-                                                }
-                                                placeholder="Catatan tambahan"
-                                                className={`border font-medium h-8 text-sm rounded-none placeholder:text-zinc-400 placeholder:italic placeholder:font-normal transition-colors ${
-                                                    createForm.notes
-                                                        ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20"
-                                                        : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
-                                                }`}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+            <NBDialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                <NBDialogHeader
+                    icon={Wallet}
+                    title="Catat Penerimaan Baru"
+                    subtitle="Catat penerimaan pelanggan — bisa langsung dialokasikan atau disimpan dulu"
+                />
+                <NBDialogBody>
+                    <NBSection icon={CircleDollarSign} title="Data Penerimaan">
+                        <NBSelect
+                            label="Pelanggan"
+                            required
+                            value={createForm.customerId}
+                            onValueChange={(value) =>
+                                setCreateForm((prev) => ({
+                                    ...prev,
+                                    customerId: value,
+                                    invoiceId: ""
+                                }))
+                            }
+                            placeholder="Pilih pelanggan"
+                        >
+                            {allCustomers.map((customer) => (
+                                <SelectItem key={customer.id} value={customer.id}>
+                                    {customer.code ? `[${customer.code}] ` : ""}{customer.name}
+                                </SelectItem>
+                            ))}
+                        </NBSelect>
+                        <div className="grid grid-cols-3 gap-3">
+                            <NBCurrencyInput
+                                label="Nominal"
+                                required
+                                value={createForm.amount}
+                                onChange={(value) =>
+                                    setCreateForm((prev) => ({ ...prev, amount: value }))
+                                }
+                            />
+                            <NBInput
+                                label="Tanggal"
+                                type="date"
+                                value={createForm.date}
+                                onChange={(value) =>
+                                    setCreateForm((prev) => ({ ...prev, date: value }))
+                                }
+                            />
+                            <NBSelect
+                                label="Metode"
+                                value={createForm.method}
+                                onValueChange={(value) =>
+                                    setCreateForm((prev) => ({ ...prev, method: value as PaymentMethod, bankAccountCode: "" }))
+                                }
+                                options={[
+                                    { value: "TRANSFER", label: "Transfer Bank" },
+                                    { value: "CASH", label: "Tunai" },
+                                    { value: "CHECK", label: "Cek" },
+                                    { value: "GIRO", label: "Giro" },
+                                    { value: "CREDIT_CARD", label: "Kartu Kredit" },
+                                ]}
+                            />
                         </div>
-                    </div>
+                        {(() => {
+                            const isCash = createForm.method === "CASH"
+                            const accounts = isCash ? cashAccounts : bankAccounts
+                            if (accounts.length === 0) return null
+                            return (
+                                <NBSelect
+                                    label={isCash ? "Akun Kas" : "Akun Bank"}
+                                    required
+                                    value={createForm.bankAccountCode}
+                                    onValueChange={(value) =>
+                                        setCreateForm((prev) => ({ ...prev, bankAccountCode: value }))
+                                    }
+                                    placeholder={isCash ? "Pilih akun kas" : "Pilih akun bank tujuan"}
+                                >
+                                    {accounts.map((acc) => (
+                                        <SelectItem key={acc.code} value={acc.code}>
+                                            {acc.code} — {acc.name}
+                                        </SelectItem>
+                                    ))}
+                                </NBSelect>
+                            )
+                        })()}
+                    </NBSection>
 
-                    {/* Sticky footer */}
-                    <div className="border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2.5 flex items-center justify-end gap-2">
-                        <Button
-                            variant="outline"
-                            onClick={() => setIsCreateDialogOpen(false)}
-                            className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none"
+                    <NBSection icon={FileText} title="Hubungkan ke Invoice" optional>
+                        <NBSelect
+                            label="Invoice Penjualan"
+                            value={createForm.invoiceId}
+                            onValueChange={(value) => {
+                                if (!value) {
+                                    setCreateForm((prev) => ({ ...prev, invoiceId: "" }))
+                                    return
+                                }
+                                const invoice = openInvoices.find((item) => item.id === value)
+                                setCreateForm((prev) => ({
+                                    ...prev,
+                                    invoiceId: value,
+                                    customerId: invoice?.customer?.id ?? prev.customerId
+                                }))
+                            }}
+                            placeholder="Kosongkan untuk simpan tanpa alokasi"
+                            emptyLabel="Tanpa alokasi"
                         >
-                            Batal
-                        </Button>
-                        <Button
-                            onClick={handleCreatePayment}
-                            disabled={submittingPayment}
-                            className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none gap-1.5 disabled:opacity-40 transition-colors"
-                        >
-                            {submittingPayment ? (
-                                <>
-                                    <Loader2 className="h-3 w-3 animate-spin" /> Menyimpan...
-                                </>
-                            ) : (
-                                "Simpan Penerimaan"
-                            )}
-                        </Button>
-                    </div>
-                </DialogContent>
-            </Dialog>
+                            {openInvoices
+                                .filter((inv) => !createForm.customerId || inv.customer?.id === createForm.customerId)
+                                .map((invoice) => (
+                                    <SelectItem key={invoice.id} value={invoice.id}>
+                                        {invoice.number} {"\u2014"} {invoice.customer?.name ?? "?"} {"\u2014"} Sisa: {formatIDR(invoice.balanceDue)} {invoice.isOverdue ? " OVERDUE" : ""}
+                                    </SelectItem>
+                                ))}
+                        </NBSelect>
+                        <div className="grid grid-cols-2 gap-3">
+                            <NBInput
+                                label="Referensi"
+                                value={createForm.reference}
+                                onChange={(value) =>
+                                    setCreateForm((prev) => ({ ...prev, reference: value }))
+                                }
+                                placeholder="No. transfer / no. cek"
+                            />
+                            <NBInput
+                                label="Catatan"
+                                value={createForm.notes}
+                                onChange={(value) =>
+                                    setCreateForm((prev) => ({ ...prev, notes: value }))
+                                }
+                                placeholder="Catatan tambahan"
+                            />
+                        </div>
+                    </NBSection>
+                </NBDialogBody>
+                <NBDialogFooter
+                    onCancel={() => setIsCreateDialogOpen(false)}
+                    onSubmit={handleCreatePayment}
+                    submitting={submittingPayment}
+                    submitLabel="Simpan Penerimaan"
+                />
+            </NBDialog>
         </div>
     )
 }

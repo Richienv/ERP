@@ -9,6 +9,7 @@ import {
   CalendarDays, StickyNote, Loader2
 } from "lucide-react"
 import { toast } from "sonner"
+import { usePaymentTerms } from "@/hooks/use-payment-terms"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -77,6 +78,7 @@ export function QuotationForm({ initialCustomerId, initialData }: QuotationFormP
   const router = useRouter()
   const queryClient = useQueryClient()
 
+  const { data: paymentTermOptions = [] } = usePaymentTerms()
   const [customers, setCustomers] = useState<CustomerOption[]>([])
   const [products, setProducts] = useState<ProductOption[]>([])
   const [salesPersons, setSalesPersons] = useState<UserOption[]>([])
@@ -367,13 +369,9 @@ export function QuotationForm({ initialCustomerId, initialData }: QuotationFormP
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="CASH">Cash</SelectItem>
-                  <SelectItem value="NET_15">NET 15</SelectItem>
-                  <SelectItem value="NET_30">NET 30</SelectItem>
-                  <SelectItem value="NET_45">NET 45</SelectItem>
-                  <SelectItem value="NET_60">NET 60</SelectItem>
-                  <SelectItem value="NET_90">NET 90</SelectItem>
-                  <SelectItem value="COD">COD</SelectItem>
+                  {paymentTermOptions.map(t => (
+                    <SelectItem key={t.id} value={t.code}>{t.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

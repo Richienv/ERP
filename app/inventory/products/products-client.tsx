@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useActionSignal } from "@/hooks/use-action-signal"
 import {
     Package,
     LayoutGrid,
@@ -71,6 +72,7 @@ function exportProducts(products: any[], format: "csv" | "xlsx") {
 }
 
 export function ProductsPageClient({ products, categories, warehouses, stats }: ProductsPageClientProps) {
+    const { triggered: autoOpenCreate, clear: clearAutoOpen } = useActionSignal("new")
     const [view, setView] = useState<"kanban" | "list">("kanban")
     const [batchPriceOpen, setBatchPriceOpen] = useState(false)
 
@@ -146,7 +148,7 @@ export function ProductsPageClient({ products, categories, warehouses, stats }: 
                             </DropdownMenuContent>
                         </DropdownMenu>
                         <ImportProductsDialog />
-                        <ProductCreateDialog />
+                        <ProductCreateDialog autoOpen={autoOpenCreate} onAutoOpenConsumed={clearAutoOpen} />
                     </div>
                 </div>
             </div>

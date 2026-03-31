@@ -12,7 +12,10 @@ export function useCategories() {
                 getAllCategories(),
                 getCategories(),
             ])
-            return { categories: categories as any[], allCategories: allCategories as { id: string; name: string }[] }
+            return {
+                categories: (categories ?? []) as any[],
+                allCategories: (allCategories ?? []) as { id: string; name: string }[],
+            }
         },
     })
 }

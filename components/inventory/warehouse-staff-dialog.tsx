@@ -4,26 +4,17 @@ import { useEffect, useMemo, useState } from "react";
 import { Users, UserCog, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
+  NBDialog,
+  NBDialogHeader,
+  NBDialogBody,
+  NBSection,
+  NBSelect,
+} from "@/components/ui/nb-dialog";
 import { assignWarehouseManager, getWarehouseStaffing } from "@/app/actions/inventory";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import { NB } from "@/lib/dialog-styles";
 
 type StaffingPayload = Awaited<ReturnType<typeof getWarehouseStaffing>>;
 
@@ -92,106 +83,94 @@ export function WarehouseStaffDialog({ warehouseId, warehouseName, triggerMode }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {triggerMode === "staff" ? (
-          <button type="button" className="w-full text-center">
-            <p className="text-xs font-bold uppercase text-muted-foreground mb-1">Active Staff</p>
-            <p className="text-2xl font-black">{data?.activeStaff?.length ?? "View"}</p>
-          </button>
-        ) : (
-          <Button variant="outline" size="icon" className="h-9 w-9 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[1px] hover:translate-x-[1px] bg-white rounded-none">
-            <UserCog className="h-4 w-4" />
-          </Button>
-        )}
-      </DialogTrigger>
-      <DialogContent className={NB.contentWide}>
-        <DialogHeader className={NB.header}>
-          <DialogTitle className={NB.title}>
-            <Users className="h-5 w-5" /> Active Staff — {warehouseName}
-          </DialogTitle>
-          <p className={NB.subtitle}>
-            Lihat staf aktif gudang dan {canManageManager ? "assign/replace" : "review"} manager.
-          </p>
-        </DialogHeader>
+    <>
+      {triggerMode === "staff" ? (
+        <button type="button" className="w-full text-center" onClick={() => setOpen(true)}>
+          <p className="text-xs font-bold uppercase text-muted-foreground mb-1">Active Staff</p>
+          <p className="text-2xl font-black">{data?.activeStaff?.length ?? "View"}</p>
+        </button>
+      ) : (
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setOpen(true)}
+          className="h-9 w-9 border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[1px] hover:translate-x-[1px] bg-white rounded-none"
+        >
+          <UserCog className="h-4 w-4" />
+        </Button>
+      )}
 
-        <ScrollArea className={NB.scroll}>
-          <div className="p-5 space-y-4">
-            {loading ? (
-              <div className="py-10 text-center text-zinc-400 font-bold text-xs uppercase">Loading staffing data...</div>
-            ) : (
-              <>
-                {/* Current Manager */}
-                <div className={NB.section}>
-                  <div className={`${NB.sectionHead} border-l-4 border-l-emerald-400 bg-emerald-50`}>
-                    <UserCog className="h-4 w-4" />
-                    <span className={NB.sectionTitle}>Current Manager</span>
-                  </div>
-                  <div className={NB.sectionBody}>
-                    <div>
-                      <p className="font-black text-base">{data?.currentManager?.name || "Unassigned"}</p>
-                      {data?.currentManager?.position && (
-                        <p className="text-xs text-zinc-500 font-bold">{data.currentManager.position}</p>
-                      )}
-                    </div>
+      <NBDialog open={open} onOpenChange={setOpen} size="wide">
+        <NBDialogHeader
+          icon={Users}
+          title={`Active Staff — ${warehouseName}`}
+          subtitle={`Lihat staf aktif gudang dan ${canManageManager ? "assign/replace" : "review"} manager.`}
+        />
 
-                    {canManageManager && (
-                      <div className="pt-3 border-t-2 border-dashed border-zinc-200">
-                        <label className={NB.label}>Assign / Replace Manager</label>
-                        <div className="flex flex-col md:flex-row gap-2">
-                          <Select value={selectedManager} onValueChange={setSelectedManager}>
-                            <SelectTrigger className={NB.select + " md:flex-1"}>
-                              <SelectValue placeholder="Select manager candidate" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(data?.managerCandidates || []).map((emp) => (
-                                <SelectItem key={emp.id} value={emp.id}>
-                                  {emp.name} - {emp.position}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Button className={NB.submitBtn} onClick={handleAssign} disabled={submitting || !selectedManager}>
-                            {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                            Save Manager
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Staff List */}
-                <div className={NB.section}>
-                  <div className={`${NB.sectionHead} border-l-4 border-l-emerald-400 bg-emerald-50`}>
-                    <Users className="h-4 w-4" />
-                    <span className={NB.sectionTitle}>Active Staff ({data?.activeStaff?.length || 0})</span>
-                  </div>
-                  {(data?.activeStaff || []).length === 0 ? (
-                    <div className="p-4 text-sm text-zinc-400 font-bold">No active staff data.</div>
-                  ) : (
-                    <div className="divide-y-2 divide-black max-h-80 overflow-auto">
-                      {(data?.activeStaff || []).map((emp) => (
-                        <div key={emp.id} className="px-4 py-3 flex items-start justify-between gap-3">
-                          <div>
-                            <p className="font-bold text-sm">{emp.name}</p>
-                            <p className="text-xs text-zinc-500">
-                              {emp.position} - {emp.department}
-                            </p>
-                          </div>
-                          <span className="text-[10px] font-black uppercase border-2 border-black px-2 py-0.5">
-                            {emp.status}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+        <NBDialogBody>
+          {loading ? (
+            <div className="py-10 text-center text-zinc-400 font-bold text-xs uppercase">Loading staffing data...</div>
+          ) : (
+            <>
+              {/* Current Manager */}
+              <NBSection icon={UserCog} title="Current Manager">
+                <div>
+                  <p className="font-black text-base">{data?.currentManager?.name || "Unassigned"}</p>
+                  {data?.currentManager?.position && (
+                    <p className="text-xs text-zinc-500 font-bold">{data.currentManager.position}</p>
                   )}
                 </div>
-              </>
-            )}
-          </div>
-        </ScrollArea>
-      </DialogContent>
-    </Dialog>
+
+                {canManageManager && (
+                  <div className="pt-3 border-t border-dashed border-zinc-200">
+                    <NBSelect
+                      label="Assign / Replace Manager"
+                      value={selectedManager}
+                      onValueChange={setSelectedManager}
+                      placeholder="Select manager candidate"
+                      options={(data?.managerCandidates || []).map((emp) => ({
+                        value: emp.id,
+                        label: `${emp.name} - ${emp.position}`,
+                      }))}
+                    />
+                    <Button
+                      className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none mt-2"
+                      onClick={handleAssign}
+                      disabled={submitting || !selectedManager}
+                    >
+                      {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                      Save Manager
+                    </Button>
+                  </div>
+                )}
+              </NBSection>
+
+              {/* Staff List */}
+              <NBSection icon={Users} title={`Active Staff (${data?.activeStaff?.length || 0})`}>
+                {(data?.activeStaff || []).length === 0 ? (
+                  <div className="text-sm text-zinc-400 font-bold">No active staff data.</div>
+                ) : (
+                  <div className="divide-y divide-zinc-200 max-h-80 overflow-auto -mx-3 -mb-3">
+                    {(data?.activeStaff || []).map((emp) => (
+                      <div key={emp.id} className="px-3 py-2.5 flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-bold text-sm">{emp.name}</p>
+                          <p className="text-xs text-zinc-500">
+                            {emp.position} - {emp.department}
+                          </p>
+                        </div>
+                        <span className="text-[10px] font-black uppercase border border-black px-2 py-0.5">
+                          {emp.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </NBSection>
+            </>
+          )}
+        </NBDialogBody>
+      </NBDialog>
+    </>
   );
 }

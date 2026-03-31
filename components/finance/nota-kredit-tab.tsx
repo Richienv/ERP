@@ -2,17 +2,10 @@
 
 import { useState } from "react"
 import { queryKeys } from "@/lib/query-keys"
-import { Plus, FileText, Loader2 } from "lucide-react"
+import { Plus, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
-import {
-    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select"
-import {
-    Dialog, DialogContent, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog"
+import { SelectItem } from "@/components/ui/select"
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
@@ -23,6 +16,10 @@ import { useCreditDebitNotes } from "@/hooks/use-credit-debit-notes"
 import { createCreditNote } from "@/lib/actions/finance"
 import { useQueryClient } from "@tanstack/react-query"
 import { NB } from "@/lib/dialog-styles"
+import {
+    NBDialog, NBDialogHeader, NBDialogBody, NBDialogFooter,
+    NBSection, NBSelect, NBCurrencyInput, NBInput, NBTextarea,
+} from "@/components/ui/nb-dialog"
 
 const REASON_CODES = [
     { code: "RET-GOODS", label: "Retur Barang" },
@@ -181,60 +178,41 @@ export function NotaKreditTab() {
             </div>
 
             {/* Create Dialog */}
-            <Dialog open={showDialog} onOpenChange={setShowDialog}>
-                <DialogContent className={NB.contentNarrow}>
-                    <DialogHeader className={NB.header}>
-                        <DialogTitle className={NB.title}>
-                            <FileText className="h-5 w-5" /> Buat Nota Kredit
-                        </DialogTitle>
-                        <p className={NB.subtitle}>Retur pelanggan atau koreksi invoice</p>
-                    </DialogHeader>
+            <NBDialog open={showDialog} onOpenChange={setShowDialog}>
+                <NBDialogHeader
+                    icon={FileText}
+                    title="Buat Nota Kredit"
+                    subtitle="Retur pelanggan atau koreksi invoice"
+                />
+                <NBDialogBody>
+                    <NBSection icon={FileText} title="Data Nota Kredit">
+                        <NBSelect
+                            label="Customer"
+                            required
+                            value={form.customerId}
+                            onValueChange={(v) => setForm(f => ({ ...f, customerId: v }))}
+                            placeholder="Pilih customer..."
+                        >
+                            {customers.map((c: any) => (
+                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                            ))}
+                        </NBSelect>
 
-                    <div className="space-y-4 px-6 py-5">
-                        {/* Customer */}
-                        <div>
-                            <label className={NB.label}>Customer <span className={NB.labelRequired}>*</span></label>
-                            <Select value={form.customerId} onValueChange={(v) => setForm(f => ({ ...f, customerId: v }))}>
-                                <SelectTrigger className={NB.select}>
-                                    <SelectValue placeholder="Pilih customer..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {customers.map((c: any) => (
-                                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                        <NBSelect
+                            label="Alasan"
+                            required
+                            value={form.reason}
+                            onValueChange={(v) => setForm(f => ({ ...f, reason: v }))}
+                            placeholder="Pilih alasan..."
+                            options={REASON_CODES.map(r => ({ value: r.code, label: r.label }))}
+                        />
 
-                        {/* Reason */}
-                        <div>
-                            <label className={NB.label}>Alasan <span className={NB.labelRequired}>*</span></label>
-                            <Select value={form.reason} onValueChange={(v) => setForm(f => ({ ...f, reason: v }))}>
-                                <SelectTrigger className={NB.select}>
-                                    <SelectValue placeholder="Pilih alasan..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {REASON_CODES.map((r) => (
-                                        <SelectItem key={r.code} value={r.code}>{r.label}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        {/* Amount */}
-                        <div>
-                            <label className={NB.label}>Jumlah (sebelum PPN) <span className={NB.labelRequired}>*</span></label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-zinc-400">Rp</span>
-                                <Input
-                                    type="number"
-                                    value={form.amount}
-                                    onChange={(e) => setForm(f => ({ ...f, amount: e.target.value }))}
-                                    placeholder="0"
-                                    className={`${NB.inputMono} pl-9`}
-                                />
-                            </div>
-                        </div>
+                        <NBCurrencyInput
+                            label="Jumlah (sebelum PPN)"
+                            required
+                            value={form.amount}
+                            onChange={(v) => setForm(f => ({ ...f, amount: v }))}
+                        />
 
                         {/* PPN */}
                         <div className="flex items-center gap-2">
@@ -249,59 +227,44 @@ export function NotaKreditTab() {
                             )}
                         </div>
 
-                        {/* GL Preview */}
-                        {subtotal > 0 && (
-                            <div className="bg-zinc-50 border-2 border-black p-3">
-                                <p className={NB.label}>Preview Jurnal</p>
-                                <div className="space-y-1 text-xs font-mono">
-                                    <div className="flex justify-between"><span>DR 4000 Pendapatan Penjualan</span><span className="font-bold">{formatIDR(subtotal)}</span></div>
-                                    {ppnAmount > 0 && (
-                                        <div className="flex justify-between"><span>DR 2110 PPN Keluaran</span><span>{formatIDR(ppnAmount)}</span></div>
-                                    )}
-                                    <div className="flex justify-between text-zinc-500"><span>CR 1100 Piutang Usaha</span><span>{formatIDR(total)}</span></div>
-                                    <div className="border-t border-black pt-1 flex justify-between font-bold"><span>Total</span><span>{formatIDR(total)}</span></div>
-                                </div>
+                        <NBInput
+                            label="Tanggal"
+                            type="date"
+                            value={form.date}
+                            onChange={(v) => setForm(f => ({ ...f, date: v }))}
+                        />
+
+                        <NBTextarea
+                            label="Catatan"
+                            value={form.notes}
+                            onChange={(v) => setForm(f => ({ ...f, notes: v }))}
+                            placeholder="Keterangan tambahan..."
+                            rows={2}
+                        />
+                    </NBSection>
+
+                    {/* GL Preview */}
+                    {subtotal > 0 && (
+                        <div className="bg-zinc-50 border-2 border-black p-3">
+                            <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Preview Jurnal</p>
+                            <div className="space-y-1 text-xs font-mono">
+                                <div className="flex justify-between"><span>DR 4000 Pendapatan Penjualan</span><span className="font-bold">{formatIDR(subtotal)}</span></div>
+                                {ppnAmount > 0 && (
+                                    <div className="flex justify-between"><span>DR 2110 PPN Keluaran</span><span>{formatIDR(ppnAmount)}</span></div>
+                                )}
+                                <div className="flex justify-between text-zinc-500"><span>CR 1100 Piutang Usaha</span><span>{formatIDR(total)}</span></div>
+                                <div className="border-t border-black pt-1 flex justify-between font-bold"><span>Total</span><span>{formatIDR(total)}</span></div>
                             </div>
-                        )}
-
-                        {/* Notes */}
-                        <div>
-                            <label className={NB.label}>Catatan</label>
-                            <Textarea
-                                value={form.notes}
-                                onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))}
-                                placeholder="Keterangan tambahan..."
-                                className={NB.textarea}
-                                rows={2}
-                            />
                         </div>
-
-                        {/* Date */}
-                        <div>
-                            <label className={NB.label}>Tanggal</label>
-                            <Input
-                                type="date"
-                                value={form.date}
-                                onChange={(e) => setForm(f => ({ ...f, date: e.target.value }))}
-                                className={NB.input}
-                            />
-                        </div>
-                    </div>
-
-                    <div className={`${NB.footer} px-6 pb-5`}>
-                        <Button variant="outline" onClick={() => setShowDialog(false)} className={NB.cancelBtn}>
-                            Batal
-                        </Button>
-                        <Button
-                            onClick={handleSubmit}
-                            disabled={submitting}
-                            className={NB.submitBtn}
-                        >
-                            {submitting ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Menyimpan...</> : "Simpan & Posting"}
-                        </Button>
-                    </div>
-                </DialogContent>
-            </Dialog>
+                    )}
+                </NBDialogBody>
+                <NBDialogFooter
+                    onCancel={() => setShowDialog(false)}
+                    onSubmit={handleSubmit}
+                    submitting={submitting}
+                    submitLabel="Simpan & Posting"
+                />
+            </NBDialog>
         </div>
     )
 }

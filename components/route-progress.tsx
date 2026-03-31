@@ -91,12 +91,12 @@ export function RouteProgress() {
 
   return (
     <div
-      className="fixed top-0 left-0 right-0 z-50 h-[2.5px] pointer-events-none"
+      className="fixed top-0 left-0 right-0 z-[9999] h-[3px] pointer-events-none"
       aria-hidden="true"
     >
       <div
         ref={barRef}
-        className="h-full w-full origin-left bg-gradient-to-r from-blue-500 via-blue-400 to-cyan-400"
+        className="h-full w-full origin-left bg-orange-500 shadow-[0_0_8px_rgba(234,88,12,0.4)]"
         style={{
           transform: "scaleX(0)",
           opacity: 0,

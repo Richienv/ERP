@@ -2,8 +2,8 @@
 
 import { prisma, withPrismaAuth } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
-import { supabase } from "@/lib/supabase"
-import { ProcurementStatus, PaymentTerm } from "@prisma/client"
+import { PaymentTermLegacy } from "@prisma/client"
+import { isLegacyPaymentTerm } from "@/lib/payment-term-options"
 
 async function requireAuth() {
     const supabase = await createClient()
@@ -100,6 +100,8 @@ export async function createVendor(data: {
         }
 
         return await withPrismaAuth(async (prisma) => {
+            const paymentTerm = isLegacyPaymentTerm(data.paymentTerm) ? data.paymentTerm : "CASH"
+
             // Check for duplicate code
             const existing = await prisma.supplier.findUnique({
                 where: { code: data.code }
@@ -122,7 +124,7 @@ export async function createVendor(data: {
                     officePhone: data.officePhone || null,
                     address: data.address || null,
                     address2: data.address2 || null,
-                    paymentTerm: (data.paymentTerm as PaymentTerm) || "CASH",
+                    paymentTerm: paymentTerm as PaymentTermLegacy,
                     bankName: data.bankName || null,
                     bankAccountNumber: data.bankAccountNumber || null,
                     bankAccountName: data.bankAccountName || null,
@@ -172,6 +174,8 @@ export async function updateVendor(vendorId: string, data: {
         }
 
         return await withPrismaAuth(async (prisma) => {
+            const paymentTerm = isLegacyPaymentTerm(data.paymentTerm) ? data.paymentTerm : "CASH"
+
             // Check vendor exists
             const existing = await prisma.supplier.findUnique({
                 where: { id: vendorId }
@@ -205,7 +209,7 @@ export async function updateVendor(vendorId: string, data: {
                     officePhone: data.officePhone || null,
                     address: data.address || null,
                     address2: data.address2 || null,
-                    paymentTerm: (data.paymentTerm as PaymentTerm) || "CASH",
+                    paymentTerm: paymentTerm as PaymentTermLegacy,
                     bankName: data.bankName || null,
                     bankAccountNumber: data.bankAccountNumber || null,
                     bankAccountName: data.bankAccountName || null,

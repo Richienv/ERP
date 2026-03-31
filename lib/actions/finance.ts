@@ -5,8 +5,13 @@ import { withPrismaAuth, prisma as basePrisma } from "@/lib/db"
 import { supabase } from "@/lib/supabase"
 import { createClient } from "@/lib/supabase/server"
 import { logAudit } from "@/lib/audit-helpers"
-import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts"
-import { calculateDueDate } from "@/lib/payment-term-helpers"
+import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts-server"
+import { assertPeriodOpen } from "@/lib/period-helpers"
+import { legacyTermToDays, calculateDueDate } from "@/lib/payment-term-helpers"
+import { inferSubType } from "@/lib/account-subtype-helpers"
+import { getExchangeRate, convertToIDR } from "@/lib/currency-helpers"
+import { TAX_RATES } from "@/lib/tax-rates"
+import { toNum } from "@/lib/utils"
 
 export interface FinancialMetrics {
     cashBalance: number
@@ -202,6 +207,8 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
             discountAmount: toNum(inv.discountAmount),
             totalAmount: toNum(inv.totalAmount),
             balanceDue: toNum(inv.balanceDue),
+            exchangeRate: toNum(inv.exchangeRate),
+            amountInIDR: toNum(inv.amountInIDR),
             customer: inv.customer?.name ?? inv.customer ?? null,
             supplier: typeof inv.supplier === 'object' ? inv.supplier?.name ?? null : inv.supplier ?? null,
         })
@@ -340,6 +347,7 @@ export async function postJournalEntry(data: {
     description: string
     date: Date
     reference: string
+    sourceDocumentType?: string
     lines: {
         accountCode: string
         debit: number
@@ -356,6 +364,9 @@ export async function postJournalEntry(data: {
             throw new Error(`Unbalanced Journal: Debit (${totalDebit}) != Credit (${totalCredit})`)
         }
 
+        // Period lock check
+        await assertPeriodOpen(data.date)
+
         return await withPrismaAuth(async (prisma) => {
             // 2. Fetch Account IDs
             const codes = data.lines.map(l => l.accountCode)
@@ -364,6 +375,18 @@ export async function postJournalEntry(data: {
             })
 
             const accountMap = new Map(accounts.map(a => [a.code, a]))
+
+            // Block manual journal entries from posting to control accounts
+            if (data.sourceDocumentType === 'MANUAL') {
+                for (const line of data.lines) {
+                    const account = accountMap.get(line.accountCode)
+                    if (account && !account.allowDirectPosting) {
+                        throw new Error(
+                            `Akun kontrol ${account.code} (${account.name}) tidak boleh diposting langsung — gunakan modul AR/AP/Inventory`
+                        )
+                    }
+                }
+            }
 
             // 3. Create Entry & Lines (already inside withPrismaAuth transaction)
             // Create Header
@@ -450,6 +473,8 @@ export interface ProfitLossData {
     operatingIncome: number
     otherIncome: number
     otherExpenses: number
+    /** Depreciation total (subset of operatingExpenses, separated for display) */
+    depreciation?: number
     netIncomeBeforeTax: number
     taxExpense: number
     netIncome: number
@@ -471,7 +496,7 @@ export async function getProfitLossStatement(startDate?: Date | string, endDate?
         const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
         if (authError || !user) throw new Error('Unauthorized')
 
-            // Fetch journal lines with accounts
+            // Fetch journal lines with accounts (include subType for P&L grouping)
             const journalLines = await (basePrisma.journalLine.findMany({
                 where: {
                     entry: {
@@ -483,7 +508,7 @@ export async function getProfitLossStatement(startDate?: Date | string, endDate?
                     }
                 },
                 include: {
-                    account: true,
+                    account: { select: { id: true, code: true, name: true, type: true, subType: true } },
                     entry: true
                 }
             }) as any)
@@ -493,6 +518,7 @@ export async function getProfitLossStatement(startDate?: Date | string, endDate?
             const operatingExpenses: { category: string; amount: number; code?: string }[] = []
             let otherIncome = 0
             let otherExpenses = 0
+            let depreciation = 0
 
             // Group expenses by account
             const expenseMap = new Map<string, { amount: number; code: string }>()
@@ -505,25 +531,26 @@ export async function getProfitLossStatement(startDate?: Date | string, endDate?
                 const normalBalance = ['ASSET', 'EXPENSE'].includes(account.type) ? 'DEBIT' : 'CREDIT'
                 const effectiveAmount = normalBalance === 'DEBIT' ? amount : -amount
 
+                // Resolve subType (prefer DB value, fall back to code-based inference)
+                const st = account.subType && account.subType !== 'GENERAL'
+                    ? account.subType
+                    : inferSubType(account.code)
+
                 switch (account.type) {
                     case 'REVENUE':
-                        // Other income: code 7xxx-8xxx (pendapatan lain-lain)
-                        if (account.code >= '7000' && account.code < '9000') {
+                        if (st === 'INCOME_OTHER') {
                             otherIncome += effectiveAmount
                         } else {
                             revenue += effectiveAmount
                         }
                         break
                     case 'EXPENSE':
-                        // COGS: only code 5000 "HPP" or accounts containing "Harga Pokok"
-                        // (5100+ are operating expenses like Beban Transportasi, Makan & Minum, etc.)
-                        if (account.code === '5000' || account.name.toLowerCase().includes('harga pokok')) {
+                        if (st === 'EXPENSE_DIRECT_COST') {
                             costOfGoodsSold += effectiveAmount
-                        // Other expenses: code 8xxx-9xxx (biaya lain-lain)
-                        } else if (account.code >= '8000') {
-                            otherExpenses += effectiveAmount
+                        } else if (st === 'EXPENSE_DEPRECIATION') {
+                            depreciation += effectiveAmount
                         } else {
-                            // Operating expenses — show each account by name (Beban Transportasi, Beban Makan & Minum, etc.)
+                            // Operating expenses — show each account by name
                             const current = expenseMap.get(account.name) || { amount: 0, code: account.code }
                             expenseMap.set(account.name, { amount: current.amount + effectiveAmount, code: current.code })
                         }
@@ -537,13 +564,17 @@ export async function getProfitLossStatement(startDate?: Date | string, endDate?
                     operatingExpenses.push({ category, amount, code })
                 }
             })
+            // Add depreciation as a separate line within operating expenses
+            if (depreciation > 0) {
+                operatingExpenses.push({ category: 'Beban Penyusutan', amount: depreciation, code: 'DEPR' })
+            }
             operatingExpenses.sort((a, b) => b.amount - a.amount)
 
             const totalOperatingExpenses = operatingExpenses.reduce((sum, exp) => sum + exp.amount, 0)
             const grossProfit = revenue - costOfGoodsSold
             const operatingIncome = grossProfit - totalOperatingExpenses
             const netIncomeBeforeTax = operatingIncome + otherIncome - otherExpenses
-            const taxExpense = netIncomeBeforeTax > 0 ? netIncomeBeforeTax * 0.22 : 0 // 22% corporate tax
+            const taxExpense = netIncomeBeforeTax > 0 ? netIncomeBeforeTax * TAX_RATES.CORPORATE : 0
             const netIncome = netIncomeBeforeTax - taxExpense
 
             return {
@@ -555,6 +586,7 @@ export async function getProfitLossStatement(startDate?: Date | string, endDate?
                 operatingIncome,
                 otherIncome,
                 otherExpenses,
+                depreciation,
                 netIncomeBeforeTax,
                 taxExpense,
                 netIncome,
@@ -574,6 +606,7 @@ export async function getProfitLossStatement(startDate?: Date | string, endDate?
             operatingIncome: 0,
             otherIncome: 0,
             otherExpenses: 0,
+            depreciation: 0,
             netIncomeBeforeTax: 0,
             taxExpense: 0,
             netIncome: 0,
@@ -653,8 +686,10 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
         }
 
         // Step 2: Fetch ALL accounts (all 5 types) with journal lines up to asOfDate
+        // Include subType for finer grouping (Aset Lancar vs Tetap, Kewajiban Lancar vs Jk Panjang, etc.)
         const allAccounts = await basePrisma.gLAccount.findMany({
-            include: {
+            select: {
+                id: true, code: true, name: true, type: true, subType: true, balance: true,
                 lines: {
                     where: {
                         entry: { date: { lte: date }, status: 'POSTED' }
@@ -708,13 +743,20 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
                     const balance = dr - cr // ASSET normal = DEBIT
                     if (Math.abs(balance) < 0.01) break
 
-                    if (account.code >= '1000' && account.code < '1500') {
+                    // Use subType for classification (falls back to code range via inferSubType)
+                    const st = account.subType && account.subType !== 'GENERAL'
+                        ? account.subType
+                        : inferSubType(account.code)
+
+                    const CURRENT_ASSET_SUBTYPES = ['ASSET_CASH', 'ASSET_RECEIVABLE', 'ASSET_CURRENT', 'ASSET_PREPAYMENTS']
+                    if (CURRENT_ASSET_SUBTYPES.includes(st)) {
                         assets.currentAssets.push({ code: account.code, name: account.name, amount: balance })
                         assets.totalCurrentAssets += balance
-                    } else if (account.code >= '1500' && account.code < '2000') {
+                    } else if (st === 'ASSET_FIXED') {
                         assets.fixedAssets.push({ code: account.code, name: account.name, amount: balance })
                         assets.totalFixedAssets += balance
                     } else {
+                        // ASSET_NON_CURRENT or any unrecognized asset subType
                         assets.otherAssets.push({ code: account.code, name: account.name, amount: balance })
                         assets.totalOtherAssets += balance
                     }
@@ -727,10 +769,15 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
                     const balance = cr - dr // LIABILITY normal = CREDIT
                     if (Math.abs(balance) < 0.01) break
 
-                    if (account.code >= '2000' && account.code < '2500') {
+                    const lst = account.subType && account.subType !== 'GENERAL'
+                        ? account.subType
+                        : inferSubType(account.code)
+
+                    if (lst === 'LIABILITY_PAYABLE' || lst === 'LIABILITY_CURRENT') {
                         liabilities.currentLiabilities.push({ code: account.code, name: account.name, amount: balance })
                         liabilities.totalCurrentLiabilities += balance
                     } else {
+                        // LIABILITY_NON_CURRENT or any unrecognized liability subType
                         liabilities.longTermLiabilities.push({ code: account.code, name: account.name, amount: balance })
                         liabilities.totalLongTermLiabilities += balance
                     }
@@ -833,6 +880,8 @@ export interface CashFlowData {
     netIncreaseInCash: number
     beginningCash: number
     endingCash: number
+    calculatedEndingCash?: number
+    cashFlowDiscrepancy?: number  // Selisih Arus Kas — non-zero means unclassified cash movements
     period: { startDate: string; endDate: string }
 }
 
@@ -847,19 +896,31 @@ export async function getCashFlowStatement(startDate?: Date | string, endDate?: 
         const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
         if (authError || !user) throw new Error('Unauthorized')
 
-            // Get cash account changes (all 10xx: 1000 Kas, 1010 BCA, 1020 Mandiri, 1050 Petty Cash, etc.)
+            // Get cash & bank accounts: 1000 Kas, 1050 Petty Cash, 1110 Bank BCA, 1111 Bank Mandiri
             const cashAccounts = await basePrisma.gLAccount.findMany({
                 where: {
                     type: 'ASSET',
-                    code: { gte: '1000', lt: '1100' },
+                    OR: [
+                        { code: { gte: '1000', lt: '1100' } },  // Cash accounts (1000-1099)
+                        { code: { gte: '1100', lt: '1200' } },  // Bank accounts (1100-1199)
+                    ],
                 }
             })
 
-            // Get beginning balance (start of period)
-            const beginningCash = cashAccounts.reduce((sum, acc) => sum + Number(acc.balance), 0)
-
-            // Get journal entries affecting cash, including all sibling lines for counter-party analysis
+            // Calculate beginning cash from journal entries BEFORE the period start
+            // (GL balance is current, not historical — we need point-in-time balance)
             const cashAccountIds = cashAccounts.map(a => a.id)
+            const prePeriodLines = await basePrisma.journalLine.findMany({
+                where: {
+                    accountId: { in: cashAccountIds },
+                    entry: { date: { lt: start }, status: 'POSTED' }
+                },
+                select: { debit: true, credit: true }
+            })
+            // For ASSET accounts: balance = SUM(debits) - SUM(credits)
+            const beginningCash = prePeriodLines.reduce((sum, l) => sum + Number(l.debit) - Number(l.credit), 0)
+
+            // Get journal entries affecting cash IN the period, including sibling lines for counter-party analysis
             const cashJournalLines = await basePrisma.journalLine.findMany({
                 where: {
                     accountId: { in: cashAccountIds },
@@ -999,13 +1060,30 @@ export async function getCashFlowStatement(startDate?: Date | string, endDate?: 
                 investingActivities.netCashFromInvesting +
                 financingActivities.netCashFromFinancing
 
+            // Actual ending cash from GL (journal lines up to end date)
+            const endPeriodLines = await basePrisma.journalLine.findMany({
+                where: {
+                    accountId: { in: cashAccountIds },
+                    entry: { date: { lte: end }, status: 'POSTED' }
+                },
+                select: { debit: true, credit: true }
+            })
+            const actualEndingCash = endPeriodLines.reduce((sum, l) => sum + Number(l.debit) - Number(l.credit), 0)
+            const calculatedEndingCash = beginningCash + netIncreaseInCash
+
+            // Reconciliation: calculated vs actual should match
+            const discrepancy = Math.abs(calculatedEndingCash - actualEndingCash)
+
             return {
                 operatingActivities,
                 investingActivities,
                 financingActivities,
                 netIncreaseInCash,
                 beginningCash,
-                endingCash: beginningCash + netIncreaseInCash,
+                endingCash: actualEndingCash,
+                calculatedEndingCash,
+                // Selisih Arus Kas — if > 0.01, there are unclassified cash movements
+                cashFlowDiscrepancy: discrepancy > 0.01 ? discrepancy : 0,
                 period: {
                     startDate: start.toISOString(),
                     endDate: end.toISOString()
@@ -1078,7 +1156,7 @@ export async function createCustomerInvoice(data: {
 
             // Calculate due date (default NET 30)
             const issueDate = data.issueDate || new Date()
-            const dueDate = data.dueDate || new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000)
+            const dueDate = data.dueDate || calculateDueDate(issueDate, 30)
 
             // Prepare Items
             const invoiceItems = data.items && data.items.length > 0 ? data.items.map(item => ({
@@ -1246,6 +1324,9 @@ export async function createInvoiceFromSalesOrder(salesOrderId: string) {
                 return { success: true, invoiceId: existingInvoice.id, invoiceNumber: existingInvoice.number }
             }
 
+            // Period lock check
+            await assertPeriodOpen(new Date())
+
             // Generate Invoice Number
             const year = new Date().getFullYear()
             const count = await prisma.invoice.count({
@@ -1256,9 +1337,13 @@ export async function createInvoiceFromSalesOrder(salesOrderId: string) {
             })
             const invoiceNumber = `INV-${year}-${String(count + 1).padStart(4, '0')}`
 
-            // Calculate due date from sales order payment term
-            const issueDate = new Date()
-            const dueDate = calculateDueDate(salesOrder.paymentTerm, issueDate)
+            // Determine due date based on payment terms (default: NET_30 = 30 days)
+            const paymentTermDays = legacyTermToDays(salesOrder.paymentTerm)
+            const dueDate = calculateDueDate(new Date(), paymentTermDays)
+
+            // Multi-currency: inherit from SO
+            const soCurrencyCode = salesOrder.currencyCode || "IDR"
+            const soExchangeRate = Number(salesOrder.exchangeRate) || 1
 
             // Create Customer Invoice (Invoice Type OUT)
             const invoice = await prisma.invoice.create({
@@ -1268,14 +1353,16 @@ export async function createInvoiceFromSalesOrder(salesOrderId: string) {
                     customerId: salesOrder.customerId,
                     salesOrderId: salesOrder.id,
                     status: 'ISSUED',
-                    issueDate: issueDate,
+                    issueDate: new Date(),
                     dueDate: dueDate,
-                    paymentTerm: salesOrder.paymentTerm,
                     subtotal: salesOrder.subtotal,
                     taxAmount: salesOrder.taxAmount,
                     discountAmount: salesOrder.discountAmount || 0,
                     totalAmount: salesOrder.total,
                     balanceDue: salesOrder.total,
+                    currencyCode: soCurrencyCode,
+                    exchangeRate: soExchangeRate,
+                    amountInIDR: 0, // will be computed below
                     items: {
                         create: salesOrder.items.map((item) => ({
                             description: item.product?.name || item.description || 'Unknown Item',
@@ -1290,7 +1377,35 @@ export async function createInvoiceFromSalesOrder(salesOrderId: string) {
 
             console.log("Customer Invoice Created:", invoice.number)
 
+            // Multi-currency: convert to IDR for GL posting
+            const soTotal = Number(salesOrder.total)
+            let glAmount = soTotal
+            if (soCurrencyCode !== "IDR") {
+                try {
+                    const rate = await getExchangeRate(soCurrencyCode, new Date())
+                    glAmount = convertToIDR(soTotal, rate)
+                    // Store computed IDR amount and rate on invoice
+                    await prisma.invoice.update({
+                        where: { id: invoice.id },
+                        data: { exchangeRate: rate, amountInIDR: glAmount }
+                    })
+                } catch {
+                    // Fallback: use SO exchange rate if real-time rate unavailable
+                    glAmount = convertToIDR(soTotal, soExchangeRate)
+                    await prisma.invoice.update({
+                        where: { id: invoice.id },
+                        data: { amountInIDR: glAmount }
+                    }).catch(() => {})
+                }
+            } else {
+                await prisma.invoice.update({
+                    where: { id: invoice.id },
+                    data: { amountInIDR: soTotal }
+                }).catch(() => {})
+            }
+
             // Auto-post to General Ledger (DR Accounts Receivable, CR Revenue)
+            // GL always in IDR
             try {
                 // Get GL account codes from database (or use predefined codes)
                 const arAccount = await prisma.gLAccount.findFirst({
@@ -1301,23 +1416,24 @@ export async function createInvoiceFromSalesOrder(salesOrderId: string) {
                 })
 
                 if (arAccount && revenueAccount) {
-                    // Post journal entry
+                    const glCurrencyNote = soCurrencyCode !== "IDR" ? ` [${soCurrencyCode}→IDR]` : ""
+                    // Post journal entry — always in IDR
                     const glResult = await postJournalEntry({
-                        description: `Customer Invoice ${invoice.number} - ${salesOrder.customer?.name}`,
+                        description: `Customer Invoice ${invoice.number} - ${salesOrder.customer?.name}${glCurrencyNote}`,
                         date: new Date(),
                         reference: invoice.number,
                         lines: [
                             {
                                 accountCode: arAccount.code,
-                                debit: Number(salesOrder.total),
+                                debit: glAmount,
                                 credit: 0,
-                                description: `AR - ${salesOrder.customer?.name}`
+                                description: `AR - ${salesOrder.customer?.name}${glCurrencyNote}`
                             },
                             {
                                 accountCode: revenueAccount.code,
                                 debit: 0,
-                                credit: Number(salesOrder.total),
-                                description: `Sales Revenue - SO ${salesOrder.number}`
+                                credit: glAmount,
+                                description: `Sales Revenue - SO ${salesOrder.number}${glCurrencyNote}`
                             }
                         ]
                     })
@@ -1441,6 +1557,9 @@ export async function processRefund(data: {
             if (!invoice) throw new Error("Invoice not found")
             if (invoice.type !== 'INV_OUT') throw new Error("Can only refund customer payments")
 
+            // Period lock check
+            await assertPeriodOpen(new Date())
+
             // 1. Create Refund Record
             const refund = await prisma.payment.create({
                 data: {
@@ -1527,6 +1646,9 @@ export async function createPaymentVoucher(data: {
             if (bills.length !== data.billIds.length) {
                 throw new Error("Some bills not found or already paid")
             }
+
+            // Period lock check
+            await assertPeriodOpen(new Date())
 
             // 2. Generate PV Number
             const count = await prisma.payment.count({ where: { type: 'VOUCHER' } })
@@ -1653,6 +1775,9 @@ export async function recordInvoicePayment(data: {
 
             if (!invoice) throw new Error("Invoice not found")
 
+            // Period lock check
+            await assertPeriodOpen(new Date())
+
             // Create Payment Record
             const payment = await prisma.payment.create({
                 data: {
@@ -1751,6 +1876,9 @@ export async function processGIROClearing(voucherId: string, isCleared: boolean,
             if (!voucher) throw new Error("Voucher not found")
             if (voucher.method !== 'GIRO') throw new Error("Not a GIRO payment")
             if (voucher.status !== 'PENDING') throw new Error("GIRO already processed")
+
+            // Period lock check
+            await assertPeriodOpen(new Date())
 
             if (isCleared) {
                 // GIRO Cleared - apply payments
@@ -2042,6 +2170,9 @@ export async function recordARPayment(data: {
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
+            // Period lock check
+            await assertPeriodOpen(new Date())
+
             // Generate payment number
             const year = new Date().getFullYear()
             const count = await prisma.payment.count({
@@ -2121,6 +2252,9 @@ export async function matchPaymentToInvoice(paymentId: string, invoiceId: string
             if (!payment) throw new Error("Payment not found")
             if (!invoice) throw new Error("Invoice not found")
             if (payment.invoiceId) throw new Error("Payment already allocated")
+
+            // Period lock check
+            await assertPeriodOpen(new Date())
 
             const paymentAmount = Number(payment.amount)
             const newBalance = Number(invoice.balanceDue) - paymentAmount
@@ -2240,6 +2374,7 @@ export interface VendorBill {
     balanceDue: number
     status: string
     isOverdue: boolean
+    payments?: { id: string; amount: number; method: string; reference: string | null; date: Date }[]
 }
 
 /**
@@ -2313,6 +2448,9 @@ export async function approveVendorBill(billId: string) {
 
             if (!bill) throw new Error("Bill not found")
             if (bill.status !== 'DRAFT') throw new Error("Bill already processed")
+
+            // Period lock check
+            await assertPeriodOpen(new Date())
 
             // 2. Update Status to ISSUED (Approved)
             await prisma.invoice.update({
@@ -2489,6 +2627,9 @@ export async function recordVendorPayment(data: {
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
+            // Period lock check
+            await assertPeriodOpen(new Date())
+
             // Generate payment number
             const year = new Date().getFullYear()
             const count = await prisma.payment.count({
@@ -2546,7 +2687,7 @@ export async function recordVendorPayment(data: {
                 ]
             })
             if (!glResult?.success) {
-                console.error("GL posting failed:", glResult?.error)
+                throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(glResult as any)?.error || 'Unknown GL error'}`)
             }
 
             return { success: true, paymentId: payment.id, paymentNumber }
@@ -2580,7 +2721,9 @@ export interface GLAccountNode {
     code: string
     name: string
     type: string
+    subType: string
     balance: number
+    parentId: string | null
     children: GLAccountNode[]
 }
 
@@ -2620,7 +2763,9 @@ export async function getChartOfAccountsTree(): Promise<GLAccountNode[]> {
                     code: acc.code,
                     name: acc.name,
                     type: acc.type,
+                    subType: acc.subType,
                     balance: balanceMap.get(acc.id) || 0,
+                    parentId: acc.parentId,
                     children: []
                 })
             })
@@ -2661,14 +2806,32 @@ export async function createGLAccount(data: {
     code: string
     name: string
     type: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE'
+    parentId?: string | null
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
+            let parentId = data.parentId ?? null
+
+            // Auto-suggest parent: find account with same first 2 digits + "00" suffix
+            if (!parentId && data.code.length >= 4) {
+                const prefix = data.code.substring(0, 2)
+                const parentCode = prefix + "00"
+                if (parentCode !== data.code) {
+                    const candidate = await prisma.gLAccount.findUnique({
+                        where: { code: parentCode },
+                        select: { id: true },
+                    })
+                    if (candidate) parentId = candidate.id
+                }
+            }
+
             const account = await prisma.gLAccount.create({
                 data: {
                     code: data.code,
                     name: data.name,
-                    type: data.type
+                    type: data.type,
+                    subType: inferSubType(data.code) as any,
+                    parentId,
                 }
             })
             return { success: true, accountId: account.id }
@@ -2891,6 +3054,9 @@ export async function approveAndPayBill(
             })
             if (!bill) throw new Error("Bill not found")
 
+            // Period lock check
+            await assertPeriodOpen(new Date())
+
             // 2. Update Supplier Bank Details if provided
             if (bill.supplierId && paymentDetails.bankAccountNumber) {
                 await prisma.supplier.update({
@@ -2915,12 +3081,13 @@ export async function approveAndPayBill(
                 const glLines: { accountCode: string; debit: number; credit: number; description: string }[] = []
                 let totalAmount = 0
 
-                // Add Expense Lines — DR HPP/COGS
+                // Add Expense Lines — DR Beban (Expense)
+                // Vendor bills debit EXPENSE_DEFAULT (6900). COGS (5000) is only debited when inventory items are SOLD, not when purchased.
                 for (const item of bill.items) {
                     const amount = Number(item.amount)
                     totalAmount += amount
                     glLines.push({
-                        accountCode: SYS_ACCOUNTS.COGS,
+                        accountCode: SYS_ACCOUNTS.EXPENSE_DEFAULT,
                         debit: amount,
                         credit: 0,
                         description: `${item.description}`
@@ -3293,6 +3460,17 @@ export async function getVendorBillsRegistry(input?: VendorBillQueryInput): Prom
                                 bankAccountNumber: true,
                                 bankAccountName: true
                             }
+                        },
+                        payments: {
+                            select: {
+                                id: true,
+                                amount: true,
+                                method: true,
+                                reference: true,
+                                date: true,
+                            },
+                            orderBy: { date: 'desc' },
+                            take: 3,
                         }
                     },
                     orderBy: [{ dueDate: 'asc' }, { issueDate: 'desc' }],
@@ -3319,7 +3497,14 @@ export async function getVendorBillsRegistry(input?: VendorBillQueryInput): Prom
                 amount: Number(bill.totalAmount),
                 balanceDue: Number(bill.balanceDue),
                 status: bill.status,
-                isOverdue: bill.dueDate < now && bill.status !== 'PAID'
+                isOverdue: bill.dueDate < now && bill.status !== 'PAID',
+                payments: bill.payments?.map(p => ({
+                    id: p.id,
+                    amount: Number(p.amount),
+                    method: p.method || 'TRANSFER',
+                    reference: p.reference,
+                    date: p.date,
+                })) ?? [],
             }))
 
             return {
@@ -3455,12 +3640,6 @@ export async function getRevenueFromInvoices(startDate?: Date | string, endDate?
 // ==========================================
 export async function getARAgingReport() {
     try {
-        // Auto-mark past-due invoices before generating the report
-        const { markOverdueInvoices } = await import("@/lib/actions/finance-invoices")
-        await markOverdueInvoices().catch((err: any) => {
-            console.warn('markOverdueInvoices failed (non-fatal):', err?.message)
-        })
-
         const supabaseClient = await createClient()
         const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
         if (authError || !user) throw new Error('Unauthorized')
@@ -3504,7 +3683,7 @@ export async function getARAgingReport() {
                 const due = new Date(inv.dueDate)
                 const diffMs = today.getTime() - due.getTime()
                 const daysOverdue = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
-                const balance = Number(inv.balanceDue)
+                const balance = toNum(inv.balanceDue)
                 const custId = inv.customer?.id || 'unknown'
                 const custName = inv.customer?.name || 'Tanpa Pelanggan'
                 const custCode = inv.customer?.code ?? null
@@ -3553,6 +3732,28 @@ export async function getARAgingReport() {
 
             const totalOutstanding = buckets.current + buckets.d1_30 + buckets.d31_60 + buckets.d61_90 + buckets.d90_plus
 
+            // Fetch DRAFT invoices separately (not mixed into aging buckets)
+            const pendingInvoices = await basePrisma.invoice.findMany({
+                where: {
+                    type: 'INV_OUT',
+                    status: 'DRAFT',
+                },
+                include: {
+                    customer: { select: { id: true, name: true, code: true } },
+                },
+                orderBy: { createdAt: 'desc' },
+            })
+
+            const pending = pendingInvoices.map(inv => ({
+                id: inv.id,
+                invoiceNumber: inv.number,
+                customerName: inv.customer?.name || 'Tanpa Pelanggan',
+                customerId: inv.customer?.id || '',
+                totalAmount: toNum(inv.totalAmount),
+                createdAt: inv.createdAt,
+                dueDate: inv.dueDate,
+            }))
+
             return {
                 summary: {
                     ...buckets,
@@ -3561,6 +3762,7 @@ export async function getARAgingReport() {
                 },
                 byCustomer: Array.from(customerMap.values()).sort((a, b) => b.total - a.total),
                 details: details.sort((a, b) => b.daysOverdue - a.daysOverdue),
+                pending,
             }
     } catch (error) {
         console.error("Failed to generate AR aging report:", error)
@@ -3568,6 +3770,7 @@ export async function getARAgingReport() {
             summary: { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, totalOutstanding: 0, invoiceCount: 0 },
             byCustomer: [],
             details: [],
+            pending: [],
         }
     }
 }
@@ -3577,12 +3780,6 @@ export async function getARAgingReport() {
 // ==========================================
 export async function getAPAgingReport() {
     try {
-        // Auto-mark past-due bills before generating the report
-        const { markOverdueInvoices } = await import("@/lib/actions/finance-invoices")
-        await markOverdueInvoices().catch((err: any) => {
-            console.warn('markOverdueInvoices failed (non-fatal):', err?.message)
-        })
-
         const supabaseClient = await createClient()
         const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
         if (authError || !user) throw new Error('Unauthorized')
@@ -3626,7 +3823,7 @@ export async function getAPAgingReport() {
                 const due = new Date(bill.dueDate)
                 const diffMs = today.getTime() - due.getTime()
                 const daysOverdue = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
-                const balance = Number(bill.balanceDue)
+                const balance = toNum(bill.balanceDue)
                 const suppId = bill.supplier?.id || 'unknown'
                 const suppName = bill.supplier?.name || 'Tanpa Supplier'
                 const suppCode = bill.supplier?.code ?? null
@@ -3674,6 +3871,28 @@ export async function getAPAgingReport() {
 
             const totalOutstanding = buckets.current + buckets.d1_30 + buckets.d31_60 + buckets.d61_90 + buckets.d90_plus
 
+            // Fetch DRAFT bills separately (not mixed into aging buckets)
+            const pendingBills = await basePrisma.invoice.findMany({
+                where: {
+                    type: 'INV_IN',
+                    status: 'DRAFT',
+                },
+                include: {
+                    supplier: { select: { id: true, name: true, code: true } },
+                },
+                orderBy: { createdAt: 'desc' },
+            })
+
+            const pending = pendingBills.map(bill => ({
+                id: bill.id,
+                invoiceNumber: bill.number,
+                supplierName: bill.supplier?.name || 'Tanpa Supplier',
+                supplierId: bill.supplier?.id || '',
+                totalAmount: toNum(bill.totalAmount),
+                createdAt: bill.createdAt,
+                dueDate: bill.dueDate,
+            }))
+
             return {
                 summary: {
                     ...buckets,
@@ -3682,6 +3901,7 @@ export async function getAPAgingReport() {
                 },
                 bySupplier: Array.from(supplierMap.values()).sort((a, b) => b.total - a.total),
                 details: details.sort((a, b) => b.daysOverdue - a.daysOverdue),
+                pending,
             }
     } catch (error) {
         console.error("Failed to generate AP aging report:", error)
@@ -3689,6 +3909,7 @@ export async function getAPAgingReport() {
             summary: { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, totalOutstanding: 0, billCount: 0 },
             bySupplier: [],
             details: [],
+            pending: [],
         }
     }
 }
@@ -3745,6 +3966,8 @@ export async function recordExpense(input: RecordExpenseInput) {
             if (!description || amount <= 0) {
                 return { success: false, error: "Deskripsi dan jumlah wajib diisi" }
             }
+
+            await assertPeriodOpen(date)
 
             const count = await prisma.journalEntry.count({
                 where: { description: { startsWith: '[EXPENSE]' } }
@@ -3953,6 +4176,8 @@ export async function createCreditNote(input: CreateCreditNoteInput) {
                 return { success: false, error: "Customer dan jumlah wajib diisi" }
             }
 
+            await assertPeriodOpen(date)
+
             // Generate number
             const count = await prisma.invoice.count({ where: { number: { startsWith: 'CN-' } } })
             const num = `CN-${String(count + 1).padStart(5, '0')}`
@@ -3966,10 +4191,10 @@ export async function createCreditNote(input: CreateCreditNoteInput) {
                     customerId,
                     issueDate: date,
                     dueDate: date,
+                    subtotal: -amount,
+                    taxAmount: 0,
                     totalAmount: -amount,
                     balanceDue: 0,
-                    taxAmount: 0,
-                    subtotalAmount: -amount,
                 }
             })
 
@@ -4020,20 +4245,40 @@ export async function createCreditNote(input: CreateCreditNoteInput) {
 interface CreateDebitNoteInput {
     supplierId: string
     originalBillId?: string
-    amount: number
+    subtotal: number
+    ppnAmount: number
     reason: string
     date: Date
-    apAccountId: string
-    expenseAccountId: string
 }
 
 export async function createDebitNote(input: CreateDebitNoteInput) {
     try {
         return await withPrismaAuth(async (prisma) => {
-            const { supplierId, originalBillId, amount, reason, date, apAccountId, expenseAccountId } = input
+            const { supplierId, originalBillId, subtotal, ppnAmount, reason, date } = input
+            const total = subtotal + ppnAmount
 
-            if (!supplierId || amount <= 0) {
+            if (!supplierId || subtotal <= 0) {
                 return { success: false, error: "Supplier dan jumlah wajib diisi" }
+            }
+
+            await assertPeriodOpen(date)
+
+            // Resolve GL accounts by code — never rely on client-passed IDs
+            const { ensureSystemAccounts } = await import("@/lib/gl-accounts-server")
+            const { SYS_ACCOUNTS } = await import("@/lib/gl-accounts")
+            await ensureSystemAccounts()
+
+            const apAccount = await prisma.gLAccount.findUnique({ where: { code: SYS_ACCOUNTS.AP } })
+            const expenseAccount = await prisma.gLAccount.findUnique({ where: { code: SYS_ACCOUNTS.COGS } })
+            const ppnAccount = ppnAmount > 0
+                ? await prisma.gLAccount.findUnique({ where: { code: SYS_ACCOUNTS.PPN_MASUKAN } })
+                : null
+
+            if (!apAccount || !expenseAccount) {
+                return { success: false, error: "Akun GL AP atau HPP tidak ditemukan. Jalankan setup Chart of Accounts." }
+            }
+            if (ppnAmount > 0 && !ppnAccount) {
+                return { success: false, error: "Akun PPN Masukan tidak ditemukan. Jalankan setup Chart of Accounts." }
             }
 
             const count = await prisma.invoice.count({ where: { number: { startsWith: 'DN-' } } })
@@ -4047,14 +4292,25 @@ export async function createDebitNote(input: CreateDebitNoteInput) {
                     supplierId,
                     issueDate: date,
                     dueDate: date,
-                    totalAmount: -amount,
+                    subtotal: -subtotal,
+                    taxAmount: -ppnAmount,
+                    totalAmount: -total,
                     balanceDue: 0,
-                    taxAmount: 0,
-                    subtotalAmount: -amount,
                 }
             })
 
-            // Journal: Debit AP, Credit Expense
+            // Journal: DR Hutang Usaha, CR HPP (+ CR PPN Masukan if applicable)
+            const journalLines: { accountId: string; debit: number; credit: number; description: string }[] = [
+                { accountId: apAccount.id, debit: total, credit: 0, description: `Nota Debit ${num} — pengurangan hutang usaha` },
+                { accountId: expenseAccount.id, debit: 0, credit: subtotal, description: `Nota Debit ${num} — koreksi HPP: ${reason}` },
+            ]
+            if (ppnAmount > 0 && ppnAccount) {
+                journalLines.push({
+                    accountId: ppnAccount.id, debit: 0, credit: ppnAmount,
+                    description: `Nota Debit ${num} — reversal PPN Masukan`,
+                })
+            }
+
             await prisma.journalEntry.create({
                 data: {
                     date,
@@ -4062,22 +4318,21 @@ export async function createDebitNote(input: CreateDebitNoteInput) {
                     reference: num,
                     status: 'POSTED',
                     invoiceId: dn.id,
-                    lines: {
-                        create: [
-                            { accountId: apAccountId, debit: amount, credit: 0, description: `Nota Debit ${num} — pengurangan hutang usaha` },
-                            { accountId: expenseAccountId, credit: amount, debit: 0, description: `Nota Debit ${num} — koreksi beban/HPP: ${reason}` },
-                        ]
-                    }
+                    lines: { create: journalLines },
                 }
             })
 
-            await prisma.gLAccount.update({ where: { id: apAccountId }, data: { balance: { increment: amount } } })
-            await prisma.gLAccount.update({ where: { id: expenseAccountId }, data: { balance: { decrement: amount } } })
+            // Update GL balances — AP is liability (debit increases = reduces balance)
+            await prisma.gLAccount.update({ where: { id: apAccount.id }, data: { balance: { increment: total } } })
+            await prisma.gLAccount.update({ where: { id: expenseAccount.id }, data: { balance: { decrement: subtotal } } })
+            if (ppnAmount > 0 && ppnAccount) {
+                await prisma.gLAccount.update({ where: { id: ppnAccount.id }, data: { balance: { decrement: ppnAmount } } })
+            }
 
             if (originalBillId) {
                 const bill = await prisma.invoice.findUnique({ where: { id: originalBillId } })
                 if (bill) {
-                    const newBalance = Math.max(0, Number(bill.balanceDue) - amount)
+                    const newBalance = Math.max(0, Number(bill.balanceDue) - total)
                     await prisma.invoice.update({
                         where: { id: originalBillId },
                         data: {
@@ -4092,7 +4347,8 @@ export async function createDebitNote(input: CreateDebitNoteInput) {
         })
     } catch (error) {
         console.error("Failed to create debit note:", error)
-        return { success: false, error: "Gagal membuat debit note" }
+        const msg = error instanceof Error ? error.message : "Gagal membuat debit note"
+        return { success: false, error: msg }
     }
 }
 

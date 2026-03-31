@@ -3,8 +3,9 @@
 import { prisma, withPrismaAuth } from "@/lib/db"
 import { PrismaClient } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
-import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
+import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts-server"
 import { findMatchesIndexed, buildTransactionIndex, type BankLine, type SystemTransaction, type MatchResult } from "@/lib/finance-reconciliation-helpers"
+import { postJournalEntry, getNextJournalRef } from "@/lib/actions/finance-gl"
 async function requireAuth() {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
@@ -774,7 +775,39 @@ export async function matchMultipleItems(data: {
 }
 
 /**
+ * Classify a bank reconciliation item as BANK_CHARGE or INTEREST_INCOME.
+ * These items will have auto-GL entries created during reconciliation finalization.
+ * Sets matchStatus to EXCLUDED so closeReconciliation allows it (no system match needed).
+ */
+export async function classifyReconciliationItem(
+    itemId: string,
+    itemType: 'BANK_CHARGE' | 'INTEREST_INCOME'
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        await withPrismaAuth(async (prisma: PrismaClient) => {
+            await prisma.bankReconciliationItem.update({
+                where: { id: itemId },
+                data: {
+                    itemType,
+                    matchStatus: 'EXCLUDED',
+                    excludeReason: itemType === 'BANK_CHARGE'
+                        ? 'Biaya bank — jurnal otomatis saat finalisasi'
+                        : 'Pendapatan bunga — jurnal otomatis saat finalisasi',
+                },
+            })
+        })
+
+        return { success: true }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal mengklasifikasi item'
+        console.error("[classifyReconciliationItem] Error:", error)
+        return { success: false, error: msg }
+    }
+}
+
+/**
  * Close/complete a reconciliation.
+ * Auto-creates journal entries for BANK_CHARGE and INTEREST_INCOME items.
  */
 export async function closeReconciliation(
     reconciliationId: string
@@ -793,6 +826,66 @@ export async function closeReconciliation(
                 return {
                     success: false as const,
                     error: `Masih ada ${unmatchedCount} item belum dicocokkan atau dikecualikan`,
+                }
+            }
+
+            // Get reconciliation with GL account info for auto-GL posting
+            const rec = await prisma.bankReconciliation.findUniqueOrThrow({
+                where: { id: reconciliationId },
+                include: { glAccount: { select: { code: true } } },
+            })
+            const bankAccountCode = rec.glAccount.code
+
+            // Find items classified as BANK_CHARGE or INTEREST_INCOME for auto-GL
+            const autoGlItems = await prisma.bankReconciliationItem.findMany({
+                where: {
+                    reconciliationId,
+                    itemType: { in: ['BANK_CHARGE', 'INTEREST_INCOME'] },
+                },
+            })
+
+            // Auto-post journal entries for classified items
+            if (autoGlItems.length > 0) {
+                await ensureSystemAccounts()
+
+                for (const item of autoGlItems) {
+                    const amount = Math.abs(Number(item.bankAmount))
+                    if (amount === 0) continue
+
+                    const ref = await getNextJournalRef('RECON')
+                    const itemDate = item.bankDate ?? rec.statementDate
+
+                    if (item.itemType === 'BANK_CHARGE') {
+                        // Bank Charge: DR Bank Charges (7200), CR Bank GL account
+                        const glResult = await postJournalEntry({
+                            description: `Biaya bank — rekonsiliasi ${rec.id.slice(0, 8)}${item.bankDescription ? ': ' + item.bankDescription : ''}`,
+                            date: itemDate,
+                            reference: ref,
+                            sourceDocumentType: 'BANK_RECONCILIATION',
+                            lines: [
+                                { accountCode: SYS_ACCOUNTS.BANK_CHARGES, debit: amount, credit: 0, description: 'Biaya bank' },
+                                { accountCode: bankAccountCode, debit: 0, credit: amount, description: 'Biaya bank' },
+                            ],
+                        })
+                        if (!glResult.success) {
+                            throw new Error(`Gagal posting jurnal biaya bank: ${'error' in glResult ? glResult.error : 'Unknown error'}`)
+                        }
+                    } else if (item.itemType === 'INTEREST_INCOME') {
+                        // Interest Income: DR Bank GL account, CR Interest Income (4400)
+                        const glResult = await postJournalEntry({
+                            description: `Pendapatan bunga — rekonsiliasi ${rec.id.slice(0, 8)}${item.bankDescription ? ': ' + item.bankDescription : ''}`,
+                            date: itemDate,
+                            reference: ref,
+                            sourceDocumentType: 'BANK_RECONCILIATION',
+                            lines: [
+                                { accountCode: bankAccountCode, debit: amount, credit: 0, description: 'Pendapatan bunga' },
+                                { accountCode: SYS_ACCOUNTS.INTEREST_INCOME, debit: 0, credit: amount, description: 'Pendapatan bunga' },
+                            ],
+                        })
+                        if (!glResult.success) {
+                            throw new Error(`Gagal posting jurnal pendapatan bunga: ${'error' in glResult ? glResult.error : 'Unknown error'}`)
+                        }
+                    }
                 }
             }
 

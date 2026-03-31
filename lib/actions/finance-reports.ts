@@ -64,11 +64,14 @@ export interface ProfitLossData {
     operatingExpenses: {
         category: string
         amount: number
+        code?: string
     }[]
     totalOperatingExpenses: number
     operatingIncome: number
     otherIncome: number
     otherExpenses: number
+    /** Depreciation total (subset of operatingExpenses, separated for display) */
+    depreciation?: number
     netIncomeBeforeTax: number
     taxExpense: number
     netIncome: number

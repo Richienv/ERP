@@ -1,10 +1,14 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { NB } from "@/lib/dialog-styles"
+import { FileText } from "lucide-react"
+import {
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBDialogFooter,
+    NBInput,
+} from "@/components/ui/nb-dialog"
 
 interface ScenarioDialogProps {
     open: boolean
@@ -30,33 +34,26 @@ export function CashflowScenarioDialog({ open, onOpenChange, onSave, initialName
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className={NB.contentNarrow}>
-                <DialogHeader className={NB.header}>
-                    <DialogTitle className={NB.title}>
-                        {mode === "create" ? "Buat Skenario Baru" : "Ubah Nama Skenario"}
-                    </DialogTitle>
-                </DialogHeader>
-                <div className="p-6 space-y-4">
-                    <div>
-                        <label className={NB.label}>Nama Skenario</label>
-                        <Input
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && handleSave()}
-                            placeholder="Optimis..."
-                            className={NB.input}
-                            autoFocus
-                        />
-                    </div>
-                    <div className={NB.footer}>
-                        <Button className={NB.cancelBtn} onClick={() => onOpenChange(false)}>Batal</Button>
-                        <Button className={NB.submitBtn} onClick={handleSave} disabled={!name.trim()}>
-                            {mode === "create" ? "Buat" : "Simpan"}
-                        </Button>
-                    </div>
-                </div>
-            </DialogContent>
-        </Dialog>
+        <NBDialog open={open} onOpenChange={onOpenChange} size="narrow">
+            <NBDialogHeader
+                icon={FileText}
+                title={mode === "create" ? "Buat Skenario Baru" : "Ubah Nama Skenario"}
+            />
+            <NBDialogBody>
+                <NBInput
+                    label="Nama Skenario"
+                    required
+                    value={name}
+                    onChange={setName}
+                    placeholder="Optimis..."
+                />
+            </NBDialogBody>
+            <NBDialogFooter
+                onCancel={() => onOpenChange(false)}
+                onSubmit={handleSave}
+                submitLabel={mode === "create" ? "Buat" : "Simpan"}
+                disabled={!name.trim()}
+            />
+        </NBDialog>
     )
 }

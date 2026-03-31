@@ -47,8 +47,12 @@ import { TrialBalancePanel } from "@/components/finance/reports/trial-balance-pa
 import { ReconciliationPreviewDialog } from "@/components/finance/reports/reconciliation-preview-dialog"
 import { getTrialBalance, getAccountDrillDown, type DrillDownRow } from "@/lib/actions/finance-gl"
 import type { TrialBalanceData } from "@/lib/actions/finance-gl"
+import { useWithholdingTaxes, usePPhSummary } from "@/hooks/use-withholding-taxes"
+import { markWithholdingDeposited } from "@/lib/actions/finance-pph"
+import { getDepositDeadline, getFilingDeadline } from "@/lib/pph-helpers"
+import { useQueryClient } from "@tanstack/react-query"
 
-type ReportType = "pnl" | "bs" | "cf" | "tb" | "equity_changes" | "ar_aging" | "ap_aging" | "inventory_turnover" | "tax_report" | "budget_vs_actual"
+type ReportType = "pnl" | "bs" | "cf" | "tb" | "equity_changes" | "ar_aging" | "ap_aging" | "inventory_turnover" | "tax_report" | "pph_report" | "budget_vs_actual"
 
 interface SidebarGroup {
     label: string
@@ -88,6 +92,7 @@ const sidebarGroups: SidebarGroup[] = [
         items: [
             { key: "inventory_turnover", label: "Perputaran Persediaan", icon: <Package className="h-3.5 w-3.5" /> },
             { key: "tax_report", label: "Laporan Pajak (PPN)", icon: <Receipt className="h-3.5 w-3.5" /> },
+            { key: "pph_report", label: "Laporan PPh (Potong/Pungut)", icon: <FileText className="h-3.5 w-3.5" /> },
         ],
     },
     {
@@ -279,6 +284,75 @@ export default function FinancialReportsPage() {
     const inventoryTurnoverData = data?.reports?.inventory_turnover ?? null
     const taxData = data?.reports?.tax_report ?? null
     const budgetVsActualData = data?.reports?.budget_vs_actual ?? null
+
+    // PPh Report — uses its own query (not part of consolidated report)
+    const queryClient = useQueryClient()
+    const currentMonth = new Date()
+    const pphPeriod = {
+        startDate: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).toISOString(),
+        endDate: new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).toISOString(),
+    }
+    const { data: pphListResult, isLoading: pphListLoading } = useWithholdingTaxes(
+        reportType === "pph_report" ? { startDate: pphPeriod.startDate, endDate: pphPeriod.endDate } : undefined
+    )
+    const { data: pphSummaryResult, isLoading: pphSummaryLoading } = usePPhSummary(
+        reportType === "pph_report" ? pphPeriod : undefined
+    )
+    const pphRecords = pphListResult?.success ? pphListResult.data : []
+    const pphSummary = pphSummaryResult?.success ? pphSummaryResult.data : null
+    const [pphSelectedIds, setPphSelectedIds] = useState<Set<string>>(new Set())
+    const [pphDepositDialogOpen, setPphDepositDialogOpen] = useState(false)
+    const [pphDepositDate, setPphDepositDate] = useState(new Date().toISOString().slice(0, 10))
+    const [pphDepositRef, setPphDepositRef] = useState("")
+    const [pphDepositing, setPphDepositing] = useState(false)
+
+    const pphDeadlines = {
+        deposit: getDepositDeadline(currentMonth),
+        filing: getFilingDeadline(currentMonth),
+    }
+
+    const togglePphSelect = (id: string) => {
+        setPphSelectedIds(prev => {
+            const next = new Set(prev)
+            next.has(id) ? next.delete(id) : next.add(id)
+            return next
+        })
+    }
+
+    const togglePphSelectAll = () => {
+        const undepositedIds = (pphRecords || []).filter((r: any) => !r.deposited).map((r: any) => r.id)
+        if (pphSelectedIds.size === undepositedIds.length && undepositedIds.length > 0) {
+            setPphSelectedIds(new Set())
+        } else {
+            setPphSelectedIds(new Set(undepositedIds))
+        }
+    }
+
+    async function handlePphDeposit() {
+        if (pphSelectedIds.size === 0) { toast.error("Pilih PPh yang akan disetor"); return }
+        if (!pphDepositRef.trim()) { toast.error("Masukkan nomor NTPN / referensi setor"); return }
+        setPphDepositing(true)
+        try {
+            const result = await markWithholdingDeposited({
+                ids: Array.from(pphSelectedIds),
+                depositDate: pphDepositDate,
+                depositRef: pphDepositRef.trim(),
+            })
+            if (result.success) {
+                toast.success(`${result.count} PPh berhasil ditandai disetor (${formatIDR(result.totalAmount || 0)})`)
+                setPphSelectedIds(new Set())
+                setPphDepositDialogOpen(false)
+                setPphDepositRef("")
+                queryClient.invalidateQueries({ queryKey: ["finance", "pph"] })
+            } else {
+                toast.error(result.error || "Gagal menyetor PPh")
+            }
+        } catch (err: any) {
+            toast.error(err.message || "Terjadi kesalahan")
+        } finally {
+            setPphDepositing(false)
+        }
+    }
 
     const loadTrialBalance = async () => {
         setTbLoading(true)
@@ -2175,6 +2249,204 @@ export default function FinancialReportsPage() {
                                 </div>
                             )}
 
+                            {/* PPh (Potong/Pungut) Report */}
+                            {reportType === "pph_report" && (
+                                <div className="space-y-4">
+                                    {/* KPI Strip */}
+                                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                                        <div className="h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500" />
+                                        <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <FileText className="h-4 w-4 text-emerald-600" />
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Laporan PPh (Potong / Pungut)</span>
+                                            </div>
+                                            <span className="text-[10px] font-bold text-zinc-400">
+                                                {currentMonth.toLocaleDateString("id-ID", { month: "long", year: "numeric" })}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center divide-x divide-zinc-200 dark:divide-zinc-800">
+                                            {[
+                                                { label: "PPh 23", value: pphSummary?.pph23?.total ?? 0, color: "blue" },
+                                                { label: "PPh 4(2)", value: pphSummary?.pph4_2?.total ?? 0, color: "indigo" },
+                                                { label: "Belum Disetor", value: (pphSummary?.pph23?.outstanding ?? 0) + (pphSummary?.pph4_2?.outstanding ?? 0) + (pphSummary?.pph21?.outstanding ?? 0), color: "amber" },
+                                                { label: "Total Semua", value: (pphSummary?.pph23?.total ?? 0) + (pphSummary?.pph4_2?.total ?? 0) + (pphSummary?.pph21?.total ?? 0), color: "emerald" },
+                                            ].map((kpiItem) => (
+                                                <div key={kpiItem.label} className="flex-1 px-4 py-3 flex items-center justify-between gap-2">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className={`w-2 h-2 ${kpiItem.color === "blue" ? "bg-blue-500" : kpiItem.color === "indigo" ? "bg-indigo-500" : kpiItem.color === "amber" ? "bg-amber-500" : "bg-emerald-500"}`} />
+                                                        <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{kpiItem.label}</span>
+                                                    </div>
+                                                    {pphSummaryLoading ? (
+                                                        <span className="inline-block h-5 w-20 bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+                                                    ) : (
+                                                        <span className={`text-lg font-black ${kpiItem.color === "amber" && kpiItem.value > 0 ? "text-amber-600" : "text-zinc-900 dark:text-white"}`}>
+                                                            {formatIDR(kpiItem.value)}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Deadline Info */}
+                                    <div className="bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-300 dark:border-amber-700 px-4 py-2.5 flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-amber-700">Batas Waktu</span>
+                                        </div>
+                                        <div className="flex items-center gap-4 text-[11px] font-bold text-amber-700">
+                                            <span>Batas setor: {pphDeadlines.deposit.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</span>
+                                            <span className="text-amber-400">|</span>
+                                            <span>Batas lapor: {pphDeadlines.filing.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Action bar + Deposit dialog */}
+                                    {pphSelectedIds.size > 0 && (
+                                        <div className="bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-300 dark:border-emerald-700 px-4 py-2.5 flex items-center justify-between">
+                                            <span className="text-[11px] font-bold text-emerald-700">
+                                                {pphSelectedIds.size} PPh dipilih
+                                            </span>
+                                            <Dialog open={pphDepositDialogOpen} onOpenChange={setPphDepositDialogOpen}>
+                                                <DialogTrigger asChild>
+                                                    <Button className="bg-emerald-500 text-white border border-emerald-600 hover:bg-emerald-600 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none transition-colors">
+                                                        <Check className="h-3.5 w-3.5 mr-1.5" /> Tandai Sudah Disetor
+                                                    </Button>
+                                                </DialogTrigger>
+                                                <DialogContent className={NB.contentNarrow}>
+                                                    <DialogHeader className={NB.header}>
+                                                        <DialogTitle className={NB.title}>
+                                                            <Check className="h-4 w-4" /> Setor PPh
+                                                        </DialogTitle>
+                                                        <p className={NB.subtitle}>{pphSelectedIds.size} item PPh akan ditandai sudah disetor</p>
+                                                    </DialogHeader>
+                                                    <div className="px-6 py-5 space-y-4">
+                                                        <div>
+                                                            <label className={NB.label}>Tanggal Setor</label>
+                                                            <Input type="date" value={pphDepositDate} onChange={(e) => setPphDepositDate(e.target.value)} className={NB.inputMono} />
+                                                        </div>
+                                                        <div>
+                                                            <label className={NB.label}>Nomor NTPN / Referensi</label>
+                                                            <Input value={pphDepositRef} onChange={(e) => setPphDepositRef(e.target.value)} placeholder="NTPN..." className={NB.input} />
+                                                        </div>
+                                                        <div className={NB.footer}>
+                                                            <Button variant="outline" onClick={() => setPphDepositDialogOpen(false)} className={NB.cancelBtn}>Batal</Button>
+                                                            <Button onClick={handlePphDeposit} disabled={pphDepositing} className={NB.submitBtnGreen}>
+                                                                {pphDepositing ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Menyetor...</> : "Setor & Posting GL"}
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </DialogContent>
+                                            </Dialog>
+                                        </div>
+                                    )}
+
+                                    {/* PPh Records Table */}
+                                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                                        <div className="px-4 py-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800 flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <FileText className="h-4 w-4 text-zinc-500" />
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Daftar Pemotongan PPh</span>
+                                            </div>
+                                            <span className="text-[10px] font-black text-zinc-400">
+                                                {(pphRecords || []).length} Record
+                                            </span>
+                                        </div>
+                                        <div className="overflow-x-auto">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow className="bg-zinc-50 dark:bg-zinc-800">
+                                                        <TableHead className="w-10">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={
+                                                                    (pphRecords || []).filter((r: any) => !r.deposited).length > 0 &&
+                                                                    pphSelectedIds.size === (pphRecords || []).filter((r: any) => !r.deposited).length
+                                                                }
+                                                                onChange={togglePphSelectAll}
+                                                                className="h-4 w-4 rounded-none border-2 border-zinc-300 accent-emerald-500"
+                                                            />
+                                                        </TableHead>
+                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest">Tanggal</TableHead>
+                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest">Jenis</TableHead>
+                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest">Vendor / Customer</TableHead>
+                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">DPP</TableHead>
+                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Tarif</TableHead>
+                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Jumlah PPh</TableHead>
+                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest">Bukti Potong</TableHead>
+                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {pphListLoading ? (
+                                                        <TableRow>
+                                                            <TableCell colSpan={9} className="text-center py-8">
+                                                                <div className="flex items-center justify-center gap-2 text-zinc-400">
+                                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                                    <span className="text-xs font-bold uppercase tracking-widest">Memuat data PPh...</span>
+                                                                </div>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ) : !pphRecords || pphRecords.length === 0 ? (
+                                                        <TableRow>
+                                                            <TableCell colSpan={9} className="text-center py-8 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                                                                Tidak ada data pemotongan PPh
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ) : (
+                                                        (pphRecords as any[]).map((record: any) => {
+                                                            const partyName = record.invoice?.supplier?.name || record.invoice?.customer?.name || "\u2014"
+                                                            const typeLabel = record.type === "PPH_23" ? "PPh 23" : record.type === "PPH_4_2" ? "PPh 4(2)" : "PPh 21"
+                                                            const typeBg = record.type === "PPH_23" ? "bg-blue-100 text-blue-700" : record.type === "PPH_4_2" ? "bg-indigo-100 text-indigo-700" : "bg-purple-100 text-purple-700"
+                                                            const txDate = record.payment?.date ? new Date(record.payment.date) : new Date(record.createdAt)
+                                                            return (
+                                                                <TableRow key={record.id} className="hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors">
+                                                                    <TableCell>
+                                                                        {!record.deposited && (
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={pphSelectedIds.has(record.id)}
+                                                                                onChange={() => togglePphSelect(record.id)}
+                                                                                className="h-4 w-4 rounded-none border-2 border-zinc-300 accent-emerald-500"
+                                                                            />
+                                                                        )}
+                                                                    </TableCell>
+                                                                    <TableCell className="font-mono text-sm">{txDate.toLocaleDateString("id-ID")}</TableCell>
+                                                                    <TableCell>
+                                                                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 ${typeBg}`}>{typeLabel}</span>
+                                                                    </TableCell>
+                                                                    <TableCell className="text-sm">{partyName}</TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm">{formatIDR(Number(record.baseAmount))}</TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm">{Number(record.rate)}%</TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm font-bold">{formatIDR(Number(record.amount))}</TableCell>
+                                                                    <TableCell className="font-mono text-sm">{record.buktiPotongNo || "\u2014"}</TableCell>
+                                                                    <TableCell>
+                                                                        {record.deposited ? (
+                                                                            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 bg-emerald-100 text-emerald-700">Sudah Disetor</span>
+                                                                        ) : (
+                                                                            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 bg-amber-100 text-amber-700">Belum Disetor</span>
+                                                                        )}
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            )
+                                                        })
+                                                    )}
+                                                    {pphRecords && pphRecords.length > 0 && (
+                                                        <TableRow className="font-black bg-zinc-100 dark:bg-zinc-800 border-t-2 border-black">
+                                                            <TableCell colSpan={6} className="text-sm">TOTAL</TableCell>
+                                                            <TableCell className="text-right font-mono text-sm">
+                                                                {formatIDR((pphRecords as any[]).reduce((sum: number, r: any) => sum + Number(r.amount), 0))}
+                                                            </TableCell>
+                                                            <TableCell colSpan={2} />
+                                                        </TableRow>
+                                                    )}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Budget vs Actual */}
                             {reportType === "budget_vs_actual" && (
                                 <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
@@ -2273,8 +2545,8 @@ export default function FinancialReportsPage() {
                                 </div>
                             )}
 
-                            {/* Fallback: no data for active report */}
-                            {data && !(data.reports as any)?.[reportType] && (
+                            {/* Fallback: no data for active report (skip pph_report — it uses its own query) */}
+                            {data && reportType !== "pph_report" && !(data.reports as any)?.[reportType] && (
                                 <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] p-12 text-center">
                                     <BarChart3 className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
                                     <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Data laporan tidak tersedia</p>

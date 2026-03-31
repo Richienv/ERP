@@ -160,7 +160,7 @@ export default function PayrollPage() {
   }
 
   const handleExportCSV = async () => {
-    if (!run || run.lines.length === 0) {
+    if (!run || !run.lines?.length) {
       toast.error("Belum ada data payroll untuk diekspor")
       return
     }
@@ -192,7 +192,7 @@ export default function PayrollPage() {
   }
 
   const handleExportXLS = async () => {
-    if (!run || run.lines.length === 0) {
+    if (!run || !run.lines?.length) {
       toast.error("Belum ada data payroll untuk diekspor")
       return
     }
@@ -671,7 +671,7 @@ export default function PayrollPage() {
                       </div>
                     ))}
                   </div>
-                ) : !run || run.lines.length === 0 ? (
+                ) : !run || !run.lines?.length ? (
                   <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -686,7 +686,7 @@ export default function PayrollPage() {
                   </motion.div>
                 ) : (
                   <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                    {run.lines.map((line, idx) => (
+                    {(run.lines ?? []).map((line, idx) => (
                       <motion.div
                         key={line.employeeId}
                         custom={idx}
@@ -709,7 +709,7 @@ export default function PayrollPage() {
                             <span className="text-zinc-300 dark:text-zinc-600">-</span>
                           )}
                         </div>
-                        <div><span className="font-mono text-sm tabular-nums text-red-600 dark:text-red-400">{formatCurrency(line.bpjsKesehatan + line.bpjsKetenagakerjaan)}</span></div>
+                        <div><span className="font-mono text-sm tabular-nums text-red-600 dark:text-red-400">{formatCurrency((line.bpjsKesehatan ?? 0) + (line.bpjsKetenagakerjaan ?? 0))}</span></div>
                         <div><span className="font-mono text-sm tabular-nums text-red-600 dark:text-red-400">{formatCurrency(line.pph21)}</span></div>
                         <div><span className="font-mono text-sm font-black tabular-nums text-zinc-900 dark:text-zinc-100">{formatCurrency(line.netSalary)}</span></div>
                         <div>
@@ -729,7 +729,7 @@ export default function PayrollPage() {
               </div>
 
               {/* Table Footer with Totals */}
-              {run && run.lines.length > 0 && (
+              {run && (run.lines?.length ?? 0) > 0 && (
                 <div className="px-5 py-3 border-t border-zinc-200 dark:border-zinc-700 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
                   <span className={NB.label + " !mb-0 !text-[10px]"}>
                     {employeeCount} karyawan
@@ -872,17 +872,17 @@ export default function PayrollPage() {
                   </div>
 
                   {/* Compliance Section */}
-                  {compliance && (
+                  {compliance && compliance.totals && (
                     <div className="border-2 border-black p-4">
                       <div className="mb-3 flex items-center gap-2">
                         <IconShieldCheck className="h-4 w-4 text-zinc-600" />
                         <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Ringkasan Compliance</span>
                       </div>
                       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                        <ComplianceMetric label="BPJS Kesehatan" value={formatCurrency(compliance.totals.bpjsKesehatan)} />
+                        <ComplianceMetric label="BPJS Kesehatan" value={formatCurrency(compliance.totals.bpjsKesehatan ?? 0)} />
                         <ComplianceMetric label="BPJS JHT" value={formatCurrency(compliance.totals.bpjsJHT ?? 0)} />
                         <ComplianceMetric label="BPJS JP" value={formatCurrency(compliance.totals.bpjsJP ?? 0)} />
-                        <ComplianceMetric label="PPh21" value={formatCurrency(compliance.totals.pph21)} />
+                        <ComplianceMetric label="PPh21" value={formatCurrency(compliance.totals.pph21 ?? 0)} />
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
                         <motion.div whileHover={{ y: -1 }} whileTap={{ scale: 0.95 }}>

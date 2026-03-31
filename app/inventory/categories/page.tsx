@@ -11,5 +11,5 @@ export default function CategoriesPage() {
         return <CardPageSkeleton accentColor="bg-emerald-400" />
     }
 
-    return <CategoriesClient categories={data.categories} allCategories={data.allCategories} />
+    return <CategoriesClient categories={data.categories ?? []} allCategories={data.allCategories ?? []} />
 }

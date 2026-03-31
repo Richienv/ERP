@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useCallback, useMemo } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useMemo } from "react"
 import { toast } from "sonner"
-import { cancelSalesOrder } from "@/lib/actions/sales"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -94,20 +94,40 @@ const STATUS_LABELS: Record<string, string> = {
     CANCELLED: "Dibatalkan",
 }
 
+function getPrimaryAction(status: string): { label: string; target: string; color: string } | null {
+    switch (status) {
+        case "DRAFT": return { label: "KONFIRMASI PESANAN", target: "CONFIRMED", color: "bg-emerald-600" }
+        case "CONFIRMED": return { label: "MULAI PROSES", target: "IN_PROGRESS", color: "bg-blue-600" }
+        case "IN_PROGRESS": return { label: "TANDAI TERKIRIM", target: "DELIVERED", color: "bg-amber-600" }
+        case "DELIVERED": return { label: "BUAT INVOICE", target: "INVOICED", color: "bg-purple-600" }
+        case "INVOICED": return { label: "SELESAIKAN", target: "COMPLETED", color: "bg-emerald-700" }
+        default: return null
+    }
+}
+
+function needsConfirmation(target: string): string | null {
+    switch (target) {
+        case "DELIVERED": return "Tandai pesanan terkirim?"
+        case "INVOICED": return "Buat invoice untuk pesanan ini?"
+        case "CANCELLED": return "Yakin ingin membatalkan pesanan ini? Tidak bisa dikembalikan."
+        default: return null
+    }
+}
+
 function getProgress(status: string) {
     switch (status) {
         case "DRAFT": return 0
-        case "CONFIRMED": return 15
+        case "CONFIRMED": return 25
         case "IN_PROGRESS": case "PROCESSING": return 50
-        case "SHIPPED": return 80
-        case "DELIVERED": return 95
-        case "INVOICED": case "COMPLETED": return 100
+        case "DELIVERED": return 75
+        case "INVOICED": return 90
+        case "COMPLETED": return 100
         default: return 0
     }
 }
 
 export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutionCardProps) {
-    const router = useRouter()
+    const queryClient = useQueryClient()
     const [isCreatingWO, setIsCreatingWO] = useState(false)
     const [showReturnDialog, setShowReturnDialog] = useState(false)
     const canReturn = useMemo(
@@ -115,16 +135,51 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
         [order.status]
     )
 
-    const handleCancel = useCallback(async () => {
-        if (!confirm(`Batalkan pesanan ${order.number}? Aksi ini tidak dapat diurungkan.`)) return
-        const result = await cancelSalesOrder(order.id)
-        if (result.success) {
-            toast.success(`Pesanan ${order.number} berhasil dibatalkan`)
-            onWorkOrdersCreated?.(order.id, 0) // trigger refresh
-        } else {
-            toast.error(result.error || "Gagal membatalkan pesanan")
-        }
-    }, [order.id, order.number, onWorkOrdersCreated])
+    const transitionMutation = useMutation({
+        mutationFn: async ({ targetStatus, note }: { targetStatus: string; note?: string }) => {
+            const res = await fetch(`/api/sales/orders/${order.id}/transition`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ targetStatus, note }),
+            })
+            if (!res.ok) {
+                const err = await res.json()
+                throw new Error(err.error || "Gagal memperbarui status")
+            }
+            return res.json()
+        },
+        onSuccess: (_, { targetStatus }) => {
+            const msgs: Record<string, string> = {
+                CONFIRMED: "Pesanan dikonfirmasi! Siap untuk diproses.",
+                IN_PROGRESS: "Proses produksi dimulai.",
+                DELIVERED: "Pesanan terkirim!",
+                INVOICED: "Invoice dibuat untuk pesanan.",
+                COMPLETED: "Pesanan selesai.",
+                CANCELLED: "Pesanan dibatalkan.",
+            }
+            toast.success(msgs[targetStatus] || "Status diperbarui")
+            queryClient.invalidateQueries({ queryKey: queryKeys.salesOrders.all })
+            onWorkOrdersCreated?.(order.id, 0)
+        },
+        onError: (error: Error) => {
+            toast.error(error.message)
+        },
+    })
+
+    const primaryAction = getPrimaryAction(order.status)
+
+    const handleTransition = (targetStatus: string) => {
+        const msg = needsConfirmation(targetStatus)
+        if (msg && !confirm(msg)) return
+        transitionMutation.mutate({ targetStatus })
+    }
+
+    const handleCancel = () => {
+        const reason = prompt("Alasan pembatalan:")
+        if (!reason) return
+        transitionMutation.mutate({ targetStatus: "CANCELLED", note: reason })
+    }
+
     const hasExistingWOs = (order.workOrderCount ?? 0) > 0
     const [woCreated, setWoCreated] = useState(hasExistingWOs)
     const [woError, setWoError] = useState<string | null>(null)
@@ -226,9 +281,9 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
                     />
                 </div>
                 <div className="flex justify-between mt-1 text-[9px] text-zinc-400 font-bold uppercase tracking-wider">
-                    <span className={progress >= 15 ? "text-blue-600" : ""}>Konfirmasi</span>
+                    <span className={progress >= 25 ? "text-blue-600" : ""}>Konfirmasi</span>
                     <span className={progress >= 50 ? "text-blue-600" : ""}>Produksi</span>
-                    <span className={progress >= 80 ? "text-blue-600" : ""}>Kirim</span>
+                    <span className={progress >= 75 ? "text-blue-600" : ""}>Terkirim</span>
                     <span className={progress >= 100 ? "text-blue-600" : ""}>Selesai</span>
                 </div>
             </div>
@@ -240,6 +295,25 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
                         <AlertCircle className="h-3 w-3 flex-shrink-0" />
                         {woError}
                     </p>
+                </div>
+            )}
+
+            {/* Primary lifecycle action */}
+            {primaryAction && (
+                <div className="px-4 pb-2">
+                    <button
+                        onClick={() => handleTransition(primaryAction.target)}
+                        disabled={transitionMutation.isPending}
+                        className={`w-full h-9 ${primaryAction.color} text-white font-black uppercase text-[10px] tracking-wider
+                            border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]
+                            hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px]
+                            transition-all disabled:opacity-50 flex items-center justify-center gap-2`}
+                    >
+                        {transitionMutation.isPending && (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        )}
+                        {transitionMutation.isPending ? "Memproses..." : primaryAction.label}
+                    </button>
                 </div>
             )}
 
@@ -296,7 +370,7 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
                             <MoreHorizontal className="h-4 w-4" />
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] w-44">
+                    <DropdownMenuContent align="end" className="border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] w-48">
                         <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Aksi</DropdownMenuLabel>
                         <DropdownMenuSeparator className="bg-zinc-200" />
                         <DropdownMenuItem className="text-xs font-bold cursor-pointer focus:bg-zinc-100 rounded-none" asChild>
@@ -304,16 +378,30 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
                                 <FileText className="mr-2 h-3.5 w-3.5" /> Lihat Detail
                             </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-xs font-bold cursor-pointer focus:bg-zinc-100 rounded-none" asChild>
-                            <Link href={`/sales/orders/${order.id}`}>
+                        {order.status === "CONFIRMED" && (
+                            <DropdownMenuItem
+                                className="text-xs font-bold cursor-pointer focus:bg-blue-50 rounded-none text-blue-700"
+                                onClick={() => handleTransition("DELIVERED")}
+                            >
+                                <Truck className="mr-2 h-3.5 w-3.5" /> Langsung Kirim
+                            </DropdownMenuItem>
+                        )}
+                        {["DELIVERED", "INVOICED", "COMPLETED"].includes(order.status) && (
+                            <DropdownMenuItem
+                                className="text-xs font-bold cursor-pointer focus:bg-zinc-100 rounded-none"
+                                onClick={() => toast.info("Surat Jalan & Pengiriman \u2014 segera hadir di Phase 3")}
+                            >
                                 <Truck className="mr-2 h-3.5 w-3.5" /> Pengiriman
-                            </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-xs font-bold cursor-pointer focus:bg-zinc-100 rounded-none" asChild>
-                            <Link href={`/sales/orders/${order.id}`}>
+                            </DropdownMenuItem>
+                        )}
+                        {["INVOICED", "COMPLETED"].includes(order.status) && (
+                            <DropdownMenuItem
+                                className="text-xs font-bold cursor-pointer focus:bg-zinc-100 rounded-none"
+                                onClick={() => toast.info("Lihat Invoice \u2014 segera hadir di Phase 2")}
+                            >
                                 <Package className="mr-2 h-3.5 w-3.5" /> Invoice
-                            </Link>
-                        </DropdownMenuItem>
+                            </DropdownMenuItem>
+                        )}
                         {canReturn && (
                             <DropdownMenuItem
                                 className="text-xs font-bold cursor-pointer focus:bg-amber-50 rounded-none text-amber-700"
@@ -322,14 +410,17 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
                                 <Undo2 className="mr-2 h-3.5 w-3.5" /> Retur Penjualan
                             </DropdownMenuItem>
                         )}
-                        <DropdownMenuSeparator className="bg-zinc-200" />
-                        <DropdownMenuItem
-                            className="text-xs font-bold text-red-600 cursor-pointer focus:bg-red-50 focus:text-red-700 rounded-none"
-                            onClick={handleCancel}
-                            disabled={order.status !== 'DRAFT' && order.status !== 'CONFIRMED'}
-                        >
-                            Batalkan Pesanan
-                        </DropdownMenuItem>
+                        {["DRAFT", "CONFIRMED", "IN_PROGRESS"].includes(order.status) && (
+                            <>
+                                <DropdownMenuSeparator className="bg-zinc-200" />
+                                <DropdownMenuItem
+                                    className="text-xs font-bold text-red-600 cursor-pointer focus:bg-red-50 focus:text-red-700 rounded-none"
+                                    onClick={handleCancel}
+                                >
+                                    Batalkan Pesanan
+                                </DropdownMenuItem>
+                            </>
+                        )}
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>

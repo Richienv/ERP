@@ -4,15 +4,21 @@ import { useState, useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { createFixedAsset } from "@/lib/actions/finance-fixed-assets"
-import { useFixedAssetCategories, useGLAccountsForFA, useSuppliersForFA } from "@/hooks/use-fixed-assets"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { NB } from "@/lib/dialog-styles"
+import { useFixedAssetCategories, useSuppliersForFA } from "@/hooks/use-fixed-assets"
+import { SelectItem } from "@/components/ui/select"
 import { toast } from "sonner"
-import { Loader2, Building, Hash, Calendar, DollarSign, MapPin } from "lucide-react"
+import { Building, Hash, Calendar, DollarSign, MapPin } from "lucide-react"
+import {
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBDialogFooter,
+    NBSection,
+    NBInput,
+    NBCurrencyInput,
+    NBSelect,
+    NBTextarea,
+} from "@/components/ui/nb-dialog"
 
 interface Props {
     open: boolean
@@ -102,167 +108,156 @@ export function CreateAssetDialog({ open, onOpenChange }: Props) {
     const suppliers = suppData?.suppliers || []
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className={NB.contentWide}>
-                <DialogHeader className={NB.header}>
-                    <DialogTitle className={NB.title}>
-                        <Building className="h-5 w-5" /> Daftarkan Aset Tetap
-                    </DialogTitle>
-                    <p className={NB.subtitle}>Registrasi aset baru ke dalam daftar aset tetap perusahaan</p>
-                </DialogHeader>
+        <NBDialog open={open} onOpenChange={onOpenChange} size="wide">
+            <NBDialogHeader icon={Building} title="Daftarkan Aset Tetap" subtitle="Registrasi aset baru ke dalam daftar aset tetap perusahaan" />
 
-                <ScrollArea className={NB.scroll}>
-                    <div className="p-6 space-y-0">
-                        {/* INFORMASI DASAR */}
-                        <section className={NB.section}>
-                            <div className={NB.sectionHead}>
-                                <Hash className="h-3.5 w-3.5" />
-                                <span className={NB.sectionTitle}>Informasi Dasar</span>
-                            </div>
-                            <div className={NB.sectionBody}>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className={NB.label}>Nama Aset <span className={NB.labelRequired}>*</span></label>
-                                        <Input className={NB.input} placeholder="Mesin CNC Milling" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Kategori <span className={NB.labelRequired}>*</span></label>
-                                        <Select value={form.categoryId} onValueChange={v => setForm(p => ({ ...p, categoryId: v }))}>
-                                            <SelectTrigger className={NB.select}><SelectValue placeholder="Pilih kategori" /></SelectTrigger>
-                                            <SelectContent>
-                                                {categories.map((c: any) => (
-                                                    <SelectItem key={c.id} value={c.id}>{c.name} ({c.code})</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className={NB.label}>Supplier</label>
-                                        <Select value={form.supplierId} onValueChange={v => setForm(p => ({ ...p, supplierId: v }))}>
-                                            <SelectTrigger className={NB.select}><SelectValue placeholder="Pilih supplier" /></SelectTrigger>
-                                            <SelectContent>
-                                                {suppliers.map((s: any) => (
-                                                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Nomor Seri</label>
-                                        <Input className={NB.inputMono} placeholder="SN-12345" value={form.serialNumber} onChange={e => setForm(p => ({ ...p, serialNumber: e.target.value }))} />
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-
-                        {/* TANGGAL */}
-                        <section className={NB.section}>
-                            <div className={NB.sectionHead}>
-                                <Calendar className="h-3.5 w-3.5" />
-                                <span className={NB.sectionTitle}>Tanggal</span>
-                            </div>
-                            <div className={NB.sectionBody}>
-                                <div className="grid grid-cols-3 gap-4">
-                                    <div>
-                                        <label className={NB.label}>Tanggal Pembelian <span className={NB.labelRequired}>*</span></label>
-                                        <Input type="date" className={NB.input} value={form.purchaseDate} onChange={e => setForm(p => ({ ...p, purchaseDate: e.target.value }))} />
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Tanggal Kapitalisasi</label>
-                                        <Input type="date" className={NB.input} value={form.capitalizationDate} onChange={e => setForm(p => ({ ...p, capitalizationDate: e.target.value }))} />
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Mulai Penyusutan <span className={NB.labelRequired}>*</span></label>
-                                        <Input type="date" className={NB.input} value={form.depreciationStartDate} onChange={e => setForm(p => ({ ...p, depreciationStartDate: e.target.value }))} />
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-
-                        {/* NILAI & PENYUSUTAN */}
-                        <section className={NB.section}>
-                            <div className={NB.sectionHead}>
-                                <DollarSign className="h-3.5 w-3.5" />
-                                <span className={NB.sectionTitle}>Nilai & Penyusutan</span>
-                            </div>
-                            <div className={NB.sectionBody}>
-                                <div className="grid grid-cols-3 gap-4">
-                                    <div>
-                                        <label className={NB.label}>Harga Perolehan <span className={NB.labelRequired}>*</span></label>
-                                        <Input type="number" className={NB.inputMono} placeholder="0" value={form.purchaseCost} onChange={e => setForm(p => ({ ...p, purchaseCost: e.target.value }))} />
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Nilai Residu</label>
-                                        <Input type="number" className={NB.inputMono} placeholder="0" value={form.residualValue} onChange={e => setForm(p => ({ ...p, residualValue: e.target.value }))} />
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Masa Manfaat (bulan) <span className={NB.labelRequired}>*</span></label>
-                                        <Input type="number" className={NB.inputMono} placeholder="60" value={form.usefulLifeMonths} onChange={e => setForm(p => ({ ...p, usefulLifeMonths: e.target.value }))} />
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className={NB.label}>Metode Penyusutan</label>
-                                        <Select value={form.depreciationMethod} onValueChange={(v: any) => setForm(p => ({ ...p, depreciationMethod: v }))}>
-                                            <SelectTrigger className={NB.select}><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="STRAIGHT_LINE">Garis Lurus</SelectItem>
-                                                <SelectItem value="DECLINING_BALANCE">Saldo Menurun</SelectItem>
-                                                <SelectItem value="UNITS_OF_PRODUCTION">Unit Produksi</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Frekuensi Penyusutan</label>
-                                        <Select value={form.depreciationFrequency} onValueChange={(v: any) => setForm(p => ({ ...p, depreciationFrequency: v }))}>
-                                            <SelectTrigger className={NB.select}><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="MONTHLY">Bulanan</SelectItem>
-                                                <SelectItem value="YEARLY">Tahunan</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-
-                        {/* LOKASI */}
-                        <section className={NB.section}>
-                            <div className={NB.sectionHead}>
-                                <MapPin className="h-3.5 w-3.5" />
-                                <span className={NB.sectionTitle}>Lokasi & Keterangan</span>
-                            </div>
-                            <div className={NB.sectionBody}>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className={NB.label}>Lokasi</label>
-                                        <Input className={NB.input} placeholder="Gedung A - Lt. 2" value={form.location} onChange={e => setForm(p => ({ ...p, location: e.target.value }))} />
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Departemen</label>
-                                        <Input className={NB.input} placeholder="Produksi" value={form.department} onChange={e => setForm(p => ({ ...p, department: e.target.value }))} />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className={NB.label}>Catatan</label>
-                                    <textarea className={`w-full ${NB.textarea}`} rows={2} placeholder="Catatan tambahan..." value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} />
-                                </div>
-                            </div>
-                        </section>
-
-                        {/* FOOTER */}
-                        <div className="flex items-center justify-end gap-3 pt-4 px-1">
-                            <Button type="button" onClick={() => onOpenChange(false)} className={NB.cancelBtn}>Batal</Button>
-                            <Button type="button" onClick={handleSubmit} disabled={saving} className={NB.submitBtn}>
-                                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Simpan Aset
-                            </Button>
-                        </div>
+            <NBDialogBody>
+                {/* INFORMASI DASAR */}
+                <NBSection icon={Hash} title="Informasi Dasar">
+                    <div className="grid grid-cols-2 gap-4">
+                        <NBInput
+                            label="Nama Aset"
+                            required
+                            placeholder="Mesin CNC Milling"
+                            value={form.name}
+                            onChange={v => setForm(p => ({ ...p, name: v }))}
+                        />
+                        <NBSelect
+                            label="Kategori"
+                            required
+                            value={form.categoryId}
+                            onValueChange={v => setForm(p => ({ ...p, categoryId: v }))}
+                            placeholder="Pilih kategori"
+                        >
+                            {categories.map((c: any) => (
+                                <SelectItem key={c.id} value={c.id}>{c.name} ({c.code})</SelectItem>
+                            ))}
+                        </NBSelect>
                     </div>
-                </ScrollArea>
-            </DialogContent>
-        </Dialog>
+                    <div className="grid grid-cols-2 gap-4">
+                        <NBSelect
+                            label="Supplier"
+                            value={form.supplierId}
+                            onValueChange={v => setForm(p => ({ ...p, supplierId: v }))}
+                            placeholder="Pilih supplier"
+                        >
+                            {suppliers.map((s: any) => (
+                                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                            ))}
+                        </NBSelect>
+                        <NBInput
+                            label="Nomor Seri"
+                            placeholder="SN-12345"
+                            value={form.serialNumber}
+                            onChange={v => setForm(p => ({ ...p, serialNumber: v }))}
+                        />
+                    </div>
+                </NBSection>
+
+                {/* TANGGAL */}
+                <NBSection icon={Calendar} title="Tanggal">
+                    <div className="grid grid-cols-3 gap-4">
+                        <NBInput
+                            label="Tanggal Pembelian"
+                            required
+                            type="date"
+                            value={form.purchaseDate}
+                            onChange={v => setForm(p => ({ ...p, purchaseDate: v }))}
+                        />
+                        <NBInput
+                            label="Tanggal Kapitalisasi"
+                            type="date"
+                            value={form.capitalizationDate}
+                            onChange={v => setForm(p => ({ ...p, capitalizationDate: v }))}
+                        />
+                        <NBInput
+                            label="Mulai Penyusutan"
+                            required
+                            type="date"
+                            value={form.depreciationStartDate}
+                            onChange={v => setForm(p => ({ ...p, depreciationStartDate: v }))}
+                        />
+                    </div>
+                </NBSection>
+
+                {/* NILAI & PENYUSUTAN */}
+                <NBSection icon={DollarSign} title="Nilai & Penyusutan">
+                    <div className="grid grid-cols-3 gap-4">
+                        <NBCurrencyInput
+                            label="Harga Perolehan"
+                            required
+                            value={form.purchaseCost}
+                            onChange={v => setForm(p => ({ ...p, purchaseCost: v }))}
+                        />
+                        <NBCurrencyInput
+                            label="Nilai Residu"
+                            value={form.residualValue}
+                            onChange={v => setForm(p => ({ ...p, residualValue: v }))}
+                        />
+                        <NBInput
+                            label="Masa Manfaat (bulan)"
+                            required
+                            type="number"
+                            placeholder="60"
+                            value={form.usefulLifeMonths}
+                            onChange={v => setForm(p => ({ ...p, usefulLifeMonths: v }))}
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <NBSelect
+                            label="Metode Penyusutan"
+                            value={form.depreciationMethod}
+                            onValueChange={(v: any) => setForm(p => ({ ...p, depreciationMethod: v }))}
+                            options={[
+                                { value: "STRAIGHT_LINE", label: "Garis Lurus" },
+                                { value: "DECLINING_BALANCE", label: "Saldo Menurun" },
+                                { value: "UNITS_OF_PRODUCTION", label: "Unit Produksi" },
+                            ]}
+                        />
+                        <NBSelect
+                            label="Frekuensi Penyusutan"
+                            value={form.depreciationFrequency}
+                            onValueChange={(v: any) => setForm(p => ({ ...p, depreciationFrequency: v }))}
+                            options={[
+                                { value: "MONTHLY", label: "Bulanan" },
+                                { value: "YEARLY", label: "Tahunan" },
+                            ]}
+                        />
+                    </div>
+                </NBSection>
+
+                {/* LOKASI & KETERANGAN */}
+                <NBSection icon={MapPin} title="Lokasi & Keterangan" optional>
+                    <div className="grid grid-cols-2 gap-4">
+                        <NBInput
+                            label="Lokasi"
+                            placeholder="Gedung A - Lt. 2"
+                            value={form.location}
+                            onChange={v => setForm(p => ({ ...p, location: v }))}
+                        />
+                        <NBInput
+                            label="Departemen"
+                            placeholder="Produksi"
+                            value={form.department}
+                            onChange={v => setForm(p => ({ ...p, department: v }))}
+                        />
+                    </div>
+                    <NBTextarea
+                        label="Catatan"
+                        rows={2}
+                        placeholder="Catatan tambahan..."
+                        value={form.notes}
+                        onChange={v => setForm(p => ({ ...p, notes: v }))}
+                    />
+                </NBSection>
+            </NBDialogBody>
+
+            <NBDialogFooter
+                onCancel={() => onOpenChange(false)}
+                onSubmit={handleSubmit}
+                submitting={saving}
+                submitLabel="Simpan Aset"
+            />
+        </NBDialog>
     )
 }

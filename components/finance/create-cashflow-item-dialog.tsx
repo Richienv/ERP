@@ -4,18 +4,20 @@ import { useState, useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { toast } from "sonner"
-import { NB } from "@/lib/dialog-styles"
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { IconPlus, IconPencil, IconTrash } from "@tabler/icons-react"
+import { CalendarDays, Repeat, FileText, Wallet } from "lucide-react"
+import {
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBSection,
+    NBInput,
+    NBCurrencyInput,
+    NBSelect,
+    NBTextarea,
+} from "@/components/ui/nb-dialog"
 import {
     createCashflowPlanItem,
     updateCashflowPlanItem,
@@ -161,70 +163,58 @@ export function CreateCashflowItemDialog({
         }
     }
 
+    // Build GL account options with grouping prefix
+    const glAccountOptions = glAccounts.map((a) => ({
+        value: a.id,
+        label: `${a.code} — ${a.name}`,
+    }))
+
+    const recurringPatternOptions = [
+        { value: "WEEKLY", label: "Mingguan" },
+        { value: "MONTHLY", label: "Bulanan" },
+        { value: "QUARTERLY", label: "Kuartalan" },
+        { value: "ANNUAL", label: "Tahunan" },
+    ]
+
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className={NB.contentNarrow}>
-                <DialogHeader className={NB.header}>
-                    <DialogTitle className={NB.title}>
-                        {isEdit ? (
-                            <>
-                                <IconPencil size={20} />
-                                Edit Item Arus Kas
-                            </>
-                        ) : (
-                            <>
-                                <IconPlus size={20} />
-                                Tambah Item Arus Kas
-                            </>
-                        )}
-                    </DialogTitle>
-                </DialogHeader>
+        <NBDialog open={open} onOpenChange={onOpenChange} size="narrow">
+            <NBDialogHeader
+                icon={isEdit ? IconPencil : IconPlus}
+                title={isEdit ? "Edit Item Arus Kas" : "Tambah Item Arus Kas"}
+            />
 
-                <div className="p-6 space-y-4">
-                    {/* Tanggal */}
+            <NBDialogBody>
+                <NBSection icon={CalendarDays} title="Detail Item">
+                    <NBInput
+                        label="Tanggal"
+                        required
+                        type="date"
+                        value={date}
+                        onChange={setDate}
+                    />
+
+                    <NBInput
+                        label="Deskripsi"
+                        required
+                        value={description}
+                        onChange={setDescription}
+                        placeholder="Pembayaran sewa..."
+                    />
+
+                    <NBCurrencyInput
+                        label="Jumlah"
+                        required
+                        value={amount}
+                        onChange={setAmount}
+                    />
+                </NBSection>
+
+                <NBSection icon={Wallet} title="Arah & Rekening">
+                    {/* Direction toggle — kept as custom widget */}
                     <div>
-                        <label className={NB.label}>
-                            Tanggal <span className={NB.labelRequired}>*</span>
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                            Arah
                         </label>
-                        <Input
-                            type="date"
-                            value={date}
-                            onChange={(e) => setDate(e.target.value)}
-                            className={NB.input}
-                        />
-                    </div>
-
-                    {/* Deskripsi */}
-                    <div>
-                        <label className={NB.label}>
-                            Deskripsi <span className={NB.labelRequired}>*</span>
-                        </label>
-                        <Input
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            placeholder="Pembayaran sewa..."
-                            className={NB.input}
-                        />
-                    </div>
-
-                    {/* Jumlah */}
-                    <div>
-                        <label className={NB.label}>
-                            Jumlah (Rp) <span className={NB.labelRequired}>*</span>
-                        </label>
-                        <Input
-                            type="number"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                            placeholder="5000000"
-                            min={0}
-                            className={NB.input}
-                        />
-                    </div>
-
-                    {/* Arah — Direction toggle */}
-                    <div>
-                        <label className={NB.label}>Arah</label>
                         <div className="flex gap-0">
                             <button
                                 type="button"
@@ -251,37 +241,18 @@ export function CreateCashflowItemDialog({
                         </div>
                     </div>
 
-                    {/* Rekening — GL Account select */}
-                    <div>
-                        <label className={NB.label}>
-                            Rekening <span className={NB.labelRequired}>*</span>
-                        </label>
-                        <select
-                            value={glAccountId}
-                            onChange={(e) => setGlAccountId(e.target.value)}
-                            className={NB.select}
-                        >
-                            <option value="">— Pilih rekening —</option>
-                            <optgroup label="Rekening Bank">
-                                {glAccounts.filter(a => a.code.startsWith("10")).map((a) => (
-                                    <option key={a.id} value={a.id}>
-                                        {a.code} — {a.name}
-                                    </option>
-                                ))}
-                            </optgroup>
-                            {glAccounts.filter(a => !a.code.startsWith("10")).length > 0 && (
-                                <optgroup label="Akun Lainnya">
-                                    {glAccounts.filter(a => !a.code.startsWith("10")).map((a) => (
-                                        <option key={a.id} value={a.id}>
-                                            {a.code} — {a.name}
-                                        </option>
-                                    ))}
-                                </optgroup>
-                            )}
-                        </select>
-                    </div>
+                    <NBSelect
+                        label="Rekening"
+                        required
+                        value={glAccountId}
+                        onValueChange={setGlAccountId}
+                        options={glAccountOptions}
+                        placeholder="— Pilih rekening —"
+                    />
+                </NBSection>
 
-                    {/* Recurring checkbox */}
+                {/* Recurring checkbox + conditional fields */}
+                <NBSection icon={Repeat} title="Pengulangan" optional>
                     <div className="flex items-center gap-2">
                         <Checkbox
                             id="recurring"
@@ -296,87 +267,74 @@ export function CreateCashflowItemDialog({
                         </label>
                     </div>
 
-                    {/* Recurring options — only when checked */}
                     {isRecurring && (
                         <div className="border-2 border-dashed border-zinc-300 p-4 space-y-3 bg-zinc-50">
-                            <div>
-                                <label className={NB.label}>Pola</label>
-                                <select
-                                    value={recurringPattern}
-                                    onChange={(e) => setRecurringPattern(e.target.value)}
-                                    className={NB.select}
-                                >
-                                    <option value="WEEKLY">Mingguan</option>
-                                    <option value="MONTHLY">Bulanan</option>
-                                    <option value="QUARTERLY">Kuartalan</option>
-                                    <option value="ANNUAL">Tahunan</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className={NB.label}>Sampai tanggal</label>
-                                <Input
-                                    type="date"
-                                    value={recurringEndDate}
-                                    onChange={(e) => setRecurringEndDate(e.target.value)}
-                                    className={NB.input}
-                                />
-                            </div>
+                            <NBSelect
+                                label="Pola"
+                                value={recurringPattern}
+                                onValueChange={setRecurringPattern}
+                                options={recurringPatternOptions}
+                            />
+                            <NBInput
+                                label="Sampai tanggal"
+                                type="date"
+                                value={recurringEndDate}
+                                onChange={setRecurringEndDate}
+                            />
                         </div>
                     )}
+                </NBSection>
 
-                    {/* Catatan */}
+                <NBSection icon={FileText} title="Catatan" optional>
+                    <NBTextarea
+                        label="Catatan"
+                        value={notes}
+                        onChange={setNotes}
+                        placeholder="Catatan tambahan..."
+                    />
+                </NBSection>
+
+                {/* Actions — custom footer with delete button for edit mode */}
+                <div className="flex items-center justify-between pt-2">
                     <div>
-                        <label className={NB.label}>Catatan</label>
-                        <Textarea
-                            value={notes}
-                            onChange={(e) => setNotes(e.target.value)}
-                            placeholder="Catatan tambahan..."
-                            className={NB.textarea}
-                        />
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center justify-between pt-2">
-                        <div>
-                            {isEdit && (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={handleDelete}
-                                    disabled={deleting || submitting}
-                                    className="border-2 border-red-500 text-red-600 font-black uppercase text-xs tracking-wider px-4 h-9 rounded-none hover:bg-red-50"
-                                >
-                                    <IconTrash size={14} className="mr-1" />
-                                    {deleting ? "Menghapus..." : "Hapus"}
-                                </Button>
-                            )}
-                        </div>
-                        <div className="flex items-center gap-3">
+                        {isEdit && (
                             <Button
                                 type="button"
                                 variant="outline"
-                                onClick={() => onOpenChange(false)}
-                                disabled={submitting || deleting}
-                                className={NB.cancelBtn}
+                                onClick={handleDelete}
+                                disabled={deleting || submitting}
+                                className="border-2 border-red-500 text-red-600 font-black uppercase text-xs tracking-wider px-4 h-9 rounded-none hover:bg-red-50"
                             >
-                                Batal
+                                <IconTrash size={14} className="mr-1" />
+                                {deleting ? "Menghapus..." : "Hapus"}
                             </Button>
-                            <Button
-                                type="button"
-                                onClick={handleSubmit}
-                                disabled={submitting || deleting}
-                                className={NB.submitBtn}
-                            >
-                                {submitting
-                                    ? "Menyimpan..."
-                                    : isEdit
-                                    ? "Perbarui"
-                                    : "Simpan"}
-                            </Button>
-                        </div>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => onOpenChange(false)}
+                            disabled={submitting || deleting}
+                            className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none disabled:opacity-50"
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={handleSubmit}
+                            disabled={submitting || deleting}
+                            className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none gap-1.5 disabled:opacity-50 transition-colors"
+                        >
+                            {submitting
+                                ? "Menyimpan..."
+                                : isEdit
+                                ? "Perbarui"
+                                : "Simpan"}
+                        </Button>
                     </div>
                 </div>
-            </DialogContent>
-        </Dialog>
+            </NBDialogBody>
+        </NBDialog>
     )
 }

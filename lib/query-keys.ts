@@ -312,6 +312,9 @@ export const queryKeys = {
         all: ["receiving"] as const,
         list: () => [...queryKeys.receiving.all, "list"] as const,
     },
+    arAging: {
+        all: ["finance", "ar-aging"] as const,
+    },
     arPayments: {
         all: ["arPayments"] as const,
         list: () => [...queryKeys.arPayments.all, "list"] as const,
@@ -421,11 +424,19 @@ export const queryKeys = {
         detail: (id: string) => [...["depreciationRuns"], "detail", id] as const,
         preview: (start: string, end: string) => [...["depreciationRuns"], "preview", start, end] as const,
     },
+    paymentTerms: {
+        all: () => ['paymentTerms'] as const,
+        list: () => ['paymentTerms', 'list'] as const,
+    },
     fixedAssetReports: {
         all: ["fixedAssetReports"] as const,
         register: () => [...["fixedAssetReports"], "register"] as const,
         schedule: (assetId?: string) => [...["fixedAssetReports"], "schedule", assetId] as const,
         movements: (start?: string, end?: string) => [...["fixedAssetReports"], "movements", start, end] as const,
         nbv: () => [...["fixedAssetReports"], "nbv"] as const,
+    },
+    invoiceAvailableOrders: {
+        all: ["invoiceAvailableOrders"] as const,
+        list: () => [...queryKeys.invoiceAvailableOrders.all, "list"] as const,
     },
 } as const

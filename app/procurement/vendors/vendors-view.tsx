@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useActionSignal } from "@/hooks/use-action-signal"
 import {
     Search,
     Phone,
@@ -55,6 +56,7 @@ interface VendorsViewProps {
 }
 
 export function VendorsView({ initialVendors }: VendorsViewProps) {
+    const { triggered: autoOpenCreate, clear: clearAutoOpen } = useActionSignal("new")
     const [searchTerm, setSearchTerm] = useState("")
     const [filterStatus, setFilterStatus] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL")
     const [filterCategory, setFilterCategory] = useState<string>("ALL")
@@ -113,7 +115,7 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
                             </p>
                         </div>
                     </div>
-                    <NewVendorDialog />
+                    <NewVendorDialog autoOpen={autoOpenCreate} onAutoOpenConsumed={clearAutoOpen} />
                 </div>
             </div>
 
