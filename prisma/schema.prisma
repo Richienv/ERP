@@ -216,9 +216,9 @@ model Product {
   categoryId   String?     @db.Uuid
   productType  ProductType @default(TRADING)
   unit         String // pcs, kg, liter, etc
-  costPrice      Decimal       @default(0) @db.Decimal(15, 2)
+  costPrice      Decimal       @default(0) @db.Decimal(20, 2)
   costingMethod  CostingMethod @default(AVERAGE)
-  sellingPrice   Decimal       @default(0) @db.Decimal(15, 2)
+  sellingPrice   Decimal       @default(0) @db.Decimal(20, 2)
   minStock     Int         @default(0)
   maxStock     Int         @default(0)
   reorderLevel Int         @default(0)
@@ -391,8 +391,8 @@ model InventoryTransaction {
   // Transaction Details
   type       TransactionType
   quantity   Int // Positive for IN, Negative for OUT
-  unitCost   Decimal?        @db.Decimal(15, 2) // FIFO/Average Cost Tracking
-  totalValue Decimal?        @db.Decimal(15, 2)
+  unitCost   Decimal?        @db.Decimal(20, 2) // FIFO/Average Cost Tracking
+  totalValue Decimal?        @db.Decimal(20, 2)
 
   // Strict Audit Links (The "Professional" Connection)
   referenceId     String? // Fallback
@@ -520,7 +520,7 @@ model Customer {
   website String?
 
   // Credit Management
-  creditLimit  Decimal      @default(0) @db.Decimal(15, 2)
+  creditLimit  Decimal      @default(0) @db.Decimal(20, 2)
   creditTerm   Int          @default(30) // days
   paymentTerm  PaymentTermLegacy  @default(NET_30)
   creditStatus CreditStatus @default(GOOD)
@@ -534,7 +534,7 @@ model Customer {
   isActive        Boolean   @default(true)
   isProspect      Boolean   @default(false)
   lastOrderDate   DateTime?
-  totalOrderValue Decimal   @default(0) @db.Decimal(15, 2)
+  totalOrderValue Decimal   @default(0) @db.Decimal(20, 2)
 
   // Relations
   category    CustomerCategory? @relation(fields: [categoryId], references: [id])
@@ -637,7 +637,7 @@ model PriceListItem {
   id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   priceListId String    @db.Uuid
   productId   String    @db.Uuid
-  price       Decimal   @db.Decimal(15, 2)
+  price       Decimal   @db.Decimal(20, 2)
   minQty      Int       @default(1)
   validFrom   DateTime?
   validTo     DateTime?
@@ -669,10 +669,10 @@ model Quotation {
   deliveryTerm String?
 
   // Amounts
-  subtotal       Decimal @default(0) @db.Decimal(15, 2)
-  taxAmount      Decimal @default(0) @db.Decimal(15, 2)
-  discountAmount Decimal @default(0) @db.Decimal(15, 2)
-  total          Decimal @default(0) @db.Decimal(15, 2)
+  subtotal       Decimal @default(0) @db.Decimal(20, 2)
+  taxAmount      Decimal @default(0) @db.Decimal(20, 2)
+  discountAmount Decimal @default(0) @db.Decimal(20, 2)
+  total          Decimal @default(0) @db.Decimal(20, 2)
 
   // Multi-currency
   currencyCode  String   @default("IDR")
@@ -720,10 +720,10 @@ model QuotationItem {
 
   description String?
   quantity    Decimal @db.Decimal(10, 3)
-  unitPrice   Decimal @db.Decimal(15, 2)
+  unitPrice   Decimal @db.Decimal(20, 2)
   discount    Decimal @default(0) @db.Decimal(5, 2) // percentage
   taxRate     Decimal @default(11) @db.Decimal(5, 2) // PPN 11%
-  lineTotal   Decimal @db.Decimal(15, 2)
+  lineTotal   Decimal @db.Decimal(20, 2)
 
   product   Product   @relation(fields: [productId], references: [id])
   quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
@@ -752,10 +752,10 @@ model SalesOrder {
   deliveryTerm String?
 
   // Amounts
-  subtotal       Decimal @default(0) @db.Decimal(15, 2)
-  taxAmount      Decimal @default(0) @db.Decimal(15, 2)
-  discountAmount Decimal @default(0) @db.Decimal(15, 2)
-  total          Decimal @default(0) @db.Decimal(15, 2)
+  subtotal       Decimal @default(0) @db.Decimal(20, 2)
+  taxAmount      Decimal @default(0) @db.Decimal(20, 2)
+  discountAmount Decimal @default(0) @db.Decimal(20, 2)
+  total          Decimal @default(0) @db.Decimal(20, 2)
 
   // Multi-currency
   currencyCode  String   @default("IDR")
@@ -806,10 +806,10 @@ model SalesOrderItem {
 
   description String?
   quantity    Decimal @db.Decimal(10, 3)
-  unitPrice   Decimal @db.Decimal(15, 2)
+  unitPrice   Decimal @db.Decimal(20, 2)
   discount    Decimal @default(0) @db.Decimal(5, 2) // percentage
   taxRate     Decimal @default(11) @db.Decimal(5, 2) // PPN 11%
-  lineTotal   Decimal @db.Decimal(15, 2)
+  lineTotal   Decimal @db.Decimal(20, 2)
 
   // Textile: color-size per line (Textile upgrade)
   color String?
@@ -850,7 +850,7 @@ model Lead {
   company      String?
 
   // Sales Information
-  estimatedValue Decimal?  @db.Decimal(15, 2)
+  estimatedValue Decimal?  @db.Decimal(20, 2)
   probability    Int       @default(0) // 0-100%
   expectedClose  DateTime?
 
@@ -1028,13 +1028,13 @@ model ExecutiveSnapshot {
   date DateTime @unique
 
   // Financials
-  totalRevenue       Decimal @default(0) @db.Decimal(15, 2)
-  totalCost          Decimal @default(0) @db.Decimal(15, 2)
-  netProfit          Decimal @default(0) @db.Decimal(15, 2)
-  cashBalance        Decimal @default(0) @db.Decimal(15, 2)
-  accountsReceivable Decimal @default(0) @db.Decimal(15, 2) // Piutang
-  accountsPayable    Decimal @default(0) @db.Decimal(15, 2) // Hutang
-  burnRate           Decimal @default(0) @db.Decimal(15, 2) // Daily Burn Rate
+  totalRevenue       Decimal @default(0) @db.Decimal(20, 2)
+  totalCost          Decimal @default(0) @db.Decimal(20, 2)
+  netProfit          Decimal @default(0) @db.Decimal(20, 2)
+  cashBalance        Decimal @default(0) @db.Decimal(20, 2)
+  accountsReceivable Decimal @default(0) @db.Decimal(20, 2) // Piutang
+  accountsPayable    Decimal @default(0) @db.Decimal(20, 2) // Hutang
+  burnRate           Decimal @default(0) @db.Decimal(20, 2) // Daily Burn Rate
 
   // Operations
   totalProduction Int     @default(0)
@@ -1053,8 +1053,8 @@ model StrategicGoal {
   id          String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   period      String // e.g. "2024-Q1", "Jan-2024"
   metric      String // e.g. "Revenue", "CSAT"
-  targetValue Decimal    @db.Decimal(15, 2)
-  actualValue Decimal    @default(0) @db.Decimal(15, 2)
+  targetValue Decimal    @db.Decimal(20, 2)
+  actualValue Decimal    @default(0) @db.Decimal(20, 2)
   status      GoalStatus @default(ON_TRACK)
 
   createdAt DateTime @default(now())
@@ -1138,7 +1138,7 @@ model SupplierProduct {
   productId  String @db.Uuid
 
   // Terms
-  price       Decimal @db.Decimal(15, 2)
+  price       Decimal @db.Decimal(20, 2)
   currency    String  @default("IDR")
   leadTime    Int     @default(7) // Days (specific to this vendor)
   minOrderQty Int     @default(1)
@@ -1167,9 +1167,9 @@ model PurchaseOrder {
   sentToVendorAt DateTime?
 
   // Financials
-  totalAmount Decimal @default(0) @db.Decimal(15, 2)
-  taxAmount   Decimal @default(0) @db.Decimal(15, 2)
-  netAmount   Decimal @default(0) @db.Decimal(15, 2)
+  totalAmount Decimal @default(0) @db.Decimal(20, 2)
+  taxAmount   Decimal @default(0) @db.Decimal(20, 2)
+  netAmount   Decimal @default(0) @db.Decimal(20, 2)
 
   // Status
   status          ProcurementStatus  @default(PO_DRAFT)
@@ -1185,7 +1185,7 @@ model PurchaseOrder {
 
   // Textile upgrade: templates & landed cost
   templateName    String?
-  landedCostTotal Decimal? @db.Decimal(15, 2) // Total landed cost (freight + customs + insurance)
+  landedCostTotal Decimal? @db.Decimal(20, 2) // Total landed cost (freight + customs + insurance)
 
   // User Relations
   requestedBy String? @db.Uuid // Original Requester (Inventory Staff)
@@ -1241,8 +1241,8 @@ model PurchaseOrderItem {
   quantity    Int
   receivedQty Int     @default(0)
   returnedQty Int     @default(0)
-  unitPrice   Decimal @db.Decimal(15, 2)
-  totalPrice  Decimal @db.Decimal(15, 2)
+  unitPrice   Decimal @db.Decimal(20, 2)
+  totalPrice  Decimal @db.Decimal(20, 2)
 
   purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   product       Product       @relation(fields: [productId], references: [id])
@@ -1403,7 +1403,7 @@ model GRNItem {
   quantityReceived Int
   quantityAccepted Int     @default(0)
   quantityRejected Int     @default(0)
-  unitCost         Decimal @db.Decimal(15, 2)
+  unitCost         Decimal @db.Decimal(20, 2)
 
   inspectionNotes String?
 
@@ -1446,14 +1446,14 @@ model Employee {
   status     EmployeeStatus @default(ACTIVE)
 
   // Salary
-  baseSalary Decimal @default(0) @db.Decimal(15, 2)
+  baseSalary Decimal @default(0) @db.Decimal(20, 2)
 
   // BPJS & Compensation (Textile upgrade)
   bpjsKesehatan       String? // BPJS Kesehatan number
   bpjsKetenagakerjaan String? // BPJS Ketenagakerjaan number
   shiftType           ShiftType? // Default shift assignment
-  hourlyRate          Decimal?   @db.Decimal(15, 2) // Upah per jam
-  pieceRate           Decimal?   @db.Decimal(15, 2) // Upah per potong
+  hourlyRate          Decimal?   @db.Decimal(20, 2) // Upah per jam
+  pieceRate           Decimal?   @db.Decimal(20, 2) // Upah per potong
 
   // Relations
   attendance         Attendance[]
@@ -1742,8 +1742,8 @@ model WorkOrder {
 
   status WOStatus @default(PLANNED)
 
-  estimatedCostTotal  Decimal?  @db.Decimal(15, 2)
-  actualCostTotal     Decimal?  @db.Decimal(15, 2)
+  estimatedCostTotal  Decimal?  @db.Decimal(20, 2)
+  actualCostTotal     Decimal?  @db.Decimal(20, 2)
   costVariancePct     Decimal?  @db.Decimal(8, 2)
 
   product        Product         @relation(fields: [productId], references: [id])
@@ -1963,8 +1963,8 @@ model WithholdingTax {
   direction       WithholdingDirection
 
   rate            Decimal  @db.Decimal(5, 2)
-  baseAmount      Decimal  @db.Decimal(15, 2)
-  amount          Decimal  @db.Decimal(15, 2)
+  baseAmount      Decimal  @db.Decimal(20, 2)
+  amount          Decimal  @db.Decimal(20, 2)
 
   buktiPotongNo   String?
   buktiPotongDate DateTime?
@@ -2007,7 +2007,7 @@ model Machine {
   capacityPerHour             Int? // Output capacity
   standardHoursPerDay         Int     @default(8)
   overheadTimePerHour         Decimal @default(0) @db.Decimal(10, 2)
-  overheadMaterialCostPerHour Decimal @default(0) @db.Decimal(15, 2)
+  overheadMaterialCostPerHour Decimal @default(0) @db.Decimal(20, 2)
 
   isActive Boolean @default(true)
 
@@ -2031,7 +2031,7 @@ model MaintenanceLog {
   type      MaintenanceType
 
   description String
-  cost        Decimal? @default(0) @db.Decimal(15, 2)
+  cost        Decimal? @default(0) @db.Decimal(20, 2)
 
   startTime DateTime
   endTime   DateTime?
@@ -2169,7 +2169,7 @@ model GLAccount {
   name     String // e.g. "Bank BCA"
   type     AccountType    // ASSET, LIABILITY, etc.
   subType  AccountSubType @default(GENERAL)
-  balance  Decimal        @default(0) @db.Decimal(15, 2)
+  balance  Decimal        @default(0) @db.Decimal(20, 2)
   isSystem Boolean     @default(false) // If true, cannot be deleted (e.g. Retained Earnings)
   isControlAccount  Boolean @default(false) // AR, AP, Inventory — sub-ledger controlled
   allowDirectPosting Boolean @default(true) // false = block manual journal entries
@@ -2256,8 +2256,8 @@ model JournalLine {
   accountId String @db.Uuid
 
   description String?
-  debit       Decimal @default(0) @db.Decimal(15, 2)
-  credit      Decimal @default(0) @db.Decimal(15, 2)
+  debit       Decimal @default(0) @db.Decimal(20, 2)
+  credit      Decimal @default(0) @db.Decimal(20, 2)
 
   entry   JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
   account GLAccount    @relation(fields: [accountId], references: [id])
@@ -2639,7 +2639,7 @@ model SubcontractorRate {
   subcontractorId String    @db.Uuid
   operation       String // e.g. "SEW", "WASH"
   productType     String? // e.g. "T-Shirt", "Kemeja"
-  ratePerUnit     Decimal   @db.Decimal(15, 2)
+  ratePerUnit     Decimal   @db.Decimal(20, 2)
   validFrom       DateTime  @db.Date
   validTo         DateTime? @db.Date
 
@@ -2797,9 +2797,9 @@ model GarmentCostSheet {
   version   Int             @default(1)
   status    CostSheetStatus @default(CS_DRAFT)
 
-  targetPrice  Decimal? @db.Decimal(15, 2)
+  targetPrice  Decimal? @db.Decimal(20, 2)
   targetMargin Decimal? @db.Decimal(5, 2) // percentage
-  totalCost    Decimal  @default(0) @db.Decimal(15, 2)
+  totalCost    Decimal  @default(0) @db.Decimal(20, 2)
 
   product Product         @relation(fields: [productId], references: [id])
   items   CostSheetItem[]
@@ -2818,13 +2818,13 @@ model CostSheetItem {
   description String
 
   quantity  Decimal @db.Decimal(10, 4)
-  unitCost  Decimal @db.Decimal(15, 2)
-  totalCost Decimal @db.Decimal(15, 2)
+  unitCost  Decimal @db.Decimal(20, 2)
+  totalCost Decimal @db.Decimal(20, 2)
 
   // Actuals (filled after production)
   actualQuantity  Decimal? @db.Decimal(10, 4)
-  actualUnitCost  Decimal? @db.Decimal(15, 2)
-  actualTotalCost Decimal? @db.Decimal(15, 2)
+  actualUnitCost  Decimal? @db.Decimal(20, 2)
+  actualTotalCost Decimal? @db.Decimal(20, 2)
 
   costSheet GarmentCostSheet @relation(fields: [costSheetId], references: [id], onDelete: Cascade)
 
@@ -2877,7 +2877,7 @@ model BankAccount {
   branch          String?
   currency        String   @default("IDR")
   coaAccountId    String?  @db.Uuid
-  openingBalance  Decimal  @default(0) @db.Decimal(15, 2)
+  openingBalance  Decimal  @default(0) @db.Decimal(20, 2)
   description     String?
   isActive        Boolean  @default(true)
 
@@ -2900,8 +2900,8 @@ model BankReconciliation {
   periodEnd     DateTime             @db.Date
   status        ReconciliationStatus @default(REC_DRAFT)
 
-  bankStatementBalance Decimal?  @db.Decimal(15, 2) // Saldo akhir per laporan bank
-  bookBalanceSnapshot  Decimal?  @db.Decimal(15, 2) // Snapshot saldo buku saat rekonsiliasi
+  bankStatementBalance Decimal?  @db.Decimal(20, 2) // Saldo akhir per laporan bank
+  bookBalanceSnapshot  Decimal?  @db.Decimal(20, 2) // Snapshot saldo buku saat rekonsiliasi
   notes                String?                       // Catatan akuntan
 
   closedBy String?   @db.Uuid
@@ -2924,7 +2924,7 @@ model BankReconciliationItem {
   reconciliationId    String      @db.Uuid
   bankRef             String?
   bankDate            DateTime?   @db.Date
-  bankAmount          Decimal     @db.Decimal(15, 2)
+  bankAmount          Decimal     @db.Decimal(20, 2)
   bankDescription     String?
   systemTransactionId String?     @db.Uuid // JournalEntry or Payment ID
   matchStatus         MatchStatus @default(UNMATCHED)
@@ -3151,7 +3151,7 @@ model PettyCashTransaction {
   id               String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   date             DateTime       @default(now())
   type             PettyCashType
-  amount           Decimal        @db.Decimal(15, 2)
+  amount           Decimal        @db.Decimal(20, 2)
   recipientName    String?
   description      String
   bankAccountId    String?        @db.Uuid
@@ -3160,7 +3160,7 @@ model PettyCashTransaction {
   expenseAccount   GLAccount?     @relation("PettyCashExpense", fields: [expenseAccountId], references: [id])
   journalEntryId   String?        @unique @db.Uuid
   journalEntry     JournalEntry?  @relation(fields: [journalEntryId], references: [id])
-  balanceAfter     Decimal        @db.Decimal(15, 2)
+  balanceAfter     Decimal        @db.Decimal(20, 2)
   createdAt        DateTime       @default(now())
 
   @@map("petty_cash_transactions")
@@ -3183,10 +3183,10 @@ model DebitCreditNote {
   originalInvoiceId  String?   @db.Uuid
   originalReference  String?
 
-  subtotal      Decimal        @db.Decimal(15, 2)
-  ppnAmount     Decimal        @default(0) @db.Decimal(15, 2)
-  totalAmount   Decimal        @db.Decimal(15, 2)
-  settledAmount Decimal        @default(0) @db.Decimal(15, 2)
+  subtotal      Decimal        @db.Decimal(20, 2)
+  ppnAmount     Decimal        @default(0) @db.Decimal(20, 2)
+  totalAmount   Decimal        @db.Decimal(20, 2)
+  settledAmount Decimal        @default(0) @db.Decimal(20, 2)
 
   issueDate     DateTime       @default(now())
   postingDate   DateTime?
@@ -3221,11 +3221,11 @@ model DebitCreditNoteItem {
   productId     String?        @db.Uuid
   description   String
 
-  quantity      Decimal        @db.Decimal(15, 2)
-  unitPrice     Decimal        @db.Decimal(15, 2)
-  amount        Decimal        @db.Decimal(15, 2)
-  ppnAmount     Decimal        @default(0) @db.Decimal(15, 2)
-  totalAmount   Decimal        @db.Decimal(15, 2)
+  quantity      Decimal        @db.Decimal(20, 2)
+  unitPrice     Decimal        @db.Decimal(20, 2)
+  amount        Decimal        @db.Decimal(20, 2)
+  ppnAmount     Decimal        @default(0) @db.Decimal(20, 2)
+  totalAmount   Decimal        @db.Decimal(20, 2)
 
   note          DebitCreditNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
   product       Product?       @relation(fields: [productId], references: [id])
@@ -3240,7 +3240,7 @@ model DebitCreditNoteSettlement {
   noteId        String         @db.Uuid
   invoiceId     String         @db.Uuid
 
-  amount        Decimal        @db.Decimal(15, 2)
+  amount        Decimal        @db.Decimal(20, 2)
 
   note          DebitCreditNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
   invoice       Invoice        @relation("DCNoteSettlements", fields: [invoiceId], references: [id])
@@ -3316,7 +3316,7 @@ model BudgetLine {
   accountId   String    @db.Uuid
   account     GLAccount @relation(fields: [accountId], references: [id])
   month       Int                                  // 1-12
-  amount      Decimal   @db.Decimal(15, 2)
+  amount      Decimal   @db.Decimal(20, 2)
 
   @@unique([budgetId, accountId, month])
   @@map("budget_lines")
@@ -3350,7 +3350,7 @@ model DiscountScheme {
   isActive    Boolean       @default(true)
 
   // Flat discount fields (PERCENTAGE / FIXED)
-  value Decimal? @db.Decimal(15, 2) // percentage value or fixed amount
+  value Decimal? @db.Decimal(20, 2) // percentage value or fixed amount
 
   // Tiered rules (TIERED type) — JSON array: [{minQty, maxQty, discount}]
   tieredRules Json?
@@ -3371,7 +3371,7 @@ model DiscountScheme {
   validTo   DateTime?
 
   // Minimum order value (optional)
-  minOrderValue Decimal? @db.Decimal(15, 2)
+  minOrderValue Decimal? @db.Decimal(20, 2)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3682,8 +3682,8 @@ model FixedAsset {
   purchaseDate      DateTime  @db.Date
   capitalizationDate DateTime @db.Date
   supplierId        String?   @db.Uuid
-  purchaseCost      Decimal   @db.Decimal(15, 2)
-  residualValue     Decimal   @default(0) @db.Decimal(15, 2)
+  purchaseCost      Decimal   @db.Decimal(20, 2)
+  residualValue     Decimal   @default(0) @db.Decimal(20, 2)
 
   // Penyusutan
   usefulLifeMonths     Int
@@ -3692,8 +3692,8 @@ model FixedAsset {
   depreciationStartDate DateTime @db.Date
 
   // Akumulasi (denormalized for performance)
-  accumulatedDepreciation Decimal @default(0) @db.Decimal(15, 2)
-  netBookValue            Decimal @default(0) @db.Decimal(15, 2) // purchaseCost - accumulatedDepreciation
+  accumulatedDepreciation Decimal @default(0) @db.Decimal(20, 2)
+  netBookValue            Decimal @default(0) @db.Decimal(20, 2) // purchaseCost - accumulatedDepreciation
 
   // Lokasi & identifikasi
   location     String?
@@ -3726,9 +3726,9 @@ model FixedAssetDeprecSchedule {
   periodNo Int // 1, 2, 3, ... (nomor periode penyusutan)
 
   scheduledDate      DateTime @db.Date
-  depreciationAmount Decimal  @db.Decimal(15, 2)
-  accumulatedAmount  Decimal  @db.Decimal(15, 2)
-  bookValueAfter     Decimal  @db.Decimal(15, 2)
+  depreciationAmount Decimal  @db.Decimal(20, 2)
+  accumulatedAmount  Decimal  @db.Decimal(20, 2)
+  bookValueAfter     Decimal  @db.Decimal(20, 2)
   isPosted           Boolean  @default(false) // Sudah di-posting via depreciation run?
 
   asset FixedAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
@@ -3747,7 +3747,7 @@ model FixedAssetDeprecRun {
   status      DepreciationRunStatus @default(PREVIEW)
 
   totalAssets       Int
-  totalDepreciation Decimal @db.Decimal(15, 2)
+  totalDepreciation Decimal @db.Decimal(20, 2)
 
   postedBy   String?   @db.Uuid
   postedAt   DateTime?
@@ -3770,9 +3770,9 @@ model FixedAssetDeprecEntry {
   runId String @db.Uuid
   assetId String @db.Uuid
 
-  depreciationAmount    Decimal @db.Decimal(15, 2)
-  accumulatedAfter      Decimal @db.Decimal(15, 2)
-  bookValueAfter        Decimal @db.Decimal(15, 2)
+  depreciationAmount    Decimal @db.Decimal(20, 2)
+  accumulatedAfter      Decimal @db.Decimal(20, 2)
+  bookValueAfter        Decimal @db.Decimal(20, 2)
 
   journalEntryId String? @db.Uuid
 
@@ -3793,8 +3793,8 @@ model FixedAssetMovement {
   date    DateTime          @db.Date
 
   // Disposal / Sale fields
-  proceeds     Decimal? @db.Decimal(15, 2) // Hasil penjualan
-  gainLoss     Decimal? @db.Decimal(15, 2) // Laba/Rugi disposal
+  proceeds     Decimal? @db.Decimal(20, 2) // Hasil penjualan
+  gainLoss     Decimal? @db.Decimal(20, 2) // Laba/Rugi disposal
 
   // Transfer fields
   fromLocation   String?
