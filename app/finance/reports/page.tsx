@@ -525,7 +525,7 @@ export default function FinancialReportsPage() {
                 ["AGING PIUTANG (AR)", "", "", "", "", ""],
                 [periodLabel, "", "", "", "", ""],
                 ["", "", "", "", "", ""],
-                ["PELANGGAN", "CURRENT (Rp)", "1-30 HARI (Rp)", "31-60 HARI (Rp)", "61-90 HARI (Rp)", "90+ HARI (Rp)", "TOTAL (Rp)"],
+                ["PELANGGAN", "BELUM JATUH TEMPO (Rp)", "1-30 HARI (Rp)", "31-60 HARI (Rp)", "61-90 HARI (Rp)", "90+ HARI (Rp)", "TOTAL (Rp)"],
                 ...arAgingData.byCustomer.map((c: any) => ([
                     c.customerName, c.current || 0, c.d1_30 || 0, c.d31_60 || 0, c.d61_90 || 0, c.d90_plus || 0, c.total || 0,
                 ])),
@@ -551,7 +551,7 @@ export default function FinancialReportsPage() {
                 ["AGING HUTANG (AP)", "", "", "", "", ""],
                 [periodLabel, "", "", "", "", ""],
                 ["", "", "", "", "", ""],
-                ["PEMASOK", "CURRENT (Rp)", "1-30 HARI (Rp)", "31-60 HARI (Rp)", "61-90 HARI (Rp)", "90+ HARI (Rp)", "TOTAL (Rp)"],
+                ["PEMASOK", "BELUM JATUH TEMPO (Rp)", "1-30 HARI (Rp)", "31-60 HARI (Rp)", "61-90 HARI (Rp)", "90+ HARI (Rp)", "TOTAL (Rp)"],
                 ...apAgingData.bySupplier.map((s: any) => ([
                     s.supplierName, s.current || 0, s.d1_30 || 0, s.d31_60 || 0, s.d61_90 || 0, s.d90_plus || 0, s.total || 0,
                 ])),
@@ -1781,11 +1781,11 @@ export default function FinancialReportsPage() {
                                             <TableHeader>
                                                 <TableRow className="bg-zinc-50 dark:bg-zinc-800">
                                                     <TableHead className="text-[10px] font-black uppercase tracking-widest">Pelanggan</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Current</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">1-30</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">31-60</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">61-90</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">90+</TableHead>
+                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Belum Jatuh Tempo</TableHead>
+                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">1-30 Hari</TableHead>
+                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">31-60 Hari</TableHead>
+                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">61-90 Hari</TableHead>
+                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">90+ Hari</TableHead>
                                                     <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Total</TableHead>
                                                     <TableHead className="text-[10px] font-black uppercase tracking-widest text-center w-[60px]">Aksi</TableHead>
                                                 </TableRow>
@@ -1830,7 +1830,11 @@ export default function FinancialReportsPage() {
                                                                         </span>
                                                                     </TableCell>
                                                                 </TableRow>
-                                                                {isExpanded && cust.invoices?.map((inv: any, j: number) => (
+                                                                {isExpanded && cust.invoices?.map((inv: any, j: number) => {
+                                                                    const b = inv.bucket || 'current'
+                                                                    const bal = inv.balanceDue || 0
+                                                                    const dueLbl = new Date(inv.dueDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short" })
+                                                                    return (
                                                                     <TableRow key={`inv-${j}`} className="bg-orange-50/50 dark:bg-orange-900/10">
                                                                         <TableCell className="pl-8 text-xs">
                                                                             <Link
@@ -1839,26 +1843,24 @@ export default function FinancialReportsPage() {
                                                                             >
                                                                                 {inv.invoiceNumber}
                                                                             </Link>
+                                                                            <span className="text-[9px] text-zinc-400 ml-1.5">jt. {dueLbl}</span>
                                                                         </TableCell>
-                                                                        <TableCell className="text-right text-[10px] font-mono text-zinc-500">
-                                                                            {new Date(inv.issueDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
-                                                                        </TableCell>
-                                                                        <TableCell className="text-right text-[10px] font-mono text-zinc-500">
-                                                                            {new Date(inv.dueDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
-                                                                        </TableCell>
-                                                                        <TableCell className="text-right text-[10px] font-mono">{formatIDR(inv.totalAmount)}</TableCell>
-                                                                        <TableCell className="text-right text-[10px] font-mono text-emerald-600">{formatIDR(inv.paidAmount)}</TableCell>
-                                                                        <TableCell className="text-right text-[10px] font-mono text-orange-600 font-bold">{formatIDR(inv.balanceDue)}</TableCell>
-                                                                        <TableCell className="text-right">
+                                                                        <TableCell className="text-right text-[10px] font-mono">{b === 'current' ? formatIDR(bal) : "-"}</TableCell>
+                                                                        <TableCell className="text-right text-[10px] font-mono">{b === '1-30' ? formatIDR(bal) : "-"}</TableCell>
+                                                                        <TableCell className="text-right text-[10px] font-mono">{b === '31-60' ? formatIDR(bal) : "-"}</TableCell>
+                                                                        <TableCell className="text-right text-[10px] font-mono">{b === '61-90' ? formatIDR(bal) : "-"}</TableCell>
+                                                                        <TableCell className="text-right text-[10px] font-mono text-red-600">{b === '90+' ? formatIDR(bal) : "-"}</TableCell>
+                                                                        <TableCell className="text-right text-[10px] font-mono font-bold">{formatIDR(bal)}</TableCell>
+                                                                        <TableCell className="text-center">
                                                                             <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-sm ${
                                                                                 inv.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
                                                                                 inv.status === 'PARTIAL' ? 'bg-amber-100 text-amber-700' :
                                                                                 'bg-blue-100 text-blue-700'
                                                                             }`}>{inv.status}</span>
                                                                         </TableCell>
-                                                                        <TableCell />
                                                                     </TableRow>
-                                                                ))}
+                                                                    )
+                                                                })}
                                                             </React.Fragment>
                                                         )
                                                     })
@@ -1908,11 +1910,11 @@ export default function FinancialReportsPage() {
                                             <TableHeader>
                                                 <TableRow className="bg-zinc-50 dark:bg-zinc-800">
                                                     <TableHead className="text-[10px] font-black uppercase tracking-widest">Pemasok</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Current</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">1-30</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">31-60</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">61-90</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">90+</TableHead>
+                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Belum Jatuh Tempo</TableHead>
+                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">1-30 Hari</TableHead>
+                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">31-60 Hari</TableHead>
+                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">61-90 Hari</TableHead>
+                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">90+ Hari</TableHead>
                                                     <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Total</TableHead>
                                                     <TableHead className="text-[10px] font-black uppercase tracking-widest text-center w-[60px]">Aksi</TableHead>
                                                 </TableRow>
@@ -1957,7 +1959,11 @@ export default function FinancialReportsPage() {
                                                                         </span>
                                                                     </TableCell>
                                                                 </TableRow>
-                                                                {isExpanded && supp.bills?.map((bill: any, j: number) => (
+                                                                {isExpanded && supp.bills?.map((bill: any, j: number) => {
+                                                                    const b = bill.bucket || 'current'
+                                                                    const bal = bill.balanceDue || 0
+                                                                    const dueLbl = new Date(bill.dueDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short" })
+                                                                    return (
                                                                     <TableRow key={`bill-${j}`} className="bg-red-50/50 dark:bg-red-900/10">
                                                                         <TableCell className="pl-8 text-xs">
                                                                             <Link
@@ -1966,26 +1972,24 @@ export default function FinancialReportsPage() {
                                                                             >
                                                                                 {bill.billNumber}
                                                                             </Link>
+                                                                            <span className="text-[9px] text-zinc-400 ml-1.5">jt. {dueLbl}</span>
                                                                         </TableCell>
-                                                                        <TableCell className="text-right text-[10px] font-mono text-zinc-500">
-                                                                            {new Date(bill.issueDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
-                                                                        </TableCell>
-                                                                        <TableCell className="text-right text-[10px] font-mono text-zinc-500">
-                                                                            {new Date(bill.dueDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
-                                                                        </TableCell>
-                                                                        <TableCell className="text-right text-[10px] font-mono">{formatIDR(bill.totalAmount)}</TableCell>
-                                                                        <TableCell className="text-right text-[10px] font-mono text-emerald-600">{formatIDR(bill.paidAmount)}</TableCell>
-                                                                        <TableCell className="text-right text-[10px] font-mono text-red-600 font-bold">{formatIDR(bill.balanceDue)}</TableCell>
-                                                                        <TableCell className="text-right">
+                                                                        <TableCell className="text-right text-[10px] font-mono">{b === 'current' ? formatIDR(bal) : "-"}</TableCell>
+                                                                        <TableCell className="text-right text-[10px] font-mono">{b === '1-30' ? formatIDR(bal) : "-"}</TableCell>
+                                                                        <TableCell className="text-right text-[10px] font-mono">{b === '31-60' ? formatIDR(bal) : "-"}</TableCell>
+                                                                        <TableCell className="text-right text-[10px] font-mono">{b === '61-90' ? formatIDR(bal) : "-"}</TableCell>
+                                                                        <TableCell className="text-right text-[10px] font-mono text-red-600">{b === '90+' ? formatIDR(bal) : "-"}</TableCell>
+                                                                        <TableCell className="text-right text-[10px] font-mono font-bold">{formatIDR(bal)}</TableCell>
+                                                                        <TableCell className="text-center">
                                                                             <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-sm ${
                                                                                 bill.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
                                                                                 bill.status === 'PARTIAL' ? 'bg-amber-100 text-amber-700' :
                                                                                 'bg-blue-100 text-blue-700'
                                                                             }`}>{bill.status}</span>
                                                                         </TableCell>
-                                                                        <TableCell />
                                                                     </TableRow>
-                                                                ))}
+                                                                    )
+                                                                })}
                                                             </React.Fragment>
                                                         )
                                                     })

@@ -535,7 +535,9 @@ async function fetchARaging(start?: Date, end?: Date) {
         orderBy: { dueDate: 'asc' },
     })
 
-    const today = new Date()
+    // Normalize today to start-of-day to avoid timezone-related bucket misplacement
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     const buckets = { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0 }
     const customerMap = new Map<string, {
         customerId: string; customerName: string; customerCode: string | null
@@ -553,8 +555,9 @@ async function fetchARaging(start?: Date, end?: Date) {
     }> = []
 
     for (const inv of openInvoices) {
-        const due = new Date(inv.dueDate)
-        const daysOverdue = Math.max(0, Math.floor((today.getTime() - due.getTime()) / (1000 * 60 * 60 * 24)))
+        const d = new Date(inv.dueDate)
+        const due = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+        const daysOverdue = Math.floor((today.getTime() - due.getTime()) / (1000 * 60 * 60 * 24))
         const balance = Number(inv.balanceDue)
         const custId = inv.customer?.id || 'unknown'
         const custName = inv.customer?.name || 'Tanpa Pelanggan'
@@ -635,7 +638,9 @@ async function fetchAPaging(start?: Date, end?: Date) {
         orderBy: { dueDate: 'asc' },
     })
 
-    const today = new Date()
+    // Normalize today to start-of-day to avoid timezone-related bucket misplacement
+    const now2 = new Date()
+    const today = new Date(now2.getFullYear(), now2.getMonth(), now2.getDate())
     const buckets = { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0 }
     const supplierMap = new Map<string, {
         supplierId: string; supplierName: string; supplierCode: string | null
@@ -653,8 +658,9 @@ async function fetchAPaging(start?: Date, end?: Date) {
     }> = []
 
     for (const bill of openBills) {
-        const due = new Date(bill.dueDate)
-        const daysOverdue = Math.max(0, Math.floor((today.getTime() - due.getTime()) / (1000 * 60 * 60 * 24)))
+        const d2 = new Date(bill.dueDate)
+        const due = new Date(d2.getFullYear(), d2.getMonth(), d2.getDate())
+        const daysOverdue = Math.floor((today.getTime() - due.getTime()) / (1000 * 60 * 60 * 24))
         const balance = Number(bill.balanceDue)
         const suppId = bill.supplier?.id || 'unknown'
         const suppName = bill.supplier?.name || 'Tanpa Supplier'
