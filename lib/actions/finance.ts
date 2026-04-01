@@ -3691,6 +3691,7 @@ export async function getARAgingReport() {
                 d90_plus: number
                 total: number
                 invoiceCount: number
+                invoices: Array<{ id: string; invoiceNumber: string; dueDate: Date; balanceDue: number; bucket: string; status: string }>
             }>()
 
             const details: Array<{
@@ -3734,6 +3735,7 @@ export async function getARAgingReport() {
                 const existing = customerMap.get(custId) || {
                     customerId: custId, customerName: custName, customerCode: custCode,
                     current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, total: 0, invoiceCount: 0,
+                    invoices: [],
                 }
                 existing.invoiceCount++
                 existing.total += balance
@@ -3742,6 +3744,14 @@ export async function getARAgingReport() {
                 else if (bucket === '31-60') existing.d31_60 += balance
                 else if (bucket === '61-90') existing.d61_90 += balance
                 else existing.d90_plus += balance
+                existing.invoices.push({
+                    id: inv.id,
+                    invoiceNumber: inv.number,
+                    dueDate: due,
+                    balanceDue: balance,
+                    bucket,
+                    status: inv.status,
+                })
                 customerMap.set(custId, existing)
 
                 details.push({
@@ -3834,6 +3844,7 @@ export async function getAPAgingReport() {
                 d90_plus: number
                 total: number
                 billCount: number
+                bills: Array<{ id: string; billNumber: string; dueDate: Date; balanceDue: number; bucket: string; status: string }>
             }>()
 
             const details: Array<{
@@ -3876,6 +3887,7 @@ export async function getAPAgingReport() {
                 const existing = supplierMap.get(suppId) || {
                     supplierId: suppId, supplierName: suppName, supplierCode: suppCode,
                     current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, total: 0, billCount: 0,
+                    bills: [],
                 }
                 existing.billCount++
                 existing.total += balance
@@ -3884,6 +3896,14 @@ export async function getAPAgingReport() {
                 else if (bucket === '31-60') existing.d31_60 += balance
                 else if (bucket === '61-90') existing.d61_90 += balance
                 else existing.d90_plus += balance
+                existing.bills.push({
+                    id: bill.id,
+                    billNumber: bill.number,
+                    dueDate: due,
+                    balanceDue: balance,
+                    bucket,
+                    status: bill.status,
+                })
                 supplierMap.set(suppId, existing)
 
                 details.push({
