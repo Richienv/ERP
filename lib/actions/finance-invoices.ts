@@ -324,14 +324,6 @@ export async function createCustomerInvoice(data: {
                 invoiceType = data.type === 'CUSTOMER' ? 'INV_OUT' : 'INV_IN'
             }
 
-            // Credit limit check for customer invoices (INV_OUT)
-            if (invoiceType === 'INV_OUT') {
-                const creditCheck = await checkCreditLimit(prisma, data.customerId, data.amount)
-                if (!creditCheck.ok) {
-                    return { success: false, error: creditCheck.message }
-                }
-            }
-
             // Look up GL account code from accountId (user-selected COA)
             let glAccountCode: string | null = null
             if (data.accountId) {
@@ -375,6 +367,14 @@ export async function createCustomerInvoice(data: {
             const subtotal = invoiceItems.reduce((sum, item) => sum + toNum(item.amount), 0)
             const taxAmount = data.includeTax ? Math.round(subtotal * TAX_RATES.PPN) : 0
             const totalAmount = subtotal + taxAmount
+
+            // Credit limit check — uses totalAmount (including PPN) consistently
+            if (invoiceType === 'INV_OUT') {
+                const creditCheck = await checkCreditLimit(prisma, data.customerId, totalAmount)
+                if (!creditCheck.ok) {
+                    return { success: false, error: creditCheck.message }
+                }
+            }
 
             // Create invoice — use relation connect (Prisma 6 rejects scalar FK mixed with nested creates)
             const invoice = await prisma.invoice.create({
