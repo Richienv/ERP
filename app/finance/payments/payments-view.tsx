@@ -23,6 +23,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { SelectItem } from "@/components/ui/select"
 import {
     NBDialog,
     NBDialogHeader,
