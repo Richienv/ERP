@@ -205,6 +205,10 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
             toast.error(isSalesType ? "Pilih customer" : "Pilih supplier")
             return
         }
+        if (!originalInvoiceId) {
+            toast.error("Invoice asal wajib dipilih")
+            return
+        }
         if (!reasonCode) {
             toast.error("Pilih alasan")
             return
@@ -225,7 +229,7 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
                 reasonCode,
                 customerId: isSalesType ? partyId : undefined,
                 supplierId: !isSalesType ? partyId : undefined,
-                originalInvoiceId: originalInvoiceId && originalInvoiceId !== "none" ? originalInvoiceId : undefined,
+                originalInvoiceId: originalInvoiceId || undefined,
                 originalReference: reference || undefined,
                 issueDate: new Date(issueDate + "T12:00:00"),
                 notes: notes || undefined,
@@ -352,10 +356,17 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
 
                                 <NBSelect
                                     label="Invoice Asal"
+                                    required
                                     value={originalInvoiceId}
-                                    onValueChange={setOriginalInvoiceId}
-                                    placeholder="Pilih..."
-                                    emptyLabel="Tidak ada"
+                                    onValueChange={v => {
+                                        setOriginalInvoiceId(v)
+                                        const inv = invoices.find((i: any) => i.id === v)
+                                        if (inv?.glAccountCode) {
+                                            const match = coaAccounts.find((a: any) => a.code === inv.glAccountCode)
+                                            if (match) setAccountId(match.id)
+                                        }
+                                    }}
+                                    placeholder="Pilih invoice..."
                                 >
                                     {invoices.map((inv: any) => (
                                         <SelectItem key={inv.id} value={inv.id}>

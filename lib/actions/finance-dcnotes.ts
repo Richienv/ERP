@@ -50,7 +50,7 @@ export async function getDCNotes(filters?: {
             orderBy: { issueDate: 'desc' },
         })
 
-        return notes.map(note => ({
+        const result: any[] = notes.map(note => ({
             ...note,
             subtotal: Number(note.subtotal),
             ppnAmount: Number(note.ppnAmount),
@@ -65,6 +65,89 @@ export async function getDCNotes(filters?: {
                 totalAmount: Number(item.totalAmount),
             })),
         }))
+
+        // ── Merge legacy Invoice-based DN/CN (from old createDebitNote/createCreditNote) ──
+        const existingNumbers = new Set(result.map(n => n.number))
+
+        const legacyOr: any[] = []
+        if (!filters?.type || filters.type === 'PURCHASE_DN')
+            legacyOr.push({ description: { startsWith: '[DEBIT_NOTE]' } })
+        if (!filters?.type || filters.type === 'SALES_CN')
+            legacyOr.push({ description: { startsWith: '[CREDIT_NOTE]' } })
+
+        if (legacyOr.length > 0) {
+            const legacyEntries = await basePrisma.journalEntry.findMany({
+                where: { OR: legacyOr },
+                include: {
+                    invoice: {
+                        include: {
+                            customer: { select: { name: true } },
+                            supplier: { select: { name: true } },
+                        },
+                    },
+                },
+                orderBy: { date: 'desc' },
+            })
+
+            for (const entry of legacyEntries) {
+                if (entry.reference && existingNumbers.has(entry.reference)) continue
+
+                const isCN = entry.description.startsWith('[CREDIT_NOTE]')
+                const inv = entry.invoice
+                const reasonText = entry.description.replace(/^\[(CREDIT|DEBIT)_NOTE\]\s*\S+:\s*/, '')
+                const absSubtotal = inv ? Math.abs(Number(inv.subtotal)) : 0
+                const absTax = inv ? Math.abs(Number(inv.taxAmount)) : 0
+                const absTotal = inv ? Math.abs(Number(inv.totalAmount)) : 0
+                const mappedStatus = entry.status === 'VOID' ? 'VOID' : 'POSTED'
+
+                if (filters?.status && filters.status !== mappedStatus) continue
+                if (filters?.customerId && inv?.customerId !== filters.customerId) continue
+                if (filters?.supplierId && inv?.supplierId !== filters.supplierId) continue
+
+                result.push({
+                    id: inv?.id || entry.id,
+                    number: entry.reference || '-',
+                    type: isCN ? 'SALES_CN' : 'PURCHASE_DN',
+                    status: mappedStatus,
+                    reasonCode: 'ADJ_OVERCHARGE',
+                    customerId: isCN ? (inv?.customerId ?? null) : null,
+                    supplierId: !isCN ? (inv?.supplierId ?? null) : null,
+                    originalInvoiceId: null,
+                    originalReference: null,
+                    issueDate: inv?.issueDate || entry.date,
+                    postingDate: entry.date,
+                    notes: reasonText,
+                    description: reasonText,
+                    journalEntryId: entry.id,
+                    glAccountCode: null,
+                    createdAt: entry.createdAt,
+                    updatedAt: entry.updatedAt,
+                    subtotal: absSubtotal,
+                    ppnAmount: absTax,
+                    totalAmount: absTotal,
+                    settledAmount: 0,
+                    customer: isCN ? (inv?.customer || null) : null,
+                    supplier: !isCN ? (inv?.supplier || null) : null,
+                    items: absSubtotal > 0 ? [{
+                        id: `legacy-${entry.id}`,
+                        noteId: inv?.id || entry.id,
+                        productId: null,
+                        description: reasonText || (isCN ? 'Nota Kredit' : 'Nota Debit'),
+                        createdAt: entry.date,
+                        quantity: 1,
+                        unitPrice: absSubtotal,
+                        amount: absSubtotal,
+                        ppnAmount: absTax,
+                        totalAmount: absTotal,
+                    }] : [],
+                    originalInvoice: null,
+                    _legacy: true,
+                })
+            }
+        }
+
+        result.sort((a: any, b: any) => new Date(b.issueDate).getTime() - new Date(a.issueDate).getTime())
+        return result
     } catch (error: unknown) {
         console.error("Failed to fetch DC Notes:", error)
         return []
@@ -265,6 +348,7 @@ export async function getDCNoteFormData(filters?: { customerId?: string; supplie
                     totalAmount: true,
                     balanceDue: true,
                     customerId: true,
+                    glAccountCode: true,
                     customer: { select: { name: true } },
                 },
                 orderBy: { issueDate: 'desc' },
@@ -282,6 +366,7 @@ export async function getDCNoteFormData(filters?: { customerId?: string; supplie
                     totalAmount: true,
                     balanceDue: true,
                     supplierId: true,
+                    glAccountCode: true,
                     supplier: { select: { name: true } },
                 },
                 orderBy: { issueDate: 'desc' },

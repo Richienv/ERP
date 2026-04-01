@@ -293,12 +293,21 @@ export function InvoicesPageClient() {
                     customerName: inv.customer?.name || inv.supplier?.name || "—",
                     issueDate: new Date(inv.issueDate).toLocaleDateString("id-ID"),
                     dueDate: new Date(inv.dueDate).toLocaleDateString("id-ID"),
-                    items: inv.items.map((item: any) => ({
-                        description: item.description || "",
-                        quantity: Number(item.quantity),
-                        unitPrice: Number(item.unitPrice),
-                        lineTotal: Number(item.lineTotal),
-                    })),
+                    items: inv.items.length > 0
+                        ? inv.items.map((item: any) => ({
+                            description: item.description || "",
+                            quantity: Number(item.quantity),
+                            unitPrice: Number(item.unitPrice),
+                            lineTotal: Number(item.lineTotal),
+                        }))
+                        : inv.number?.match(/^(DN|CN)-/)
+                            ? [{
+                                description: ((inv.journalEntries || [])[0]?.description || '').replace(/^\[(CREDIT|DEBIT)_NOTE\]\s*\S+:\s*/, '') || 'Nota Debit/Kredit',
+                                quantity: 1,
+                                unitPrice: Math.abs(inv.subtotal),
+                                lineTotal: Math.abs(inv.subtotal),
+                            }]
+                            : [],
                     subtotal: inv.subtotal,
                     taxAmount: inv.taxAmount,
                     discountAmount: inv.discountAmount,

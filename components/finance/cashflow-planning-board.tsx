@@ -226,9 +226,9 @@ export function CashflowPlanningBoard({
 
     // ─── Data Preparation ────────────────────────────────────────
     const bankAccounts = glAccounts.filter(a => a.code.startsWith("10"))
-    const autoItems = data.autoItems || []
-    const manualItems = data.manualItems || []
-    const actualItems = data.actualItems || []
+    const autoItems = data.autoItems ?? []
+    const manualItems = data.manualItems ?? []
+    const actualItems = data.actualItems ?? []
 
     const allPlanItems = [...autoItems, ...manualItems]
     const activeItems = viewMode === "planning" ? allPlanItems : actualItems
@@ -793,7 +793,7 @@ export function CashflowPlanningBoard({
             <UpcomingObligationsSection upcoming={upcoming} />
 
             {/* ═══ ACCURACY + FORECAST UNIFIED CARD ═══════════════════════ */}
-            {(data.snapshot || (forecast && forecast.months.length > 0)) && (
+            {(data.snapshot || (forecast && (forecast.months ?? []).length > 0)) && (
                 <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
                     {/* Orange accent bar */}
                     <div className="h-1 bg-gradient-to-r from-orange-500 via-amber-400 to-orange-500" />
@@ -831,7 +831,7 @@ export function CashflowPlanningBoard({
                                     {showAccuracy && <div className="absolute bottom-0 left-2 right-2 h-[3px] bg-orange-500" />}
                                 </button>
                             )}
-                            {forecast && forecast.months.length > 0 && (
+                            {forecast && (forecast.months ?? []).length > 0 && (
                                 <button
                                     onClick={() => setShowAccuracy(false)}
                                     className={`relative text-[10px] font-black uppercase tracking-widest px-4 py-3 transition-all flex items-center gap-1.5 ${
@@ -848,9 +848,9 @@ export function CashflowPlanningBoard({
                             )}
                         </div>
                         {/* Month range label */}
-                        {!showAccuracy && forecast && forecast.months.length > 0 && (
+                        {!showAccuracy && forecast && (forecast.months ?? []).length > 0 && (
                             <div className="flex items-center text-[10px] font-bold text-zinc-500 tracking-wider">
-                                {forecast.months[0]?.label} — {forecast.months[forecast.months.length - 1]?.label}
+                                {(forecast.months ?? [])[0]?.label} — {(forecast.months ?? [])[(forecast.months ?? []).length - 1]?.label}
                             </div>
                         )}
                     </div>
@@ -865,9 +865,9 @@ export function CashflowPlanningBoard({
                     )}
 
                     {/* Forecast content */}
-                    {!showAccuracy && forecast && forecast.months.length > 0 && (() => {
+                    {!showAccuracy && forecast && (forecast.months ?? []).length > 0 && (() => {
                         const maxAmount = Math.max(
-                            ...forecast.months.map(m => Math.max(m.totalIn, m.totalOut, Math.abs(m.runningBalance))),
+                            ...(forecast.months ?? []).map(m => Math.max(m.totalIn, m.totalOut, Math.abs(m.runningBalance))),
                             1
                         )
                         return (
@@ -889,7 +889,7 @@ export function CashflowPlanningBoard({
                                 </div>
                                 {/* Data rows */}
                                 <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                                    {forecast.months.map((m, idx) => {
+                                    {(forecast.months ?? []).map((m, idx) => {
                                         const isFirst = idx === 0
                                         const barInPct = maxAmount > 0 ? (m.totalIn / maxAmount) * 100 : 0
                                         const barOutPct = maxAmount > 0 ? (m.totalOut / maxAmount) * 100 : 0

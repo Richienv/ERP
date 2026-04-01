@@ -787,9 +787,9 @@ export async function getCashflowPlanData(month: number, year: number, allStatus
         startingBalance,
         startingBalanceOverride,
         effectiveStartingBalance,
-        autoItems,
-        manualItems,
-        actualItems,
+        autoItems: autoItems ?? [],
+        manualItems: manualItems ?? [],
+        actualItems: actualItems ?? [],
         snapshot: snapshot
             ? {
                 id: snapshot.id,
@@ -1059,7 +1059,7 @@ export async function getCashflowForecast(monthsAhead: number = 6): Promise<Cash
 
     return {
         startingBalance,
-        months,
+        months: months ?? [],
         totals: {
             totalIn,
             totalOut,
@@ -1136,7 +1136,7 @@ export async function getAccuracyTrend(monthsBack: number = 3): Promise<Accuracy
         })
     }
 
-    return result
+    return result ?? []
 }
 
 // ================================
@@ -1395,12 +1395,12 @@ export async function getUpcomingObligations(days: number = 90): Promise<Upcomin
     const totalOut = allItems.filter(i => i.direction === "OUT").reduce((s, i) => s + i.amount, 0)
 
     return {
-        items: allItems,
+        items: allItems ?? [],
         summary: {
             totalIn,
             totalOut,
             net: totalIn - totalOut,
-            itemCount: allItems.length,
+            itemCount: (allItems ?? []).length,
         },
         periodLabel: `${days} hari ke depan`,
     }
