@@ -536,6 +536,12 @@ model Customer {
   lastOrderDate   DateTime?
   totalOrderValue Decimal   @default(0) @db.Decimal(20, 2)
 
+  // AR/AP COA — per-customer GL account overrides
+  arAccountId String?    @db.Uuid
+  apAccountId String?    @db.Uuid
+  arAccount   GLAccount? @relation("CustomerAR", fields: [arAccountId], references: [id])
+  apAccount   GLAccount? @relation("CustomerAP", fields: [apAccountId], references: [id])
+
   // Relations
   category    CustomerCategory? @relation(fields: [categoryId], references: [id])
   priceList   PriceList?        @relation(fields: [priceListId], references: [id])
@@ -2186,6 +2192,10 @@ model GLAccount {
   pettyCashExpenseTxns  PettyCashTransaction[] @relation("PettyCashExpense")
   budgetLines           BudgetLine[]
   cashflowPlanItems     CashflowPlanItem[]
+
+  // Customer AR/AP overrides
+  arCustomers Customer[] @relation("CustomerAR")
+  apCustomers Customer[] @relation("CustomerAP")
 
   // Product accounting relations
   productsAsCogs      Product[] @relation("ProductCogs")

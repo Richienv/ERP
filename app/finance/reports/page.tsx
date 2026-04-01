@@ -1833,7 +1833,8 @@ export default function FinancialReportsPage() {
                                                                 {isExpanded && cust.invoices?.map((inv: any, j: number) => {
                                                                     const b = inv.bucket || 'current'
                                                                     const bal = inv.balanceDue || 0
-                                                                    const dueLbl = new Date(inv.dueDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short" })
+                                                                    const issueLbl = new Date(inv.issueDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })
+                                                                    const dueLbl = new Date(inv.dueDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })
                                                                     return (
                                                                     <TableRow key={`inv-${j}`} className="bg-orange-50/50 dark:bg-orange-900/10">
                                                                         <TableCell className="pl-8 text-xs">
@@ -1843,7 +1844,7 @@ export default function FinancialReportsPage() {
                                                                             >
                                                                                 {inv.invoiceNumber}
                                                                             </Link>
-                                                                            <span className="text-[9px] text-zinc-400 ml-1.5">jt. {dueLbl}</span>
+                                                                            <span className="block text-[9px] text-zinc-400 mt-0.5">{issueLbl} — jt. {dueLbl}</span>
                                                                         </TableCell>
                                                                         <TableCell className="text-right text-[10px] font-mono">{b === 'current' ? formatIDR(bal) : "-"}</TableCell>
                                                                         <TableCell className="text-right text-[10px] font-mono">{b === '1-30' ? formatIDR(bal) : "-"}</TableCell>
@@ -1962,7 +1963,8 @@ export default function FinancialReportsPage() {
                                                                 {isExpanded && supp.bills?.map((bill: any, j: number) => {
                                                                     const b = bill.bucket || 'current'
                                                                     const bal = bill.balanceDue || 0
-                                                                    const dueLbl = new Date(bill.dueDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short" })
+                                                                    const issueLbl = new Date(bill.issueDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })
+                                                                    const dueLbl = new Date(bill.dueDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })
                                                                     return (
                                                                     <TableRow key={`bill-${j}`} className="bg-red-50/50 dark:bg-red-900/10">
                                                                         <TableCell className="pl-8 text-xs">
@@ -1972,7 +1974,7 @@ export default function FinancialReportsPage() {
                                                                             >
                                                                                 {bill.billNumber}
                                                                             </Link>
-                                                                            <span className="text-[9px] text-zinc-400 ml-1.5">jt. {dueLbl}</span>
+                                                                            <span className="block text-[9px] text-zinc-400 mt-0.5">{issueLbl} — jt. {dueLbl}</span>
                                                                         </TableCell>
                                                                         <TableCell className="text-right text-[10px] font-mono">{b === 'current' ? formatIDR(bal) : "-"}</TableCell>
                                                                         <TableCell className="text-right text-[10px] font-mono">{b === '1-30' ? formatIDR(bal) : "-"}</TableCell>

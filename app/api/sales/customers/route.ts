@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { CreditStatus, CustomerType, PaymentTermLegacy, TaxStatus } from '@prisma/client'
+import { CreditStatus, CustomerType, PaymentTermLegacy, Prisma, TaxStatus } from '@prisma/client'
 
 import { isValidNpwp } from '@/lib/npwp'
 import { prisma } from '@/lib/prisma'
@@ -240,12 +240,14 @@ export async function POST(request: NextRequest) {
         phone: toText(body.phone),
         email: toText(body.email),
         website: toText(body.website),
-        creditLimit: toNumber(body.creditLimit, 0),
+        creditLimit: new Prisma.Decimal(Math.max(0, Math.trunc(toNumber(body.creditLimit, 0)))),
         creditTerm: Math.max(0, Math.trunc(toNumber(body.creditTerm, 30))),
         paymentTerm,
         currency: toText(body.currency) || 'IDR',
         priceListId: toText(body.priceListId),
         salesPersonId: toText(body.salesPersonId),
+        arAccountId: toText(body.arAccountId),
+        apAccountId: toText(body.apAccountId),
         isActive: typeof body.isActive === 'boolean' ? body.isActive : true,
         isProspect: typeof body.isProspect === 'boolean' ? body.isProspect : false,
       },
@@ -291,6 +293,18 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           error: `Referensi tidak valid untuk field: ${field}`,
+        },
+        {
+          status: 400,
+        }
+      )
+    }
+
+    if (error?.code === 'P2000' || error?.message?.includes('numeric field overflow') || error?.message?.includes('precision')) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Nilai limit kredit terlalu besar. Maksimum Rp 999.999.999.999.999.999',
         },
         {
           status: 400,

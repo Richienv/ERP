@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { usePaymentTerms } from "@/hooks/use-payment-terms"
 import { useCurrencies } from "@/hooks/use-currencies"
+import { useGLAccounts } from "@/hooks/use-gl-accounts"
 import { getFallbackPaymentTermOptions } from "@/lib/payment-term-options"
 import { SelectItem } from "@/components/ui/select"
 import {
@@ -94,6 +95,7 @@ export function CustomerForm({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { data: paymentTermOptions = getFallbackPaymentTermOptions() } = usePaymentTerms()
   const { data: currencies = [] } = useCurrencies()
+  const { data: glAccounts = [] } = useGLAccounts()
 
   // ── Auto-code state ──
   const [autoCodeLoading, setAutoCodeLoading] = useState(!isEdit)
@@ -133,6 +135,8 @@ export function CustomerForm({
       creditLimit: initialData?.creditLimit || 0,
       creditTerm: initialData?.creditTerm || 30,
       paymentTerm: initialData?.paymentTerm || "NET_30",
+      arAccountId: (initialData as any)?.arAccountId || "",
+      apAccountId: (initialData as any)?.apAccountId || "",
       currency: initialData?.currency || "IDR",
       priceListId: initialData?.priceListId || "",
       salesPersonId: initialData?.salesPersonId || "",
@@ -497,8 +501,8 @@ export function CustomerForm({
                 <FormItem>
                   <NBCurrencyInput
                     label="Limit Kredit"
-                    value={field.value ? String(field.value) : ""}
-                    onChange={(v) => field.onChange(Number(v) || 0)}
+                    value={field.value != null && field.value !== 0 ? String(Math.floor(Number(field.value))) : ""}
+                    onChange={(v) => field.onChange(v ? Number(v) : 0)}
                     disabled={isCashTerm}
                   />
                   {isCashTerm && (
@@ -535,6 +539,38 @@ export function CustomerForm({
                   <p className="text-[10px] font-medium text-zinc-400 mt-0.5">
                     {isCashTerm ? "Tunai = 0 hari kredit" : `Otomatis dari ${(paymentTermValue || "").replace(/_/g, " ")}`}
                   </p>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              {/* AR COA — Akun Piutang override */}
+              <FormField control={form.control} name="arAccountId" render={({ field }) => (
+                <FormItem>
+                  <NBSelect
+                    label="Akun AR (Piutang)"
+                    value={field.value || ""}
+                    onValueChange={field.onChange}
+                    placeholder="Default sistem (1200 Piutang Usaha)"
+                    options={glAccounts
+                      .filter((a: any) => a.type === "ASSET" && a.code >= "1200" && a.code < "1300")
+                      .map((a: any) => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+                  />
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              {/* AP COA — Akun Utang override */}
+              <FormField control={form.control} name="apAccountId" render={({ field }) => (
+                <FormItem>
+                  <NBSelect
+                    label="Akun AP (Utang)"
+                    value={field.value || ""}
+                    onValueChange={field.onChange}
+                    placeholder="Default sistem (2000 Hutang Usaha)"
+                    options={glAccounts
+                      .filter((a: any) => a.type === "LIABILITY" && a.code >= "2000" && a.code < "2200")
+                      .map((a: any) => ({ value: a.id, label: `${a.code} — ${a.name}` }))}
+                  />
                   <FormMessage />
                 </FormItem>
               )} />

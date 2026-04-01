@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PaymentTermLegacy } from '@prisma/client'
+import { PaymentTermLegacy, Prisma } from '@prisma/client'
 
 import { isValidNpwp } from '@/lib/npwp'
 import { prisma } from '@/lib/prisma'
@@ -67,7 +67,7 @@ export async function PUT(
         phone: body.phone !== undefined ? body.phone : existing.phone,
         email: body.email !== undefined ? body.email : existing.email,
         website: body.website !== undefined ? body.website : existing.website,
-        creditLimit: body.creditLimit !== undefined ? body.creditLimit : existing.creditLimit,
+        creditLimit: body.creditLimit !== undefined ? new Prisma.Decimal(Math.max(0, Math.trunc(toNumber(body.creditLimit, 0)))) : existing.creditLimit,
         creditTerm: body.creditTerm !== undefined ? body.creditTerm : existing.creditTerm,
         paymentTerm,
         creditStatus: body.creditStatus ?? existing.creditStatus,
@@ -82,6 +82,9 @@ export async function PUT(
     console.error('Error updating customer:', error)
     if (error.message === 'Unauthorized') {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    }
+    if (error?.code === 'P2000' || error?.message?.includes('numeric field overflow') || error?.message?.includes('precision')) {
+      return NextResponse.json({ success: false, error: 'Nilai limit kredit terlalu besar. Maksimum Rp 999.999.999.999.999.999' }, { status: 400 })
     }
     return NextResponse.json({ success: false, error: 'Failed to update customer' }, { status: 500 })
   }

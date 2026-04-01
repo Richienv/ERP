@@ -137,10 +137,14 @@ export const createCustomerSchemaBase = z.object({
   website: z.string().url('Format website tidak valid').optional().or(z.literal('')),
   
   // Credit Management
-  creditLimit: z.number().min(0, 'Limit kredit tidak boleh negatif').optional().default(0),
+  creditLimit: z.number().min(0, 'Limit kredit tidak boleh negatif').max(999999999999999999, 'Limit kredit melebihi batas maksimum').optional().default(0),
   creditTerm: z.number().int().min(0, 'Term kredit tidak boleh negatif').optional().default(30),
   paymentTerm: z.enum(LEGACY_PAYMENT_TERM_VALUES).optional().default('NET_30'),
-  
+
+  // AR/AP COA overrides (GLAccount id)
+  arAccountId: z.string().optional(),
+  apAccountId: z.string().optional(),
+
   // Settings
   currency: z.string().optional().default('IDR'),
   priceListId: z.string().optional(),

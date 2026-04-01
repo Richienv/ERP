@@ -88,3 +88,6 @@ bin/
 .claude/ralph-state.local.md
 .claude/ralph-status.local.json
 scripts/ralph/runs/
+
+# External repos accidentally placed in project root
+codex/
