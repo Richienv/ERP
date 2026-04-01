@@ -160,11 +160,6 @@ export default function FixedAssetCategoriesPage() {
         setForm(prev => ({ ...prev, [key]: value }))
     }
 
-    const accountLabel = (id: string) => {
-        const acc = accounts.find((a: any) => a.id === id)
-        return acc ? `${acc.code} - ${acc.name}` : "-"
-    }
-
     return (
         <div className="mf-page min-h-screen space-y-4">
             {/* HEADER */}

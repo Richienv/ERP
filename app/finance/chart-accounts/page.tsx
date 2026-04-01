@@ -5,7 +5,6 @@ import {
     Search,
     Plus,
     BookOpen,
-    Loader2,
     Landmark,
     Receipt,
     Wallet,

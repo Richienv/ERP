@@ -36,7 +36,7 @@ export default function DepreciationRunPage() {
     const [posting, setPosting] = useState(false)
     const [reversingId, setReversingId] = useState<string | null>(null)
     const [previewData, setPreviewData] = useState<any[] | null>(null)
-    const [hasPreview, setHasPreview] = useState(false)
+    const [_hasPreview, setHasPreview] = useState(false)
 
     if (isLoading) return <TablePageSkeleton accentColor="bg-purple-400" />
 

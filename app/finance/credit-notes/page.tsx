@@ -17,7 +17,6 @@ import {
 import { motion, AnimatePresence } from "framer-motion"
 
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { CheckboxFilter } from "@/components/ui/checkbox-filter"
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
@@ -49,13 +48,6 @@ const fadeX = {
 // Type & Reason Labels (Bahasa Indonesia)
 // ──────────────────────────────────────────
 
-const TYPE_LABELS: Record<string, string> = {
-    SALES_CN: "NK Penjualan",
-    SALES_DN: "ND Penjualan",
-    PURCHASE_DN: "ND Pembelian",
-    PURCHASE_CN: "NK Pembelian",
-}
-
 const TYPE_SHORT: Record<string, string> = {
     SALES_CN: "CN-S",
     SALES_DN: "DN-S",
@@ -79,15 +71,6 @@ const REASON_LABELS: Record<string, string> = {
     ADJ_PENALTY: "Penalti / Denda",
     ADJ_REBATE: "Potongan Volume",
     ADJ_GOODWILL: "Penyesuaian Goodwill",
-}
-
-const STATUS_LABELS: Record<string, string> = {
-    DRAFT: "Draft",
-    POSTED: "Diposting",
-    PARTIAL: "Sebagian",
-    APPLIED: "Diterapkan",
-    VOID: "Batal",
-    CANCELLED: "Dibatalkan",
 }
 
 const PAGE_SIZE = 15

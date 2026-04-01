@@ -132,14 +132,6 @@ export interface CashFlowData {
 // HELPERS
 // ==========================================
 
-function parseDateInput(date?: Date | string): Date | undefined {
-    if (!date) return undefined
-    if (date instanceof Date) return date
-    const parsed = new Date(date)
-    if (Number.isNaN(parsed.getTime())) return undefined
-    return parsed
-}
-
 // ==========================================
 // DASHBOARD & METRICS
 // ==========================================

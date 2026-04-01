@@ -15,7 +15,6 @@ import { toast } from "sonner"
 import { useCreditDebitNotes } from "@/hooks/use-credit-debit-notes"
 import { createCreditNote } from "@/lib/actions/finance"
 import { useQueryClient } from "@tanstack/react-query"
-import { NB } from "@/lib/dialog-styles"
 import {
     NBDialog, NBDialogHeader, NBDialogBody, NBDialogFooter,
     NBSection, NBSelect, NBCurrencyInput, NBInput, NBTextarea,

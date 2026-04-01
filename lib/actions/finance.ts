@@ -516,7 +516,7 @@ export async function getProfitLossStatement(startDate?: Date | string, endDate?
             let costOfGoodsSold = 0
             const operatingExpenses: { category: string; amount: number; code?: string }[] = []
             let otherIncome = 0
-            let otherExpenses = 0
+            const otherExpenses = 0
             let depreciation = 0
 
             // Group expenses by account
@@ -2492,7 +2492,7 @@ export async function approveVendorBill(billId: string) {
                 totalAmount += amount
 
                 // Attempt to find expense account from product, else default
-                let debitAccountCode = '6000' // Default Expense
+                const debitAccountCode = '6000' // Default Expense
                 // If we had product.expenseAccount relation, we'd use it here.
                 // For now, let's look for a suitable account based on context or default.
 
@@ -2774,7 +2774,7 @@ export async function getChartOfAccountsTree(): Promise<GLAccountNode[]> {
             })
 
             // Build tree structure
-            const accountMap = new Map<string, GLAccountNode>()
+            const _accountMap = new Map<string, GLAccountNode>()
             const roots: GLAccountNode[] = []
 
             // Create flat list grouped by type (since no parentId in schema)
@@ -3149,7 +3149,7 @@ export async function approveAndPayBill(
             const paymentNumber = `PAY-${Date.now()}` // Simple gen
 
             // Create Payment Record
-            const payment = await prisma.payment.create({
+            const _payment = await prisma.payment.create({
                 data: {
                     number: paymentNumber,
                     amount: paymentDetails.amount,

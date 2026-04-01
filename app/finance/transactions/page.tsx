@@ -14,12 +14,10 @@ import {
     X,
     Eye,
     EyeOff,
-    Hash,
     ArrowUpDown,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { CheckboxFilter } from "@/components/ui/checkbox-filter"
 import { NB } from "@/lib/dialog-styles"
 import { formatIDR } from "@/lib/utils"
@@ -116,7 +114,7 @@ function ReferenceLink({
     invoiceId,
     paymentId,
     paymentSupplierId,
-    paymentCustomerId,
+    paymentCustomerId: _paymentCustomerId,
     router,
 }: {
     reference: string | null
@@ -411,7 +409,7 @@ export default function AccountTransactionsPage() {
     const toggleGroup = (code: string) => {
         setCollapsedGroups((prev) => {
             const next = new Set(prev)
-            next.has(code) ? next.delete(code) : next.add(code)
+            if (next.has(code)) { next.delete(code) } else { next.add(code) }
             return next
         })
     }
@@ -807,7 +805,7 @@ export default function AccountTransactionsPage() {
                         </motion.div>
                     ) : (
                         <div className="min-w-[1020px]">
-                            {groupedByAccount.map((group, gIdx) => {
+                            {groupedByAccount.map((group, _gIdx) => {
                                 const colors =
                                     ACCOUNT_TYPE_COLORS[group.type] || ACCOUNT_TYPE_COLORS.ASSET
                                 const isCollapsed = collapsedGroups.has(group.code)

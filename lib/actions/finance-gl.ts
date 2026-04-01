@@ -618,7 +618,7 @@ export async function checkOpeningBalanceExists(year: number) {
             })
             return { exists: !!existing }
         })
-    } catch (error) {
+    } catch {
         return { exists: false }
     }
 }

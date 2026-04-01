@@ -11,7 +11,6 @@ import { useFinanceDashboard } from "@/hooks/use-finance-dashboard"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 import { AccountingModuleActions } from "@/components/finance/accounting-module-actions"
 import { CashFlowChart } from "@/components/finance/cash-flow-chart"
-import { ActionItemsWidget } from "@/components/finance/action-items-widget"
 import { formatCompactNumber, formatIDR } from "@/lib/utils"
 
 export default function FinanceDashboardPage() {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { usePettyCash } from "@/hooks/use-petty-cash"
@@ -9,7 +9,14 @@ import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBDialogFooter,
+    NBInput,
+    NBCurrencyInput,
+} from "@/components/ui/nb-dialog"
 import { toast } from "sonner"
 import {
     Wallet,
@@ -447,98 +454,80 @@ function TopUpDialog({ open, onOpenChange, onSuccess }: { open: boolean; onOpenC
         }
     }
 
+    useEffect(() => {
+        if (open) loadBanks()
+    }, [open])
+
     return (
-        <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (v) loadBanks() }}>
-            <DialogContent className={NB.contentNarrow}>
-                <div className={NB.header}>
-                    <DialogHeader>
-                        <DialogTitle className={NB.title}>
-                            <ArrowUpCircle className="h-5 w-5" /> Top Up Peti Kas
-                        </DialogTitle>
-                    </DialogHeader>
-                </div>
-                <div className="p-6 space-y-4">
-                    <div>
-                        <label className={NB.label}>Jumlah (IDR)</label>
-                        <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-zinc-400">Rp</span>
-                            <Input
-                                type="number"
-                                placeholder="500000"
-                                value={amount}
-                                onChange={(e) => setAmount(e.target.value)}
-                                className={`${NB.inputMono} w-full pl-9`}
-                            />
-                        </div>
-                    </div>
-                    <div>
-                        <label className={NB.label}>Dari Akun Bank</label>
-                        <ComboboxWithCreate
-                            options={banks.map(b => ({ value: b.code, label: b.name, subtitle: b.code }))}
-                            value={bankCode}
-                            onChange={setBankCode}
-                            placeholder={loadingBanks ? "Memuat..." : "Pilih akun bank..."}
-                            searchPlaceholder="Cari akun bank..."
-                            emptyMessage="Tidak ada akun bank"
-                            createLabel="+ Buat Akun Bank Baru"
-                            isLoading={loadingBanks}
-                            className="h-10"
-                            onCreate={async (name) => {
-                                const result = await createBankAccount(name)
-                                if (result.success && result.code) {
-                                    await loadBanks()
-                                    queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
-                                    queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
-                                    toast.success(`Akun "${name}" berhasil dibuat`)
-                                    return result.code
-                                }
-                                toast.error(result.error || "Gagal membuat akun bank")
-                                throw new Error(result.error || "Gagal")
-                            }}
-                        />
-                    </div>
-                    <div>
-                        <label className={NB.label}>Keterangan</label>
-                        <Input
-                            placeholder="Top up bulanan..."
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            className={`${NB.input} w-full`}
-                        />
-                    </div>
-                </div>
-                <div className={`px-6 pb-6 ${NB.footer}`}>
-                    <Button variant="outline" onClick={() => onOpenChange(false)} className={NB.cancelBtn}>
-                        Batal
-                    </Button>
-                    <Button
-                        disabled={!amount || !bankCode || loading}
-                        onClick={async () => {
-                            setLoading(true)
-                            try {
-                                const result = await topUpPettyCash({ amount: Number(amount), bankAccountCode: bankCode, description })
-                                if (result && 'success' in result && result.success) {
-                                    toast.success("Top up berhasil!")
-                                    onSuccess()
-                                    onOpenChange(false)
-                                    setAmount(""); setBankCode(""); setDescription("")
-                                } else {
-                                    toast.error("Gagal top up")
-                                }
-                            } catch (e: any) {
-                                toast.error(e.message || "Gagal top up")
-                            } finally {
-                                setLoading(false)
+        <NBDialog open={open} onOpenChange={onOpenChange} size="narrow">
+            <NBDialogHeader icon={ArrowUpCircle} title="Top Up Peti Kas" />
+            <NBDialogBody>
+                <NBCurrencyInput
+                    label="Jumlah (IDR)"
+                    required
+                    value={amount}
+                    onChange={setAmount}
+                />
+                <div>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                        Dari Akun Bank
+                    </label>
+                    <ComboboxWithCreate
+                        options={banks.map(b => ({ value: b.code, label: b.name, subtitle: b.code }))}
+                        value={bankCode}
+                        onChange={setBankCode}
+                        placeholder={loadingBanks ? "Memuat..." : "Pilih akun bank..."}
+                        searchPlaceholder="Cari akun bank..."
+                        emptyMessage="Tidak ada akun bank"
+                        createLabel="+ Buat Akun Bank Baru"
+                        isLoading={loadingBanks}
+                        className="h-10"
+                        onCreate={async (name) => {
+                            const result = await createBankAccount(name)
+                            if (result.success && result.code) {
+                                await loadBanks()
+                                queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+                                queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
+                                toast.success(`Akun "${name}" berhasil dibuat`)
+                                return result.code
                             }
+                            toast.error(result.error || "Gagal membuat akun bank")
+                            throw new Error(result.error || "Gagal")
                         }}
-                        className={NB.submitBtn}
-                    >
-                        {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-                        Top Up
-                    </Button>
+                    />
                 </div>
-            </DialogContent>
-        </Dialog>
+                <NBInput
+                    label="Keterangan"
+                    value={description}
+                    onChange={setDescription}
+                    placeholder="Top up bulanan..."
+                />
+            </NBDialogBody>
+            <NBDialogFooter
+                onCancel={() => onOpenChange(false)}
+                onSubmit={async () => {
+                    setLoading(true)
+                    try {
+                        const result = await topUpPettyCash({ amount: Number(amount), bankAccountCode: bankCode, description })
+                        if (result && 'success' in result && result.success) {
+                            toast.success("Top up berhasil!")
+                            onSuccess()
+                            onOpenChange(false)
+                            setAmount(""); setBankCode(""); setDescription("")
+                        } else {
+                            toast.error("Gagal top up")
+                        }
+                    } catch (e: any) {
+                        toast.error(e.message || "Gagal top up")
+                    } finally {
+                        setLoading(false)
+                    }
+                }}
+                submitting={loading}
+                submitLabel="Top Up"
+                disabled={!amount || !bankCode}
+            />
+        </NBDialog>
     )
 }
 
@@ -563,117 +552,97 @@ function DisburseDialog({ open, onOpenChange, onSuccess }: { open: boolean; onOp
         }
     }
 
+    useEffect(() => {
+        if (open) loadExpenses()
+    }, [open])
+
     return (
-        <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (v) loadExpenses() }}>
-            <DialogContent className={NB.contentNarrow}>
-                <div className={NB.header}>
-                    <DialogHeader>
-                        <DialogTitle className={NB.title}>
-                            <ArrowDownCircle className="h-5 w-5 text-red-400" /> Catat Pengeluaran
-                        </DialogTitle>
-                    </DialogHeader>
-                </div>
-                <div className="p-6 space-y-4">
-                    <div>
-                        <label className={NB.label}>Nama Pemohon</label>
-                        <Input
-                            placeholder="Nama..."
-                            value={recipientName}
-                            onChange={(e) => setRecipientName(e.target.value)}
-                            className={`${NB.input} w-full`}
-                        />
-                    </div>
-                    <div>
-                        <label className={NB.label}>Jumlah (IDR)</label>
-                        <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-zinc-400">Rp</span>
-                            <Input
-                                type="number"
-                                placeholder="150000"
-                                value={amount}
-                                onChange={(e) => setAmount(e.target.value)}
-                                className={`${NB.inputMono} w-full pl-9`}
-                            />
-                        </div>
-                    </div>
-                    <div>
-                        <label className={NB.label}>Kategori Beban</label>
-                        <ComboboxWithCreate
-                            options={expenses.map(e => ({ value: e.code, label: e.name, subtitle: e.code }))}
-                            value={expenseCode}
-                            onChange={setExpenseCode}
-                            placeholder={loadingExpenses ? "Memuat..." : "Pilih kategori beban..."}
-                            searchPlaceholder="Cari akun beban..."
-                            emptyMessage="Tidak ada akun beban"
-                            createLabel="+ Buat Akun Beban Baru"
-                            isLoading={loadingExpenses}
-                            className="h-10"
-                            onCreate={async (name) => {
-                                const result = await createExpenseAccount(name)
-                                if (result.success && result.code) {
-                                    setExpenses(prev => {
-                                        if (prev.some(e => e.code === result.code)) return prev
-                                        return [...prev, { code: result.code!, name: result.name || name }].sort((a, b) => a.code.localeCompare(b.code))
-                                    })
-                                    loadExpenses()
-                                    queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
-                                    queryClient.invalidateQueries({ queryKey: queryKeys.glAccounts.all })
-                                    queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
-                                    queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
-                                    toast.success(`Akun "${name}" berhasil dibuat (${result.code})`)
-                                    return result.code
-                                }
-                                toast.error(result.error || "Gagal membuat akun beban")
-                                throw new Error(result.error || "Gagal")
-                            }}
-                        />
-                    </div>
-                    <div>
-                        <label className={NB.label}>Keterangan</label>
-                        <Input
-                            placeholder="Keterangan..."
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            className={`${NB.input} w-full`}
-                        />
-                    </div>
-                </div>
-                <div className={`px-6 pb-6 ${NB.footer}`}>
-                    <Button variant="outline" onClick={() => onOpenChange(false)} className={NB.cancelBtn}>
-                        Batal
-                    </Button>
-                    <Button
-                        disabled={!amount || !recipientName || !expenseCode || loading}
-                        onClick={async () => {
-                            setLoading(true)
-                            try {
-                                const result = await disbursePettyCash({
-                                    amount: Number(amount),
-                                    recipientName,
-                                    description,
-                                    expenseAccountCode: expenseCode,
+        <NBDialog open={open} onOpenChange={onOpenChange} size="narrow">
+            <NBDialogHeader icon={ArrowDownCircle} title="Catat Pengeluaran" />
+            <NBDialogBody>
+                <NBInput
+                    label="Nama Pemohon"
+                    required
+                    value={recipientName}
+                    onChange={setRecipientName}
+                    placeholder="Nama..."
+                />
+                <NBCurrencyInput
+                    label="Jumlah (IDR)"
+                    required
+                    value={amount}
+                    onChange={setAmount}
+                />
+                <div>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                        Kategori Beban
+                    </label>
+                    <ComboboxWithCreate
+                        options={expenses.map(e => ({ value: e.code, label: e.name, subtitle: e.code }))}
+                        value={expenseCode}
+                        onChange={setExpenseCode}
+                        placeholder={loadingExpenses ? "Memuat..." : "Pilih kategori beban..."}
+                        searchPlaceholder="Cari akun beban..."
+                        emptyMessage="Tidak ada akun beban"
+                        createLabel="+ Buat Akun Beban Baru"
+                        isLoading={loadingExpenses}
+                        className="h-10"
+                        onCreate={async (name) => {
+                            const result = await createExpenseAccount(name)
+                            if (result.success && result.code) {
+                                setExpenses(prev => {
+                                    if (prev.some(e => e.code === result.code)) return prev
+                                    return [...prev, { code: result.code!, name: result.name || name }].sort((a, b) => a.code.localeCompare(b.code))
                                 })
-                                if (result && 'success' in result && result.success) {
-                                    toast.success("Pengeluaran tercatat!")
-                                    onSuccess()
-                                    onOpenChange(false)
-                                    setAmount(""); setRecipientName(""); setDescription(""); setExpenseCode("")
-                                } else {
-                                    toast.error((result as any)?.error || "Gagal mencatat pengeluaran")
-                                }
-                            } catch (e: any) {
-                                toast.error(e.message || "Gagal mencatat pengeluaran")
-                            } finally {
-                                setLoading(false)
+                                loadExpenses()
+                                queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
+                                queryClient.invalidateQueries({ queryKey: queryKeys.glAccounts.all })
+                                queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+                                queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
+                                toast.success(`Akun "${name}" berhasil dibuat (${result.code})`)
+                                return result.code
                             }
+                            toast.error(result.error || "Gagal membuat akun beban")
+                            throw new Error(result.error || "Gagal")
                         }}
-                        className={NB.submitBtn}
-                    >
-                        {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Minus className="h-4 w-4 mr-2" />}
-                        Catat Pengeluaran
-                    </Button>
+                    />
                 </div>
-            </DialogContent>
-        </Dialog>
+                <NBInput
+                    label="Keterangan"
+                    value={description}
+                    onChange={setDescription}
+                    placeholder="Keterangan..."
+                />
+            </NBDialogBody>
+            <NBDialogFooter
+                onCancel={() => onOpenChange(false)}
+                onSubmit={async () => {
+                    setLoading(true)
+                    try {
+                        const result = await disbursePettyCash({
+                            amount: Number(amount),
+                            recipientName,
+                            description,
+                            expenseAccountCode: expenseCode,
+                        })
+                        if (result && 'success' in result && result.success) {
+                            toast.success("Pengeluaran tercatat!")
+                            onSuccess()
+                            onOpenChange(false)
+                            setAmount(""); setRecipientName(""); setDescription(""); setExpenseCode("")
+                        } else {
+                            toast.error((result as any)?.error || "Gagal mencatat pengeluaran")
+                        }
+                    } catch (e: any) {
+                        toast.error(e.message || "Gagal mencatat pengeluaran")
+                    } finally {
+                        setLoading(false)
+                    }
+                }}
+                submitting={loading}
+                submitLabel="Catat Pengeluaran"
+                disabled={!amount || !recipientName || !expenseCode}
+            />
+        </NBDialog>
     )
 }

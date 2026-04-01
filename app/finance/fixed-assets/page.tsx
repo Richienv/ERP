@@ -1,8 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { useQueryClient } from "@tanstack/react-query"
-import { queryKeys } from "@/lib/query-keys"
 import { useFixedAssets, useFixedAssetCategories } from "@/hooks/use-fixed-assets"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 import { CreateAssetDialog } from "@/components/finance/fixed-assets/create-asset-dialog"
@@ -51,7 +49,6 @@ const fadeX = {
 }
 
 export default function FixedAssetsPage() {
-    const queryClient = useQueryClient()
     const [search, setSearch] = useState("")
     const [statusFilter, setStatusFilter] = useState<string>("")
     const [categoryFilter, setCategoryFilter] = useState<string>("")

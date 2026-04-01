@@ -8,7 +8,7 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { FileSpreadsheet, Download, FileText } from "lucide-react"
+import { FileSpreadsheet, FileText } from "lucide-react"
 import { toast } from "sonner"
 import {
     NBDialogHeader,

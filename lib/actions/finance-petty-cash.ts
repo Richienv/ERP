@@ -5,8 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { postJournalEntry } from "./finance-gl"
 import { ensureSystemAccounts } from "@/lib/gl-accounts-server"
 import { assertPeriodOpen } from "@/lib/period-helpers"
-
-const PETTY_CASH_ACCOUNT = "1050"
+import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
 
 async function requireAuth() {
     const supabase = await createClient()
@@ -22,8 +21,8 @@ export async function getPettyCashTransactions() {
 
         // Ensure GL account exists
         await basePrisma.gLAccount.upsert({
-            where: { code: PETTY_CASH_ACCOUNT },
-            create: { code: PETTY_CASH_ACCOUNT, name: "Kas Kecil (Petty Cash)", type: "ASSET", balance: 0 },
+            where: { code: SYS_ACCOUNTS.PETTY_CASH },
+            create: { code: SYS_ACCOUNTS.PETTY_CASH, name: "Kas Kecil (Petty Cash)", type: "ASSET", balance: 0 },
             update: {},
         })
 
@@ -76,6 +75,7 @@ export async function topUpPettyCash(data: {
 }) {
     await requireAuth()
     await assertPeriodOpen(new Date())
+    await ensureSystemAccounts()
 
     const bankAccount = await basePrisma.gLAccount.findUnique({ where: { code: data.bankAccountCode } })
     if (!bankAccount) throw new Error("Akun bank tidak ditemukan")
@@ -92,7 +92,7 @@ export async function topUpPettyCash(data: {
         date: now,
         reference: tempRef,
         lines: [
-            { accountCode: PETTY_CASH_ACCOUNT, debit: data.amount, credit: 0, description: "Top up peti kas" },
+            { accountCode: SYS_ACCOUNTS.PETTY_CASH, debit: data.amount, credit: 0, description: "Top up peti kas" },
             { accountCode: data.bankAccountCode, debit: 0, credit: data.amount, description: "Transfer ke peti kas" },
         ],
     })
@@ -135,6 +135,7 @@ export async function disbursePettyCash(data: {
 }) {
     await requireAuth()
     await assertPeriodOpen(new Date())
+    await ensureSystemAccounts()
 
     const expenseAccount = await basePrisma.gLAccount.findUnique({ where: { code: data.expenseAccountCode } })
     if (!expenseAccount) throw new Error("Akun beban tidak ditemukan")
@@ -157,7 +158,7 @@ export async function disbursePettyCash(data: {
         reference: tempRef,
         lines: [
             { accountCode: data.expenseAccountCode, debit: data.amount, credit: 0, description: `${data.recipientName}: ${data.description}` },
-            { accountCode: PETTY_CASH_ACCOUNT, debit: 0, credit: data.amount, description: "Pengeluaran peti kas" },
+            { accountCode: SYS_ACCOUNTS.PETTY_CASH, debit: 0, credit: data.amount, description: "Pengeluaran peti kas" },
         ],
     })
 
@@ -273,11 +274,12 @@ export async function getBankAccounts() {
         return await basePrisma.gLAccount.findMany({
             where: {
                 type: "ASSET",
-                code: { not: PETTY_CASH_ACCOUNT },
+                code: { not: SYS_ACCOUNTS.PETTY_CASH },
                 OR: [
-                    { code: { startsWith: "1" } },
+                    // Cash/bank range 1000–1199 (before AR at 1200)
+                    { code: { gte: "1000", lt: "1200" } },
+                    // Any asset named as a bank (e.g. user-created outside 1xxx range)
                     { name: { contains: "Bank", mode: "insensitive" } },
-                    { name: { contains: "Kas", mode: "insensitive" } },
                 ],
             },
             orderBy: { code: "asc" },
@@ -298,7 +300,7 @@ export async function createBankAccount(name: string) {
         const lastBank = await basePrisma.gLAccount.findFirst({
             where: {
                 type: "ASSET",
-                code: { startsWith: "10", not: PETTY_CASH_ACCOUNT },
+                code: { startsWith: "10", not: SYS_ACCOUNTS.PETTY_CASH },
             },
             orderBy: { code: "desc" },
             select: { code: true },
@@ -307,7 +309,7 @@ export async function createBankAccount(name: string) {
         let nextCode = "1010"
         if (lastBank) {
             let candidate = Number(lastBank.code) + 10
-            if (String(candidate) === PETTY_CASH_ACCOUNT) candidate += 10
+            if (String(candidate) === SYS_ACCOUNTS.PETTY_CASH) candidate += 10
             nextCode = String(candidate).padStart(4, "0")
         }
 

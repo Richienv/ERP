@@ -52,7 +52,7 @@ export function ReconciliationPreviewDialog({
     try {
       const result = await previewBalanceReconciliation()
       setPreview(result)
-    } catch (err) {
+    } catch {
       toast.error("Gagal memuat preview rekonsiliasi")
     } finally {
       setLoadingPreview(false)
@@ -67,7 +67,7 @@ export function ReconciliationPreviewDialog({
       onComplete()
       onOpenChange(false)
       setPreview(null)
-    } catch (err) {
+    } catch {
       toast.error("Gagal menerapkan rekonsiliasi")
     } finally {
       setApplying(false)

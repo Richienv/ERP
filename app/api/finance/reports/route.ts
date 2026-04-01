@@ -33,7 +33,7 @@ async function fetchPnL(start: Date, end: Date) {
     let revenue = 0
     let costOfGoodsSold = 0
     let otherIncome = 0
-    let otherExpenses = 0
+    const otherExpenses = 0
     let depreciation = 0
     const expenseMap = new Map<string, number>()
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { FileText, Receipt, CreditCard, CalendarDays, Loader2, Package } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { SelectItem } from "@/components/ui/select"

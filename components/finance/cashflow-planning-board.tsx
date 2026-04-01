@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, Fragment, useRef } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
@@ -18,8 +18,6 @@ import {
     IconPlus,
     IconCamera,
     IconWallet,
-    IconArrowUpRight,
-    IconArrowDownRight,
     IconScale,
     IconEdit,
     IconRefresh,
@@ -27,7 +25,6 @@ import {
     IconBuildingBank,
     IconCalendarWeek,
     IconHistory,
-    IconEye,
     IconPencil,
 } from "@tabler/icons-react"
 import { saveCashflowSnapshot, overrideStartingBalance } from "@/lib/actions/finance-cashflow"
@@ -1069,31 +1066,6 @@ function SwimLaneCard({
                     <IconPencil size={10} /> Edit
                 </div>
             )}
-        </div>
-    )
-}
-
-// ─── Summary Cell ───────────────────────────────────────────────────────────
-
-function SummaryCell({
-    label,
-    value,
-    color,
-    prefix,
-    highlight,
-}: {
-    label: string
-    value: number
-    color?: string
-    prefix?: string
-    highlight?: boolean
-}) {
-    return (
-        <div className="flex-1 min-w-[140px] p-4 text-center">
-            <div className="text-[10px] font-black uppercase tracking-wider text-zinc-400 mb-1">{label}</div>
-            <div className={`text-lg font-black tabular-nums ${highlight ? "text-red-600" : color || ""}`}>
-                {prefix}{formatCurrency(value)}
-            </div>
         </div>
     )
 }

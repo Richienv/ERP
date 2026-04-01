@@ -1,4 +1,4 @@
-import { ArrowUpRight, ArrowDownRight, DollarSign, Wallet, CreditCard, Activity } from "lucide-react"
+import { ArrowUpRight, ArrowDownRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface FinanceMetricCardProps {

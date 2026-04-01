@@ -46,10 +46,8 @@ import {
     Ban,
     Undo2,
     MessageSquare,
-    Eye,
-    EyeOff,
 } from "lucide-react"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion } from "framer-motion"
 import { toast } from "sonner"
 import { NB } from "@/lib/dialog-styles"
 import {
@@ -65,7 +63,6 @@ import type {
     ReconciliationSummary,
     ReconciliationDetail,
     SystemEntryData,
-    PaginationMeta,
 } from "@/lib/actions/finance-reconciliation"
 import { Switch } from "@/components/ui/switch"
 import { createBankAccount } from "@/lib/actions/finance-reconciliation"
@@ -176,58 +173,6 @@ function detectColumns(headers: string[]): {
         amountIdx: amountIdx >= 0 ? amountIdx : 2,
         refIdx: refIdx >= 0 ? refIdx : 3,
     }
-}
-
-// ==============================================================================
-// Skeleton for detail panel
-// ==============================================================================
-
-function DetailSkeleton() {
-    return (
-        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-pulse">
-            {/* Header skeleton */}
-            <div className="flex items-center justify-between px-5 py-3 border-b-2 border-black bg-zinc-50">
-                <div className="space-y-1.5">
-                    <div className="h-4 w-40 bg-zinc-200 rounded" />
-                    <div className="h-3 w-24 bg-zinc-100 rounded" />
-                </div>
-                <div className="h-4 w-32 bg-zinc-100 rounded" />
-            </div>
-            {/* KPI strip skeleton */}
-            <div className="grid grid-cols-4 border-b-2 border-black">
-                {[0, 1, 2, 3].map((i) => (
-                    <div key={i} className={`p-4 space-y-2 ${i < 3 ? "border-r border-zinc-200" : ""}`}>
-                        <div className="h-2.5 w-16 bg-zinc-100 rounded" />
-                        <div className="h-6 w-12 bg-zinc-200 rounded" />
-                    </div>
-                ))}
-            </div>
-            {/* Action bar skeleton */}
-            <div className="px-5 py-3 border-b border-zinc-200 flex gap-2">
-                <div className="h-8 w-28 bg-zinc-100 rounded" />
-                <div className="h-8 w-36 bg-zinc-100 rounded" />
-            </div>
-            {/* Side by side skeleton */}
-            <div className="grid grid-cols-2 divide-x divide-zinc-200">
-                {[0, 1].map((col) => (
-                    <div key={col}>
-                        <div className="bg-zinc-50 px-4 py-2.5 border-b border-zinc-200">
-                            <div className="h-3 w-28 bg-zinc-200 rounded" />
-                        </div>
-                        {[0, 1, 2, 3].map((row) => (
-                            <div key={row} className="px-4 py-3 border-b border-zinc-100 space-y-1.5">
-                                <div className="flex justify-between">
-                                    <div className="h-2.5 w-20 bg-zinc-100 rounded" />
-                                    <div className="h-3.5 w-24 bg-zinc-200 rounded" />
-                                </div>
-                                <div className="h-3 w-40 bg-zinc-100 rounded" />
-                            </div>
-                        ))}
-                    </div>
-                ))}
-            </div>
-        </div>
-    )
 }
 
 // ==============================================================================
@@ -391,10 +336,6 @@ export function BankReconciliationView({
     const totalItems = selectedRec ? matchedBankItems.length + unmatchedBankItems.length + excludedBankItems.length : 0
     const reconciledCount = matchedBankItems.length + excludedBankItems.length
     const matchedPercent = totalItems > 0 ? (reconciledCount / totalItems) * 100 : 0
-    const difference = selectedRec
-        ? unmatchedBankItems.reduce((s, i) => s + i.bankAmount, 0) -
-          unmatchedSystemEntries.reduce((s, e) => s + e.amount, 0)
-        : 0
 
     // ── File parsing ──────────────────────────────────────────────────────────
     const parseFile = useCallback(async (file: File) => {

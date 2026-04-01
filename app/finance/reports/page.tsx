@@ -258,12 +258,12 @@ export default function FinancialReportsPage() {
 
     const toggleAR = (id: string) => setExpandedAR(prev => {
         const next = new Set(prev)
-        next.has(id) ? next.delete(id) : next.add(id)
+        if (next.has(id)) { next.delete(id) } else { next.add(id) }
         return next
     })
     const toggleAP = (id: string) => setExpandedAP(prev => {
         const next = new Set(prev)
-        next.has(id) ? next.delete(id) : next.add(id)
+        if (next.has(id)) { next.delete(id) } else { next.add(id) }
         return next
     })
 
@@ -314,7 +314,7 @@ export default function FinancialReportsPage() {
     const togglePphSelect = (id: string) => {
         setPphSelectedIds(prev => {
             const next = new Set(prev)
-            next.has(id) ? next.delete(id) : next.add(id)
+            if (next.has(id)) { next.delete(id) } else { next.add(id) }
             return next
         })
     }

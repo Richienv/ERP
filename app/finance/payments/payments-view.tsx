@@ -23,20 +23,6 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue
-} from "@/components/ui/select"
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog"
 import {
     NBDialog,
     NBDialogHeader,
@@ -127,8 +113,6 @@ const METHOD_LABEL: Record<PaymentMethod, string> = {
     CREDIT_CARD: "Kartu Kredit",
     OTHER: "Lainnya"
 }
-
-const EMPTY_INVOICE_VALUE = "__NO_INVOICE__"
 
 const todayAsInput = () => new Date().toISOString().slice(0, 10)
 
