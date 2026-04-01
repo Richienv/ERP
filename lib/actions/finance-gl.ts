@@ -73,6 +73,7 @@ export async function getChartOfAccountsTree(): Promise<GLAccountNode[]> {
                     subType: acc.subType,
                     balance: balanceMap.get(acc.id) || 0,
                     parentId: acc.parentId,
+                    isSystem: acc.isSystem,
                     children: [],
                 })
             }
@@ -153,6 +154,66 @@ export async function createGLAccount(data: {
         })
     } catch (error: any) {
         console.error("Failed to create GL account:", error)
+        return { success: false, error: error.message }
+    }
+}
+
+export async function updateGLAccount(data: {
+    id: string
+    name: string
+    type: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE'
+}) {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const existing = await prisma.gLAccount.findUnique({ where: { id: data.id } })
+            if (!existing) return { success: false, error: "Akun tidak ditemukan" }
+
+            await prisma.gLAccount.update({
+                where: { id: data.id },
+                data: {
+                    name: data.name,
+                    type: data.type,
+                    subType: inferSubType(existing.code) as any,
+                },
+            })
+            return { success: true }
+        })
+    } catch (error: any) {
+        console.error("Failed to update GL account:", error)
+        return { success: false, error: error.message }
+    }
+}
+
+export async function deleteGLAccount(id: string) {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const account = await prisma.gLAccount.findUnique({
+                where: { id },
+                include: { _count: { select: { lines: true, children: true } } },
+            })
+            if (!account) return { success: false, error: "Akun tidak ditemukan" }
+
+            if (account.isSystem) {
+                return { success: false, error: "Akun sistem tidak bisa dihapus" }
+            }
+
+            if (account._count.lines > 0) {
+                return { success: false, error: `Akun ini memiliki ${account._count.lines} transaksi. Tidak bisa dihapus.` }
+            }
+
+            if (Number(account.balance) !== 0) {
+                return { success: false, error: "Akun dengan saldo tidak nol tidak bisa dihapus" }
+            }
+
+            if (account._count.children > 0) {
+                return { success: false, error: "Akun ini memiliki sub-akun. Hapus sub-akun terlebih dahulu." }
+            }
+
+            await prisma.gLAccount.delete({ where: { id } })
+            return { success: true }
+        })
+    } catch (error: any) {
+        console.error("Failed to delete GL account:", error)
         return { success: false, error: error.message }
     }
 }

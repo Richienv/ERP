@@ -12,8 +12,8 @@ export async function GET() {
             return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
         }
 
-        // Fetch only bank accounts (name contains "bank")
-        const accounts = await prisma.gLAccount.findMany({
+        // Fetch GL-based bank accounts (legacy, for backward compat)
+        const glAccounts = await prisma.gLAccount.findMany({
             where: {
                 type: "ASSET",
                 name: { contains: "bank", mode: "insensitive" },
@@ -22,7 +22,49 @@ export async function GET() {
             orderBy: { code: "asc" },
         })
 
-        // Fetch reconciliations separately — table may not exist yet after migration
+        // Fetch BankAccount records (new model)
+        let bankAccountRecords: Array<{
+            id: string
+            code: string
+            bankName: string
+            accountNumber: string
+            accountHolder: string
+            branch: string | null
+            currency: string
+            coaAccountId: string | null
+            openingBalance: number
+            description: string | null
+            isActive: boolean
+            coaBalance: number
+        }> = []
+
+        try {
+            const records = await prisma.bankAccount.findMany({
+                where: { isActive: true },
+                include: {
+                    coaAccount: { select: { id: true, code: true, name: true, balance: true } },
+                },
+                orderBy: { code: "asc" },
+            })
+            bankAccountRecords = records.map((a) => ({
+                id: a.id,
+                code: a.code,
+                bankName: a.bankName,
+                accountNumber: a.accountNumber,
+                accountHolder: a.accountHolder,
+                branch: a.branch,
+                currency: a.currency,
+                coaAccountId: a.coaAccountId,
+                openingBalance: Number(a.openingBalance),
+                description: a.description,
+                isActive: a.isActive,
+                coaBalance: a.coaAccount ? Number(a.coaAccount.balance) : 0,
+            }))
+        } catch (bankErr) {
+            console.warn("[GET /api/finance/reconciliation] bankAccount query failed:", bankErr)
+        }
+
+        // Fetch reconciliations
         let reconciliations: Array<{
             id: string
             glAccountCode: string
@@ -36,6 +78,7 @@ export async function GET() {
             unmatchedCount: number
             totalBankAmount: number
             createdAt: string
+            bankAccountId: string | null
         }> = []
 
         try {
@@ -66,15 +109,16 @@ export async function GET() {
                     unmatchedCount,
                     totalBankAmount: totalBank,
                     createdAt: r.statementDate.toISOString(),
+                    bankAccountId: (r as Record<string, unknown>).bankAccountId as string | null ?? null,
                 }
             })
         } catch (recErr) {
             console.warn("[GET /api/finance/reconciliation] bankReconciliation query failed:", recErr)
         }
 
-        // Dedupe bank accounts
+        // Build bankAccounts for backward compat (merge GL-based + BankAccount COA links)
         const seen = new Set<string>()
-        const bankAccounts = accounts
+        const bankAccounts = glAccounts
             .filter((a) => {
                 if (seen.has(a.id)) return false
                 seen.add(a.id)
@@ -82,9 +126,27 @@ export async function GET() {
             })
             .map((a) => ({ ...a, balance: Number(a.balance) }))
 
-        return NextResponse.json({ reconciliations, bankAccounts })
+        // Also fetch COA accounts for the bank account form dropdown
+        let coaAccounts: Array<{ id: string; code: string; name: string }> = []
+        try {
+            const coa = await prisma.gLAccount.findMany({
+                where: { type: "ASSET" },
+                select: { id: true, code: true, name: true },
+                orderBy: { code: "asc" },
+            })
+            coaAccounts = coa
+        } catch {
+            // ignore
+        }
+
+        return NextResponse.json({
+            reconciliations,
+            bankAccounts,
+            bankAccountRecords,
+            coaAccounts,
+        })
     } catch (error) {
         console.error("[GET /api/finance/reconciliation]", error)
-        return NextResponse.json({ reconciliations: [], bankAccounts: [] })
+        return NextResponse.json({ reconciliations: [], bankAccounts: [], bankAccountRecords: [], coaAccounts: [] })
     }
 }

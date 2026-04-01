@@ -145,6 +145,7 @@ export function InvoicesPageClient() {
         items: Array<{ description: string; quantity: number; unitPrice: number; lineTotal: number }>
         subtotal: number; taxAmount: number; discountAmount: number; totalAmount: number; balanceDue: number
         payments: Array<{ id: string; number: string; amount: number; date: string; method: string }>
+        journalEntries: Array<{ id: string; date: string; description: string; reference: string | null; lines: Array<{ accountCode: string; accountName: string; debit: number; credit: number }> }>
     } | null>(null)
 
     const [searchText, setSearchText] = useState("")
@@ -309,6 +310,18 @@ export function InvoicesPageClient() {
                         amount: Number(p.amount),
                         date: new Date(p.date).toLocaleDateString("id-ID"),
                         method: p.method,
+                    })),
+                    journalEntries: (inv.journalEntries || []).map((je: any) => ({
+                        id: je.id,
+                        date: new Date(je.date).toLocaleDateString("id-ID"),
+                        description: je.description,
+                        reference: je.reference,
+                        lines: (je.lines || []).map((l: any) => ({
+                            accountCode: l.accountCode,
+                            accountName: l.accountName,
+                            debit: Number(l.debit),
+                            credit: Number(l.credit),
+                        })),
                     })),
                 })
             }
@@ -528,14 +541,16 @@ export function InvoicesPageClient() {
         const canPay = invoice.status === 'ISSUED' || invoice.status === 'OVERDUE' || invoice.status === 'PARTIAL'
         const actions: ActionButton[] = []
 
+        // Eye icon — opens detail view for all invoices
+        actions.push({ icon: "view", onClick: () => isDraft ? openEditDialog(invoice) : openViewDialog(invoice), tooltip: "Lihat Detail" })
+
         if (isDraft) {
-            actions.push({ icon: "edit", onClick: () => openEditDialog(invoice), tooltip: "Edit Invoice" })
             actions.push({ icon: "send", onClick: () => openSendDialog(invoice), tooltip: "Kirim Invoice" })
         }
         if (canPay) {
             actions.push({ icon: "pay", onClick: () => openPayDialog(invoice), tooltip: "Catat Pembayaran", variant: "primary" })
         }
-        actions.push({ icon: "download", onClick: () => window.open(`/api/documents/invoice/${invoice.id}?disposition=inline`, '_blank'), tooltip: "Cetak Invoice PDF" })
+        actions.push({ icon: "download", onClick: () => window.open(`/api/documents/invoice/${invoice.id}?disposition=inline`, '_blank'), tooltip: "Download PDF" })
 
         return actions
     }
@@ -772,7 +787,8 @@ export function InvoicesPageClient() {
                                         initial="hidden"
                                         animate="show"
                                         transition={{ delay: idx * 0.03 }}
-                                        className={`grid grid-cols-1 md:grid-cols-[1fr_1.2fr_90px_140px_120px_110px_120px] gap-2 px-5 py-3 items-center transition-all hover:bg-orange-50/50 dark:hover:bg-orange-950/10 ${idx % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-zinc-50/60 dark:bg-zinc-800/20'} ${isOverdue ? 'border-l-4 border-l-red-500' : ''}`}
+                                        className={`grid grid-cols-1 md:grid-cols-[1fr_1.2fr_90px_140px_120px_110px_120px] gap-2 px-5 py-3 items-center transition-all hover:bg-orange-50/50 dark:hover:bg-orange-950/10 cursor-pointer ${idx % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-zinc-50/60 dark:bg-zinc-800/20'} ${isOverdue ? 'border-l-4 border-l-red-500' : ''}`}
+                                        onClick={() => invoice.status === 'DRAFT' ? openEditDialog(invoice) : openViewDialog(invoice)}
                                     >
                                         <div>
                                             <span className="font-mono text-sm font-black text-zinc-900 dark:text-zinc-100">{invoice.number}</span>
@@ -814,7 +830,7 @@ export function InvoicesPageClient() {
                                                 {new Date(invoice.dueDate).toLocaleDateString('id-ID')}
                                             </span>
                                         </div>
-                                        <div className="flex gap-1 items-center">
+                                        <div className="flex gap-1 items-center" onClick={(e) => e.stopPropagation()}>
                                             <ActionButtonGroup actions={getInvoiceActions(invoice)} size="sm" />
                                             {/* Attachment toggle — custom button (not in standard action set) */}
                                             <motion.button
@@ -1345,6 +1361,39 @@ export function InvoicesPageClient() {
                                     </div>
                                 )}
 
+                                {/* Journal Entries */}
+                                {viewData.journalEntries.length > 0 && (
+                                    <div>
+                                        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 block mb-2">Jurnal Akuntansi</span>
+                                        <div className="space-y-2">
+                                            {viewData.journalEntries.map((je) => (
+                                                <div key={je.id} className="border-2 border-black dark:border-white overflow-hidden">
+                                                    <div className="px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
+                                                        <span className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400">{je.description}</span>
+                                                        <span className="text-[10px] font-mono text-zinc-400">{je.date}</span>
+                                                    </div>
+                                                    <div className="divide-y divide-zinc-100 dark:divide-zinc-700">
+                                                        {je.lines.map((line, li) => (
+                                                            <div key={li} className="grid grid-cols-[1fr_90px_90px] gap-0 px-3 py-1.5">
+                                                                <span className="text-xs text-zinc-700 dark:text-zinc-300">
+                                                                    <span className="font-mono text-zinc-400 mr-1.5">{line.accountCode}</span>
+                                                                    {line.accountName}
+                                                                </span>
+                                                                <span className="text-xs font-mono text-right text-zinc-600 dark:text-zinc-400">
+                                                                    {line.debit > 0 ? formatIDR(line.debit) : ''}
+                                                                </span>
+                                                                <span className="text-xs font-mono text-right text-zinc-600 dark:text-zinc-400">
+                                                                    {line.credit > 0 ? formatIDR(line.credit) : ''}
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Audit log */}
                                 {activeInvoice && (
                                     <div className={NB.section}>
@@ -1377,6 +1426,17 @@ export function InvoicesPageClient() {
                                 }}
                             >
                                 <Banknote className="h-3.5 w-3.5 mr-1.5" /> Catat Pembayaran
+                            </Button>
+                        )}
+                        {activeInvoice && viewData && viewData.status === "DRAFT" && (
+                            <Button
+                                className={NB.submitBtnOrange}
+                                onClick={() => {
+                                    setIsViewDialogOpen(false)
+                                    if (activeInvoice) openSendDialog(activeInvoice)
+                                }}
+                            >
+                                <Send className="h-3.5 w-3.5 mr-1.5" /> Kirim
                             </Button>
                         )}
                         <Button variant="outline" className={NB.cancelBtn} onClick={() => setIsViewDialogOpen(false)}>Tutup</Button>

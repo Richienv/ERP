@@ -2652,6 +2652,11 @@ export async function recordVendorPayment(data: {
             })
             const paymentNumber = `VPAY-${year}-${String(count + 1).padStart(4, '0')}`
 
+            // Auto-derive method for Payment record from selected account name
+            const selectedBankCode = data.bankAccountCode || SYS_ACCOUNTS.BANK_BCA
+            const bankAcctForMethod = await prisma.gLAccount.findFirst({ where: { code: selectedBankCode }, select: { name: true } })
+            const derivedMethod = data.method || (bankAcctForMethod && /kas|cash|petty/i.test(bankAcctForMethod.name) ? 'CASH' : 'TRANSFER')
+
             const payment = await prisma.payment.create({
                 data: {
                     number: paymentNumber,
@@ -2659,7 +2664,7 @@ export async function recordVendorPayment(data: {
                     invoiceId: data.billId,
                     amount: data.amount,
                     date: new Date(),
-                    method: data.method || 'TRANSFER',
+                    method: derivedMethod,
                     reference: data.reference,
                     notes: data.notes || undefined
                 }
@@ -2682,8 +2687,8 @@ export async function recordVendorPayment(data: {
                 }
             }
 
-            // Resolve bank account code and name
-            const bankCode = data.bankAccountCode || '1000'
+            // Use selected COA account directly — no method→account mapping
+            const bankCode = data.bankAccountCode || SYS_ACCOUNTS.BANK_BCA
             let bankAccountName = 'Cash/Bank'
             try {
                 const bankAcct = await prisma.gLAccount.findFirst({ where: { code: bankCode } })
@@ -2739,6 +2744,7 @@ export interface GLAccountNode {
     subType: string
     balance: number
     parentId: string | null
+    isSystem: boolean
     children: GLAccountNode[]
 }
 
@@ -3670,7 +3676,9 @@ export async function getARAgingReport() {
                 orderBy: { dueDate: 'asc' },
             })
 
-            const today = new Date()
+            // Normalize today to start-of-day to avoid timezone-related bucket misplacement
+            const now = new Date()
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
             const buckets = { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0 }
             const customerMap = new Map<string, {
                 customerId: string
@@ -3695,9 +3703,10 @@ export async function getARAgingReport() {
             }> = []
 
             for (const inv of openInvoices) {
-                const due = new Date(inv.dueDate)
+                const d = new Date(inv.dueDate)
+                const due = new Date(d.getFullYear(), d.getMonth(), d.getDate())
                 const diffMs = today.getTime() - due.getTime()
-                const daysOverdue = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
+                const daysOverdue = Math.floor(diffMs / (1000 * 60 * 60 * 24))
                 const balance = toNum(inv.balanceDue)
                 const custId = inv.customer?.id || 'unknown'
                 const custName = inv.customer?.name || 'Tanpa Pelanggan'
@@ -3810,7 +3819,9 @@ export async function getAPAgingReport() {
                 orderBy: { dueDate: 'asc' },
             })
 
-            const today = new Date()
+            // Normalize today to start-of-day to avoid timezone-related bucket misplacement
+            const now2 = new Date()
+            const today = new Date(now2.getFullYear(), now2.getMonth(), now2.getDate())
             const buckets = { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0 }
             const supplierMap = new Map<string, {
                 supplierId: string
@@ -3835,9 +3846,10 @@ export async function getAPAgingReport() {
             }> = []
 
             for (const bill of openBills) {
-                const due = new Date(bill.dueDate)
+                const d = new Date(bill.dueDate)
+                const due = new Date(d.getFullYear(), d.getMonth(), d.getDate())
                 const diffMs = today.getTime() - due.getTime()
-                const daysOverdue = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
+                const daysOverdue = Math.floor(diffMs / (1000 * 60 * 60 * 24))
                 const balance = toNum(bill.balanceDue)
                 const suppId = bill.supplier?.id || 'unknown'
                 const suppName = bill.supplier?.name || 'Tanpa Supplier'

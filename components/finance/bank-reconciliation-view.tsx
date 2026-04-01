@@ -67,7 +67,9 @@ import type {
     SystemEntryData,
     PaginationMeta,
 } from "@/lib/actions/finance-reconciliation"
+import { Switch } from "@/components/ui/switch"
 import { createBankAccount } from "@/lib/actions/finance-reconciliation"
+import type { BankAccountRecord, COAAccount } from "@/hooks/use-reconciliation"
 
 // ==============================================================================
 // Indonesian Banks
@@ -111,6 +113,8 @@ interface BankAccount {
 interface BankReconciliationViewProps {
     reconciliations: ReconciliationSummary[]
     bankAccounts: BankAccount[]
+    bankAccountRecords?: BankAccountRecord[]
+    coaAccounts?: COAAccount[]
     onCreateReconciliation: (data: {
         glAccountId: string
         statementDate: string
@@ -266,6 +270,8 @@ function ProgressRing({ percent, size = 44, stroke = 4 }: { percent: number; siz
 export function BankReconciliationView({
     reconciliations,
     bankAccounts,
+    bankAccountRecords = [],
+    coaAccounts = [],
     onCreateReconciliation,
     onImportRows,
     onAutoMatch,
@@ -309,11 +315,17 @@ export function BankReconciliationView({
     const [editBankStatementBalance, setEditBankStatementBalance] = useState("")
     const [editNotes, setEditNotes] = useState("")
 
-    // Add bank state
+    // Add bank state (expanded form)
     const [newBankCode, setNewBankCode] = useState("")
     const [newBankName, setNewBankName] = useState("")
     const [newBankBalance, setNewBankBalance] = useState("")
     const [newBankDesc, setNewBankDesc] = useState("")
+    const [newBankAccountNumber, setNewBankAccountNumber] = useState("")
+    const [newBankAccountHolder, setNewBankAccountHolder] = useState("")
+    const [newBankBranch, setNewBankBranch] = useState("")
+    const [newBankCurrency, setNewBankCurrency] = useState("IDR")
+    const [newBankCoaId, setNewBankCoaId] = useState("")
+    const [newBankIsActive, setNewBankIsActive] = useState(true)
     const [addingBank, setAddingBank] = useState(false)
 
     // Selection state
@@ -390,7 +402,9 @@ export function BankReconciliationView({
         try {
             if (ext === "csv") {
                 const text = await file.text()
-                const lines = text.trim().split("\n").filter(Boolean)
+                // Strip BOM and skip comment lines (starting with #)
+                const cleaned = text.replace(/^\uFEFF/, "")
+                const lines = cleaned.trim().split("\n").filter(l => l.trim() && !l.trim().startsWith("#"))
                 if (lines.length < 2) {
                     toast.error("File CSV kosong atau hanya berisi header")
                     return
@@ -455,11 +469,15 @@ export function BankReconciliationView({
     }
 
     const downloadTemplateCSV = () => {
-        const header = "TANGGAL,DESKRIPSI,JUMLAH,REFERENSI"
-        const example1 = "2024-01-15,Transfer masuk,5000000,TRF001"
-        const example2 = "2024-01-16,Bayar supplier,-2500000,INV-2024-001"
-        const example3 = "2024-01-17,Pendapatan jasa,3750000,REF002"
-        const csv = [header, example1, example2, example3].join("\n")
+        const instructions = [
+            "# Format tanggal: dd/mm/yyyy",
+            "# Jumlah positif = uang masuk, negatif = uang keluar",
+        ]
+        const header = "Tanggal,Referensi,Deskripsi,Jumlah"
+        const example1 = "31/03/2026,TRF-001,Pembayaran dari PT ABC,5000000"
+        const example2 = "31/03/2026,TRF-002,Transfer ke supplier,-3000000"
+        const example3 = "01/04/2026,TRF-003,Penerimaan piutang,10000000"
+        const csv = [...instructions, header, example1, example2, example3].join("\n")
         const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" })
         const url = URL.createObjectURL(blob)
         const a = document.createElement("a")
@@ -518,9 +536,11 @@ export function BankReconciliationView({
         if (!selectedRec || !parsedRows || parsedRows.length === 0) return
         setActionLoading("import")
         try {
+            const totalIn = parsedRows.filter(r => r.amount > 0).reduce((s, r) => s + r.amount, 0)
+            const totalOut = Math.abs(parsedRows.filter(r => r.amount < 0).reduce((s, r) => s + r.amount, 0))
             const result = await onImportRows(selectedRec.id, parsedRows)
             if (result.success) {
-                toast.success(`${result.importedCount} baris berhasil diimpor`)
+                toast.success(`${result.importedCount} baris diimpor — Masuk: Rp ${formatIDR(totalIn)}, Keluar: Rp ${formatIDR(totalOut)}`)
                 setParsedRows(null)
                 await reloadDetail(selectedRec.id)
             } else {
@@ -620,6 +640,19 @@ export function BankReconciliationView({
 
     const handleClose = async () => {
         if (!selectedRec) return
+        // Check balance difference before closing
+        if (selectedRec.bankStatementBalance != null) {
+            const bookBalance = selectedRec.bookBalanceSnapshot ?? selectedRec.glAccountBalance
+            const outDeposits = unmatchedBankItems.filter(i => i.bankAmount > 0).reduce((s, i) => s + i.bankAmount, 0)
+            const outChecks = unmatchedBankItems.filter(i => i.bankAmount < 0).reduce((s, i) => s + i.bankAmount, 0)
+            const excludedTtl = excludedBankItems.reduce((s, i) => s + i.bankAmount, 0)
+            const adjustedBook = bookBalance + outDeposits + outChecks - excludedTtl
+            const diff = Math.abs(adjustedBook - (selectedRec.bankStatementBalance ?? 0))
+            if (diff >= 1) {
+                toast.error(`Selisih Rp ${formatIDR(diff)} — saldo buku dan bank belum seimbang. Selesaikan selisih sebelum menutup rekonsiliasi.`)
+                return
+            }
+        }
         const confirmed = window.confirm("Tutup rekonsiliasi ini? Setelah ditutup, tidak bisa diubah lagi.")
         if (!confirmed) return
         setActionLoading("close")
@@ -727,98 +760,246 @@ export function BankReconciliationView({
                         </div>
                     </div>
                     <div className="flex items-center gap-0">
-                    {/* Tambah Bank Dialog */}
+                    {/* Tambah Bank Dialog — Expanded Form */}
                     <Dialog open={addBankOpen} onOpenChange={setAddBankOpen}>
                         <DialogTrigger asChild>
                             <Button variant="outline" className={NB.toolbarBtn + " " + NB.toolbarBtnJoin}>
                                 <Landmark className="h-3.5 w-3.5 mr-1.5" /> Tambah Bank
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className={NB.contentNarrow}>
+                        <DialogContent className={NB.content}>
                             <DialogHeader className={NB.header}>
                                 <DialogTitle className={NB.title}>
                                     <Landmark className="h-5 w-5" /> Tambah Akun Bank
                                 </DialogTitle>
                                 <p className="text-zinc-400 text-[11px] font-bold mt-0.5">Daftarkan akun bank baru untuk rekonsiliasi</p>
                             </DialogHeader>
-                            <div className="p-6 space-y-4">
-                                <div className="grid grid-cols-3 gap-3">
-                                    <div>
-                                        <label className={NB.label}>Kode <span className={NB.labelRequired}>*</span></label>
-                                        <Input className={NB.inputMono} placeholder="1100" value={newBankCode} onChange={(e) => setNewBankCode(e.target.value)} />
-                                    </div>
-                                    <div className="col-span-2">
-                                        <label className={NB.label}>Nama Bank <span className={NB.labelRequired}>*</span></label>
-                                        <Select value={newBankName} onValueChange={setNewBankName}>
-                                            <SelectTrigger className={NB.select}>
-                                                <SelectValue placeholder="Pilih bank..." />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {INDONESIAN_BANKS.map((bank) => (
-                                                    <SelectItem key={bank} value={bank}>{bank}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
+                            <ScrollArea className="max-h-[70vh]">
+                            <div className="p-6 space-y-5">
+                                {/* ── Section: Informasi Bank ─── */}
                                 <div>
-                                    <label className={NB.label}>Keterangan (opsional)</label>
-                                    <Input className={NB.input} placeholder="Operasional..." value={newBankDesc} onChange={(e) => setNewBankDesc(e.target.value)} />
-                                </div>
-                                <div>
-                                    <label className={NB.label}>Saldo Awal</label>
-                                    <div className="relative">
-                                        <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold pointer-events-none transition-colors ${
-                                            newBankBalance ? "text-orange-500" : "text-zinc-400"
-                                        }`}>Rp</span>
-                                        <input
-                                            inputMode="numeric"
-                                            placeholder="0"
-                                            value={newBankBalance ? Number(newBankBalance).toLocaleString("id-ID") : ""}
-                                            onChange={(e) => {
-                                                const raw = e.target.value.replace(/[^\d]/g, "")
-                                                setNewBankBalance(raw)
-                                            }}
-                                            onKeyDown={(e) => {
-                                                const allowed = ["Backspace", "Delete", "Tab", "Escape", "Enter", "ArrowLeft", "ArrowRight", "Home", "End"]
-                                                if (allowed.includes(e.key)) return
-                                                if ((e.ctrlKey || e.metaKey) && ["a", "c", "v", "x"].includes(e.key.toLowerCase())) return
-                                                if (!/^\d$/.test(e.key)) e.preventDefault()
-                                            }}
-                                            className={`w-full pl-10 pr-3 h-10 font-mono font-bold text-sm rounded-none outline-none transition-colors ${
-                                                newBankBalance
-                                                    ? "border-2 border-orange-400 bg-orange-50/50 text-zinc-900"
-                                                    : "border-2 border-zinc-300 bg-zinc-50/50 text-zinc-900"
-                                            } placeholder:text-zinc-300 placeholder:font-normal focus:border-orange-400 focus:ring-2 focus:ring-orange-100`}
-                                        />
+                                    <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3 flex items-center gap-1.5">
+                                        <Landmark className="h-3 w-3" /> Informasi Bank
+                                    </h3>
+                                    <div className="space-y-3">
+                                        <div className="grid grid-cols-3 gap-3">
+                                            <div>
+                                                <label className={NB.label}>Kode <span className={NB.labelRequired}>*</span></label>
+                                                <Input className={NB.inputMono} placeholder="1100" value={newBankCode} onChange={(e) => setNewBankCode(e.target.value)} />
+                                            </div>
+                                            <div className="col-span-2">
+                                                <label className={NB.label}>Nama Bank <span className={NB.labelRequired}>*</span></label>
+                                                <Select value={newBankName} onValueChange={setNewBankName}>
+                                                    <SelectTrigger className={NB.select}>
+                                                        <SelectValue placeholder="Pilih bank..." />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {INDONESIAN_BANKS.map((bank) => (
+                                                            <SelectItem key={bank} value={bank}>{bank}</SelectItem>
+                                                        ))}
+                                                        <SelectItem value="__lainnya__">Lainnya...</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                        {newBankName === "__lainnya__" && (
+                                            <div>
+                                                <label className={NB.label}>Nama Bank (custom) <span className={NB.labelRequired}>*</span></label>
+                                                <Input className={NB.input} placeholder="Nama bank..." onChange={(e) => {
+                                                    // Store custom name temporarily — we'll use it on submit
+                                                    setNewBankDesc(prev => {
+                                                        const marker = "__CUSTOM_BANK:"
+                                                        const cleaned = prev.replace(new RegExp(`${marker}[^|]*\\|?`), "")
+                                                        return `${marker}${e.target.value}|${cleaned}`
+                                                    })
+                                                }} />
+                                            </div>
+                                        )}
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label className={NB.label}>Nomor Rekening <span className={NB.labelRequired}>*</span></label>
+                                                <Input
+                                                    className={`${NB.inputMono} ${newBankAccountNumber ? NB.inputActive : NB.inputEmpty}`}
+                                                    placeholder="1234567890"
+                                                    value={newBankAccountNumber}
+                                                    onChange={(e) => setNewBankAccountNumber(e.target.value)}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className={NB.label}>Nama Pemilik Rekening <span className={NB.labelRequired}>*</span></label>
+                                                <Input
+                                                    className={`${NB.input} ${newBankAccountHolder ? NB.inputActive : NB.inputEmpty}`}
+                                                    placeholder="PT Nama Perusahaan"
+                                                    value={newBankAccountHolder}
+                                                    onChange={(e) => setNewBankAccountHolder(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className={NB.label}>Cabang</label>
+                                            <Input
+                                                className={`${NB.input} ${newBankBranch ? NB.inputActive : NB.inputEmpty}`}
+                                                placeholder="KCP Jakarta Selatan"
+                                                value={newBankBranch}
+                                                onChange={(e) => setNewBankBranch(e.target.value)}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
+
+                                {/* ── Section: Pengaturan ─── */}
+                                <div>
+                                    <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3 flex items-center gap-1.5">
+                                        <ArrowRightLeft className="h-3 w-3" /> Pengaturan
+                                    </h3>
+                                    <div className="space-y-3">
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label className={NB.label}>Mata Uang</label>
+                                                <Select value={newBankCurrency} onValueChange={setNewBankCurrency}>
+                                                    <SelectTrigger className={NB.select}>
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="IDR">IDR — Rupiah</SelectItem>
+                                                        <SelectItem value="USD">USD — US Dollar</SelectItem>
+                                                        <SelectItem value="EUR">EUR — Euro</SelectItem>
+                                                        <SelectItem value="SGD">SGD — Singapore Dollar</SelectItem>
+                                                        <SelectItem value="JPY">JPY — Japanese Yen</SelectItem>
+                                                        <SelectItem value="CNY">CNY — Chinese Yuan</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div>
+                                                <label className={NB.label}>Akun COA</label>
+                                                <Select value={newBankCoaId} onValueChange={setNewBankCoaId}>
+                                                    <SelectTrigger className={NB.select}>
+                                                        <SelectValue placeholder="Auto / Pilih..." />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="__auto__">Buat otomatis</SelectItem>
+                                                        {coaAccounts.map((coa) => (
+                                                            <SelectItem key={coa.id} value={coa.id}>
+                                                                {coa.code} — {coa.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <p className="text-[9px] text-zinc-400 mt-0.5">Link ke Chart of Accounts (ASSET)</p>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className={NB.label}>Saldo Awal</label>
+                                            <div className="relative">
+                                                <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold pointer-events-none transition-colors ${
+                                                    newBankBalance ? "text-orange-500" : "text-zinc-400"
+                                                }`}>Rp</span>
+                                                <input
+                                                    inputMode="numeric"
+                                                    placeholder="0"
+                                                    value={newBankBalance ? Number(newBankBalance).toLocaleString("id-ID") : ""}
+                                                    onChange={(e) => {
+                                                        const raw = e.target.value.replace(/[^\d]/g, "")
+                                                        setNewBankBalance(raw)
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                        const allowed = ["Backspace", "Delete", "Tab", "Escape", "Enter", "ArrowLeft", "ArrowRight", "Home", "End"]
+                                                        if (allowed.includes(e.key)) return
+                                                        if ((e.ctrlKey || e.metaKey) && ["a", "c", "v", "x"].includes(e.key.toLowerCase())) return
+                                                        if (!/^\d$/.test(e.key)) e.preventDefault()
+                                                    }}
+                                                    className={`w-full pl-10 pr-3 h-10 font-mono font-bold text-sm rounded-none outline-none transition-colors ${
+                                                        newBankBalance
+                                                            ? "border-2 border-orange-400 bg-orange-50/50 text-zinc-900"
+                                                            : "border-2 border-zinc-300 bg-zinc-50/50 text-zinc-900"
+                                                    } placeholder:text-zinc-300 placeholder:font-normal focus:border-orange-400 focus:ring-2 focus:ring-orange-100`}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className={NB.label}>Keterangan</label>
+                                            <Input
+                                                className={`${NB.input} ${newBankDesc && !newBankDesc.startsWith("__CUSTOM_BANK:") ? NB.inputActive : NB.inputEmpty}`}
+                                                placeholder="Rekening operasional..."
+                                                value={newBankDesc.startsWith("__CUSTOM_BANK:") ? "" : newBankDesc}
+                                                onChange={(e) => setNewBankDesc(e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* ── Section: Status ─── */}
+                                <div>
+                                    <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3">
+                                        Status
+                                    </h3>
+                                    <div className="flex items-center justify-between border-2 border-zinc-200 px-4 py-3">
+                                        <div>
+                                            <span className="text-sm font-bold text-zinc-700">Status Aktif</span>
+                                            <p className="text-[10px] text-zinc-400">Akun bank aktif dapat digunakan untuk rekonsiliasi</p>
+                                        </div>
+                                        <Switch checked={newBankIsActive} onCheckedChange={setNewBankIsActive} />
+                                    </div>
+                                </div>
+
                                 {/* Preview */}
                                 {(newBankCode.trim() || newBankName) && (
-                                    <div className="border-2 border-dashed border-zinc-300 bg-zinc-50 px-4 py-2.5 flex items-center gap-3">
-                                        <Landmark className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
-                                        <span className="font-mono font-bold text-[11px] text-zinc-500">{newBankCode || "—"}</span>
-                                        <span className="text-sm font-bold text-zinc-700 truncate">
-                                            {newBankName}{newBankDesc.trim() ? ` — ${newBankDesc.trim()}` : ""}
-                                        </span>
+                                    <div className="border-2 border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 space-y-1">
+                                        <div className="flex items-center gap-3">
+                                            <Landmark className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
+                                            <span className="font-mono font-bold text-[11px] text-zinc-500">{newBankCode || "—"}</span>
+                                            <span className="text-sm font-bold text-zinc-700 truncate">
+                                                {newBankName === "__lainnya__" ? "(Custom)" : newBankName}
+                                            </span>
+                                        </div>
+                                        {newBankAccountNumber && (
+                                            <p className="text-[11px] text-zinc-500 pl-8">
+                                                Rek: <span className="font-mono font-bold">{newBankAccountNumber}</span>
+                                                {newBankAccountHolder && <> a.n. <span className="font-bold">{newBankAccountHolder}</span></>}
+                                            </p>
+                                        )}
                                     </div>
                                 )}
+
                                 <div className={NB.footer}>
                                     <Button variant="outline" className={NB.cancelBtn} onClick={() => setAddBankOpen(false)}>Batal</Button>
                                     <Button className={NB.submitBtn} disabled={addingBank} onClick={async () => {
-                                        if (!newBankCode.trim() || !newBankName.trim()) {
+                                        // Resolve custom bank name
+                                        let resolvedBankName = newBankName
+                                        if (newBankName === "__lainnya__") {
+                                            const match = newBankDesc.match(/__CUSTOM_BANK:([^|]*)/)
+                                            resolvedBankName = match?.[1]?.trim() || ""
+                                        }
+                                        if (!newBankCode.trim() || !resolvedBankName) {
                                             toast.error("Kode dan nama bank wajib diisi")
+                                            return
+                                        }
+                                        if (!newBankAccountNumber.trim()) {
+                                            toast.error("Nomor rekening wajib diisi")
+                                            return
+                                        }
+                                        if (!newBankAccountHolder.trim()) {
+                                            toast.error("Nama pemilik rekening wajib diisi")
                                             return
                                         }
                                         setAddingBank(true)
                                         try {
-                                            const fullName = newBankDesc.trim()
-                                                ? `${newBankName} — ${newBankDesc.trim()}`
-                                                : newBankName
+                                            // Clean description (remove custom bank marker)
+                                            let cleanDesc = newBankDesc
+                                            if (cleanDesc.startsWith("__CUSTOM_BANK:")) {
+                                                cleanDesc = cleanDesc.replace(/__CUSTOM_BANK:[^|]*\|?/, "").trim()
+                                            }
                                             const result = await createBankAccount({
                                                 code: newBankCode.trim(),
-                                                name: fullName,
-                                                initialBalance: Number(newBankBalance) || 0,
+                                                bankName: resolvedBankName,
+                                                accountNumber: newBankAccountNumber.trim(),
+                                                accountHolder: newBankAccountHolder.trim(),
+                                                branch: newBankBranch.trim() || undefined,
+                                                currency: newBankCurrency,
+                                                coaAccountId: newBankCoaId && newBankCoaId !== "__auto__" ? newBankCoaId : undefined,
+                                                openingBalance: Number(newBankBalance) || 0,
+                                                description: cleanDesc || undefined,
+                                                isActive: newBankIsActive,
                                             })
                                             if (result.success) {
                                                 toast.success("Akun bank berhasil dibuat")
@@ -827,6 +1008,12 @@ export function BankReconciliationView({
                                                 setNewBankName("")
                                                 setNewBankDesc("")
                                                 setNewBankBalance("")
+                                                setNewBankAccountNumber("")
+                                                setNewBankAccountHolder("")
+                                                setNewBankBranch("")
+                                                setNewBankCurrency("IDR")
+                                                setNewBankCoaId("")
+                                                setNewBankIsActive(true)
                                                 queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
                                                 queryClient.invalidateQueries({ queryKey: queryKeys.glAccounts.all })
                                             } else {
@@ -842,6 +1029,7 @@ export function BankReconciliationView({
                                     </Button>
                                 </div>
                             </div>
+                            </ScrollArea>
                         </DialogContent>
                     </Dialog>
 
@@ -1468,16 +1656,26 @@ export function BankReconciliationView({
                             {!isCompleted && (
                                 <div className="px-5 py-3 border-b border-zinc-200 bg-white">
                                     {parsedRows ? (
-                                        /* Preview of parsed rows */
+                                        /* Preview of parsed rows with summary */
                                         <div className="border-2 border-emerald-400 bg-emerald-50 p-4">
                                             <div className="flex items-center justify-between mb-3">
                                                 <div className="flex items-center gap-2">
                                                     <div className="flex items-center justify-center h-7 w-7 bg-emerald-100 border border-emerald-300">
                                                         <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-700" />
                                                     </div>
-                                                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
-                                                        {parsedRows.length} baris siap diimpor
-                                                    </span>
+                                                    <div>
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 block">
+                                                            {parsedRows.length} baris siap diimpor
+                                                        </span>
+                                                        <div className="flex items-center gap-3 mt-0.5">
+                                                            <span className="text-[9px] font-bold text-emerald-600">
+                                                                Masuk: Rp {formatIDR(parsedRows.filter(r => r.amount > 0).reduce((s, r) => s + r.amount, 0))}
+                                                            </span>
+                                                            <span className="text-[9px] font-bold text-red-600">
+                                                                Keluar: Rp {formatIDR(Math.abs(parsedRows.filter(r => r.amount < 0).reduce((s, r) => s + r.amount, 0)))}
+                                                            </span>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                                 <Button
                                                     variant="ghost"

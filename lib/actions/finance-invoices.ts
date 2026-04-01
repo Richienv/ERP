@@ -218,6 +218,61 @@ export async function getInvoiceCustomers(): Promise<Array<{ id: string; name: s
 }
 
 // ==========================================
+// CREDIT LIMIT CHECK
+// ==========================================
+
+/**
+ * Check if creating/issuing an invoice would exceed the customer's credit limit.
+ * Returns { ok: true } if within limit, or { ok: false, message: string } if exceeded.
+ * Skips check for suppliers (INV_IN) and customers with creditLimit = 0 (unlimited).
+ */
+async function checkCreditLimit(
+    prismaClient: typeof prisma,
+    customerId: string,
+    newInvoiceAmount: number,
+    excludeInvoiceId?: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+    const customer = await prismaClient.customer.findUnique({
+        where: { id: customerId },
+        select: { name: true, creditLimit: true, creditStatus: true },
+    })
+    if (!customer) return { ok: true } // Not a customer (maybe supplier) — skip
+
+    const creditLimit = Number(customer.creditLimit)
+    if (creditLimit <= 0) return { ok: true } // No limit set — unlimited
+
+    // Block if customer credit status is HOLD or BLOCKED
+    if (customer.creditStatus === 'HOLD' || customer.creditStatus === 'BLOCKED') {
+        return {
+            ok: false,
+            message: `Customer "${customer.name}" berstatus ${customer.creditStatus === 'HOLD' ? 'DITAHAN' : 'DIBLOKIR'}. Tidak dapat membuat invoice baru.`,
+        }
+    }
+
+    // Sum all outstanding AR invoices (ISSUED, PARTIAL, OVERDUE)
+    const outstandingResult = await prismaClient.invoice.aggregate({
+        where: {
+            customerId,
+            type: 'INV_OUT',
+            status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] },
+            ...(excludeInvoiceId ? { id: { not: excludeInvoiceId } } : {}),
+        },
+        _sum: { balanceDue: true },
+    })
+    const outstanding = Number(outstandingResult._sum.balanceDue || 0)
+
+    if (outstanding + newInvoiceAmount > creditLimit) {
+        const fmt = (n: number) => `Rp ${n.toLocaleString('id-ID')}`
+        return {
+            ok: false,
+            message: `Melebihi limit kredit "${customer.name}". Outstanding: ${fmt(outstanding)}, Invoice baru: ${fmt(newInvoiceAmount)}, Total: ${fmt(outstanding + newInvoiceAmount)}, Limit: ${fmt(creditLimit)}`,
+        }
+    }
+
+    return { ok: true }
+}
+
+// ==========================================
 // INVOICE CREATION
 // ==========================================
 
@@ -248,6 +303,15 @@ export async function createCustomerInvoice(data: {
             return { success: false, error: "Pilih akun pendapatan/beban (COA) terlebih dahulu" }
         }
 
+        // Fiscal period check
+        const issueDate = data.issueDate || new Date()
+        await assertPeriodOpen(issueDate)
+
+        // Due date must not be before issue date
+        if (data.dueDate && data.dueDate < issueDate) {
+            return { success: false, error: "Jatuh tempo tidak boleh sebelum tanggal terbit" }
+        }
+
         return await withPrismaAuth(async (prisma) => {
             // Determine Type
             let invoiceType: 'INV_OUT' | 'INV_IN' = 'INV_OUT'
@@ -258,6 +322,14 @@ export async function createCustomerInvoice(data: {
                 invoiceType = isCustomer ? 'INV_OUT' : 'INV_IN'
             } else {
                 invoiceType = data.type === 'CUSTOMER' ? 'INV_OUT' : 'INV_IN'
+            }
+
+            // Credit limit check for customer invoices (INV_OUT)
+            if (invoiceType === 'INV_OUT') {
+                const creditCheck = await checkCreditLimit(prisma, data.customerId, data.amount)
+                if (!creditCheck.ok) {
+                    return { success: false, error: creditCheck.message }
+                }
             }
 
             // Look up GL account code from accountId (user-selected COA)
@@ -351,13 +423,26 @@ export async function updateDraftInvoice(data: {
     dueDate?: Date
 }) {
     try {
+        // Due date validation
+        if (data.dueDate && data.issueDate && data.dueDate < data.issueDate) {
+            return { success: false, error: "Jatuh tempo tidak boleh sebelum tanggal terbit" }
+        }
+
+        // Fiscal period check if issue date is changing
+        if (data.issueDate) await assertPeriodOpen(data.issueDate)
+
         return await withPrismaAuth(async (prisma) => {
             const invoice = await prisma.invoice.findUnique({
                 where: { id: data.invoiceId },
-                select: { id: true, status: true, type: true }
+                select: { id: true, status: true, type: true, issueDate: true }
             })
             if (!invoice) return { success: false, error: "Invoice tidak ditemukan" }
             if (invoice.status !== 'DRAFT') return { success: false, error: "Hanya invoice DRAFT yang bisa diedit" }
+
+            // Also check due date against existing issue date if only due date is changing
+            if (data.dueDate && !data.issueDate && invoice.issueDate && data.dueDate < invoice.issueDate) {
+                return { success: false, error: "Jatuh tempo tidak boleh sebelum tanggal terbit" }
+            }
 
             const discount = data.discountAmount ?? 0
 
@@ -437,6 +522,15 @@ export async function getInvoiceDetail(invoiceId: string) {
                     customer: { select: { id: true, name: true } },
                     supplier: { select: { id: true, name: true } },
                     payments: { select: { id: true, number: true, amount: true, date: true, method: true } },
+                    journalEntries: {
+                        where: { status: 'POSTED' },
+                        include: {
+                            lines: {
+                                include: { account: { select: { code: true, name: true } } },
+                            },
+                        },
+                        orderBy: { date: 'asc' },
+                    },
                 }
             })
             if (!invoice) return { success: false, error: "Invoice tidak ditemukan" }
@@ -464,6 +558,18 @@ export async function getInvoiceDetail(invoiceId: string) {
                     payments: invoice.payments.map((p: any) => ({
                         ...p,
                         amount: toNum(p.amount),
+                    })),
+                    journalEntries: (invoice.journalEntries || []).map((je: any) => ({
+                        id: je.id,
+                        date: je.date,
+                        description: je.description,
+                        reference: je.reference,
+                        lines: (je.lines || []).map((line: any) => ({
+                            accountCode: line.account?.code || '',
+                            accountName: line.account?.name || '',
+                            debit: toNum(line.debit),
+                            credit: toNum(line.credit),
+                        })),
                     })),
                 },
             }
@@ -566,6 +672,9 @@ export async function recordPendingBillFromPO(
     options?: { forceCreate?: boolean; requireConfirmationOnDuplicate?: boolean }
 ) {
     try {
+        // Fiscal period check
+        await assertPeriodOpen(new Date())
+
         console.log("Creating/Updating Finance Bill for PO:", po.number)
 
         return await withPrismaAuth(async (prisma) => {
@@ -659,6 +768,9 @@ export async function createInvoiceFromSalesOrder(
     options?: { forceCreate?: boolean }
 ) {
     try {
+        // Fiscal period check — invoice created with today's date
+        await assertPeriodOpen(new Date())
+
         console.log("Creating Customer Invoice for Sales Order:", salesOrderId)
 
         const result = await withPrismaAuth(async (prisma) => {
@@ -881,6 +993,18 @@ export async function moveInvoiceToSent(invoiceId: string, _message?: string, _m
     try {
         // Period lock: fail fast before mutation
         await assertPeriodOpen(new Date())
+
+        // Credit limit pre-check before mutation (uses read-only prisma, no transaction needed)
+        const preCheck = await prisma.invoice.findUnique({
+            where: { id: invoiceId },
+            select: { type: true, customerId: true, totalAmount: true, id: true },
+        })
+        if (preCheck?.type === 'INV_OUT' && preCheck.customerId) {
+            const creditCheck = await checkCreditLimit(prisma, preCheck.customerId, toNum(preCheck.totalAmount), preCheck.id)
+            if (!creditCheck.ok) {
+                return { success: false, error: creditCheck.message }
+            }
+        }
 
         const txResult = await withPrismaAuth(async (prisma) => {
             const now = new Date()
@@ -1343,6 +1467,9 @@ export async function createBillFromPR(
     options?: { forceCreate?: boolean; includeTax?: boolean }
 ) {
     try {
+        // Fiscal period check
+        await assertPeriodOpen(new Date())
+
         return await withPrismaAuth(async (prisma) => {
             // Fetch PR with items and product details
             const pr = await prisma.purchaseRequest.findUnique({

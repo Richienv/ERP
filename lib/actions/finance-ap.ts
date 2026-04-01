@@ -429,9 +429,6 @@ export async function recordVendorPayment(data: {
             if (!data.amount || Number(data.amount) <= 0) {
                 throw new Error("Amount must be greater than 0")
             }
-            if (data.method === 'CHECK' && !data.reference) {
-                throw new Error("Check number/reference is required for CHECK payments")
-            }
 
             // Period lock: fail fast before mutation
             await assertPeriodOpen(new Date())
@@ -443,6 +440,11 @@ export async function recordVendorPayment(data: {
             if (whtAmount > 0 && netBankAmount <= 0) {
                 throw new Error("WHT amount cannot exceed or equal payment amount")
             }
+
+            // Auto-derive method for Payment record from selected account name
+            const selectedBankCode = data.bankAccountCode || SYS_ACCOUNTS.BANK_BCA
+            const bankAcctForMethod = await prisma.gLAccount.findFirst({ where: { code: selectedBankCode }, select: { name: true } })
+            const derivedMethod = data.method || (bankAcctForMethod && /kas|cash|petty/i.test(bankAcctForMethod.name) ? 'CASH' : 'TRANSFER')
 
             // Generate payment number
             const year = new Date().getFullYear()
@@ -458,7 +460,7 @@ export async function recordVendorPayment(data: {
                     invoiceId: data.billId,
                     amount: grossAmount,
                     date: new Date(),
-                    method: data.method || 'TRANSFER',
+                    method: derivedMethod,
                     reference: data.reference,
                     notes: data.notes,
                     whtAmount: whtAmount > 0 ? whtAmount : null,
@@ -500,7 +502,8 @@ export async function recordVendorPayment(data: {
 
             // Post GL entry: DR AP, CR Cash/Bank [, CR Utang PPh if withholding]
             await ensureSystemAccounts()
-            const bankCode = getCashAccountCode(data.method || 'TRANSFER', data.bankAccountCode)
+            // Use selected COA account directly — no method→account mapping
+            const bankCode = data.bankAccountCode || SYS_ACCOUNTS.BANK_BCA
             const bankAccount = await prisma.gLAccount.findFirst({
                 where: { code: bankCode },
                 select: { name: true }
@@ -632,10 +635,6 @@ export async function recordMultiBillPayment(data: {
                 if (alloc.amount <= 0) throw new Error("Jumlah alokasi harus lebih dari 0")
             }
 
-            if (data.method === 'CHECK' && !data.reference) {
-                throw new Error("Nomor cek/referensi wajib diisi untuk metode CHECK")
-            }
-
             // Period lock: fail fast before mutation
             await assertPeriodOpen(new Date())
 
@@ -704,7 +703,8 @@ export async function recordMultiBillPayment(data: {
             }
 
             // Post single GL entry for total amount: DR AP, CR Bank/Cash [, CR Utang PPh if withholding]
-            const bankCode = getCashAccountCode(data.method || 'TRANSFER', data.bankAccountCode)
+            // Use selected COA account directly — no method→account mapping
+            const bankCode = data.bankAccountCode || SYS_ACCOUNTS.BANK_BCA
             const bankAccount = await prisma.gLAccount.findFirst({
                 where: { code: bankCode },
                 select: { name: true }

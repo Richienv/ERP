@@ -138,36 +138,20 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
     const pathname = usePathname()
     const searchParams = useSearchParams()
     const { data: coaTree } = useChartOfAccounts()
-    const { bankAccounts, cashAccounts } = useMemo(() => {
-        if (!coaTree) return { bankAccounts: [] as { code: string; name: string }[], cashAccounts: [] as { code: string; name: string }[] }
-        // Flatten tree: collect all leaf nodes (no children = not a header/parent)
+    const cashBankAccounts = useMemo(() => {
+        if (!coaTree) return [] as { code: string; name: string }[]
         const flat: any[] = []
         const walk = (nodes: any[]) => {
             for (const n of nodes) {
-                if (n.children?.length) {
-                    walk(n.children) // parent/header — skip it, recurse children
-                } else {
-                    flat.push(n)
-                }
+                if (n.children?.length) walk(n.children)
+                else flat.push(n)
             }
         }
         walk(Array.isArray(coaTree) ? coaTree : [])
-        const cashBankLeafs = flat
+        return flat
             .filter((a) => a.type === "ASSET" && (a.subType === "ASSET_CASH" || (a.code >= "1000" && a.code < "1200")))
             .map((a) => ({ code: a.code as string, name: a.name as string }))
             .sort((a, b) => a.code.localeCompare(b.code))
-
-        const bank: { code: string; name: string }[] = []
-        const cash: { code: string; name: string }[] = []
-        for (const acc of cashBankLeafs) {
-            const lower = acc.name.toLowerCase()
-            if (lower.includes("bank")) {
-                bank.push(acc)
-            } else if (lower.includes("kas") || lower.includes("cash") || lower.includes("petty")) {
-                cash.push(acc)
-            }
-        }
-        return { bankAccounts: bank, cashAccounts: cash }
     }, [coaTree])
     const [processing, setProcessing] = useState<string | null>(null)
     const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(highlightPaymentId ?? null)
@@ -180,7 +164,6 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
         customerId: "",
         amount: "",
         date: todayAsInput(),
-        method: "TRANSFER" as PaymentMethod,
         bankAccountCode: "",
         reference: "",
         notes: "",
@@ -189,6 +172,10 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
 
     // NEW: tab state for combined panel
     const [activeTab, setActiveTab] = useState<"payments" | "invoices">("payments")
+
+    // Expand/collapse for Invoice Terbuka section
+    const [showAllOpenInvoices, setShowAllOpenInvoices] = useState(false)
+    const INVOICE_LIMIT = 5
 
     // Auto-scroll to highlighted payment from ?highlight= param
     useEffect(() => {
@@ -230,6 +217,20 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
         if (!selectedPayment?.customerId) return openInvoices
         return openInvoices.filter((invoice) => invoice.customer?.id === selectedPayment.customerId)
     }, [openInvoices, selectedPayment])
+
+    // Sort invoices: OVERDUE first, then by due date ascending (most urgent first)
+    const sortedOpenInvoices = useMemo(() => {
+        return [...openInvoices].sort((a, b) => {
+            // OVERDUE first
+            if (a.isOverdue && !b.isOverdue) return -1
+            if (!a.isOverdue && b.isOverdue) return 1
+            // Then by due date ascending (earliest = most urgent)
+            return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+        })
+    }, [openInvoices])
+
+    const visibleOpenInvoices = showAllOpenInvoices ? sortedOpenInvoices : sortedOpenInvoices.slice(0, INVOICE_LIMIT)
+    const hasMoreInvoices = sortedOpenInvoices.length > INVOICE_LIMIT
 
     useEffect(() => {
         setPaymentQuery(registryQuery.paymentsQ || "")
@@ -281,7 +282,6 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                 customerId: createForm.customerId,
                 amount,
                 date: createForm.date ? new Date(`${createForm.date}T00:00:00`) : new Date(),
-                method: createForm.method as PaymentMethod,
                 reference: createForm.reference.trim() || undefined,
                 notes: createForm.notes.trim() || undefined,
                 invoiceId: createForm.invoiceId || undefined,
@@ -299,7 +299,6 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                 customerId: "",
                 amount: "",
                 date: todayAsInput(),
-                method: "TRANSFER",
                 bankAccountCode: "",
                 reference: "",
                 notes: "",
@@ -450,7 +449,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                                {openInvoices.map((inv) => {
+                                {visibleOpenInvoices.map((inv) => {
                                     const paid = (inv.amount || 0) - inv.balanceDue
                                     const statusLabel = inv.status === "ISSUED" ? "Terkirim" : inv.status === "PARTIAL" ? "Sebagian" : inv.status === "OVERDUE" ? "Jatuh Tempo" : inv.status
                                     const statusColor = inv.status === "OVERDUE" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-300 dark:border-red-700" : inv.status === "PARTIAL" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-300 dark:border-amber-700" : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-300 dark:border-blue-700"
@@ -475,7 +474,6 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                                             customerId: inv.customer?.id ?? "",
                                                             amount: String(inv.balanceDue),
                                                             date: todayAsInput(),
-                                                            method: "TRANSFER",
                                                             bankAccountCode: "",
                                                             reference: "",
                                                             notes: "",
@@ -508,6 +506,21 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                     </td>
                                     <td colSpan={2} />
                                 </tr>
+                                {hasMoreInvoices && (
+                                    <tr>
+                                        <td colSpan={8} className="px-4 py-2 text-center">
+                                            <button
+                                                onClick={() => setShowAllOpenInvoices(!showAllOpenInvoices)}
+                                                className="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+                                            >
+                                                {showAllOpenInvoices
+                                                    ? "Tampilkan Sedikit"
+                                                    : `Lihat Semua (${sortedOpenInvoices.length})`
+                                                }
+                                            </button>
+                                        </td>
+                                    </tr>
+                                )}
                             </tfoot>
                         </table>
                     </div>
@@ -801,7 +814,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                 </SelectItem>
                             ))}
                         </NBSelect>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-2 gap-3">
                             <NBCurrencyInput
                                 label="Nominal"
                                 required
@@ -818,43 +831,22 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                     setCreateForm((prev) => ({ ...prev, date: value }))
                                 }
                             />
-                            <NBSelect
-                                label="Metode"
-                                value={createForm.method}
-                                onValueChange={(value) =>
-                                    setCreateForm((prev) => ({ ...prev, method: value as PaymentMethod, bankAccountCode: "" }))
-                                }
-                                options={[
-                                    { value: "TRANSFER", label: "Transfer Bank" },
-                                    { value: "CASH", label: "Tunai" },
-                                    { value: "CHECK", label: "Cek" },
-                                    { value: "GIRO", label: "Giro" },
-                                    { value: "CREDIT_CARD", label: "Kartu Kredit" },
-                                ]}
-                            />
                         </div>
-                        {(() => {
-                            const isCash = createForm.method === "CASH"
-                            const accounts = isCash ? cashAccounts : bankAccounts
-                            if (accounts.length === 0) return null
-                            return (
-                                <NBSelect
-                                    label={isCash ? "Akun Kas" : "Akun Bank"}
-                                    required
-                                    value={createForm.bankAccountCode}
-                                    onValueChange={(value) =>
-                                        setCreateForm((prev) => ({ ...prev, bankAccountCode: value }))
-                                    }
-                                    placeholder={isCash ? "Pilih akun kas" : "Pilih akun bank tujuan"}
-                                >
-                                    {accounts.map((acc) => (
-                                        <SelectItem key={acc.code} value={acc.code}>
-                                            {acc.code} — {acc.name}
-                                        </SelectItem>
-                                    ))}
-                                </NBSelect>
-                            )
-                        })()}
+                        <NBSelect
+                            label="Akun Pembayaran"
+                            required
+                            value={createForm.bankAccountCode}
+                            onValueChange={(value) =>
+                                setCreateForm((prev) => ({ ...prev, bankAccountCode: value }))
+                            }
+                            placeholder="Pilih akun kas/bank..."
+                        >
+                            {cashBankAccounts.map((acc) => (
+                                <SelectItem key={acc.code} value={acc.code}>
+                                    {acc.code} — {acc.name}
+                                </SelectItem>
+                            ))}
+                        </NBSelect>
                     </NBSection>
 
                     <NBSection icon={FileText} title="Hubungkan ke Invoice" optional>

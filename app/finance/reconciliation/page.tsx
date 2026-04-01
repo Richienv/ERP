@@ -28,6 +28,8 @@ export default function ReconciliationPage() {
             <BankReconciliationView
                 reconciliations={data.reconciliations ?? []}
                 bankAccounts={data.bankAccounts ?? []}
+                bankAccountRecords={data.bankAccountRecords ?? []}
+                coaAccounts={data.coaAccounts ?? []}
                 onCreateReconciliation={createReconciliation}
                 onImportRows={importBankStatementRows}
                 onAutoMatch={autoMatchReconciliation}

@@ -63,7 +63,7 @@ export async function ensureSystemAccounts(
     gLAccount: {
       upsert: (args: {
         where: { code: string }
-        create: { code: string; name: string; type: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE"; balance: number }
+        create: { code: string; name: string; type: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE"; balance: number; isSystem: boolean }
         update: Record<string, never>
       }) => Promise<unknown>
     }
@@ -75,7 +75,7 @@ export async function ensureSystemAccounts(
     await Promise.all(SYSTEM_ACCOUNT_DEFS.map((def) =>
       db.gLAccount.upsert({
         where: { code: def.code },
-        create: { code: def.code, name: def.name, type: def.type, balance: 0 },
+        create: { code: def.code, name: def.name, type: def.type, balance: 0, isSystem: true },
         update: {}, // Don't overwrite existing name/type — user may have customized
       })
     ))

@@ -26,6 +26,7 @@ export interface GLAccountNode {
     subType: string
     balance: number
     parentId: string | null
+    isSystem: boolean
     children: GLAccountNode[]
 }
 

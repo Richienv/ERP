@@ -4,6 +4,27 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useCallback } from "react"
 import { queryKeys } from "@/lib/query-keys"
 
+export interface BankAccountRecord {
+    id: string
+    code: string
+    bankName: string
+    accountNumber: string
+    accountHolder: string
+    branch: string | null
+    currency: string
+    coaAccountId: string | null
+    openingBalance: number
+    description: string | null
+    isActive: boolean
+    coaBalance: number
+}
+
+export interface COAAccount {
+    id: string
+    code: string
+    name: string
+}
+
 export function useReconciliation() {
     return useQuery({
         queryKey: queryKeys.reconciliation.list(),
@@ -24,6 +45,7 @@ export function useReconciliation() {
                     unmatchedCount: number
                     totalBankAmount: number
                     createdAt: string
+                    bankAccountId: string | null
                 }>
                 bankAccounts: Array<{
                     id: string
@@ -31,6 +53,8 @@ export function useReconciliation() {
                     name: string
                     balance: number
                 }>
+                bankAccountRecords: BankAccountRecord[]
+                coaAccounts: COAAccount[]
             }>
         },
     })

@@ -190,6 +190,8 @@ interface NBInputProps {
     placeholder?: string
     disabled?: boolean
     className?: string
+    min?: string
+    max?: string
 }
 
 function NBInput({
@@ -201,6 +203,8 @@ function NBInput({
     placeholder,
     disabled,
     className,
+    min,
+    max,
 }: NBInputProps) {
     const hasValue = value !== "" && value !== undefined
     return (
@@ -215,6 +219,8 @@ function NBInput({
                 onChange={(e) => onChange(e.target.value)}
                 placeholder={placeholder}
                 disabled={disabled}
+                min={min}
+                max={max}
                 className={cn(
                     "border font-medium h-8 text-sm rounded-none transition-colors placeholder:text-zinc-400 placeholder:italic placeholder:font-normal",
                     hasValue ? ACTIVE_ORANGE : EMPTY_ZINC

@@ -333,34 +333,110 @@ export async function getBankAccounts(): Promise<
 }
 
 /**
- * Create a new bank GL account for reconciliation.
+ * Create a new bank account with full details.
+ * Creates both a BankAccount record and (optionally) a linked GLAccount.
  */
 export async function createBankAccount(data: {
     code: string
-    name: string
-    initialBalance?: number
-}): Promise<{ success: boolean; accountId?: string; error?: string }> {
+    bankName: string
+    accountNumber: string
+    accountHolder: string
+    branch?: string
+    currency?: string
+    coaAccountId?: string
+    openingBalance?: number
+    description?: string
+    isActive?: boolean
+}): Promise<{ success: boolean; bankAccountId?: string; error?: string }> {
     try {
         await requireAuth()
 
-        // Check code uniqueness
-        const existing = await prisma.gLAccount.findFirst({ where: { code: data.code } })
-        if (existing) return { success: false, error: `Kode ${data.code} sudah digunakan` }
+        // Check code uniqueness on BankAccount table
+        const existingBank = await prisma.bankAccount.findFirst({ where: { code: data.code } })
+        if (existingBank) return { success: false, error: `Kode ${data.code} sudah digunakan` }
 
-        const account = await prisma.gLAccount.create({
+        // If no COA account linked, create a new GLAccount for this bank
+        let coaAccountId = data.coaAccountId
+        if (!coaAccountId) {
+            // Check GL code uniqueness
+            const existingGL = await prisma.gLAccount.findFirst({ where: { code: data.code } })
+            if (existingGL) {
+                // Link to existing GL account
+                coaAccountId = existingGL.id
+            } else {
+                // Create new GL account
+                const glName = data.description
+                    ? `${data.bankName} — ${data.description}`
+                    : `${data.bankName} (${data.accountNumber})`
+                const glAccount = await prisma.gLAccount.create({
+                    data: {
+                        code: data.code,
+                        name: glName,
+                        type: 'ASSET',
+                        balance: data.openingBalance ?? 0,
+                    },
+                })
+                coaAccountId = glAccount.id
+            }
+        }
+
+        const bankAccount = await prisma.bankAccount.create({
             data: {
                 code: data.code,
-                name: data.name,
-                type: 'ASSET',
-                balance: data.initialBalance ?? 0,
+                bankName: data.bankName,
+                accountNumber: data.accountNumber,
+                accountHolder: data.accountHolder,
+                branch: data.branch || null,
+                currency: data.currency || 'IDR',
+                coaAccountId,
+                openingBalance: data.openingBalance ?? 0,
+                description: data.description || null,
+                isActive: data.isActive ?? true,
             },
         })
 
-        return { success: true, accountId: account.id }
+        return { success: true, bankAccountId: bankAccount.id }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal membuat akun bank'
         console.error("[createBankAccount] Error:", error)
         return { success: false, error: msg }
+    }
+}
+
+/**
+ * Get all bank accounts (from BankAccount table).
+ */
+export async function getBankAccountsList(): Promise<
+    { id: string; code: string; bankName: string; accountNumber: string; accountHolder: string; branch: string | null; currency: string; coaAccountId: string | null; openingBalance: number; description: string | null; isActive: boolean; coaBalance: number }[]
+> {
+    try {
+        await requireAuth()
+
+        const accounts = await prisma.bankAccount.findMany({
+            where: { isActive: true },
+            include: {
+                coaAccount: { select: { id: true, code: true, name: true, balance: true } },
+            },
+            orderBy: { code: 'asc' },
+        })
+
+        return accounts.map((a) => ({
+            id: a.id,
+            code: a.code,
+            bankName: a.bankName,
+            accountNumber: a.accountNumber,
+            accountHolder: a.accountHolder,
+            branch: a.branch,
+            currency: a.currency,
+            coaAccountId: a.coaAccountId,
+            openingBalance: Number(a.openingBalance),
+            description: a.description,
+            isActive: a.isActive,
+            coaBalance: a.coaAccount ? Number(a.coaAccount.balance) : 0,
+        }))
+    } catch (error) {
+        console.error("[getBankAccountsList] Error:", error)
+        return []
     }
 }
 
@@ -411,7 +487,38 @@ export async function createReconciliation(data: {
 }
 
 /**
+ * Parse a date string in dd/mm/yyyy, yyyy-mm-dd, or other common formats.
+ * Returns a valid Date or null.
+ */
+function parseBankDate(dateStr: string): Date | null {
+    if (!dateStr) return null
+    const cleaned = dateStr.trim()
+
+    // Try dd/mm/yyyy or dd-mm-yyyy or dd.mm.yyyy (Indonesian standard)
+    const ddmmyyyy = cleaned.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/)
+    if (ddmmyyyy) {
+        const [, day, month, year] = ddmmyyyy
+        const d = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 12, 0, 0)
+        if (!isNaN(d.getTime())) return d
+    }
+
+    // Try yyyy-mm-dd (ISO)
+    const iso = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (iso) {
+        const d = new Date(parseInt(iso[1]), parseInt(iso[2]) - 1, parseInt(iso[3]), 12, 0, 0)
+        if (!isNaN(d.getTime())) return d
+    }
+
+    // Fallback
+    const d = new Date(cleaned)
+    if (!isNaN(d.getTime())) return d
+
+    return null
+}
+
+/**
  * Import bank statement rows into a reconciliation.
+ * Atomic: if any row has an invalid date, no rows are imported.
  */
 export async function importBankStatementRows(
     reconciliationId: string,
@@ -421,13 +528,33 @@ export async function importBankStatementRows(
         return { success: false, error: 'Tidak ada baris untuk diimpor' }
     }
 
+    // Validate all dates upfront (atomic — all or nothing)
+    const invalidRows: number[] = []
+    const parsedDates: Date[] = []
+    for (let i = 0; i < rows.length; i++) {
+        const d = parseBankDate(rows[i].date)
+        if (!d) {
+            invalidRows.push(i + 1) // 1-based row number
+        } else {
+            parsedDates.push(d)
+        }
+    }
+    if (invalidRows.length > 0) {
+        const rowNums = invalidRows.slice(0, 5).join(', ')
+        const suffix = invalidRows.length > 5 ? ` ...dan ${invalidRows.length - 5} lainnya` : ''
+        return {
+            success: false,
+            error: `Format tanggal tidak valid di baris ${rowNums}${suffix}. Gunakan format dd/mm/yyyy.`
+        }
+    }
+
     try {
         const count = await withPrismaAuth(async (prisma: PrismaClient) => {
-            const items = rows.map((r) => ({
+            const items = rows.map((r, i) => ({
                 reconciliationId,
                 bankRef: r.reference || null,
                 bankDescription: r.description,
-                bankDate: new Date(r.date),
+                bankDate: parsedDates[i],
                 bankAmount: r.amount,
                 matchStatus: 'UNMATCHED' as const,
             }))

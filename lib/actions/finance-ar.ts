@@ -966,21 +966,25 @@ export async function recordARPayment(data: {
             })
             const paymentNumber = `PAY-${year}-${String(count + 1).padStart(4, '0')}`
 
+            // Use selected COA account directly — no method→account mapping
+            const cashCode = data.bankAccountCode || SYS_ACCOUNTS.BANK_BCA
+
+            // Auto-derive method for Payment record from account name
+            const cashAcct = await prisma.gLAccount.findFirst({ where: { code: cashCode }, select: { name: true } })
+            const derivedMethod = data.method || (cashAcct && /kas|cash|petty/i.test(cashAcct.name) ? 'CASH' : 'TRANSFER')
+
             const payment = await prisma.payment.create({
                 data: {
                     number: paymentNumber,
                     customerId: data.customerId,
                     amount: data.amount,
                     date: data.date || new Date(),
-                    method: data.method || 'TRANSFER',
+                    method: derivedMethod,
                     reference: data.reference,
                     notes: data.notes,
                     invoiceId: data.invoiceId || null
                 }
             })
-
-            // Determine cash/bank account based on payment method
-            const cashCode = getCashAccountCode(data.method || 'TRANSFER', data.bankAccountCode)
 
             await ensureSystemAccounts()
 

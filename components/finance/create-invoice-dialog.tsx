@@ -12,8 +12,6 @@ import { formatIDR } from "@/lib/utils"
 import { TAX_RATES } from "@/lib/tax-rates"
 import {
     createCustomerInvoice,
-} from "@/lib/actions/finance"
-import {
     createInvoiceFromSalesOrder,
     createBillFromPOId,
 } from "@/lib/actions/finance-invoices"
@@ -435,13 +433,18 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                         label="Tanggal Terbit"
                                         type="date"
                                         value={issueDate}
-                                        onChange={setIssueDate}
+                                        onChange={(v) => {
+                                            setIssueDate(v)
+                                            // Clear due date if it's now before the new issue date
+                                            if (dueDate && v && dueDate < v) setDueDate("")
+                                        }}
                                     />
                                     <NBInput
                                         label="Jatuh Tempo"
                                         type="date"
                                         value={dueDate}
                                         onChange={setDueDate}
+                                        min={issueDate}
                                     />
                                 </div>
                             </NBSection>

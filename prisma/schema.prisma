@@ -1812,17 +1812,17 @@ model Invoice {
   issueDate DateTime @default(now())
   dueDate   DateTime
 
-  // Amounts
-  subtotal       Decimal @db.Decimal(15, 2)
-  taxAmount      Decimal @db.Decimal(15, 2)
-  discountAmount Decimal @default(0) @db.Decimal(15, 2)
-  totalAmount    Decimal @db.Decimal(15, 2)
-  balanceDue     Decimal @db.Decimal(15, 2) // Sisa tagihan
+  // Amounts — Decimal(20,2) supports up to 999,999,999,999,999,999.99
+  subtotal       Decimal @db.Decimal(20, 2)
+  taxAmount      Decimal @db.Decimal(20, 2)
+  discountAmount Decimal @default(0) @db.Decimal(20, 2)
+  totalAmount    Decimal @db.Decimal(20, 2)
+  balanceDue     Decimal @db.Decimal(20, 2) // Sisa tagihan
 
   // Multi-currency
   currencyCode  String   @default("IDR")
   exchangeRate  Decimal  @default(1) @db.Decimal(15, 4)
-  amountInIDR   Decimal  @default(0) @db.Decimal(15, 2)
+  amountInIDR   Decimal  @default(0) @db.Decimal(20, 2)
 
   status InvoiceStatus @default(DRAFT)
 
@@ -1862,8 +1862,8 @@ model InvoiceItem {
 
   description String
   quantity    Decimal @db.Decimal(10, 3)
-  unitPrice   Decimal @db.Decimal(15, 2)
-  amount      Decimal @db.Decimal(15, 2)
+  unitPrice   Decimal @db.Decimal(20, 2)
+  amount      Decimal @db.Decimal(20, 2)
 
   invoice Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   product Product? @relation(fields: [productId], references: [id])
@@ -1894,11 +1894,11 @@ model Payment {
   supplierId String? @db.Uuid // Payee
 
   date      DateTime      @default(now())
-  amount    Decimal       @db.Decimal(15, 2)
+  amount    Decimal       @db.Decimal(20, 2)
   method    PaymentMethod @default(TRANSFER)
   reference String? // Cheque Num, Transfer Ref
 
-  whtAmount Decimal?      @db.Decimal(15, 2) // Withholding tax amount (PPh 23/PPh 21)
+  whtAmount Decimal?      @db.Decimal(20, 2) // Withholding tax amount (PPh 23/PPh 21)
   whtRate   Decimal?      @db.Decimal(5, 4)  // WHT rate (e.g. 0.0200 = 2%)
 
   notes String?
@@ -2181,6 +2181,7 @@ model GLAccount {
 
   lines               JournalLine[]
   bankReconciliations BankReconciliation[]
+  bankAccounts        BankAccount[]
   pettyCashBankTxns     PettyCashTransaction[] @relation("PettyCashBank")
   pettyCashExpenseTxns  PettyCashTransaction[] @relation("PettyCashExpense")
   budgetLines           BudgetLine[]
@@ -2867,9 +2868,33 @@ model OnboardingProgress {
 // Finance Extensions (Phase 1B)
 // ================================
 
+model BankAccount {
+  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code            String   @unique
+  bankName        String
+  accountNumber   String
+  accountHolder   String
+  branch          String?
+  currency        String   @default("IDR")
+  coaAccountId    String?  @db.Uuid
+  openingBalance  Decimal  @default(0) @db.Decimal(15, 2)
+  description     String?
+  isActive        Boolean  @default(true)
+
+  coaAccount      GLAccount? @relation(fields: [coaAccountId], references: [id])
+  reconciliations BankReconciliation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([coaAccountId])
+  @@map("bank_accounts")
+}
+
 model BankReconciliation {
   id            String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   glAccountId   String               @db.Uuid
+  bankAccountId String?              @db.Uuid
   statementDate DateTime             @db.Date
   periodStart   DateTime             @db.Date
   periodEnd     DateTime             @db.Date
@@ -2882,13 +2907,15 @@ model BankReconciliation {
   closedBy String?   @db.Uuid
   closedAt DateTime?
 
-  glAccount GLAccount                @relation(fields: [glAccountId], references: [id])
-  items     BankReconciliationItem[]
+  glAccount   GLAccount    @relation(fields: [glAccountId], references: [id])
+  bankAccount BankAccount? @relation(fields: [bankAccountId], references: [id])
+  items       BankReconciliationItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([glAccountId])
+  @@index([bankAccountId])
   @@map("bank_reconciliations")
 }
 
@@ -3166,6 +3193,7 @@ model DebitCreditNote {
 
   notes         String?
   description   String?
+  glAccountCode String?        // User-selected COA code (Revenue/Expense) — replaces hardcoded default
 
   journalEntryId String?       @unique @db.Uuid
 

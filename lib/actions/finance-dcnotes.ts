@@ -4,6 +4,7 @@ import { withPrismaAuth, prisma as basePrisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import type { DCNoteType, DCNoteStatus } from "@prisma/client"
 import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts-server"
+import { assertPeriodOpen } from "@/lib/period-helpers"
 
 // ==========================================
 // AUTH HELPER (reads don't need withPrismaAuth)
@@ -343,6 +344,7 @@ export async function createDCNote(input: {
     issueDate: Date
     notes?: string
     description?: string
+    accountId?: string // User-selected GL account UUID (Revenue/Expense)
     items: {
         productId?: string
         description: string
@@ -352,6 +354,9 @@ export async function createDCNote(input: {
     }[]
 }) {
     try {
+        // Fiscal period check
+        await assertPeriodOpen(input.issueDate)
+
         return await withPrismaAuth(async (prisma) => {
             // Validate party based on type
             const isSalesType = input.type === 'SALES_CN' || input.type === 'SALES_DN'
@@ -366,6 +371,21 @@ export async function createDCNote(input: {
 
             if (!input.items || input.items.length === 0) {
                 return { success: false as const, error: "Minimal satu item diperlukan" }
+            }
+
+            if (!input.accountId) {
+                return { success: false as const, error: "Pilih akun COA (pendapatan/beban) terlebih dahulu" }
+            }
+
+            // Look up GL account code from accountId (user-selected COA)
+            let glAccountCode: string | null = null
+            if (input.accountId) {
+                const glAccount = await prisma.gLAccount.findUnique({
+                    where: { id: input.accountId },
+                    select: { code: true },
+                })
+                if (glAccount) glAccountCode = glAccount.code
+                else return { success: false as const, error: "Akun COA tidak ditemukan" }
             }
 
             // Generate number based on type
@@ -417,6 +437,7 @@ export async function createDCNote(input: {
                     issueDate: input.issueDate,
                     notes: input.notes || null,
                     description: input.description || null,
+                    glAccountCode,
                     subtotal,
                     ppnAmount,
                     totalAmount,
@@ -462,126 +483,55 @@ export async function postDCNote(id: string) {
             })
 
             if (!note) return { success: false as const, error: "Nota tidak ditemukan" }
+
+            // Fiscal period check based on note's issue date
+            await assertPeriodOpen(note.issueDate)
             if (note.status !== 'DRAFT') return { success: false as const, error: "Hanya nota DRAFT yang bisa diposting" }
 
             const subtotal = Number(note.subtotal)
             const ppnAmount = Number(note.ppnAmount)
             const totalAmount = Number(note.totalAmount)
 
-            // Auto-select GL accounts
+            // Resolve user-selected COA (stored on note) or fall back to system default
             await ensureSystemAccounts()
-            const [revenueAccount, arAccount, apAccount, expenseAccount, ppnKeluaranAccount, ppnMasukanAccount] = await Promise.all([
-                prisma.gLAccount.findFirst({ where: { code: SYS_ACCOUNTS.REVENUE } }),
+            const userSelectedCode = note.glAccountCode
+            const isSalesNoteType = note.type === 'SALES_CN' || note.type === 'SALES_DN'
+            const defaultCode = isSalesNoteType ? SYS_ACCOUNTS.REVENUE : SYS_ACCOUNTS.EXPENSE_DEFAULT
+            const coaCode = userSelectedCode || defaultCode
+
+            const [coaAccount, arAccount, apAccount, ppnKeluaranAccount, ppnMasukanAccount] = await Promise.all([
+                prisma.gLAccount.findFirst({ where: { code: coaCode } }),
                 prisma.gLAccount.findFirst({ where: { code: SYS_ACCOUNTS.AR } }),
                 prisma.gLAccount.findFirst({ where: { code: SYS_ACCOUNTS.AP } }),
-                prisma.gLAccount.findFirst({ where: { code: SYS_ACCOUNTS.EXPENSE_DEFAULT } }),
                 prisma.gLAccount.findFirst({ where: { code: SYS_ACCOUNTS.PPN_KELUARAN } }),
                 prisma.gLAccount.findFirst({ where: { code: SYS_ACCOUNTS.PPN_MASUKAN } }),
             ])
 
-            // Build journal lines based on note type
+            if (!coaAccount) return { success: false as const, error: `Akun COA (${coaCode}) tidak ditemukan` }
+
+            // Build journal lines — uses user-selected COA instead of hardcoded defaults
             const journalLines: { accountId: string; debit: number; credit: number; description: string }[] = []
 
             if (note.type === 'SALES_CN') {
-                // DR Revenue (subtotal), DR PPN Keluaran (ppn), CR Piutang (total)
-                if (!revenueAccount) return { success: false as const, error: "Akun Pendapatan tidak ditemukan" }
                 if (!arAccount) return { success: false as const, error: "Akun Piutang tidak ditemukan" }
-
-                journalLines.push({
-                    accountId: revenueAccount.id,
-                    debit: subtotal,
-                    credit: 0,
-                    description: `Retur/potongan penjualan - ${note.number}`,
-                })
-                if (ppnAmount > 0 && ppnKeluaranAccount) {
-                    journalLines.push({
-                        accountId: ppnKeluaranAccount.id,
-                        debit: ppnAmount,
-                        credit: 0,
-                        description: `PPN Keluaran retur - ${note.number}`,
-                    })
-                }
-                journalLines.push({
-                    accountId: arAccount.id,
-                    debit: 0,
-                    credit: totalAmount,
-                    description: `Pengurangan piutang - ${note.number}`,
-                })
+                journalLines.push({ accountId: coaAccount.id, debit: subtotal, credit: 0, description: `Retur/potongan penjualan - ${note.number}` })
+                if (ppnAmount > 0 && ppnKeluaranAccount) journalLines.push({ accountId: ppnKeluaranAccount.id, debit: ppnAmount, credit: 0, description: `PPN Keluaran retur - ${note.number}` })
+                journalLines.push({ accountId: arAccount.id, debit: 0, credit: totalAmount, description: `Pengurangan piutang - ${note.number}` })
             } else if (note.type === 'SALES_DN') {
-                // DR Piutang (total), CR Revenue (subtotal), CR PPN Keluaran (ppn)
-                if (!revenueAccount) return { success: false as const, error: "Akun Pendapatan tidak ditemukan" }
                 if (!arAccount) return { success: false as const, error: "Akun Piutang tidak ditemukan" }
-
-                journalLines.push({
-                    accountId: arAccount.id,
-                    debit: totalAmount,
-                    credit: 0,
-                    description: `Tambahan piutang - ${note.number}`,
-                })
-                journalLines.push({
-                    accountId: revenueAccount.id,
-                    debit: 0,
-                    credit: subtotal,
-                    description: `Tambahan pendapatan - ${note.number}`,
-                })
-                if (ppnAmount > 0 && ppnKeluaranAccount) {
-                    journalLines.push({
-                        accountId: ppnKeluaranAccount.id,
-                        debit: 0,
-                        credit: ppnAmount,
-                        description: `PPN Keluaran tambahan - ${note.number}`,
-                    })
-                }
+                journalLines.push({ accountId: arAccount.id, debit: totalAmount, credit: 0, description: `Tambahan piutang - ${note.number}` })
+                journalLines.push({ accountId: coaAccount.id, debit: 0, credit: subtotal, description: `Tambahan pendapatan - ${note.number}` })
+                if (ppnAmount > 0 && ppnKeluaranAccount) journalLines.push({ accountId: ppnKeluaranAccount.id, debit: 0, credit: ppnAmount, description: `PPN Keluaran tambahan - ${note.number}` })
             } else if (note.type === 'PURCHASE_DN') {
-                // DR Hutang (total), CR HPP/Expense (subtotal), CR PPN Masukan (ppn)
                 if (!apAccount) return { success: false as const, error: "Akun Hutang tidak ditemukan" }
-                if (!expenseAccount) return { success: false as const, error: "Akun HPP/Beban tidak ditemukan" }
-
-                journalLines.push({
-                    accountId: apAccount.id,
-                    debit: totalAmount,
-                    credit: 0,
-                    description: `Pengurangan hutang - ${note.number}`,
-                })
-                journalLines.push({
-                    accountId: expenseAccount.id,
-                    debit: 0,
-                    credit: subtotal,
-                    description: `Retur pembelian - ${note.number}`,
-                })
-                if (ppnAmount > 0 && ppnMasukanAccount) {
-                    journalLines.push({
-                        accountId: ppnMasukanAccount.id,
-                        debit: 0,
-                        credit: ppnAmount,
-                        description: `PPN Masukan retur - ${note.number}`,
-                    })
-                }
+                journalLines.push({ accountId: apAccount.id, debit: totalAmount, credit: 0, description: `Pengurangan hutang - ${note.number}` })
+                journalLines.push({ accountId: coaAccount.id, debit: 0, credit: subtotal, description: `Retur pembelian - ${note.number}` })
+                if (ppnAmount > 0 && ppnMasukanAccount) journalLines.push({ accountId: ppnMasukanAccount.id, debit: 0, credit: ppnAmount, description: `PPN Masukan retur - ${note.number}` })
             } else if (note.type === 'PURCHASE_CN') {
-                // DR HPP/Expense (subtotal), DR PPN Masukan (ppn), CR Hutang (total)
                 if (!apAccount) return { success: false as const, error: "Akun Hutang tidak ditemukan" }
-                if (!expenseAccount) return { success: false as const, error: "Akun HPP/Beban tidak ditemukan" }
-
-                journalLines.push({
-                    accountId: expenseAccount.id,
-                    debit: subtotal,
-                    credit: 0,
-                    description: `Kredit pembelian - ${note.number}`,
-                })
-                if (ppnAmount > 0 && ppnMasukanAccount) {
-                    journalLines.push({
-                        accountId: ppnMasukanAccount.id,
-                        debit: ppnAmount,
-                        credit: 0,
-                        description: `PPN Masukan kredit - ${note.number}`,
-                    })
-                }
-                journalLines.push({
-                    accountId: apAccount.id,
-                    debit: 0,
-                    credit: totalAmount,
-                    description: `Pengurangan hutang - ${note.number}`,
-                })
+                journalLines.push({ accountId: coaAccount.id, debit: subtotal, credit: 0, description: `Kredit pembelian - ${note.number}` })
+                if (ppnAmount > 0 && ppnMasukanAccount) journalLines.push({ accountId: ppnMasukanAccount.id, debit: ppnAmount, credit: 0, description: `PPN Masukan kredit - ${note.number}` })
+                journalLines.push({ accountId: apAccount.id, debit: 0, credit: totalAmount, description: `Pengurangan hutang - ${note.number}` })
             }
 
             // Validate journal is balanced
@@ -636,6 +586,36 @@ export async function postDCNote(id: string) {
                 },
             })
 
+            // Auto-settle against linked invoice when posting
+            if (note.originalInvoiceId) {
+                const linkedInvoice = await prisma.invoice.findUnique({
+                    where: { id: note.originalInvoiceId },
+                    select: { id: true, balanceDue: true, status: true },
+                })
+                if (linkedInvoice && Number(linkedInvoice.balanceDue) > 0) {
+                    const settlementAmount = Math.min(totalAmount, Number(linkedInvoice.balanceDue))
+
+                    await prisma.debitCreditNoteSettlement.create({
+                        data: { noteId: id, invoiceId: note.originalInvoiceId, amount: settlementAmount },
+                    })
+
+                    const newBalance = Number(linkedInvoice.balanceDue) - settlementAmount
+                    await prisma.invoice.update({
+                        where: { id: note.originalInvoiceId },
+                        data: {
+                            balanceDue: Math.max(0, newBalance),
+                            status: newBalance <= 0.01 ? 'PAID' : linkedInvoice.status,
+                        },
+                    })
+
+                    const newNoteStatus = settlementAmount >= totalAmount - 0.01 ? 'APPLIED' : 'PARTIAL'
+                    await prisma.debitCreditNote.update({
+                        where: { id },
+                        data: { settledAmount: settlementAmount, status: newNoteStatus },
+                    })
+                }
+            }
+
             return { success: true as const }
         })
     } catch (error: unknown) {
@@ -649,6 +629,9 @@ export async function postDCNote(id: string) {
  */
 export async function settleDCNote(noteId: string, settlements: { invoiceId: string; amount: number }[]) {
     try {
+        // Fiscal period check
+        await assertPeriodOpen(new Date())
+
         return await withPrismaAuth(async (prisma) => {
             const note = await prisma.debitCreditNote.findUnique({
                 where: { id: noteId },
@@ -727,6 +710,9 @@ export async function settleDCNote(noteId: string, settlements: { invoiceId: str
  */
 export async function voidDCNote(id: string) {
     try {
+        // Fiscal period check
+        await assertPeriodOpen(new Date())
+
         return await withPrismaAuth(async (prisma) => {
             const note = await prisma.debitCreditNote.findUnique({
                 where: { id },

@@ -122,6 +122,7 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
     const [reference, setReference] = useState("")
     const [issueDate, setIssueDate] = useState(new Date().toISOString().split("T")[0])
     const [notes, setNotes] = useState("")
+    const [accountId, setAccountId] = useState("")
     const [items, setItems] = useState<LineItem[]>([newItem()])
     const [submitting, setSubmitting] = useState<false | "draft" | "post">(false)
 
@@ -143,6 +144,7 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
         setReference("")
         setIssueDate(new Date().toISOString().split("T")[0])
         setNotes("")
+        setAccountId("")
         setItems([newItem()])
     }
 
@@ -169,6 +171,11 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
         : (formData?.outstandingSupplierBills ?? []).filter((inv: any) => !partyId || inv.supplierId === partyId)
 
     const reasons = selectedType ? (REASON_OPTIONS[selectedType] ?? []) : []
+
+    // COA accounts: Revenue for sales types, Expense for purchase types
+    const coaAccounts = isSalesType
+        ? (formData?.revenueAccounts ?? [])
+        : (formData?.expenseAccounts ?? [])
 
     // ──────── Item Operations ────────
     const updateItem = (id: string, field: keyof LineItem, value: any) => {
@@ -202,6 +209,10 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
             toast.error("Pilih alasan")
             return
         }
+        if (!accountId) {
+            toast.error("Pilih akun COA (pendapatan/beban)")
+            return
+        }
         if (items.length === 0 || items.some(i => !i.description.trim() || i.unitPrice <= 0)) {
             toast.error("Lengkapi semua item (deskripsi & harga)")
             return
@@ -218,6 +229,7 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
                 originalReference: reference || undefined,
                 issueDate: new Date(issueDate + "T12:00:00"),
                 notes: notes || undefined,
+                accountId,
                 items: items.map(item => ({
                     description: item.description,
                     quantity: item.quantity,
@@ -378,6 +390,20 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
                                     onChange={setIssueDate}
                                 />
                             </div>
+
+                            <NBSelect
+                                label={isSalesType ? "Akun Pendapatan (COA)" : "Akun Beban (COA)"}
+                                required
+                                value={accountId}
+                                onValueChange={setAccountId}
+                                placeholder="Pilih akun..."
+                            >
+                                {coaAccounts.map((acc: { id: string; code: string; name: string }) => (
+                                    <SelectItem key={acc.id} value={acc.id}>
+                                        {acc.code} — {acc.name}
+                                    </SelectItem>
+                                ))}
+                            </NBSelect>
 
                             <NBTextarea
                                 label="Catatan"

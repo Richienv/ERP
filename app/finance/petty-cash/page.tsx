@@ -59,11 +59,32 @@ export default function PettyCashPage() {
     const [showAmounts, setShowAmounts] = useState(true)
     const [page, setPage] = useState(1)
 
+    // Filters
+    const [dateFrom, setDateFrom] = useState("")
+    const [dateTo, setDateTo] = useState("")
+    const [typeFilter, setTypeFilter] = useState<"ALL" | "TOPUP" | "DISBURSEMENT">("ALL")
+
     if (isLoading || !data) return <TablePageSkeleton accentColor="bg-orange-400" />
 
-    const transactions = data.transactions || []
+    const allTransactions = data.transactions || []
+
+    // Apply filters
+    const transactions = allTransactions.filter((tx: any) => {
+        if (typeFilter !== "ALL" && tx.type !== typeFilter) return false
+        if (dateFrom) {
+            const txDate = new Date(tx.date).toISOString().slice(0, 10)
+            if (txDate < dateFrom) return false
+        }
+        if (dateTo) {
+            const txDate = new Date(tx.date).toISOString().slice(0, 10)
+            if (txDate > dateTo) return false
+        }
+        return true
+    })
+
     const totalPages = Math.max(1, Math.ceil(transactions.length / PAGE_SIZE))
     const pagedTransactions = transactions.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+    const hasActiveFilter = typeFilter !== "ALL" || dateFrom || dateTo
 
     const invalidateAll = () => {
         queryClient.invalidateQueries({ queryKey: queryKeys.pettyCash.all })
@@ -75,8 +96,8 @@ export default function PettyCashPage() {
         queryClient.invalidateQueries({ queryKey: queryKeys.cashflowPlan.all })
     }
 
-    const topUpCount = transactions.filter((tx: any) => tx.type === "TOPUP").length
-    const disburseCount = transactions.filter((tx: any) => tx.type !== "TOPUP").length
+    const topUpCount = allTransactions.filter((tx: any) => tx.type === "TOPUP").length
+    const disburseCount = allTransactions.filter((tx: any) => tx.type !== "TOPUP").length
 
     return (
         <motion.div
@@ -226,6 +247,48 @@ export default function PettyCashPage() {
                             </div>
                         </div>
                     ))}
+                </div>
+
+                {/* Row 3: Filter Toolbar */}
+                <div className={`px-5 py-2 flex items-center gap-2 bg-zinc-50/80 dark:bg-zinc-800/30 ${NB.pageRowBorder}`}>
+                    <div className="flex items-center gap-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Dari</label>
+                        <input
+                            type="date"
+                            value={dateFrom}
+                            onChange={(e) => { setDateFrom(e.target.value); setPage(1) }}
+                            className={`border h-8 px-2 text-xs font-mono rounded-none outline-none transition-colors ${dateFrom ? "border-orange-400 bg-orange-50/50 dark:bg-orange-950/20" : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"}`}
+                        />
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">s/d</label>
+                        <input
+                            type="date"
+                            value={dateTo}
+                            onChange={(e) => { setDateTo(e.target.value); setPage(1) }}
+                            className={`border h-8 px-2 text-xs font-mono rounded-none outline-none transition-colors ${dateTo ? "border-orange-400 bg-orange-50/50 dark:bg-orange-950/20" : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"}`}
+                        />
+                    </div>
+                    <select
+                        value={typeFilter}
+                        onChange={(e) => { setTypeFilter(e.target.value as "ALL" | "TOPUP" | "DISBURSEMENT"); setPage(1) }}
+                        className={`border h-8 px-2 text-[10px] font-bold uppercase tracking-wider rounded-none outline-none transition-colors ${typeFilter !== "ALL" ? "border-orange-400 bg-orange-50/50 dark:bg-orange-950/20 text-orange-700" : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-600"}`}
+                    >
+                        <option value="ALL">Semua Tipe</option>
+                        <option value="TOPUP">Top Up</option>
+                        <option value="DISBURSEMENT">Pengeluaran</option>
+                    </select>
+                    {hasActiveFilter && (
+                        <button
+                            onClick={() => { setDateFrom(""); setDateTo(""); setTypeFilter("ALL"); setPage(1) }}
+                            className="text-[10px] font-bold text-zinc-400 hover:text-zinc-600 transition-colors ml-1"
+                        >
+                            Reset
+                        </button>
+                    )}
+                    <span className="ml-auto text-[10px] font-bold text-zinc-400">
+                        {transactions.length} transaksi{hasActiveFilter ? ` (dari ${allTransactions.length})` : ""}
+                    </span>
                 </div>
             </motion.div>
 
