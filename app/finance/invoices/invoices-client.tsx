@@ -22,6 +22,7 @@ import {
     RotateCcw,
     Eye,
     EyeOff,
+    Trash2,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -51,6 +52,7 @@ import {
     getInvoiceDetail,
     updateDraftInvoice,
     getInvoiceCustomers,
+    deleteDraftInvoice,
 } from "@/lib/actions/finance-invoices"
 
 import { useInvoiceKanban } from "@/hooks/use-invoices"
@@ -135,6 +137,11 @@ export function InvoicesPageClient() {
     const [editInvoiceType, setEditInvoiceType] = useState<'INV_OUT' | 'INV_IN'>('INV_OUT')
     const [editParties, setEditParties] = useState<Array<{ id: string; name: string; type: 'CUSTOMER' | 'SUPPLIER' }>>([])
     const [editNumber, setEditNumber] = useState("")
+
+    // Delete confirmation (DRAFT only)
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+    const [deleting, setDeleting] = useState(false)
+    const [deleteTarget, setDeleteTarget] = useState<InvoiceKanbanItem | null>(null)
 
     // View dialog (non-DRAFT invoices — read-only)
     const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
@@ -545,6 +552,26 @@ export function InvoicesPageClient() {
     const overdueAmount = useMemo(() => invoices.overdue.reduce((s, i) => s + (i.amount || 0), 0), [invoices.overdue])
 
     /** Build action button config per invoice based on its status */
+    const handleDeleteInvoice = async () => {
+        if (!deleteTarget) return
+        setDeleting(true)
+        try {
+            const result = await deleteDraftInvoice(deleteTarget.id)
+            if (result.success) {
+                toast.success(`Invoice ${result.invoiceNumber} berhasil dihapus`)
+                setIsDeleteDialogOpen(false)
+                setDeleteTarget(null)
+                invalidateInvoices()
+            } else {
+                toast.error(result.error || "Gagal menghapus invoice")
+            }
+        } catch {
+            toast.error("Terjadi kesalahan saat menghapus invoice")
+        } finally {
+            setDeleting(false)
+        }
+    }
+
     const getInvoiceActions = (invoice: InvoiceKanbanItem): ActionButton[] => {
         const isDraft = invoice.status === 'DRAFT'
         const canPay = invoice.status === 'ISSUED' || invoice.status === 'OVERDUE' || invoice.status === 'PARTIAL'
@@ -555,6 +582,7 @@ export function InvoicesPageClient() {
 
         if (isDraft) {
             actions.push({ icon: "send", onClick: () => openSendDialog(invoice), tooltip: "Kirim Invoice" })
+            actions.push({ icon: "delete", onClick: () => { setDeleteTarget(invoice); setIsDeleteDialogOpen(true) }, tooltip: "Hapus Invoice", variant: "danger" })
         }
         if (canPay) {
             actions.push({ icon: "pay", onClick: () => openPayDialog(invoice), tooltip: "Catat Pembayaran", variant: "primary" })
@@ -1438,15 +1466,27 @@ export function InvoicesPageClient() {
                             </Button>
                         )}
                         {activeInvoice && viewData && viewData.status === "DRAFT" && (
-                            <Button
-                                className={NB.submitBtnOrange}
-                                onClick={() => {
-                                    setIsViewDialogOpen(false)
-                                    if (activeInvoice) openSendDialog(activeInvoice)
-                                }}
-                            >
-                                <Send className="h-3.5 w-3.5 mr-1.5" /> Kirim
-                            </Button>
+                            <>
+                                <Button
+                                    className={NB.submitBtnOrange}
+                                    onClick={() => {
+                                        setIsViewDialogOpen(false)
+                                        if (activeInvoice) openSendDialog(activeInvoice)
+                                    }}
+                                >
+                                    <Send className="h-3.5 w-3.5 mr-1.5" /> Kirim
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="h-9 rounded-none text-[10px] font-bold uppercase tracking-wider border border-red-300 text-red-600 hover:bg-red-50"
+                                    onClick={() => {
+                                        setIsViewDialogOpen(false)
+                                        if (activeInvoice) { setDeleteTarget(activeInvoice); setIsDeleteDialogOpen(true) }
+                                    }}
+                                >
+                                    <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Hapus
+                                </Button>
+                            </>
                         )}
                         <Button variant="outline" className={NB.cancelBtn} onClick={() => setIsViewDialogOpen(false)}>Tutup</Button>
                     </DialogFooter>
@@ -1582,6 +1622,36 @@ export function InvoicesPageClient() {
                         <Button variant="outline" className={NB.cancelBtn} onClick={() => setIsPayDialogOpen(false)} disabled={paying}>Batal</Button>
                         <Button onClick={handleConfirmPayment} disabled={paying} className={NB.submitBtnGreen}>
                             {paying ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Memproses...</> : "Konfirmasi Pembayaran"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* ─── DELETE CONFIRMATION DIALOG ─── */}
+            <Dialog open={isDeleteDialogOpen} onOpenChange={(open) => { if (!deleting) setIsDeleteDialogOpen(open) }}>
+                <DialogContent className={NB.contentNarrow}>
+                    <DialogHeader className="bg-red-600 p-6 text-white">
+                        <DialogTitle className="flex items-center gap-2 text-base font-black uppercase tracking-wider">
+                            <Trash2 className="h-5 w-5" /> Hapus Invoice
+                        </DialogTitle>
+                        <p className="text-[11px] text-red-200 mt-1">Tindakan ini tidak dapat dibatalkan</p>
+                    </DialogHeader>
+                    <div className="p-6 space-y-3">
+                        <p className="text-sm text-zinc-700 dark:text-zinc-300">
+                            Anda yakin ingin menghapus invoice <span className="font-black">{deleteTarget?.number}</span>?
+                        </p>
+                        <div className="border-2 border-red-200 bg-red-50 dark:bg-red-950/20 px-4 py-3 text-xs text-red-700 dark:text-red-400 font-medium">
+                            Invoice dan semua item-nya akan dihapus permanen. Hanya invoice berstatus DRAFT yang dapat dihapus.
+                        </div>
+                    </div>
+                    <DialogFooter className="p-6 pt-2 border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex gap-2">
+                        <Button variant="outline" className={NB.cancelBtn} onClick={() => setIsDeleteDialogOpen(false)} disabled={deleting}>Batal</Button>
+                        <Button
+                            onClick={handleDeleteInvoice}
+                            disabled={deleting}
+                            className="h-9 rounded-none text-[10px] font-black uppercase tracking-wider bg-red-600 text-white border-2 border-red-700 hover:bg-red-700"
+                        >
+                            {deleting ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Menghapus...</> : <><Trash2 className="mr-1.5 h-3.5 w-3.5" /> Hapus Permanen</>}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

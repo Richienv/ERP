@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { queryKeys } from "@/lib/query-keys"
-import { Plus, FileText } from "lucide-react"
+import { Plus, FileText, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { SelectItem } from "@/components/ui/select"
@@ -21,6 +21,7 @@ import {
     NBDialog, NBDialogHeader, NBDialogBody, NBDialogFooter,
     NBSection, NBSelect, NBCurrencyInput, NBInput,
 } from "@/components/ui/nb-dialog"
+import { DCNoteDetailDialog } from "@/components/finance/dcnote-detail-dialog"
 
 const REASON_CODES = [
     { code: "RET-DEFECT", label: "Barang Cacat/Rusak" },
@@ -36,6 +37,8 @@ export function NotaDebitTab() {
     const queryClient = useQueryClient()
     const [showDialog, setShowDialog] = useState(false)
     const [submitting, setSubmitting] = useState(false)
+    const [detailNoteId, setDetailNoteId] = useState<string | null>(null)
+    const [showDetail, setShowDetail] = useState(false)
     const [includePPN, setIncludePPN] = useState(true)
     const [form, setForm] = useState({
         supplierId: "",
@@ -149,12 +152,13 @@ export function NotaDebitTab() {
                             <TableHead className="text-[9px] font-black uppercase tracking-widest text-zinc-400 text-right">Jumlah</TableHead>
                             <TableHead className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Status</TableHead>
                             <TableHead className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Tanggal</TableHead>
+                            <TableHead className="text-[9px] font-black uppercase tracking-widest text-zinc-400 text-center w-16">Aksi</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {debitNotes.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center py-10 text-zinc-400 text-[10px] font-bold uppercase tracking-widest">
+                                <TableCell colSpan={7} className="text-center py-10 text-zinc-400 text-[10px] font-bold uppercase tracking-widest">
                                     Belum ada nota debit
                                 </TableCell>
                             </TableRow>
@@ -172,6 +176,16 @@ export function NotaDebitTab() {
                                         }`}>{note.status}</span>
                                     </TableCell>
                                     <TableCell className="text-[11px] text-zinc-500">{new Date(note.date).toLocaleDateString("id-ID")}</TableCell>
+                                    <TableCell className="text-center">
+                                        <button
+                                            type="button"
+                                            title="Lihat Detail"
+                                            onClick={() => { setDetailNoteId(note.id); setShowDetail(true) }}
+                                            className="flex items-center justify-center w-7 h-7 mx-auto border border-zinc-200 hover:border-black hover:bg-zinc-50 transition-colors"
+                                        >
+                                            <Eye className="h-3.5 w-3.5" />
+                                        </button>
+                                    </TableCell>
                                 </TableRow>
                             ))
                         )}
@@ -268,6 +282,12 @@ export function NotaDebitTab() {
                     submitLabel="Simpan & Posting"
                 />
             </NBDialog>
+
+            <DCNoteDetailDialog
+                noteId={detailNoteId}
+                open={showDetail}
+                onOpenChange={setShowDetail}
+            />
         </div>
     )
 }

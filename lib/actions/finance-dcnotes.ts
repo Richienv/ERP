@@ -412,6 +412,175 @@ export async function getDCNoteFormData(filters?: { customerId?: string; supplie
     }
 }
 
+/**
+ * Get a single DC Note with full detail (items, journal lines, linked invoice)
+ */
+export async function getDCNoteDetail(id: string) {
+    try {
+        await requireAuth()
+
+        const note = await basePrisma.debitCreditNote.findUnique({
+            where: { id },
+            include: {
+                customer: { select: { id: true, name: true, code: true } },
+                supplier: { select: { id: true, name: true, code: true } },
+                items: { orderBy: { id: 'asc' } },
+                originalInvoice: {
+                    select: {
+                        id: true,
+                        number: true,
+                        totalAmount: true,
+                        balanceDue: true,
+                        issueDate: true,
+                        status: true,
+                        type: true,
+                    },
+                },
+                journalEntry: {
+                    include: {
+                        lines: {
+                            include: { account: { select: { code: true, name: true, type: true } } },
+                            orderBy: { id: 'asc' },
+                        },
+                    },
+                },
+            },
+        })
+
+        // If found in DebitCreditNote table → return full detail
+        if (note) {
+            return {
+                success: true as const,
+                data: {
+                    id: note.id,
+                    number: note.number,
+                    type: note.type as string,
+                    status: note.status as string,
+                    reasonCode: note.reasonCode as string,
+                    issueDate: note.issueDate,
+                    notes: note.notes,
+                    description: note.description,
+                    subtotal: Number(note.subtotal),
+                    ppnAmount: Number(note.ppnAmount),
+                    totalAmount: Number(note.totalAmount),
+                    settledAmount: Number(note.settledAmount),
+                    customer: note.customer,
+                    supplier: note.supplier,
+                    originalInvoice: note.originalInvoice
+                        ? {
+                            ...note.originalInvoice,
+                            totalAmount: Number(note.originalInvoice.totalAmount),
+                            balanceDue: Number(note.originalInvoice.balanceDue),
+                        }
+                        : null,
+                    items: note.items.map(item => ({
+                        id: item.id,
+                        description: item.description,
+                        quantity: Number(item.quantity),
+                        unitPrice: Number(item.unitPrice),
+                        amount: Number(item.amount),
+                        ppnAmount: Number(item.ppnAmount),
+                        totalAmount: Number(item.totalAmount),
+                    })),
+                    journalEntry: note.journalEntry
+                        ? {
+                            id: note.journalEntry.id,
+                            date: note.journalEntry.date,
+                            description: note.journalEntry.description,
+                            reference: note.journalEntry.reference,
+                            status: note.journalEntry.status as string,
+                            lines: note.journalEntry.lines.map(line => ({
+                                id: line.id,
+                                accountCode: line.account.code,
+                                accountName: line.account.name,
+                                accountType: line.account.type as string,
+                                debit: Number(line.debit),
+                                credit: Number(line.credit),
+                                description: line.description,
+                            })),
+                        }
+                        : null,
+                },
+            }
+        }
+
+        // Fallback: legacy notes stored as JournalEntry (id = JournalEntry.id)
+        const legacyEntry = await basePrisma.journalEntry.findUnique({
+            where: { id },
+            include: {
+                lines: {
+                    include: { account: { select: { code: true, name: true, type: true } } },
+                    orderBy: { id: 'asc' },
+                },
+                invoice: {
+                    include: {
+                        customer: { select: { id: true, name: true, code: true } },
+                        supplier: { select: { id: true, name: true, code: true } },
+                    },
+                },
+            },
+        })
+
+        if (!legacyEntry) return { success: false as const, error: "Nota tidak ditemukan" }
+
+        const isCN = legacyEntry.description.startsWith('[CREDIT_NOTE]')
+        const reasonText = legacyEntry.description.replace(/^\[(CREDIT|DEBIT)_NOTE\]\s*\S+:\s*/, '')
+        const inv = legacyEntry.invoice
+        const absSubtotal = inv ? Math.abs(Number(inv.subtotal)) : 0
+        const absTax = inv ? Math.abs(Number(inv.taxAmount)) : 0
+        const absTotal = inv ? Math.abs(Number(inv.totalAmount)) : 0
+
+        return {
+            success: true as const,
+            data: {
+                id: legacyEntry.id,
+                number: legacyEntry.reference || '-',
+                type: isCN ? 'SALES_CN' : 'PURCHASE_DN',
+                status: legacyEntry.status === 'VOID' ? 'VOID' : 'POSTED',
+                reasonCode: reasonText,
+                issueDate: legacyEntry.date,
+                notes: reasonText || null,
+                description: legacyEntry.description,
+                subtotal: absSubtotal,
+                ppnAmount: absTax,
+                totalAmount: absTotal,
+                settledAmount: 0,
+                customer: isCN ? (inv?.customer ?? null) : null,
+                supplier: !isCN ? (inv?.supplier ?? null) : null,
+                originalInvoice: null,
+                items: absSubtotal > 0 ? [{
+                    id: `legacy-${legacyEntry.id}`,
+                    description: reasonText || (isCN ? 'Nota Kredit' : 'Nota Debit'),
+                    quantity: 1,
+                    unitPrice: absSubtotal,
+                    amount: absSubtotal,
+                    ppnAmount: absTax,
+                    totalAmount: absTotal,
+                }] : [],
+                journalEntry: {
+                    id: legacyEntry.id,
+                    date: legacyEntry.date,
+                    description: legacyEntry.description,
+                    reference: legacyEntry.reference,
+                    status: legacyEntry.status as string,
+                    lines: legacyEntry.lines.map(line => ({
+                        id: line.id,
+                        accountCode: line.account.code,
+                        accountName: line.account.name,
+                        accountType: line.account.type as string,
+                        debit: Number(line.debit),
+                        credit: Number(line.credit),
+                        description: line.description,
+                    })),
+                },
+            },
+        }
+    } catch (error: unknown) {
+        console.error("Failed to fetch DC Note detail:", error)
+        return { success: false as const, error: (error as Error).message || "Gagal memuat detail nota" }
+    }
+}
+
 // ==========================================
 // WRITE OPERATIONS
 // ==========================================

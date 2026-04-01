@@ -1617,6 +1617,36 @@ export async function createBillFromPR(
 }
 
 /**
+ * Permanently delete a DRAFT invoice/bill.
+ * Only DRAFT invoices can be deleted. Cascades to InvoiceItems.
+ */
+export async function deleteDraftInvoice(invoiceId: string) {
+    try {
+        const result = await withPrismaAuth(async (prisma) => {
+            const existing = await prisma.invoice.findUnique({
+                where: { id: invoiceId },
+                select: { id: true, number: true, status: true },
+            })
+
+            if (!existing) throw new Error("Invoice tidak ditemukan")
+            if (existing.status !== 'DRAFT') {
+                throw new Error(`Invoice ${existing.number} berstatus ${existing.status}, hanya DRAFT yang bisa dihapus.`)
+            }
+
+            await prisma.invoiceItem.deleteMany({ where: { invoiceId } })
+            await prisma.invoice.delete({ where: { id: invoiceId } })
+
+            return { number: existing.number }
+        })
+
+        return { success: true as const, invoiceNumber: result.number }
+    } catch (error: any) {
+        console.error("Failed to delete invoice:", error)
+        return { success: false as const, error: error.message || "Gagal menghapus invoice" }
+    }
+}
+
+/**
  * Cancel a DRAFT invoice/bill — sets status to CANCELLED.
  * Only DRAFT invoices can be cancelled via this action.
  */

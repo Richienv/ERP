@@ -97,6 +97,16 @@ function sourceColor(source: string): string {
     return "bg-zinc-50 border-zinc-200 text-zinc-500"
 }
 
+// CREDIT-normal accounts: balance increases with credits, decreases with debits
+// (Revenue, Liability, Equity follow PSAK/IFRS credit-normal convention)
+const CREDIT_NORMAL_TYPES = new Set(["REVENUE", "LIABILITY", "EQUITY"])
+
+function computeRunningBalance(prev: number, debit: number, credit: number, accountType: string): number {
+    return CREDIT_NORMAL_TYPES.has(accountType)
+        ? prev + credit - debit   // credits increase, debits decrease
+        : prev + debit - credit   // debits increase, credits decrease (ASSET, EXPENSE)
+}
+
 const ACCOUNT_TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
     ASSET: { bg: "bg-blue-50", text: "text-blue-700", border: "border-l-blue-400" },
     LIABILITY: { bg: "bg-red-50", text: "text-red-700", border: "border-l-red-400" },
@@ -370,7 +380,7 @@ export default function AccountTransactionsPage() {
                     group.rows.length > 0
                         ? group.rows[group.rows.length - 1].runningBalance
                         : group.openingBalance
-                const runningBalance = prevBalance + line.debit - line.credit
+                const runningBalance = computeRunningBalance(prevBalance, line.debit, line.credit, line.accountType)
 
                 const source = deriveSource(entry, line)
 
@@ -941,7 +951,7 @@ export default function AccountTransactionsPage() {
                                                             <span
                                                                 className={`text-[11px] font-mono font-bold text-right px-3 py-1.5 ${
                                                                     row.runningBalance < 0
-                                                                        ? "text-red-600 dark:text-red-400"
+                                                                        ? "text-amber-600 dark:text-amber-400"
                                                                         : "text-zinc-900 dark:text-zinc-100"
                                                                 }`}
                                                             >
@@ -972,7 +982,7 @@ export default function AccountTransactionsPage() {
                                                     <span
                                                         className={`text-[11px] font-mono text-right px-3 py-2 truncate ${
                                                             closingBalance < 0
-                                                                ? "text-red-600 dark:text-red-400"
+                                                                ? "text-amber-600 dark:text-amber-400"
                                                                 : "text-zinc-900 dark:text-zinc-100"
                                                         }`}
                                                     >
@@ -999,7 +1009,7 @@ export default function AccountTransactionsPage() {
                                                     <span
                                                         className={`text-[11px] font-mono font-black text-right px-3 py-1.5 ${
                                                             closingBalance < 0
-                                                                ? "text-red-600 dark:text-red-400"
+                                                                ? "text-amber-600 dark:text-amber-400"
                                                                 : "text-zinc-900 dark:text-zinc-100"
                                                         }`}
                                                     >
