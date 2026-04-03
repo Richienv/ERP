@@ -2209,11 +2209,22 @@ model GLAccount {
   fixedAssetCategoriesDepExp  FixedAssetCategory[] @relation("CategoryDepExpAccount")
   fixedAssetCategoriesGainLoss FixedAssetCategory[] @relation("CategoryGainLossAccount")
 
+  // Cash Flow Statement (CFS) classification
+  // OPERATING | INVESTING | FINANCING | NON_CASH | EXCLUDED
+  cfsActivity          String?
+  // Named line on the CFS statement (e.g. "Change in AR", "Purchase of Fixed Assets")
+  cfsLineItem          String?
+  // INFLOW | OUTFLOW | ADJUSTMENT | NOT_APPLICABLE
+  cfsDirection         String?
+  // true = accountant must manually tag each journal line for this account
+  cfsRequiresOverride  Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([type])
   @@index([code])
+  @@index([cfsActivity])
   @@map("gl_accounts")
 }
 
@@ -2269,11 +2280,17 @@ model JournalLine {
   debit       Decimal @default(0) @db.Decimal(20, 2)
   credit      Decimal @default(0) @db.Decimal(20, 2)
 
+  // CFS override: accountant can manually tag a single line when account-level tag is ambiguous
+  cfsActivityOverride  String?  // overrides account.cfsActivity for this line
+  cfsLineItemOverride  String?  // overrides account.cfsLineItem for this line
+  cfsRequiresOverride  Boolean  @default(false) // true = unresolved, blocks CFS generation
+
   entry   JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
   account GLAccount    @relation(fields: [accountId], references: [id])
 
   @@index([entryId])
   @@index([accountId])
+  @@index([cfsRequiresOverride])
   @@map("journal_lines")
 }
 
@@ -2943,11 +2960,19 @@ model BankReconciliationItem {
   matchedBy           String?     @db.Uuid
   matchedAt           DateTime?
 
+  // 3-tier automatch engine fields
+  matchTier           String?                         // AUTO, POTENTIAL, MANUAL
+  matchScore          Int?                            // 0–100 composite score
+  matchAmountDiff     Decimal?    @db.Decimal(20, 2)  // Selisih jumlah (Rp)
+  matchNameSimilarity Decimal?    @db.Decimal(5, 4)   // 0.0000–1.0000
+  matchDaysDiff       Int?                            // Selisih hari
+
   reconciliation BankReconciliation @relation(fields: [reconciliationId], references: [id], onDelete: Cascade)
 
   @@index([reconciliationId])
   @@index([matchStatus])
   @@index([systemTransactionId])
+  @@index([matchTier])
   @@map("bank_reconciliation_items")
 }
 

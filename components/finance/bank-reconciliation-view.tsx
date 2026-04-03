@@ -6,7 +6,6 @@ import { queryKeys } from "@/lib/query-keys"
 import * as XLSX from "xlsx"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
     Dialog,
     DialogContent,
@@ -26,26 +25,13 @@ import {
     Landmark,
     Plus,
     Upload,
-    Download,
-    Wand2,
     Lock,
-    FileSpreadsheet,
     X,
-    ChevronLeft,
-    ChevronRight,
-    CheckCircle2,
-    AlertCircle,
     ArrowRightLeft,
     Loader2,
-    Unlink,
-    Sparkles,
-    UploadCloud,
     ArrowRight,
     Search,
     Filter,
-    Ban,
-    Undo2,
-    MessageSquare,
 } from "lucide-react"
 import { motion } from "framer-motion"
 import { toast } from "sonner"
@@ -62,11 +48,13 @@ import {
 import type {
     ReconciliationSummary,
     ReconciliationDetail,
-    SystemEntryData,
 } from "@/lib/actions/finance-reconciliation"
+// MatchTier type: "AUTO" | "POTENTIAL" | "MANUAL" — from lib/finance-reconciliation-helpers
 import { Switch } from "@/components/ui/switch"
 import { createBankAccount } from "@/lib/actions/finance-reconciliation"
 import type { BankAccountRecord, COAAccount } from "@/hooks/use-reconciliation"
+import { ReconciliationFocusView } from "@/components/finance/reconciliation-focus-view"
+import { useGLAccounts } from "@/hooks/use-gl-accounts"
 
 // ==============================================================================
 // Indonesian Banks
@@ -124,7 +112,7 @@ interface BankReconciliationViewProps {
         reconciliationId: string,
         rows: { date: string; description: string; amount: number; reference?: string }[]
     ) => Promise<{ success: boolean; importedCount?: number; error?: string }>
-    onAutoMatch: (reconciliationId: string) => Promise<{ success: boolean; matched?: number; matchedCount?: number; suggestions?: unknown[]; error?: string }>
+    onAutoMatch: (reconciliationId: string) => Promise<{ success: boolean; matched?: number; matchedCount?: number; potentialCount?: number; manualCount?: number; suggestions?: unknown[]; error?: string }>
     onMatchItems: (data: { bankItemIds: string[]; systemEntryIds: string[] }) => Promise<{ success: boolean; error?: string }>
     onUnmatchItem: (itemId: string) => Promise<{ success: boolean; error?: string }>
     onClose: (reconciliationId: string) => Promise<{ success: boolean; error?: string }>
@@ -132,6 +120,8 @@ interface BankReconciliationViewProps {
     onUpdateMeta: (reconciliationId: string, data: { bankStatementBalance?: number; notes?: string }) => Promise<{ success: boolean; error?: string }>
     onExcludeItem: (itemId: string, reason: string) => Promise<{ success: boolean; error?: string }>
     onIncludeItem: (itemId: string) => Promise<{ success: boolean; error?: string }>
+    onSearchJournals?: (reconciliationId: string, query: string) => Promise<{ entryId: string; date: string; description: string; reference: string | null; amount: number; lineDescription: string | null }[]>
+    onCreateJournalAndMatch?: (reconciliationId: string, bankLineId: string, journalData: { date: string; description: string; reference?: string; amount: number; debitAccountCode: string; creditAccountCode: string }) => Promise<{ success: boolean; journalId?: string; error?: string }>
 }
 
 // ==============================================================================
@@ -176,39 +166,6 @@ function detectColumns(headers: string[]): {
 }
 
 // ==============================================================================
-// Progress ring SVG
-// ==============================================================================
-
-function ProgressRing({ percent, size = 44, stroke = 4 }: { percent: number; size?: number; stroke?: number }) {
-    const radius = (size - stroke) / 2
-    const circ = 2 * Math.PI * radius
-    const offset = circ - (percent / 100) * circ
-    const color = percent >= 80 ? "#10b981" : percent >= 40 ? "#f59e0b" : "#ef4444"
-    const trackColor = percent >= 80 ? "#d1fae5" : percent >= 40 ? "#fef3c7" : "#fee2e2"
-    const fontSize = size >= 52 ? 13 : 11
-    return (
-        <svg width={size} height={size} className="shrink-0 -rotate-90">
-            <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={trackColor} strokeWidth={stroke} />
-            <circle
-                cx={size / 2} cy={size / 2} r={radius} fill="none"
-                stroke={color} strokeWidth={stroke}
-                strokeDasharray={circ} strokeDashoffset={offset}
-                strokeLinecap="round"
-                className="transition-all duration-500"
-            />
-            <text
-                x={size / 2} y={size / 2}
-                textAnchor="middle" dominantBaseline="central"
-                className="rotate-90 origin-center fill-zinc-700 dark:fill-zinc-300"
-                fontSize={fontSize} fontWeight="800"
-            >
-                {Math.round(percent)}%
-            </text>
-        </svg>
-    )
-}
-
-// ==============================================================================
 // Component
 // ==============================================================================
 
@@ -227,9 +184,16 @@ export function BankReconciliationView({
     onUpdateMeta,
     onExcludeItem,
     onIncludeItem,
+    onSearchJournals,
+    onCreateJournalAndMatch,
 }: BankReconciliationViewProps) {
     const queryClient = useQueryClient()
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const { data: glAccountsData } = useGLAccounts()
+    const glAccounts = useMemo(() =>
+        (glAccountsData ?? []).map(a => ({ id: a.id, code: a.code, name: a.name, type: a.type })),
+        [glAccountsData]
+    )
 
     // UI state
     const [loading, setLoading] = useState(false)
@@ -251,11 +215,6 @@ export function BankReconciliationView({
     const [newPeriodEnd, setNewPeriodEnd] = useState("")
     const [newBankStatementBalance, setNewBankStatementBalance] = useState("")
 
-    // Exclude dialog state
-    const [excludeDialogOpen, setExcludeDialogOpen] = useState(false)
-    const [excludeItemId, setExcludeItemId] = useState<string | null>(null)
-    const [excludeReason, setExcludeReason] = useState("")
-
     // Detail panel editable meta
     const [editBankStatementBalance, setEditBankStatementBalance] = useState("")
     const [editNotes, setEditNotes] = useState("")
@@ -273,17 +232,13 @@ export function BankReconciliationView({
     const [newBankIsActive, setNewBankIsActive] = useState(true)
     const [addingBank, setAddingBank] = useState(false)
 
-    // Selection state
-    const [selectedBankIds, setSelectedBankIds] = useState<Set<string>>(new Set())
-    const [selectedSystemIds, setSelectedSystemIds] = useState<Set<string>>(new Set())
-
     // Pagination state
     const [bankPage, setBankPage] = useState(1)
     const [systemPage, setSystemPage] = useState(1)
     const PAGE_SIZE = 50
 
-    // Suggestions state (from auto-match)
-    const [suggestions, setSuggestions] = useState<{ bankItemId: string; matches: { transactionId: string; confidence: string; score: number; reason: string }[] }[]>([])
+    // Suggestions state (from auto-match) — includes tier info
+    const [suggestions, setSuggestions] = useState<{ bankItemId: string; matches: { transactionId: string; tier: string; confidence: string; score: number; reason: string; amountDiff: number; nameSimilarity: number; daysDiff: number }[] }[]>([])
 
     // Search & filter state
     const [searchQuery, setSearchQuery] = useState("")
@@ -301,41 +256,10 @@ export function BankReconciliationView({
         })
     }, [reconciliations, searchQuery, statusFilter])
 
-    // ── Derived data ──────────────────────────────────────────────────────────
-    const unmatchedBankItems = selectedRec?.items.filter((i) => i.matchStatus === "UNMATCHED") ?? []
-    const excludedBankItems = selectedRec?.items.filter((i) => i.matchStatus === "EXCLUDED") ?? []
-    const matchedBankItems = selectedRec?.items.filter((i) => i.matchStatus === "MATCHED") ?? []
-    const unmatchedSystemEntries: SystemEntryData[] =
-        selectedRec?.systemEntries.filter((e) => e.alreadyMatchedItemId === null) ?? []
-
-    const selectedBankTotal = unmatchedBankItems
-        .filter((i) => selectedBankIds.has(i.id))
-        .reduce((s, i) => s + i.bankAmount, 0)
-    const selectedSystemTotal = unmatchedSystemEntries
-        .filter((e) => selectedSystemIds.has(e.entryId))
-        .reduce((s, e) => s + e.amount, 0)
-
-    const hasSelection = selectedBankIds.size > 0 || selectedSystemIds.size > 0
-    const totalsMatch =
-        selectedBankIds.size > 0 &&
-        selectedSystemIds.size > 0 &&
-        Math.abs(selectedBankTotal - selectedSystemTotal) < 1
-
     const isCompleted = selectedRec?.status === "REC_COMPLETED"
 
-    // Amounts from selected bank items — used to highlight matching system entries
-    const selectedBankAmounts = useMemo(() => {
-        const amounts = new Set<number>()
-        unmatchedBankItems
-            .filter((i) => selectedBankIds.has(i.id))
-            .forEach((i) => amounts.add(Math.abs(i.bankAmount)))
-        return amounts
-    }, [unmatchedBankItems, selectedBankIds])
-
-    // KPI calculations
-    const totalItems = selectedRec ? matchedBankItems.length + unmatchedBankItems.length + excludedBankItems.length : 0
-    const reconciledCount = matchedBankItems.length + excludedBankItems.length
-    const matchedPercent = totalItems > 0 ? (reconciledCount / totalItems) * 100 : 0
+    // Unmatched count for close button check
+    const unmatchedBankItems = selectedRec?.items.filter((i) => i.matchStatus === "UNMATCHED") ?? []
 
     // ── File parsing ──────────────────────────────────────────────────────────
     const parseFile = useCallback(async (file: File) => {
@@ -501,12 +425,17 @@ export function BankReconciliationView({
             const result = await onAutoMatch(selectedRec.id)
             if (result.success) {
                 const matchCount = result.matched ?? result.matchedCount ?? 0
+                const potCount = result.potentialCount ?? 0
+                const manCount = result.manualCount ?? 0
                 const sugArr = Array.isArray(result.suggestions) ? result.suggestions as typeof suggestions : []
-                const sugCount = sugArr.length
-                toast.success(`${matchCount} item berhasil dicocokkan otomatis${sugCount > 0 ? `, ${sugCount} saran tersedia` : ''}`)
+
+                const parts: string[] = []
+                if (matchCount > 0) parts.push(`${matchCount} Auto`)
+                if (potCount > 0) parts.push(`${potCount} Potensi`)
+                if (manCount > 0) parts.push(`${manCount} Manual`)
+                toast.success(parts.length > 0 ? parts.join(", ") : "Tidak ada kecocokan ditemukan")
+
                 setSuggestions(sugArr)
-                setSelectedBankIds(new Set())
-                setSelectedSystemIds(new Set())
                 await reloadDetail(selectedRec.id)
             } else {
                 toast.error(result.error || "Gagal auto-match")
@@ -518,75 +447,15 @@ export function BankReconciliationView({
         }
     }
 
-    const handleApplySuggestion = async (bankItemId: string, transactionId: string) => {
-        try {
-            const result = await onMatchItems({
-                bankItemIds: [bankItemId],
-                systemEntryIds: [transactionId],
-            })
-            if (result.error) {
-                toast.error(result.error)
-            } else {
-                toast.success("Transaksi berhasil dicocokkan")
-                setSuggestions(prev => prev.filter(s => s.bankItemId !== bankItemId))
-                if (selectedRec) await reloadDetail(selectedRec.id)
-            }
-        } catch {
-            toast.error("Gagal mencocokkan transaksi")
-        }
-    }
-
-    const handleMatchSelected = async () => {
-        if (selectedBankIds.size === 0 || selectedSystemIds.size === 0) {
-            toast.error("Pilih minimal 1 item bank dan 1 jurnal sistem")
-            return
-        }
-        setActionLoading("match")
-        try {
-            const result = await onMatchItems({
-                bankItemIds: Array.from(selectedBankIds),
-                systemEntryIds: Array.from(selectedSystemIds),
-            })
-            if (result.success) {
-                toast.success("Item berhasil dicocokkan")
-                setSelectedBankIds(new Set())
-                setSelectedSystemIds(new Set())
-                if (selectedRec) await reloadDetail(selectedRec.id)
-            } else {
-                toast.error(result.error || "Gagal mencocokkan")
-            }
-        } catch {
-            toast.error("Gagal mencocokkan item")
-        } finally {
-            setActionLoading(null)
-        }
-    }
-
-    const handleUnmatch = async (itemId: string) => {
-        setActionLoading(`unmatch-${itemId}`)
-        try {
-            const result = await onUnmatchItem(itemId)
-            if (result.success) {
-                toast.success("Pencocokan dibatalkan")
-                if (selectedRec) await reloadDetail(selectedRec.id)
-            } else {
-                toast.error(result.error || "Gagal membatalkan pencocokan")
-            }
-        } catch {
-            toast.error("Gagal membatalkan pencocokan")
-        } finally {
-            setActionLoading(null)
-        }
-    }
-
     const handleClose = async () => {
         if (!selectedRec) return
         // Check balance difference before closing
         if (selectedRec.bankStatementBalance != null) {
             const bookBalance = selectedRec.bookBalanceSnapshot ?? selectedRec.glAccountBalance
+            const excludedItems = selectedRec.items.filter(i => i.matchStatus === "EXCLUDED")
             const outDeposits = unmatchedBankItems.filter(i => i.bankAmount > 0).reduce((s, i) => s + i.bankAmount, 0)
             const outChecks = unmatchedBankItems.filter(i => i.bankAmount < 0).reduce((s, i) => s + i.bankAmount, 0)
-            const excludedTtl = excludedBankItems.reduce((s, i) => s + i.bankAmount, 0)
+            const excludedTtl = excludedItems.reduce((s, i) => s + i.bankAmount, 0)
             const adjustedBook = bookBalance + outDeposits + outChecks - excludedTtl
             const diff = Math.abs(adjustedBook - (selectedRec.bankStatementBalance ?? 0))
             if (diff >= 1) {
@@ -621,8 +490,6 @@ export function BankReconciliationView({
     const handleSelectRec = async (rec: ReconciliationSummary) => {
         setSelectedRecId(rec.id)
         setDetailLoading(true)
-        setSelectedBankIds(new Set())
-        setSelectedSystemIds(new Set())
         setParsedRows(null)
         setSuggestions([])
         setBankPage(1)
@@ -644,25 +511,6 @@ export function BankReconciliationView({
         } finally {
             setDetailLoading(false)
         }
-    }
-
-    // ── Toggle helpers ────────────────────────────────────────────────────────
-    const toggleBankId = (id: string) => {
-        setSelectedBankIds((prev) => {
-            const next = new Set(prev)
-            if (next.has(id)) next.delete(id)
-            else next.add(id)
-            return next
-        })
-    }
-
-    const toggleSystemId = (id: string) => {
-        setSelectedSystemIds((prev) => {
-            const next = new Set(prev)
-            if (next.has(id)) next.delete(id)
-            else next.add(id)
-            return next
-        })
     }
 
     // ── KPI counts ─────────────────────────────────────────────────────────
@@ -1331,841 +1179,76 @@ export function BankReconciliationView({
                             </div>
                         </div>
                     ) : selectedRec ? (
-                        <div className="flex-1 flex flex-col">
-                            {/* Account header with progress ring */}
-                            <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-4">
-                                        <ProgressRing percent={matchedPercent} size={52} stroke={5} />
-                                        <div>
-                                            <div className="flex items-center gap-2.5 mb-0.5">
-                                                <h2 className="text-base font-black tracking-tight text-zinc-900 dark:text-white">
-                                                    {selectedRec.glAccountName}
-                                                </h2>
-                                                <span className="text-[9px] font-mono font-bold text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 border border-zinc-200 dark:border-zinc-700">
-                                                    {selectedRec.glAccountCode}
-                                                </span>
-                                                {(() => {
-                                                    const statusCfg = STATUS_CONFIG[selectedRec.status] || STATUS_CONFIG.REC_DRAFT
-                                                    return (
-                                                        <span className={`text-[8px] font-black uppercase tracking-wider px-2 py-0.5 border ${statusCfg.bg} ${statusCfg.text} ${statusCfg.border}`}>
-                                                            {statusCfg.label}
-                                                        </span>
-                                                    )
-                                                })()}
-                                            </div>
-                                            <div className="flex items-center gap-4 text-[11px]">
-                                                <span className="text-zinc-400 font-medium">
-                                                    Saldo Buku: <span className="font-mono font-bold text-zinc-700 dark:text-zinc-300">Rp {formatIDR(selectedRec.glAccountBalance)}</span>
-                                                </span>
-                                                <span className="text-zinc-300 dark:text-zinc-600">|</span>
-                                                <span className="text-zinc-400 font-medium">
-                                                    Periode: <span className="font-bold text-zinc-600 dark:text-zinc-300">{formatDate(selectedRec.periodStart)} — {formatDate(selectedRec.periodEnd)}</span>
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Editable meta: bank statement balance & notes */}
-                            {!isCompleted && (
-                                <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/20">
-                                    <div className="grid grid-cols-2 gap-5">
-                                        <div>
-                                            <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 block">
-                                                Saldo Bank Statement
-                                            </label>
-                                            <div className="relative">
-                                                <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold pointer-events-none transition-colors ${
-                                                    editBankStatementBalance ? "text-orange-500" : "text-zinc-400"
-                                                }`}>Rp</span>
-                                                <input
-                                                    inputMode="numeric"
-                                                    placeholder="0"
-                                                    value={editBankStatementBalance ? Number(editBankStatementBalance).toLocaleString("id-ID") : ""}
-                                                    onChange={(e) => {
-                                                        // Strip non-digit chars, keep only numbers
-                                                        const raw = e.target.value.replace(/[^\d]/g, "")
-                                                        setEditBankStatementBalance(raw)
-                                                    }}
-                                                    onKeyDown={(e) => {
-                                                        // Allow: backspace, delete, tab, escape, enter, arrows
-                                                        const allowed = ["Backspace", "Delete", "Tab", "Escape", "Enter", "ArrowLeft", "ArrowRight", "Home", "End"]
-                                                        if (allowed.includes(e.key)) return
-                                                        // Allow Ctrl/Cmd+A, Ctrl/Cmd+C, Ctrl/Cmd+V, Ctrl/Cmd+X
-                                                        if ((e.ctrlKey || e.metaKey) && ["a", "c", "v", "x"].includes(e.key.toLowerCase())) return
-                                                        // Block non-digit
-                                                        if (!/^\d$/.test(e.key)) {
-                                                            e.preventDefault()
-                                                        }
-                                                    }}
-                                                    onBlur={async () => {
-                                                        if (!selectedRec) return
-                                                        const val = Number(editBankStatementBalance) || 0
-                                                        if (val === (selectedRec.bankStatementBalance ?? 0)) return
-                                                        const result = await onUpdateMeta(selectedRec.id, { bankStatementBalance: val })
-                                                        if (result.success) {
-                                                            toast.success("Saldo bank statement diperbarui")
-                                                            await reloadDetail(selectedRec.id)
-                                                        } else {
-                                                            toast.error(result.error || "Gagal memperbarui")
-                                                        }
-                                                    }}
-                                                    className={`w-full pl-10 pr-3 h-10 font-mono font-bold text-sm rounded-none outline-none transition-colors ${
-                                                        editBankStatementBalance
-                                                            ? "border-2 border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 text-zinc-900 dark:text-white"
-                                                            : "border-2 border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white"
-                                                    } placeholder:text-zinc-300 dark:placeholder:text-zinc-600 placeholder:font-normal focus:border-orange-400 focus:ring-2 focus:ring-orange-100 dark:focus:ring-orange-900/30`}
-                                                />
-                                            </div>
-                                            <p className="text-[9px] text-zinc-400 mt-1">Ketik angka saja, format otomatis</p>
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 block">
-                                                Catatan
-                                            </label>
-                                            <textarea
-                                                placeholder="Catatan rekonsiliasi (opsional)..."
-                                                value={editNotes}
-                                                onChange={(e) => setEditNotes(e.target.value)}
-                                                onBlur={async () => {
-                                                    if (!selectedRec) return
-                                                    if (editNotes === (selectedRec.notes ?? "")) return
-                                                    const result = await onUpdateMeta(selectedRec.id, { notes: editNotes })
-                                                    if (result.success) {
-                                                        toast.success("Catatan diperbarui")
-                                                        await reloadDetail(selectedRec.id)
-                                                    } else {
-                                                        toast.error(result.error || "Gagal memperbarui")
-                                                    }
-                                                }}
-                                                className={`w-full font-medium text-xs min-h-[40px] max-h-[60px] rounded-none p-2.5 resize-none transition-colors ${
-                                                    editNotes
-                                                        ? "border-2 border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20"
-                                                        : "border-2 border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800"
-                                                } placeholder:text-zinc-300 dark:placeholder:text-zinc-600 placeholder:font-normal`}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* KPI strip */}
-                            <div className="flex items-center divide-x divide-zinc-200 dark:divide-zinc-800 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-                                {[
-                                    { label: "Total Item", value: totalItems, dotColor: "bg-zinc-400", valueColor: "text-zinc-900 dark:text-white" },
-                                    { label: "Cocok", value: matchedBankItems.length, dotColor: "bg-emerald-500", valueColor: matchedBankItems.length > 0 ? "text-emerald-600" : "text-zinc-900 dark:text-white" },
-                                    { label: "Belum Cocok", value: unmatchedBankItems.length, dotColor: unmatchedBankItems.length > 0 ? "bg-red-500" : "bg-emerald-500", valueColor: unmatchedBankItems.length > 0 ? "text-red-600" : "text-emerald-600" },
-                                    { label: "Dikecualikan", value: excludedBankItems.length, dotColor: excludedBankItems.length > 0 ? "bg-zinc-500" : "bg-zinc-300", valueColor: "text-zinc-600 dark:text-zinc-400" },
-                                ].map((kpi) => (
-                                    <div key={kpi.label} className="flex-1 px-4 py-3 flex items-center justify-between">
-                                        <div className="flex items-center gap-1.5">
-                                            <span className={`w-2 h-2 rounded-full ${kpi.dotColor}`} />
-                                            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{kpi.label}</span>
-                                        </div>
-                                        <span className={`text-xl font-black font-mono ${kpi.valueColor}`}>{kpi.value}</span>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* ── Reconciliation Summary Panel (THE ACCOUNTING EQUATION) ── */}
-                            {selectedRec.bankStatementBalance != null && (() => {
-                                const bookBalance = selectedRec.bookBalanceSnapshot ?? selectedRec.glAccountBalance
-                                const outstandingDeposits = unmatchedBankItems.filter(i => i.bankAmount > 0).reduce((s, i) => s + i.bankAmount, 0)
-                                const outstandingChecks = unmatchedBankItems.filter(i => i.bankAmount < 0).reduce((s, i) => s + i.bankAmount, 0)
-                                const excludedTotal = excludedBankItems.reduce((s, i) => s + i.bankAmount, 0)
-                                const adjustedBookBalance = bookBalance + outstandingDeposits + outstandingChecks - excludedTotal
-                                const bsBalance = selectedRec.bankStatementBalance ?? 0
-                                const diff = adjustedBookBalance - bsBalance
-                                const isBalanced = Math.abs(diff) < 1
-                                return (
-                                    <div className="border-b border-zinc-200 dark:border-zinc-800">
-                                        <div className="bg-zinc-50/80 dark:bg-zinc-800/30 px-5 py-2 flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-700">
-                                            <ArrowRightLeft className="h-3.5 w-3.5 text-zinc-400" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
-                                                Ringkasan Rekonsiliasi
-                                            </span>
-                                        </div>
-                                        <div className="bg-white dark:bg-zinc-900">
-                                            {/* Balance comparison — 2 column */}
-                                            <div className="grid grid-cols-2 divide-x divide-zinc-200 dark:divide-zinc-700 border-b border-zinc-100 dark:border-zinc-800">
-                                                <div className="px-5 py-3">
-                                                    <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400 block mb-0.5">Saldo Buku Disesuaikan</span>
-                                                    <span className="text-lg font-mono font-black text-zinc-900 dark:text-white">Rp {formatIDR(adjustedBookBalance)}</span>
-                                                </div>
-                                                <div className="px-5 py-3">
-                                                    <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400 block mb-0.5">Saldo Bank Statement</span>
-                                                    <span className="text-lg font-mono font-black text-zinc-900 dark:text-white">Rp {formatIDR(bsBalance)}</span>
-                                                </div>
-                                            </div>
-                                            {/* Adjustment details — compact rows */}
-                                            <div className="px-5 py-2.5 space-y-1 border-b border-zinc-100 dark:border-zinc-800">
-                                                <div className="flex items-center justify-between text-[10px]">
-                                                    <span className="font-medium text-zinc-500">Saldo Buku (Book Balance)</span>
-                                                    <span className="font-mono font-bold text-zinc-700 dark:text-zinc-300">Rp {formatIDR(bookBalance)}</span>
-                                                </div>
-                                                {outstandingDeposits > 0 && (
-                                                    <div className="flex items-center justify-between text-[10px]">
-                                                        <span className="font-medium text-zinc-500">+ Setoran dalam perjalanan</span>
-                                                        <span className="font-mono font-bold text-emerald-600">+Rp {formatIDR(outstandingDeposits)}</span>
-                                                    </div>
-                                                )}
-                                                {outstandingChecks !== 0 && (
-                                                    <div className="flex items-center justify-between text-[10px]">
-                                                        <span className="font-medium text-zinc-500">- Cek beredar</span>
-                                                        <span className="font-mono font-bold text-red-600">-Rp {formatIDR(Math.abs(outstandingChecks))}</span>
-                                                    </div>
-                                                )}
-                                                {excludedTotal !== 0 && (
-                                                    <div className="flex items-center justify-between text-[10px]">
-                                                        <span className="font-medium text-zinc-500">- Item dikecualikan</span>
-                                                        <span className="font-mono font-bold text-zinc-500">-Rp {formatIDR(Math.abs(excludedTotal))}</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            {/* Difference result */}
-                                            <div className={`px-5 py-2.5 flex items-center justify-between ${
-                                                isBalanced ? "bg-emerald-50/50 dark:bg-emerald-950/10" : "bg-red-50/50 dark:bg-red-950/10"
-                                            }`}>
-                                                <span className="text-[10px] font-black uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Selisih</span>
-                                                <div className="flex items-center gap-2">
-                                                    <span className={`text-sm font-mono font-black ${isBalanced ? "text-emerald-600" : "text-red-600"}`}>
-                                                        Rp {formatIDR(Math.abs(diff))}
-                                                    </span>
-                                                    {isBalanced ? (
-                                                        <span className="text-[8px] font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700 px-1.5 py-0.5 flex items-center gap-1">
-                                                            <CheckCircle2 className="h-2.5 w-2.5" /> SEIMBANG
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-[8px] font-black uppercase tracking-wider bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-700 px-1.5 py-0.5 flex items-center gap-1">
-                                                            <AlertCircle className="h-2.5 w-2.5" /> BELUM SEIMBANG
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )
-                            })()}
-
-                            {/* Action bar */}
-                            {!isCompleted && (
-                                <div className="px-5 py-2.5 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/80 dark:bg-zinc-800/30">
-                                    <div className="flex items-center gap-0">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className={NB.toolbarBtn + " " + NB.toolbarBtnJoin}
-                                            disabled={actionLoading !== null}
-                                            onClick={handleAutoMatch}
-                                        >
-                                            {actionLoading === "automatch" ? (
-                                                <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
-                                            ) : (
-                                                <Wand2 className="h-3 w-3 mr-1.5" />
-                                            )}
-                                            {actionLoading === "automatch" ? "Mencocokkan..." : "Auto-Match"}
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className={NB.toolbarBtn}
-                                            onClick={downloadTemplateCSV}
-                                        >
-                                            <Download className="h-3 w-3 mr-1.5" /> Template CSV
-                                        </Button>
-                                    </div>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 text-[10px] font-bold uppercase tracking-wider h-9 px-3.5 rounded-none hover:bg-red-100 dark:hover:bg-red-950/50 hover:text-red-700 dark:hover:text-red-300 transition-colors disabled:opacity-40"
-                                        disabled={actionLoading !== null || unmatchedBankItems.length > 0}
-                                        onClick={handleClose}
-                                    >
-                                        {actionLoading === "close" ? (
-                                            <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
-                                        ) : (
-                                            <Lock className="h-3 w-3 mr-1.5" />
-                                        )}
-                                        Tutup Rekonsiliasi
-                                    </Button>
-                                </div>
-                            )}
-
-                            {/* File upload zone */}
-                            {!isCompleted && (
-                                <div className="px-5 py-3 border-b border-zinc-200 bg-white">
-                                    {parsedRows ? (
-                                        /* Preview of parsed rows with summary */
-                                        <div className="border-2 border-emerald-400 bg-emerald-50 p-4">
-                                            <div className="flex items-center justify-between mb-3">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="flex items-center justify-center h-7 w-7 bg-emerald-100 border border-emerald-300">
-                                                        <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-700" />
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 block">
-                                                            {parsedRows.length} baris siap diimpor
-                                                        </span>
-                                                        <div className="flex items-center gap-3 mt-0.5">
-                                                            <span className="text-[9px] font-bold text-emerald-600">
-                                                                Masuk: Rp {formatIDR(parsedRows.filter(r => r.amount > 0).reduce((s, r) => s + r.amount, 0))}
-                                                            </span>
-                                                            <span className="text-[9px] font-bold text-red-600">
-                                                                Keluar: Rp {formatIDR(Math.abs(parsedRows.filter(r => r.amount < 0).reduce((s, r) => s + r.amount, 0)))}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-6 w-6 p-0 hover:bg-emerald-100"
-                                                    onClick={() => setParsedRows(null)}
-                                                >
-                                                    <X className="h-3.5 w-3.5" />
-                                                </Button>
-                                            </div>
-                                            <div className="max-h-24 overflow-y-auto text-[9px] font-mono text-zinc-600 space-y-0.5 mb-3 bg-white p-2 border border-emerald-200">
-                                                {parsedRows.slice(0, 5).map((r, i) => (
-                                                    <div key={i} className="flex justify-between gap-2">
-                                                        <span className="text-zinc-400 shrink-0">{r.date}</span>
-                                                        <span className="truncate flex-1">{r.description}</span>
-                                                        <span className={`shrink-0 font-bold ${r.amount >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                                                            Rp {formatIDR(Math.abs(r.amount))}
-                                                        </span>
-                                                    </div>
-                                                ))}
-                                                {parsedRows.length > 5 && (
-                                                    <div className="text-zinc-400 text-center">...dan {parsedRows.length - 5} baris lainnya</div>
-                                                )}
-                                            </div>
-                                            <Button
-                                                className={NB.submitBtn + " w-full"}
-                                                disabled={actionLoading === "import"}
-                                                onClick={handleImportParsed}
-                                            >
-                                                {actionLoading === "import" ? (
-                                                    <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Mengimpor...</>
-                                                ) : (
-                                                    `Import ${parsedRows.length} Baris`
-                                                )}
-                                            </Button>
-                                        </div>
-                                    ) : (
-                                        /* Drop zone — compact */
-                                        <div
-                                            className={`border border-dashed px-4 py-3 cursor-pointer transition-all duration-150 flex items-center gap-3 ${
-                                                dragging
-                                                    ? "border-orange-400 bg-orange-50/50"
-                                                    : "border-zinc-300 dark:border-zinc-600 hover:border-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
-                                            }`}
-                                            onClick={() => fileInputRef.current?.click()}
-                                            onDragOver={handleDragOver}
-                                            onDragLeave={handleDragLeave}
-                                            onDrop={handleDrop}
-                                        >
-                                            <input
-                                                ref={fileInputRef}
-                                                type="file"
-                                                accept=".csv,.xlsx,.xls"
-                                                className="hidden"
-                                                onChange={handleFileChange}
-                                            />
-                                            <div className={`h-9 w-9 flex items-center justify-center border transition-colors shrink-0 ${
-                                                dragging ? "border-orange-300 bg-orange-100" : "border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
-                                            }`}>
-                                                <UploadCloud className={`h-4 w-4 transition-colors ${dragging ? "text-orange-500" : "text-zinc-400"}`} />
-                                            </div>
-                                            <div>
-                                                <div className="text-xs font-bold text-zinc-600 dark:text-zinc-300">
-                                                    Seret file bank statement atau klik untuk upload
-                                                </div>
-                                                <div className="text-[9px] text-zinc-400">Format: CSV, Excel (.xlsx)</div>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Auto-match suggestions */}
-                            {suggestions.length > 0 && (
-                                <div className="border-b-2 border-black bg-amber-50/50 p-4 space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <Sparkles className="h-4 w-4 text-amber-500" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-amber-700">
-                                                Saran Pencocokan ({suggestions.length})
-                                            </span>
-                                        </div>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => setSuggestions([])}
-                                            className="h-6 px-2 text-[9px] font-bold rounded-none border border-amber-300 text-amber-700 hover:bg-amber-100"
-                                        >
-                                            Tutup
-                                        </Button>
-                                    </div>
-                                    {suggestions.map((s) => (
-                                        <div key={s.bankItemId} className="border-2 border-amber-200 bg-white p-3 space-y-2">
-                                            <div className="text-[10px] font-bold text-zinc-500">
-                                                Bank Item: <span className="font-mono">{s.bankItemId.slice(0, 8)}...</span>
-                                            </div>
-                                            {s.matches.map((m) => (
-                                                <div key={m.transactionId} className="flex items-center justify-between gap-2 bg-zinc-50 p-2 border border-zinc-200">
-                                                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                        <span className={`inline-block px-1.5 py-0.5 text-[8px] font-black border ${
-                                                            m.confidence === "HIGH" ? "bg-emerald-100 text-emerald-800 border-emerald-400" :
-                                                            m.confidence === "MEDIUM" ? "bg-amber-100 text-amber-800 border-amber-400" :
-                                                            "bg-zinc-100 text-zinc-600 border-zinc-300"
-                                                        }`}>
-                                                            {m.confidence}
-                                                        </span>
-                                                        <span className="text-[10px] text-zinc-600 truncate">{m.reason}</span>
-                                                        <span className="text-[10px] font-mono font-bold text-zinc-400 shrink-0">
-                                                            skor {m.score}
-                                                        </span>
-                                                    </div>
-                                                    <Button
-                                                        size="sm"
-                                                        onClick={() => handleApplySuggestion(s.bankItemId, m.transactionId)}
-                                                        className="h-6 px-3 text-[9px] font-black rounded-none border-2 border-black bg-black text-white hover:bg-zinc-800 shrink-0"
-                                                    >
-                                                        Terapkan
-                                                    </Button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            {/* Side-by-side panels */}
-                            <ScrollArea className="max-h-[50vh]">
-                                <div className="grid grid-cols-2 divide-x divide-zinc-200 dark:divide-zinc-700">
-                                    {/* Left: LAPORAN BANK */}
-                                    <div>
-                                        <div className="bg-sky-50/80 dark:bg-sky-950/20 px-4 py-2.5 border-b border-sky-200 dark:border-sky-800 flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <div className="h-2 w-2 rounded-full bg-sky-500" />
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-sky-700 dark:text-sky-400">
-                                                    Laporan Bank
-                                                </span>
-                                            </div>
-                                            <span className="text-[10px] font-mono font-bold text-sky-500 dark:text-sky-400">
-                                                {selectedRec?.bankPagination?.totalItems ?? unmatchedBankItems.length} item
-                                            </span>
-                                        </div>
-                                        {unmatchedBankItems.length === 0 && excludedBankItems.length === 0 ? (
-                                            <div className="p-8 text-center">
-                                                <CheckCircle2 className="h-6 w-6 mx-auto text-emerald-300 mb-2" />
-                                                <span className="text-[10px] font-bold text-zinc-400">
-                                                    Semua item sudah dicocokkan
-                                                </span>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                {/* Unmatched bank items */}
-                                                <div className="divide-y divide-zinc-100">
-                                                    {unmatchedBankItems.map((item) => {
-                                                        const isSelected = selectedBankIds.has(item.id)
-                                                        return (
-                                                            <div
-                                                                key={item.id}
-                                                                className={`flex items-start gap-2.5 px-4 py-2.5 cursor-pointer transition-all duration-100 ${
-                                                                    isSelected ? "bg-blue-50 border-l-[3px] border-l-blue-500" : "hover:bg-zinc-50 border-l-[3px] border-l-transparent"
-                                                                }`}
-                                                                onClick={() => !isCompleted && toggleBankId(item.id)}
-                                                            >
-                                                                {!isCompleted && (
-                                                                    <Checkbox
-                                                                        checked={isSelected}
-                                                                        onCheckedChange={() => toggleBankId(item.id)}
-                                                                        className="mt-0.5 border-2 border-black rounded-none"
-                                                                    />
-                                                                )}
-                                                                <div className="flex-1 min-w-0">
-                                                                    <div className="flex items-center justify-between gap-1">
-                                                                        <span className="text-[9px] font-mono text-zinc-400">
-                                                                            {item.bankDate ? formatDate(item.bankDate) : "-"}
-                                                                        </span>
-                                                                        <div className="flex items-center gap-1.5 shrink-0">
-                                                                            <span
-                                                                                className={`text-xs font-mono font-bold ${
-                                                                                    item.bankAmount >= 0 ? "text-emerald-600" : "text-red-600"
-                                                                                }`}
-                                                                            >
-                                                                                Rp {formatIDR(Math.abs(item.bankAmount))}
-                                                                            </span>
-                                                                            {!isCompleted && (
-                                                                                <button
-                                                                                    title="Kecualikan item"
-                                                                                    className="h-5 w-5 flex items-center justify-center border border-zinc-300 rounded-none text-zinc-400 hover:text-red-500 hover:border-red-300 hover:bg-red-50 transition-colors"
-                                                                                    onClick={(e) => {
-                                                                                        e.stopPropagation()
-                                                                                        setExcludeItemId(item.id)
-                                                                                        setExcludeReason("")
-                                                                                        setExcludeDialogOpen(true)
-                                                                                    }}
-                                                                                >
-                                                                                    <Ban className="h-3 w-3" />
-                                                                                </button>
-                                                                            )}
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="text-xs font-medium truncate mt-0.5">
-                                                                        {item.bankDescription || "-"}
-                                                                    </div>
-                                                                    {item.bankRef && (
-                                                                        <div className="text-[9px] text-zinc-400 font-mono truncate">
-                                                                            Ref: {item.bankRef}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        )
-                                                    })}
-                                                </div>
-
-                                                {/* Excluded bank items section */}
-                                                {excludedBankItems.length > 0 && (
-                                                    <div className="bg-zinc-100/70">
-                                                        <div className="px-4 py-2 border-t border-zinc-200 border-b border-b-zinc-200 flex items-center gap-2">
-                                                            <Ban className="h-3 w-3 text-zinc-400" />
-                                                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
-                                                                Dikecualikan ({excludedBankItems.length})
-                                                            </span>
-                                                        </div>
-                                                        <div className="divide-y divide-zinc-200">
-                                                            {excludedBankItems.map((item) => (
-                                                                <div
-                                                                    key={item.id}
-                                                                    className="flex items-start gap-2.5 px-4 py-2 border-l-[3px] border-l-zinc-300 opacity-60"
-                                                                >
-                                                                    <div className="flex-1 min-w-0">
-                                                                        <div className="flex items-center justify-between gap-1">
-                                                                            <span className="text-[9px] font-mono text-zinc-400">
-                                                                                {item.bankDate ? formatDate(item.bankDate) : "-"}
-                                                                            </span>
-                                                                            <span className="text-xs font-mono font-bold text-zinc-400 line-through shrink-0">
-                                                                                Rp {formatIDR(Math.abs(item.bankAmount))}
-                                                                            </span>
-                                                                        </div>
-                                                                        <div className="text-xs font-medium truncate mt-0.5 text-zinc-500">
-                                                                            {item.bankDescription || "-"}
-                                                                        </div>
-                                                                        {item.excludeReason && (
-                                                                            <div className="flex items-center gap-1 mt-0.5">
-                                                                                <MessageSquare className="h-2.5 w-2.5 text-zinc-400 shrink-0" />
-                                                                                <span className="text-[9px] text-zinc-400 italic truncate">
-                                                                                    {item.excludeReason}
-                                                                                </span>
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                    {!isCompleted && (
-                                                                        <button
-                                                                            title="Kembalikan item"
-                                                                            className="h-6 flex items-center gap-1 px-1.5 border border-zinc-300 rounded-none text-[9px] font-bold text-zinc-500 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition-colors shrink-0"
-                                                                            onClick={async () => {
-                                                                                const result = await onIncludeItem(item.id)
-                                                                                if (result.success) {
-                                                                                    toast.success("Item dikembalikan")
-                                                                                    if (selectedRec) await reloadDetail(selectedRec.id)
-                                                                                } else {
-                                                                                    toast.error(result.error || "Gagal mengembalikan item")
-                                                                                }
-                                                                            }}
-                                                                        >
-                                                                            <Undo2 className="h-3 w-3" /> Undo
-                                                                        </button>
-                                                                    )}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </>
-                                        )}
-                                        {/* Pagination: Bank Items */}
-                                        {selectedRec?.bankPagination && selectedRec.bankPagination.totalPages > 1 && (
-                                            <div className="flex items-center justify-between px-4 py-2 border-t border-zinc-200 bg-zinc-50">
-                                                <span className="text-[9px] font-bold text-zinc-400">
-                                                    Hal {selectedRec.bankPagination.page}/{selectedRec.bankPagination.totalPages}
-                                                    {" "}({selectedRec.bankPagination.totalItems} item)
-                                                </span>
-                                                <div className="flex items-center gap-1">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-6 w-6 p-0 border border-black rounded-none"
-                                                        disabled={bankPage <= 1 || detailLoading}
-                                                        onClick={async () => {
-                                                            const newPage = bankPage - 1
-                                                            setBankPage(newPage)
-                                                            if (selectedRec) await reloadDetail(selectedRec.id, { bPage: newPage })
-                                                        }}
-                                                    >
-                                                        <ChevronLeft className="h-3 w-3" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-6 w-6 p-0 border border-black rounded-none"
-                                                        disabled={bankPage >= (selectedRec.bankPagination.totalPages) || detailLoading}
-                                                        onClick={async () => {
-                                                            const newPage = bankPage + 1
-                                                            setBankPage(newPage)
-                                                            if (selectedRec) await reloadDetail(selectedRec.id, { bPage: newPage })
-                                                        }}
-                                                    >
-                                                        <ChevronRight className="h-3 w-3" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Right: JURNAL SISTEM */}
-                                    <div>
-                                        <div className="bg-violet-50/80 dark:bg-violet-950/20 px-4 py-2.5 border-b border-violet-200 dark:border-violet-800 flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <div className="h-2 w-2 rounded-full bg-violet-500" />
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-violet-700 dark:text-violet-400">
-                                                    Jurnal Sistem
-                                                </span>
-                                            </div>
-                                            <span className="text-[10px] font-mono font-bold text-violet-500 dark:text-violet-400">
-                                                {selectedRec?.systemPagination?.totalItems ?? unmatchedSystemEntries.length} jurnal
-                                            </span>
-                                        </div>
-                                        {unmatchedSystemEntries.length === 0 ? (
-                                            <div className="p-8 text-center">
-                                                <CheckCircle2 className="h-6 w-6 mx-auto text-emerald-300 mb-2" />
-                                                <span className="text-[10px] font-bold text-zinc-400">
-                                                    Semua jurnal sudah dicocokkan
-                                                </span>
-                                            </div>
-                                        ) : (
-                                            <div className="divide-y divide-zinc-100">
-                                                {unmatchedSystemEntries.map((entry) => {
-                                                    const isSelected = selectedSystemIds.has(entry.entryId)
-                                                    // Highlight if amount matches a selected bank item
-                                                    const isAmountMatch = selectedBankAmounts.size > 0 && selectedBankAmounts.has(Math.abs(entry.amount))
-                                                    return (
-                                                        <div
-                                                            key={entry.entryId}
-                                                            className={`flex items-start gap-2.5 px-4 py-2.5 cursor-pointer transition-all duration-100 ${
-                                                                isSelected
-                                                                    ? "bg-purple-50 border-l-[3px] border-l-purple-500"
-                                                                    : isAmountMatch && !isCompleted
-                                                                        ? "bg-amber-50/50 border-l-[3px] border-l-amber-400 ring-1 ring-inset ring-amber-200"
-                                                                        : "hover:bg-zinc-50 border-l-[3px] border-l-transparent"
-                                                            }`}
-                                                            onClick={() => !isCompleted && toggleSystemId(entry.entryId)}
-                                                        >
-                                                            {!isCompleted && (
-                                                                <Checkbox
-                                                                    checked={isSelected}
-                                                                    onCheckedChange={() => toggleSystemId(entry.entryId)}
-                                                                    className="mt-0.5 border-2 border-black rounded-none"
-                                                                />
-                                                            )}
-                                                            <div className="flex-1 min-w-0">
-                                                                <div className="flex items-center justify-between gap-1">
-                                                                    <div className="flex items-center gap-1.5">
-                                                                        <span className="text-[9px] font-mono text-zinc-400">
-                                                                            {formatDate(entry.date)}
-                                                                        </span>
-                                                                        {isAmountMatch && !isSelected && !isCompleted && (
-                                                                            <span className="text-[8px] font-black text-amber-600 bg-amber-100 px-1 py-0.5 border border-amber-300">
-                                                                                COCOK
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                    <span
-                                                                        className={`text-xs font-mono font-bold shrink-0 ${
-                                                                            entry.amount >= 0 ? "text-emerald-600" : "text-red-600"
-                                                                        }`}
-                                                                    >
-                                                                        Rp {formatIDR(Math.abs(entry.amount))}
-                                                                    </span>
-                                                                </div>
-                                                                <div className="text-xs font-medium truncate mt-0.5">
-                                                                    {entry.lineDescription || entry.description || "-"}
-                                                                </div>
-                                                                {entry.reference && (
-                                                                    <div className="text-[9px] text-zinc-400 font-mono truncate">
-                                                                        Ref: {entry.reference}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    )
-                                                })}
-                                            </div>
-                                        )}
-                                        {/* Pagination: System Entries */}
-                                        {selectedRec?.systemPagination && selectedRec.systemPagination.totalPages > 1 && (
-                                            <div className="flex items-center justify-between px-4 py-2 border-t border-zinc-200 bg-zinc-50">
-                                                <span className="text-[9px] font-bold text-zinc-400">
-                                                    Hal {selectedRec.systemPagination.page}/{selectedRec.systemPagination.totalPages}
-                                                    {" "}({selectedRec.systemPagination.totalItems} jurnal)
-                                                </span>
-                                                <div className="flex items-center gap-1">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-6 w-6 p-0 border border-black rounded-none"
-                                                        disabled={systemPage <= 1 || detailLoading}
-                                                        onClick={async () => {
-                                                            const newPage = systemPage - 1
-                                                            setSystemPage(newPage)
-                                                            if (selectedRec) await reloadDetail(selectedRec.id, { sPage: newPage })
-                                                        }}
-                                                    >
-                                                        <ChevronLeft className="h-3 w-3" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-6 w-6 p-0 border border-black rounded-none"
-                                                        disabled={systemPage >= (selectedRec.systemPagination.totalPages) || detailLoading}
-                                                        onClick={async () => {
-                                                            const newPage = systemPage + 1
-                                                            setSystemPage(newPage)
-                                                            if (selectedRec) await reloadDetail(selectedRec.id, { sPage: newPage })
-                                                        }}
-                                                    >
-                                                        <ChevronRight className="h-3 w-3" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </ScrollArea>
-
-                            {/* Match action bar — sticky at bottom */}
-                            {hasSelection && !isCompleted && (
-                                <div className="px-5 py-3 border-t-2 border-black bg-zinc-900 flex items-center justify-between gap-3 flex-wrap">
-                                    <div className="flex items-center gap-4 text-[10px] font-bold text-white">
-                                        <span>
-                                            <span className="text-blue-300">Bank:</span>{" "}
-                                            <span className="font-mono text-white">
-                                                Rp {formatIDR(Math.abs(selectedBankTotal))}
-                                            </span>
-                                            <span className="text-zinc-500 ml-1">({selectedBankIds.size} item)</span>
-                                        </span>
-                                        <ArrowRightLeft className="h-3.5 w-3.5 text-zinc-500" />
-                                        <span>
-                                            <span className="text-purple-300">Sistem:</span>{" "}
-                                            <span className="font-mono text-white">
-                                                Rp {formatIDR(Math.abs(selectedSystemTotal))}
-                                            </span>
-                                            <span className="text-zinc-500 ml-1">({selectedSystemIds.size} jurnal)</span>
-                                        </span>
-                                        {selectedBankIds.size > 0 && selectedSystemIds.size > 0 && (
-                                            totalsMatch ? (
-                                                <span className="flex items-center gap-1 text-emerald-400">
-                                                    <CheckCircle2 className="h-3.5 w-3.5" /> Total cocok
-                                                </span>
-                                            ) : (
-                                                <span className="flex items-center gap-1 text-amber-400">
-                                                    <AlertCircle className="h-3.5 w-3.5" /> Selisih Rp {formatIDR(Math.abs(selectedBankTotal - selectedSystemTotal))}
-                                                </span>
-                                            )
-                                        )}
-                                    </div>
-                                    <Button
-                                        className="bg-white text-black border-2 border-white shadow-[3px_3px_0px_0px_rgba(255,255,255,0.3)] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.3)] transition-all font-black uppercase text-[10px] tracking-wider px-6 h-8 rounded-none disabled:opacity-40"
-                                        disabled={actionLoading !== null || selectedBankIds.size === 0 || selectedSystemIds.size === 0}
-                                        onClick={handleMatchSelected}
-                                    >
-                                        {actionLoading === "match" ? (
-                                            <><Loader2 className="h-3 w-3 animate-spin mr-1.5" /> Mencocokkan...</>
-                                        ) : (
-                                            <>Cocokkan Terpilih <ArrowRight className="h-3 w-3 ml-1" /></>
-                                        )}
-                                    </Button>
-                                </div>
-                            )}
-
-                            {/* Matched pairs section */}
-                            {matchedBankItems.length > 0 && (
-                                <div className="border-t border-zinc-200 dark:border-zinc-700">
-                                    <div className="bg-emerald-50/80 dark:bg-emerald-950/20 px-5 py-2.5 border-b border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
-                                                Sudah Dicocokkan
-                                            </span>
-                                        </div>
-                                        <span className="text-[10px] font-mono font-bold text-emerald-500 dark:text-emerald-400">
-                                            {matchedBankItems.length} pasang
-                                        </span>
-                                    </div>
-                                    <div className="divide-y divide-emerald-100 bg-emerald-50/30">
-                                        {matchedBankItems.map((item) => {
-                                            const matchedEntry = selectedRec?.systemEntries.find(
-                                                (e) => e.alreadyMatchedItemId === item.id
-                                            )
-                                            return (
-                                                <div
-                                                    key={item.id}
-                                                    className="flex items-center justify-between px-5 py-2.5 gap-3"
-                                                >
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2">
-                                                            <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
-                                                            <span className="text-xs font-medium truncate">
-                                                                {item.bankDescription || "-"}
-                                                            </span>
-                                                            <span
-                                                                className={`text-xs font-mono font-bold shrink-0 ${
-                                                                    item.bankAmount >= 0 ? "text-emerald-600" : "text-red-600"
-                                                                }`}
-                                                            >
-                                                                Rp {formatIDR(Math.abs(item.bankAmount))}
-                                                            </span>
-                                                        </div>
-                                                        {matchedEntry && (
-                                                            <div className="text-[9px] text-zinc-500 truncate ml-5">
-                                                                Jurnal: {matchedEntry.lineDescription || matchedEntry.description}
-                                                                {matchedEntry.reference ? ` (${matchedEntry.reference})` : ""}
-                                                            </div>
-                                                        )}
-                                                        {!matchedEntry && item.systemDescription && (
-                                                            <div className="text-[9px] text-zinc-500 truncate ml-5">
-                                                                Jurnal: {item.systemDescription}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    {!isCompleted && (
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="h-6 text-[9px] font-black uppercase border border-red-300 text-red-500 rounded-none px-2 shrink-0 hover:bg-red-50 gap-1"
-                                                            disabled={actionLoading === `unmatch-${item.id}`}
-                                                            onClick={() => handleUnmatch(item.id)}
-                                                        >
-                                                            {actionLoading === `unmatch-${item.id}` ? (
-                                                                <Loader2 className="h-3 w-3 animate-spin" />
-                                                            ) : (
-                                                                <Unlink className="h-3 w-3" />
-                                                            )}
-                                                            Batalkan
-                                                        </Button>
-                                                    )}
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                        <ReconciliationFocusView
+                            detail={selectedRec}
+                            isCompleted={isCompleted}
+                            actionLoading={actionLoading}
+                            onMatchItem={async (bankItemId, systemEntryId) => {
+                                const result = await onMatchItems({
+                                    bankItemIds: [bankItemId],
+                                    systemEntryIds: [systemEntryId],
+                                })
+                                if (result.error) {
+                                    toast.error(result.error)
+                                    throw new Error(result.error)
+                                }
+                                toast.success("Transaksi berhasil dicocokkan")
+                            }}
+                            onUnmatchItem={async (itemId) => {
+                                const result = await onUnmatchItem(itemId)
+                                if (!result.success) {
+                                    toast.error(result.error || "Gagal membatalkan pencocokan")
+                                    throw new Error(result.error)
+                                }
+                                toast.success("Pencocokan dibatalkan")
+                            }}
+                            onExcludeItem={async (itemId, reason) => {
+                                const result = await onExcludeItem(itemId, reason)
+                                if (!result.success) {
+                                    toast.error(result.error || "Gagal mengecualikan item")
+                                    throw new Error(result.error)
+                                }
+                                toast.success("Item dikecualikan")
+                            }}
+                            onIncludeItem={async (itemId) => {
+                                const result = await onIncludeItem(itemId)
+                                if (!result.success) {
+                                    toast.error(result.error || "Gagal mengembalikan item")
+                                    throw new Error(result.error)
+                                }
+                                toast.success("Item dikembalikan")
+                            }}
+                            onAutoMatch={handleAutoMatch}
+                            onClose={handleClose}
+                            onReloadDetail={async () => { if (selectedRec) await reloadDetail(selectedRec.id) }}
+                            onUpdateMeta={async (data) => {
+                                if (!selectedRec) return
+                                const result = await onUpdateMeta(selectedRec.id, data)
+                                if (result.success) {
+                                    toast.success("Data diperbarui")
+                                    await reloadDetail(selectedRec.id)
+                                } else {
+                                    toast.error(result.error || "Gagal memperbarui")
+                                }
+                            }}
+                            downloadTemplateCSV={downloadTemplateCSV}
+                            fileInputRef={fileInputRef}
+                            parsedRows={parsedRows}
+                            dragging={dragging}
+                            onFileChange={handleFileChange}
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            onDrop={handleDrop}
+                            onImportParsed={handleImportParsed}
+                            onClearParsed={() => setParsedRows(null)}
+                            editBankStatementBalance={editBankStatementBalance}
+                            setEditBankStatementBalance={setEditBankStatementBalance}
+                            editNotes={editNotes}
+                            setEditNotes={setEditNotes}
+                            onSearchJournals={onSearchJournals}
+                            onCreateJournalAndMatch={onCreateJournalAndMatch}
+                            glAccounts={glAccounts}
+                        />
                     ) : (
                         /* Empty state — onboarding card */
                         <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-10">
@@ -2204,61 +1287,6 @@ export function BankReconciliationView({
                 </div>
             </motion.div>
 
-            {/* ── Exclude Item Dialog ─────────────────────────────────────────── */}
-            <Dialog open={excludeDialogOpen} onOpenChange={setExcludeDialogOpen}>
-                <DialogContent className={NB.contentNarrow}>
-                    <DialogHeader className={NB.header}>
-                        <DialogTitle className={NB.title}>
-                            <Ban className="h-5 w-5" /> Kecualikan Item
-                        </DialogTitle>
-                    </DialogHeader>
-                    <div className="p-6 space-y-4">
-                        <div>
-                            <label className={NB.label}>Alasan <span className={NB.labelRequired}>*</span></label>
-                            <Input
-                                className={NB.input}
-                                placeholder="biaya admin, bunga bank, dll"
-                                value={excludeReason}
-                                onChange={(e) => setExcludeReason(e.target.value)}
-                                onKeyDown={async (e) => {
-                                    if (e.key === "Enter" && excludeReason.trim() && excludeItemId) {
-                                        const result = await onExcludeItem(excludeItemId, excludeReason.trim())
-                                        if (result.success) {
-                                            toast.success("Item dikecualikan")
-                                            setExcludeDialogOpen(false)
-                                            if (selectedRec) await reloadDetail(selectedRec.id)
-                                        } else {
-                                            toast.error(result.error || "Gagal mengecualikan item")
-                                        }
-                                    }
-                                }}
-                            />
-                        </div>
-                        <div className={NB.footer}>
-                            <Button variant="outline" className={NB.cancelBtn} onClick={() => setExcludeDialogOpen(false)}>
-                                Batal
-                            </Button>
-                            <Button
-                                className={NB.submitBtn}
-                                disabled={!excludeReason.trim()}
-                                onClick={async () => {
-                                    if (!excludeItemId || !excludeReason.trim()) return
-                                    const result = await onExcludeItem(excludeItemId, excludeReason.trim())
-                                    if (result.success) {
-                                        toast.success("Item dikecualikan")
-                                        setExcludeDialogOpen(false)
-                                        if (selectedRec) await reloadDetail(selectedRec.id)
-                                    } else {
-                                        toast.error(result.error || "Gagal mengecualikan item")
-                                    }
-                                }}
-                            >
-                                Kecualikan
-                            </Button>
-                        </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
         </div>
     )
 }

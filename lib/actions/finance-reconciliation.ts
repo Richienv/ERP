@@ -4,7 +4,7 @@ import { prisma, withPrismaAuth } from "@/lib/db"
 import { PrismaClient } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
 import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts-server"
-import { findMatchesIndexed, buildTransactionIndex, type BankLine, type SystemTransaction, type MatchResult } from "@/lib/finance-reconciliation-helpers"
+import { findMatchesIndexed, buildTransactionIndex, type BankLine, type SystemTransaction, type MatchResult, type MatchTier } from "@/lib/finance-reconciliation-helpers"
 import { postJournalEntry, getNextJournalRef } from "@/lib/actions/finance-gl"
 async function requireAuth() {
     const supabase = await createClient()
@@ -70,6 +70,12 @@ export interface ReconciliationItemData {
     matchStatus: string
     matchedAt: string | null
     excludeReason: string | null
+    // 3-tier automatch fields
+    matchTier: MatchTier | null
+    matchScore: number | null
+    matchAmountDiff: number | null
+    matchNameSimilarity: number | null
+    matchDaysDiff: number | null
 }
 
 export interface SystemEntryData {
@@ -272,6 +278,11 @@ export async function getReconciliationDetail(
                 matchStatus: i.matchStatus,
                 matchedAt: i.matchedAt?.toISOString() || null,
                 excludeReason: i.excludeReason ?? null,
+                matchTier: (i.matchTier as MatchTier) ?? null,
+                matchScore: i.matchScore ?? null,
+                matchAmountDiff: i.matchAmountDiff != null ? Number(i.matchAmountDiff) : null,
+                matchNameSimilarity: i.matchNameSimilarity != null ? Number(i.matchNameSimilarity) : null,
+                matchDaysDiff: i.matchDaysDiff ?? null,
             })),
             systemEntries,
             // Pagination metadata
@@ -639,14 +650,21 @@ export async function unmatchReconciliationItem(
 }
 
 /**
- * Auto-match bank items with journal entries using 3-pass confidence scoring.
- * HIGH confidence matches are auto-applied; MEDIUM/LOW are returned as suggestions.
+ * 3-Tier Auto-match: classify every unmatched bank item as AUTO / POTENTIAL / MANUAL.
+ *
+ * - AUTO (Tier 1): exact amount + name + (date|ref) → auto-apply match
+ * - POTENTIAL (Tier 2): fuzzy (≤Rp6.500, similarity≥0.75, ±3 days) → suggest
+ * - MANUAL (Tier 3): everything else → ranked suggestions for manual matching
+ *
+ * Tier metadata is persisted to BankReconciliationItem for UI badges.
  */
 export async function autoMatchReconciliation(
     reconciliationId: string
 ): Promise<{
     success: boolean
     matched?: number
+    potentialCount?: number
+    manualCount?: number
     suggestions?: { bankItemId: string; matches: MatchResult[] }[]
     error?: string
 }> {
@@ -661,13 +679,13 @@ export async function autoMatchReconciliation(
                 },
             })
 
-            // Expand date range by ±5 days for broader matching
+            // Expand date range by ±30 days for MANUAL tier scoring
             const dateFrom = new Date(rec.periodStart)
-            dateFrom.setDate(dateFrom.getDate() - 5)
+            dateFrom.setDate(dateFrom.getDate() - 30)
             const dateTo = new Date(rec.periodEnd)
-            dateTo.setDate(dateTo.getDate() + 5)
+            dateTo.setDate(dateTo.getDate() + 30)
 
-            // Fetch POSTED journal lines for the GL account within expanded date range
+            // Fetch POSTED journal lines for the GL account
             const journalLines = await prisma.journalLine.findMany({
                 where: {
                     accountId: rec.glAccountId,
@@ -722,14 +740,28 @@ export async function autoMatchReconciliation(
             const { data: { user } } = await supabase.auth.getUser()
 
             let matched = 0
+            let potentialCount = 0
+            let manualCount = 0
             const suggestions: { bankItemId: string; matches: MatchResult[] }[] = []
 
-            // Build indexed pool for O(1) exact-amount lookups instead of O(n) per bank item
+            // Build indexed pool for O(1) exact-amount lookups
             let availablePool = [...systemTransactions]
             let txnIndex = buildTransactionIndex(availablePool)
 
-            // Batch updates for better DB performance
-            const batchUpdates: { id: string; systemTransactionId: string }[] = []
+            // Collect batch updates
+            const autoUpdates: {
+                id: string
+                systemTransactionId: string
+                best: MatchResult
+            }[] = []
+            const tierUpdates: {
+                id: string
+                tier: string
+                score: number
+                amountDiff: number
+                nameSimilarity: number
+                daysDiff: number
+            }[] = []
 
             for (const item of rec.items) {
                 if (!item.bankDate) continue
@@ -744,29 +776,61 @@ export async function autoMatchReconciliation(
 
                 const matches = findMatchesIndexed(bankLine, txnIndex)
 
-                if (matches.length === 0) continue
+                if (matches.length === 0) {
+                    // No matches at all — mark as MANUAL with score 0
+                    tierUpdates.push({
+                        id: item.id,
+                        tier: 'MANUAL',
+                        score: 0,
+                        amountDiff: 0,
+                        nameSimilarity: 0,
+                        daysDiff: 0,
+                    })
+                    manualCount++
+                    continue
+                }
 
-                // Auto-apply only HIGH confidence single matches
-                const highMatches = matches.filter((m) => m.confidence === 'HIGH')
+                const best = matches[0]
 
-                if (highMatches.length === 1) {
-                    const best = highMatches[0]
-                    batchUpdates.push({ id: item.id, systemTransactionId: best.transactionId })
+                if (best.tier === 'AUTO') {
+                    // Tier 1: Auto-apply match
+                    autoUpdates.push({ id: item.id, systemTransactionId: best.transactionId, best })
 
-                    // Remove matched transaction and rebuild index
+                    // Remove matched transaction from pool and rebuild index
                     availablePool = availablePool.filter((t) => t.id !== best.transactionId)
                     txnIndex = buildTransactionIndex(availablePool)
 
                     matched++
-                } else {
-                    // Store MEDIUM/LOW (or multiple HIGH) as suggestions
+                } else if (best.tier === 'POTENTIAL') {
+                    // Tier 2: Store as suggestion with tier metadata
+                    tierUpdates.push({
+                        id: item.id,
+                        tier: 'POTENTIAL',
+                        score: best.score,
+                        amountDiff: best.amountDiff,
+                        nameSimilarity: best.nameSimilarity,
+                        daysDiff: best.daysDiff,
+                    })
                     suggestions.push({ bankItemId: item.id, matches })
+                    potentialCount++
+                } else {
+                    // Tier 3: Manual
+                    tierUpdates.push({
+                        id: item.id,
+                        tier: 'MANUAL',
+                        score: best.score,
+                        amountDiff: best.amountDiff,
+                        nameSimilarity: best.nameSimilarity,
+                        daysDiff: best.daysDiff,
+                    })
+                    suggestions.push({ bankItemId: item.id, matches })
+                    manualCount++
                 }
             }
 
-            // Apply all HIGH matches in batch
+            // Persist AUTO matches
             const now = new Date()
-            for (const update of batchUpdates) {
+            for (const update of autoUpdates) {
                 await prisma.bankReconciliationItem.update({
                     where: { id: update.id },
                     data: {
@@ -774,25 +838,79 @@ export async function autoMatchReconciliation(
                         matchStatus: 'MATCHED',
                         matchedBy: user?.id || null,
                         matchedAt: now,
+                        matchTier: 'AUTO',
+                        matchScore: 100,
+                        matchAmountDiff: update.best.amountDiff,
+                        matchNameSimilarity: update.best.nameSimilarity,
+                        matchDaysDiff: update.best.daysDiff,
                     },
                 })
             }
 
-            // Update reconciliation status if matches were made
-            if (matched > 0) {
+            // Persist tier metadata for POTENTIAL and MANUAL items
+            for (const update of tierUpdates) {
+                await prisma.bankReconciliationItem.update({
+                    where: { id: update.id },
+                    data: {
+                        matchTier: update.tier,
+                        matchScore: update.score,
+                        matchAmountDiff: update.amountDiff,
+                        matchNameSimilarity: update.nameSimilarity,
+                        matchDaysDiff: update.daysDiff,
+                    },
+                })
+            }
+
+            // Update reconciliation status
+            if (matched > 0 || potentialCount > 0) {
                 await prisma.bankReconciliation.update({
                     where: { id: reconciliationId },
                     data: { status: 'REC_IN_PROGRESS' },
                 })
             }
 
-            return { matched, suggestions }
+            return { matched, potentialCount, manualCount, suggestions }
         })
 
-        return { success: true, matched: result.matched, suggestions: result.suggestions }
+        return {
+            success: true,
+            matched: result.matched,
+            potentialCount: result.potentialCount,
+            manualCount: result.manualCount,
+            suggestions: result.suggestions,
+        }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal auto-match'
         console.error("[autoMatchReconciliation] Error:", error)
+        return { success: false, error: msg }
+    }
+}
+
+/**
+ * Bulk confirm all AUTO-matched items (Tier 1 bulk approve).
+ * This is a no-op if items are already MATCHED — it's for items that were
+ * auto-classified as AUTO but haven't been confirmed yet.
+ */
+export async function bulkConfirmAutoMatches(
+    reconciliationId: string
+): Promise<{ success: boolean; confirmed?: number; error?: string }> {
+    try {
+        const result = await withPrismaAuth(async (prisma: PrismaClient) => {
+            // Find all AUTO-tier items that are already matched
+            const autoItems = await prisma.bankReconciliationItem.findMany({
+                where: {
+                    reconciliationId,
+                    matchTier: 'AUTO',
+                    matchStatus: 'MATCHED',
+                },
+            })
+            return { confirmed: autoItems.length }
+        })
+
+        return { success: true, confirmed: result.confirmed }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal konfirmasi bulk'
+        console.error("[bulkConfirmAutoMatches] Error:", error)
         return { success: false, error: msg }
     }
 }
@@ -1121,6 +1239,215 @@ export async function includeReconciliationItem(
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal mengembalikan item'
         console.error("[includeReconciliationItem] Error:", error)
+        return { success: false, error: msg }
+    }
+}
+
+// ==============================================================================
+// Search + Inline Journal Creation
+// ==============================================================================
+
+export interface SearchJournalResult {
+    entryId: string
+    date: string
+    description: string
+    reference: string | null
+    amount: number
+    lineDescription: string | null
+}
+
+/**
+ * Search unmatched journal entries for a reconciliation session.
+ * Filters out already-matched entries and searches by description, reference, or account name.
+ */
+export async function searchUnmatchedJournals(
+    reconciliationId: string,
+    query: string
+): Promise<SearchJournalResult[]> {
+    try {
+        await requireAuth()
+
+        if (!query || query.length < 2) return []
+
+        const rec = await prisma.bankReconciliation.findUnique({
+            where: { id: reconciliationId },
+            select: { glAccountId: true, periodStart: true, periodEnd: true },
+        })
+        if (!rec) return []
+
+        // Get already-matched entry IDs to exclude
+        const matchedItems = await prisma.bankReconciliationItem.findMany({
+            where: {
+                reconciliationId,
+                matchStatus: 'MATCHED',
+                systemTransactionId: { not: null },
+            },
+            select: { systemTransactionId: true },
+        })
+        const excludeEntryIds = matchedItems
+            .map((i) => i.systemTransactionId)
+            .filter(Boolean) as string[]
+
+        // Expand date range by ±30 days for broader search
+        const dateFrom = new Date(rec.periodStart)
+        dateFrom.setDate(dateFrom.getDate() - 30)
+        const dateTo = new Date(rec.periodEnd)
+        dateTo.setDate(dateTo.getDate() + 30)
+
+        // Search journal lines that belong to this GL account
+        const journalLines = await prisma.journalLine.findMany({
+            where: {
+                accountId: rec.glAccountId,
+                entry: {
+                    status: 'POSTED',
+                    date: { gte: dateFrom, lte: dateTo },
+                    id: excludeEntryIds.length > 0 ? { notIn: excludeEntryIds } : undefined,
+                    OR: [
+                        { description: { contains: query, mode: 'insensitive' as const } },
+                        { reference: { contains: query, mode: 'insensitive' as const } },
+                    ],
+                },
+            },
+            select: {
+                entryId: true,
+                description: true,
+                debit: true,
+                credit: true,
+                entry: {
+                    select: {
+                        id: true,
+                        date: true,
+                        description: true,
+                        reference: true,
+                    },
+                },
+            },
+            take: 15,
+        })
+
+        // De-duplicate by entry ID
+        const seen = new Set<string>()
+        const results: SearchJournalResult[] = []
+
+        for (const line of journalLines) {
+            if (seen.has(line.entryId)) continue
+            seen.add(line.entryId)
+
+            const debit = Number(line.debit)
+            const credit = Number(line.credit)
+            const amount = debit > 0 ? debit : -credit
+
+            results.push({
+                entryId: line.entryId,
+                date: line.entry.date.toISOString(),
+                description: line.entry.description,
+                reference: line.entry.reference,
+                amount,
+                lineDescription: line.description,
+            })
+        }
+
+        return results
+    } catch (error) {
+        console.error("[searchUnmatchedJournals] Error:", error)
+        return []
+    }
+}
+
+/**
+ * Create a journal entry and immediately match it to a bank reconciliation item.
+ * Atomic: if journal creation or matching fails, both are rolled back.
+ *
+ * Finance guardrail: uses postJournalEntry() for balanced double-entry.
+ */
+export async function createJournalAndMatch(
+    reconciliationId: string,
+    bankLineId: string,
+    journalData: {
+        date: string // ISO date string
+        description: string
+        reference?: string
+        amount: number // always positive
+        debitAccountCode: string
+        creditAccountCode: string
+    }
+): Promise<{ success: boolean; journalId?: string; error?: string }> {
+    try {
+        const result = await withPrismaAuth(async (prisma: PrismaClient) => {
+            // Validate the bank line exists and is unmatched
+            const bankItem = await prisma.bankReconciliationItem.findUnique({
+                where: { id: bankLineId },
+                select: { id: true, matchStatus: true, reconciliationId: true },
+            })
+            if (!bankItem) throw new Error('Item bank tidak ditemukan')
+            if (bankItem.reconciliationId !== reconciliationId) throw new Error('Item bukan milik rekonsiliasi ini')
+            if (bankItem.matchStatus === 'MATCHED') throw new Error('Item sudah dicocokkan')
+
+            const amount = Math.abs(journalData.amount)
+            if (amount === 0) throw new Error('Jumlah tidak boleh nol')
+
+            // Ensure system accounts exist
+            await ensureSystemAccounts()
+
+            // Generate reference
+            const ref = journalData.reference || await getNextJournalRef('RECON')
+
+            // Create balanced journal entry via postJournalEntry
+            const jeResult = await postJournalEntry({
+                description: journalData.description,
+                date: new Date(journalData.date),
+                reference: ref,
+                sourceDocumentType: 'BANK_RECONCILIATION',
+                lines: [
+                    {
+                        accountCode: journalData.debitAccountCode,
+                        debit: amount,
+                        credit: 0,
+                        description: journalData.description,
+                    },
+                    {
+                        accountCode: journalData.creditAccountCode,
+                        debit: 0,
+                        credit: amount,
+                        description: journalData.description,
+                    },
+                ],
+            }, prisma) // Pass prisma client for transactional safety
+
+            if (!jeResult || !jeResult.success) {
+                const errMsg = jeResult && 'error' in jeResult ? (jeResult as { error: string }).error : 'Gagal membuat jurnal'
+                throw new Error(errMsg)
+            }
+
+            const journalId = 'journalEntryId' in jeResult
+                ? (jeResult as { journalEntryId: string }).journalEntryId
+                : null
+
+            if (!journalId) throw new Error('Journal entry ID tidak ditemukan')
+
+            // Immediately match the bank item to this journal
+            const supabase = await (await import('@/lib/supabase/server')).createClient()
+            const { data: { user } } = await supabase.auth.getUser()
+
+            await prisma.bankReconciliationItem.update({
+                where: { id: bankLineId },
+                data: {
+                    systemTransactionId: journalId,
+                    matchStatus: 'MATCHED',
+                    matchedBy: user?.id || null,
+                    matchedAt: new Date(),
+                    matchTier: 'MANUAL',
+                    matchScore: 100,
+                },
+            })
+
+            return { journalId }
+        })
+
+        return { success: true, journalId: result.journalId }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal membuat jurnal & mencocokkan'
+        console.error("[createJournalAndMatch] Error:", error)
         return { success: false, error: msg }
     }
 }

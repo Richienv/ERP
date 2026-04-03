@@ -14,6 +14,8 @@ import {
     updateReconciliationMeta,
     excludeReconciliationItem,
     includeReconciliationItem,
+    searchUnmatchedJournals,
+    createJournalAndMatch,
 } from "@/lib/actions/finance-reconciliation"
 
 export default function ReconciliationPage() {
@@ -40,6 +42,8 @@ export default function ReconciliationPage() {
                 onUpdateMeta={updateReconciliationMeta}
                 onExcludeItem={excludeReconciliationItem}
                 onIncludeItem={includeReconciliationItem}
+                onSearchJournals={searchUnmatchedJournals}
+                onCreateJournalAndMatch={createJournalAndMatch}
             />
         </div>
     )

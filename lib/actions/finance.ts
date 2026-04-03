@@ -861,247 +861,354 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
     }
 }
 
+export interface CFSLineItem {
+    description: string
+    amount: number
+    // Presentation mode controls bracket/sign logic in UI
+    // AS_IS | INFLOW_POSITIVE | OUTFLOW_BRACKETED | ADJUSTMENT_ADD_BACK | ADJUSTMENT_DEDUCT
+    // WORKING_CAPITAL_ASSET | WORKING_CAPITAL_LIABILITY
+    presentationSign?: string
+}
+
 export interface CashFlowData {
     operatingActivities: {
         netIncome: number
-        adjustments: { description: string; amount: number }[]
-        changesInWorkingCapital: { description: string; amount: number }[]
+        // Non-cash adjustments to reconcile net income → cash (depreciation, bad debt, etc.)
+        adjustments: CFSLineItem[]
+        // Working capital period deltas (AR, inventory, AP, VAT payable, etc.)
+        changesInWorkingCapital: CFSLineItem[]
+        // Direct operating cash items (interest paid, interest received)
+        operatingCashItems: CFSLineItem[]
         netCashFromOperating: number
     }
     investingActivities: {
-        items: { description: string; amount: number }[]
+        items: CFSLineItem[]
         netCashFromInvesting: number
     }
     financingActivities: {
-        items: { description: string; amount: number }[]
+        items: CFSLineItem[]
         netCashFromFinancing: number
     }
     netIncreaseInCash: number
     beginningCash: number
     endingCash: number
     calculatedEndingCash?: number
-    cashFlowDiscrepancy?: number  // Selisih Arus Kas — non-zero means unclassified cash movements
+    cashFlowDiscrepancy?: number
+    // Proof equation: openingCash + netChange should === actualClosingCash
+    proof: {
+        isBalanced: boolean
+        openingCash: number
+        netChange: number
+        calculatedClosing: number
+        actualClosing: number
+        difference: number
+    }
     period: { startDate: string; endDate: string }
 }
 
 export async function getCashFlowStatement(startDate?: Date | string, endDate?: Date | string): Promise<CashFlowData> {
+    // ── helpers ─────────────────────────────────────────────────────────────────
+    const EMPTY_PROOF = {
+        isBalanced: true, openingCash: 0, netChange: 0,
+        calculatedClosing: 0, actualClosing: 0, difference: 0,
+    }
+    const emptyResult: CashFlowData = {
+        operatingActivities: {
+            netIncome: 0, adjustments: [], changesInWorkingCapital: [],
+            operatingCashItems: [], netCashFromOperating: 0,
+        },
+        investingActivities: { items: [], netCashFromInvesting: 0 },
+        financingActivities: { items: [], netCashFromFinancing: 0 },
+        netIncreaseInCash: 0, beginningCash: 0, endingCash: 0,
+        cashFlowDiscrepancy: 0, proof: EMPTY_PROOF,
+        period: { startDate: '', endDate: '' },
+    }
+
     try {
-        const start = parseDateInput(startDate) || new Date(new Date().getFullYear(), 0, 1)
-        const end = parseDateInput(endDate) || new Date()
+        const start = parseDateInput(startDate) ?? new Date(new Date().getFullYear(), 0, 1)
+        const end   = parseDateInput(endDate)   ?? new Date()
 
-        const pnlData = await getProfitLossStatement(start, end)
-
+        // ── Auth ─────────────────────────────────────────────────────────────────
         const supabaseClient = await createClient()
         const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
         if (authError || !user) throw new Error('Unauthorized')
 
-            // Get cash & bank accounts: 1000 Kas, 1050 Petty Cash, 1110 Bank BCA, 1111 Bank Mandiri
-            const cashAccounts = await basePrisma.gLAccount.findMany({
-                where: {
-                    type: 'ASSET',
-                    OR: [
-                        { code: { gte: '1000', lt: '1100' } },  // Cash accounts (1000-1099)
-                        { code: { gte: '1100', lt: '1200' } },  // Bank accounts (1100-1199)
-                    ],
-                }
-            })
+        // ── Step A: Net Profit from P&L ──────────────────────────────────────────
+        const pnlData = await getProfitLossStatement(start, end)
+        const netIncome = pnlData.netIncome
 
-            // Calculate beginning cash from journal entries BEFORE the period start
-            // (GL balance is current, not historical — we need point-in-time balance)
-            const cashAccountIds = cashAccounts.map(a => a.id)
-            const prePeriodLines = await basePrisma.journalLine.findMany({
+        // ── Step B: Cash/Bank account IDs (EXCLUDED accounts, codes 1000-1199) ───
+        const cashAccounts = await basePrisma.gLAccount.findMany({
+            where: {
+                type: 'ASSET',
+                OR: [
+                    { code: { gte: '1000', lt: '1100' } },
+                    { code: { gte: '1100', lt: '1200' } },
+                ],
+            },
+            select: { id: true },
+        })
+        const cashAccountIds = cashAccounts.map(a => a.id)
+
+        // Helper: sum journal lines for a set of account IDs up to (but not including) a date
+        async function sumLines(
+            accountIds: string[],
+            dateLt?: Date,
+            dateLte?: Date,
+        ): Promise<number> {
+            const where: Record<string, unknown> = {
+                accountId: { in: accountIds },
+                entry: { status: 'POSTED', ...(dateLt ? { date: { lt: dateLt } } : dateLte ? { date: { lte: dateLte } } : {}) },
+            }
+            const lines = await basePrisma.journalLine.findMany({ where, select: { debit: true, credit: true } })
+            // ASSET balance = debit - credit; LIABILITY/EQUITY = credit - debit
+            return lines.reduce((s, l) => s + Number(l.debit) - Number(l.credit), 0)
+        }
+
+        // Helper: get point-in-time balance for a single account
+        async function getBalance(accountId: string, asOf: Date, type: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE'): Promise<number> {
+            const lines = await basePrisma.journalLine.findMany({
+                where: { accountId, entry: { status: 'POSTED', date: { lte: asOf } } },
+                select: { debit: true, credit: true },
+            })
+            const net = lines.reduce((s, l) => s + Number(l.debit) - Number(l.credit), 0)
+            // For ASSET/EXPENSE: positive = debit balance; for LIABILITY/EQUITY/REVENUE: positive = credit balance
+            return (type === 'ASSET' || type === 'EXPENSE') ? net : -net
+        }
+
+        // ── Step C: Opening & Closing Cash ───────────────────────────────────────
+        const openingCash = await sumLines(cashAccountIds, start)
+        const closingCash = await sumLines(cashAccountIds, undefined, end)
+
+        // ── Step D: Non-cash adjustments (NON_CASH tagged accounts) ─────────────
+        // These reconcile net income → cash basis: add back depreciation, bad debt, etc.
+        const nonCashAccounts = await basePrisma.gLAccount.findMany({
+            where: { cfsActivity: 'NON_CASH' },
+            select: { id: true, name: true, cfsLineItem: true, type: true },
+        })
+
+        // Group non-cash adjustments by cfsLineItem
+        const nonCashMap = new Map<string, { description: string; amount: number; type: string }>()
+        for (const acct of nonCashAccounts) {
+            const label = acct.cfsLineItem ?? acct.name
+            const lines = await basePrisma.journalLine.findMany({
                 where: {
-                    accountId: { in: cashAccountIds },
-                    entry: { date: { lt: start }, status: 'POSTED' }
+                    accountId: acct.id,
+                    entry: { status: 'POSTED', date: { gte: start, lte: end } },
                 },
-                select: { debit: true, credit: true }
+                select: { debit: true, credit: true },
             })
-            // For ASSET accounts: balance = SUM(debits) - SUM(credits)
-            const beginningCash = prePeriodLines.reduce((sum, l) => sum + Number(l.debit) - Number(l.credit), 0)
+            // Use net absolute debit (expense side) as the add-back amount
+            const netDebit = lines.reduce((s, l) => s + Number(l.debit) - Number(l.credit), 0)
+            const existing = nonCashMap.get(label)
+            if (existing) {
+                existing.amount += Math.abs(netDebit)
+            } else {
+                nonCashMap.set(label, { description: label, amount: Math.abs(netDebit), type: acct.type })
+            }
+        }
 
-            // Get journal entries affecting cash IN the period, including sibling lines for counter-party analysis
-            const cashJournalLines = await basePrisma.journalLine.findMany({
-                where: {
-                    accountId: { in: cashAccountIds },
-                    entry: {
-                        date: { gte: start, lte: end },
-                        status: 'POSTED'
-                    }
-                },
-                include: {
-                    entry: {
-                        include: {
-                            lines: {
-                                include: { account: true }
-                            }
-                        }
-                    },
-                    account: true
+        // Classify non-cash items: expenses add back (ADJUSTMENT_ADD_BACK), gains deduct (ADJUSTMENT_DEDUCT)
+        const adjustments: CFSLineItem[] = []
+        let nonCashTotal = 0
+        for (const [, item] of nonCashMap) {
+            if (item.amount === 0) continue
+            // Gain accounts (REVENUE type) = deduct; everything else = add back
+            const isGain = item.description.toLowerCase().includes('gain') ||
+                            item.description.toLowerCase().includes('keuntungan')
+            const sign = isGain ? 'ADJUSTMENT_DEDUCT' : 'ADJUSTMENT_ADD_BACK'
+            const delta = isGain ? -item.amount : item.amount
+            adjustments.push({ description: item.description, amount: item.amount, presentationSign: sign })
+            nonCashTotal += delta
+        }
+
+        // ── Step E: Working Capital changes (OPERATING tagged accounts, period deltas) ──
+        const operatingAccounts = await basePrisma.gLAccount.findMany({
+            where: { cfsActivity: 'OPERATING' },
+            select: { id: true, name: true, cfsLineItem: true, type: true, cfsDirection: true },
+        })
+
+        // One day before period start = opening balance reference point
+        const dayBeforeStart = new Date(start)
+        dayBeforeStart.setDate(dayBeforeStart.getDate() - 1)
+
+        // Group working-capital items by cfsLineItem label
+        const wcMap = new Map<string, { description: string; amount: number; sign: string; type: string }>()
+        let directOperatingCashTotal = 0
+        const operatingCashItems: CFSLineItem[] = []
+
+        for (const acct of operatingAccounts) {
+            const label = acct.cfsLineItem ?? acct.name
+            const acctType = acct.type as 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE'
+
+            // Direct operating INFLOW/OUTFLOW (e.g. interest paid, interest received) — not balance-sheet delta
+            if (acct.cfsDirection === 'INFLOW' || acct.cfsDirection === 'OUTFLOW') {
+                const lines = await basePrisma.journalLine.findMany({
+                    where: { accountId: acct.id, entry: { status: 'POSTED', date: { gte: start, lte: end } } },
+                    select: { debit: true, credit: true },
+                })
+                const net = lines.reduce((s, l) => s + Number(l.debit) - Number(l.credit), 0)
+                // For ASSET: debit = inflow; for EXPENSE: debit = outflow
+                const cashImpact = (acctType === 'EXPENSE') ? -Math.abs(net) : net
+                if (Math.abs(cashImpact) > 0.01) {
+                    const sign = acct.cfsDirection === 'OUTFLOW' ? 'OUTFLOW_BRACKETED' : 'INFLOW_POSITIVE'
+                    operatingCashItems.push({ description: label, amount: Math.abs(cashImpact), presentationSign: sign })
+                    directOperatingCashTotal += cashImpact
                 }
-            })
-
-            const operatingActivities = {
-                netIncome: pnlData.netIncome,
-                adjustments: [] as { description: string; amount: number }[],
-                changesInWorkingCapital: [] as { description: string; amount: number }[],
-                netCashFromOperating: 0
+                continue
             }
 
-            const investingActivities = {
-                items: [] as { description: string; amount: number }[],
-                netCashFromInvesting: 0
+            // Balance-sheet working capital — compute period delta
+            const opening = await getBalance(acct.id, dayBeforeStart, acctType)
+            const closing  = await getBalance(acct.id, end,            acctType)
+
+            // ASSET: opening - closing = cash impact (increase in AR uses cash → negative)
+            // LIABILITY: closing - opening = cash impact (increase in AP defers payment → positive)
+            let delta: number
+            let sign: string
+            if (acctType === 'ASSET') {
+                delta = opening - closing
+                sign = 'WORKING_CAPITAL_ASSET'
+            } else {
+                delta = closing - opening
+                sign = 'WORKING_CAPITAL_LIABILITY'
             }
 
-            const financingActivities = {
-                items: [] as { description: string; amount: number }[],
-                netCashFromFinancing: 0
+            if (Math.abs(delta) < 0.01) continue
+
+            const existing = wcMap.get(label)
+            if (existing) {
+                existing.amount += delta
+            } else {
+                wcMap.set(label, { description: label, amount: delta, sign, type: acct.type })
             }
+        }
 
-            // Helper: categorize cash flow by counter-party GL account code/type
-            // Priority: account code/type > description keyword fallback
-            function categorizeCashFlow(counterPartyLines: { account: { code: string; type: string } }[]): 'operating' | 'investing' | 'financing' | 'skip' {
-                for (const cp of counterPartyLines) {
-                    const code = cp.account.code
-                    const type = cp.account.type
+        const changesInWorkingCapital: CFSLineItem[] = []
+        let wcTotal = 0
+        for (const [, item] of wcMap) {
+            if (Math.abs(item.amount) < 0.01) continue
+            changesInWorkingCapital.push({ description: item.description, amount: item.amount, presentationSign: item.sign })
+            wcTotal += item.amount
+        }
 
-                    // Financing: Equity accounts (3xxx), long-term loans (2500+)
-                    if (type === 'EQUITY' || code.startsWith('3')) return 'financing'
-                    if (code >= '2500' && code < '3000') return 'financing' // Utang Bank Jangka Panjang
+        // ── Step F: Net Cash from Operating ──────────────────────────────────────
+        const netCashFromOperating = netIncome + nonCashTotal + wcTotal + directOperatingCashTotal
 
-                    // Investing: Fixed asset accounts (1500-1599), accumulated depreciation (1590)
-                    if (code >= '1500' && code < '1600') return 'investing'
+        // ── Step G: Investing activities — tagged cash flows ─────────────────────
+        // Find journal entries where one side is cash and counter-party is INVESTING tagged
+        const investingItems = await getTaggedCashFlows(basePrisma, cashAccountIds, 'INVESTING', start, end)
+        const netCashFromInvesting = investingItems.reduce((s, i) => s + i.amount, 0)
 
-                    // Operating: Revenue (4xxx), COGS/Expense (5xxx, 6xxx, 7xxx),
-                    // AR (1200), AP (2000-2120), Inventory (1300-1320)
-                    if (type === 'REVENUE' || type === 'EXPENSE') return 'operating'
-                    if (code.startsWith('12')) return 'operating' // AR - Piutang Usaha
-                    if (code >= '2000' && code < '2500') return 'operating' // Short-term liabilities (AP, Utang Gaji, Pajak)
-                    if (code >= '1300' && code < '1400') return 'operating' // Inventory
-                }
-                return 'skip' // Unknown — don't categorize
-            }
+        // ── Step H: Financing activities — tagged cash flows ─────────────────────
+        const financingItems = await getTaggedCashFlows(basePrisma, cashAccountIds, 'FINANCING', start, end)
+        const netCashFromFinancing = financingItems.reduce((s, i) => s + i.amount, 0)
 
-            // Fallback: categorize by description keywords (legacy behavior)
-            function categorizeCashFlowByDescription(description: string | null): 'operating' | 'investing' | 'financing' | 'skip' {
-                if (!description) return 'skip'
-                const desc = description.toLowerCase()
-                // Operating keywords
-                if (desc.includes('invoice') || desc.includes('faktur') || desc.includes('payment') || desc.includes('pembayaran') || desc.includes('gaji') || desc.includes('salary')) return 'operating'
-                // Investing keywords
-                if (desc.includes('asset') || desc.includes('aset') || desc.includes('equipment') || desc.includes('peralatan') || desc.includes('kendaraan') || desc.includes('bangunan')) return 'investing'
-                // Financing keywords
-                if (desc.includes('capital') || desc.includes('modal') || desc.includes('dividend') || desc.includes('dividen') || desc.includes('prive') || desc.includes('loan') || desc.includes('pinjaman')) return 'financing'
-                return 'skip'
-            }
+        // ── Step I: Proof equation ────────────────────────────────────────────────
+        const netChange = netCashFromOperating + netCashFromInvesting + netCashFromFinancing
+        const calculatedClosing = openingCash + netChange
+        const difference = Math.abs(calculatedClosing - closingCash)
+        const isBalanced = difference < 1  // Rp 1 tolerance for rounding
 
-            // Calculate cash flow by analyzing counter-party accounts in each journal entry
-            for (const line of cashJournalLines) {
-                const amount = Number(line.debit) - Number(line.credit)
-                const description = line.entry.description
-
-                // Get counter-party lines (non-cash accounts in the same journal entry)
-                const counterPartyLines = line.entry.lines.filter(
-                    (l: { accountId: string }) => !cashAccountIds.includes(l.accountId)
-                )
-
-                // Primary: categorize by counter-party account code/type
-                let category = categorizeCashFlow(counterPartyLines)
-
-                // Fallback: if no counter-party match, try description keywords
-                if (category === 'skip') {
-                    category = categorizeCashFlowByDescription(description)
-                }
-
-                switch (category) {
-                    case 'operating':
-                        operatingActivities.adjustments.push({ description: description || 'Aktivitas Operasional', amount })
-                        operatingActivities.netCashFromOperating += amount
-                        break
-                    case 'investing':
-                        investingActivities.items.push({ description: description || 'Aktivitas Investasi', amount })
-                        investingActivities.netCashFromInvesting += amount
-                        break
-                    case 'financing':
-                        financingActivities.items.push({ description: description || 'Aktivitas Pendanaan', amount })
-                        financingActivities.netCashFromFinancing += amount
-                        break
-                    // 'skip' — uncategorized, don't include
-                }
-            }
-
-            // Get AR and AP changes for working capital
-            const { data: arData } = await supabase
-                .from('invoices')
-                .select('balanceDue')
-                .eq('type', 'INV_OUT')
-                .in('status', ['ISSUED', 'PARTIAL', 'OVERDUE'])
-
-            const arChange = (arData || []).reduce((sum, inv) => sum + Number(inv.balanceDue), 0)
-
-            const { data: apData } = await supabase
-                .from('invoices')
-                .select('balanceDue')
-                .eq('type', 'INV_IN')
-                .in('status', ['ISSUED', 'PARTIAL', 'OVERDUE'])
-
-            const apChange = (apData || []).reduce((sum, inv) => sum + Number(inv.balanceDue), 0)
-
-            operatingActivities.changesInWorkingCapital.push(
-                { description: 'Increase in Accounts Receivable', amount: -arChange },
-                { description: 'Increase in Accounts Payable', amount: apChange }
-            )
-
-            const workingCapitalChange = -arChange + apChange
-            operatingActivities.netCashFromOperating = pnlData.netIncome + workingCapitalChange
-
-            const netIncreaseInCash =
-                operatingActivities.netCashFromOperating +
-                investingActivities.netCashFromInvesting +
-                financingActivities.netCashFromFinancing
-
-            // Actual ending cash from GL (journal lines up to end date)
-            const endPeriodLines = await basePrisma.journalLine.findMany({
-                where: {
-                    accountId: { in: cashAccountIds },
-                    entry: { date: { lte: end }, status: 'POSTED' }
-                },
-                select: { debit: true, credit: true }
-            })
-            const actualEndingCash = endPeriodLines.reduce((sum, l) => sum + Number(l.debit) - Number(l.credit), 0)
-            const calculatedEndingCash = beginningCash + netIncreaseInCash
-
-            // Reconciliation: calculated vs actual should match
-            const discrepancy = Math.abs(calculatedEndingCash - actualEndingCash)
-
-            return {
-                operatingActivities,
-                investingActivities,
-                financingActivities,
-                netIncreaseInCash,
-                beginningCash,
-                endingCash: actualEndingCash,
-                calculatedEndingCash,
-                // Selisih Arus Kas — if > 0.01, there are unclassified cash movements
-                cashFlowDiscrepancy: discrepancy > 0.01 ? discrepancy : 0,
-                period: {
-                    startDate: start.toISOString(),
-                    endDate: end.toISOString()
-                }
-            }
-    } catch (error) {
-        console.error("Failed to fetch Cash Flow:", error)
         return {
             operatingActivities: {
-                netIncome: 0, adjustments: [], changesInWorkingCapital: [], netCashFromOperating: 0
+                netIncome,
+                adjustments,
+                changesInWorkingCapital,
+                operatingCashItems,
+                netCashFromOperating,
             },
-            investingActivities: { items: [], netCashFromInvesting: 0 },
-            financingActivities: { items: [], netCashFromFinancing: 0 },
-            netIncreaseInCash: 0,
-            beginningCash: 0,
-            endingCash: 0,
-            period: { startDate: '', endDate: '' }
+            investingActivities: {
+                items: investingItems,
+                netCashFromInvesting,
+            },
+            financingActivities: {
+                items: financingItems,
+                netCashFromFinancing,
+            },
+            netIncreaseInCash: netChange,
+            beginningCash: openingCash,
+            endingCash: closingCash,
+            calculatedEndingCash: calculatedClosing,
+            cashFlowDiscrepancy: isBalanced ? 0 : difference,
+            proof: {
+                isBalanced,
+                openingCash,
+                netChange,
+                calculatedClosing,
+                actualClosing: closingCash,
+                difference,
+            },
+            period: { startDate: start.toISOString(), endDate: end.toISOString() },
+        }
+    } catch (error) {
+        console.error('getCashFlowStatement failed:', error)
+        return emptyResult
+    }
+}
+
+/**
+ * Find journal entries in period where one side is a cash account and the
+ * counter-party is tagged with a specific cfsActivity. Returns signed cash items
+ * grouped by cfsLineItem label.
+ */
+async function getTaggedCashFlows(
+    db: typeof basePrisma,
+    cashAccountIds: string[],
+    activity: string,
+    start: Date,
+    end: Date,
+): Promise<CFSLineItem[]> {
+    // Get all journal entries in period that touch a cash account
+    const cashLines = await db.journalLine.findMany({
+        where: {
+            accountId: { in: cashAccountIds },
+            entry: { status: 'POSTED', date: { gte: start, lte: end } },
+        },
+        include: {
+            entry: {
+                include: {
+                    lines: {
+                        include: { account: { select: { id: true, cfsActivity: true, cfsLineItem: true, name: true, type: true } } },
+                    },
+                },
+            },
+        },
+    })
+
+    // For each cash line, check if any counter-party line has matching cfsActivity
+    const grouped = new Map<string, { amount: number; sign: string }>()
+
+    for (const cashLine of cashLines) {
+        // Net cash movement: positive = inflow (debit cash), negative = outflow (credit cash)
+        const cashAmount = Number(cashLine.debit) - Number(cashLine.credit)
+
+        const counterParties = cashLine.entry.lines.filter(
+            l => !cashAccountIds.includes(l.accountId) && l.account.cfsActivity === activity
+        )
+        if (counterParties.length === 0) continue
+
+        // Use the cfsLineItem of the first matched counter-party account (or its name)
+        const label = counterParties[0].account.cfsLineItem ?? counterParties[0].account.name
+
+        // Determine presentation sign based on cfsDirection
+        const isOutflow = cashAmount < 0
+        const sign = isOutflow ? 'OUTFLOW_BRACKETED' : 'INFLOW_POSITIVE'
+
+        const existing = grouped.get(label)
+        if (existing) {
+            existing.amount += cashAmount
+        } else {
+            grouped.set(label, { amount: cashAmount, sign })
         }
     }
+
+    const items: CFSLineItem[] = []
+    for (const [label, data] of grouped) {
+        if (Math.abs(data.amount) < 0.01) continue
+        items.push({ description: label, amount: data.amount, presentationSign: data.sign })
+    }
+    return items
 }
 
 // ==========================================

@@ -460,33 +460,39 @@ export default function FinancialReportsPage() {
         if (reportType === "cf" && cashFlowData) {
             const cf = cashFlowData
             const aoa: any[][] = [
-                ["LAPORAN ARUS KAS", ""],
+                ["LAPORAN ARUS KAS — METODE TIDAK LANGSUNG", ""],
                 [periodLabel, ""],
                 ["", ""],
                 ["KETERANGAN", "JUMLAH (Rp)"],
                 ["", ""],
-                ["AKTIVITAS OPERASI", ""],
+                ["I. ARUS KAS DARI AKTIVITAS OPERASI", ""],
                 ["  Laba Bersih", Number(cf.operatingActivities?.netIncome || 0)],
+                ...((cf.operatingActivities?.adjustments || []) as any[]).map((item: any) => ([
+                    `  Penyesuaian: ${item.description}`, Number(item.presentationSign === 'ADJUSTMENT_DEDUCT' ? -Math.abs(item.amount) : Math.abs(item.amount)),
+                ])),
                 ...((cf.operatingActivities?.changesInWorkingCapital || []) as any[]).map((item: any) => ([
                     `  ${item.description}`, Number(item.amount || 0),
                 ])),
+                ...((cf.operatingActivities?.operatingCashItems || []) as any[]).map((item: any) => ([
+                    `  ${item.description}`, Number(item.presentationSign === 'OUTFLOW_BRACKETED' ? -Math.abs(item.amount) : Math.abs(item.amount)),
+                ])),
                 ["Arus Kas Bersih dari Operasi", Number(cf.operatingActivities?.netCashFromOperating || 0)],
                 ["", ""],
-                ["AKTIVITAS INVESTASI", ""],
+                ["II. ARUS KAS DARI AKTIVITAS INVESTASI", ""],
                 ...((cf.investingActivities?.items || []) as any[]).map((item: any) => ([
                     `  ${item.description}`, Number(item.amount || 0),
                 ])),
                 ["Arus Kas Bersih dari Investasi", Number(cf.investingActivities?.netCashFromInvesting || 0)],
                 ["", ""],
-                ["AKTIVITAS PENDANAAN", ""],
+                ["III. ARUS KAS DARI AKTIVITAS PENDANAAN", ""],
                 ...((cf.financingActivities?.items || []) as any[]).map((item: any) => ([
                     `  ${item.description}`, Number(item.amount || 0),
                 ])),
                 ["Arus Kas Bersih dari Pendanaan", Number(cf.financingActivities?.netCashFromFinancing || 0)],
                 ["", ""],
-                ["KENAIKAN BERSIH KAS", Number(cf.netIncreaseInCash || 0)],
-                ["Saldo Kas Awal", Number(cf.beginningCash || 0)],
-                ["Saldo Kas Akhir", Number(cf.endingCash || 0)],
+                ["KENAIKAN/(PENURUNAN) BERSIH KAS", Number(cf.netIncreaseInCash || 0)],
+                ["Saldo Kas Awal Periode", Number(cf.beginningCash || 0)],
+                ["Saldo Kas Akhir Periode", Number(cf.endingCash || 0)],
             ]
             const ws = XLSX.utils.aoa_to_sheet(aoa)
             ws["!cols"] = [{ wch: 40 }, { wch: 25 }]
@@ -1476,74 +1482,216 @@ export default function FinancialReportsPage() {
                                 )
                             })()}
 
-                            {/* Cash Flow */}
-                            {/* Cash Flow — drill-down skipped: CF line items only have description+amount, no GL account codes to drill into */}
-                            {reportType === "cf" && cashFlowData && (
-                                <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                                    <div className="px-4 py-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800 flex items-center gap-2">
-                                        <Wallet className="h-4 w-4 text-zinc-500" />
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Laporan Arus Kas</span>
+                            {/* Cash Flow — Indirect Method with bracket presentation logic */}
+                            {reportType === "cf" && cashFlowData && (() => {
+                                // ── Bracket / sign formatting ─────────────────────────────────────
+                                function formatCFSAmount(amount: number, sign?: string): { text: string; cls: string } {
+                                    const abs = formatIDR(Math.abs(amount))
+                                    switch (sign) {
+                                        case 'OUTFLOW_BRACKETED':
+                                            return { text: `(${abs})`, cls: 'text-red-600' }
+                                        case 'ADJUSTMENT_ADD_BACK':
+                                            return { text: abs, cls: 'text-emerald-600' }
+                                        case 'ADJUSTMENT_DEDUCT':
+                                            return { text: `(${abs})`, cls: 'text-red-600' }
+                                        case 'INFLOW_POSITIVE':
+                                        case 'WORKING_CAPITAL_ASSET':
+                                        case 'WORKING_CAPITAL_LIABILITY':
+                                        case 'AS_IS':
+                                        default:
+                                            return amount >= 0
+                                                ? { text: abs, cls: 'text-emerald-600' }
+                                                : { text: `(${abs})`, cls: 'text-red-600' }
+                                    }
+                                }
+
+                                function SectionHeader({ label, color }: { label: string; color: string }) {
+                                    return (
+                                        <TableRow className={`${color} font-black border-t-2 border-black`}>
+                                            <TableCell colSpan={2} className="text-[10px] uppercase tracking-widest py-2">
+                                                {label}
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                }
+
+                                function SubHeader({ label }: { label: string }) {
+                                    return (
+                                        <TableRow className="bg-zinc-50/80 dark:bg-zinc-800/50">
+                                            <TableCell colSpan={2} className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 pl-6 py-1.5">
+                                                {label}
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                }
+
+                                function CFSRow({ label, amount, sign, indent = 8 }: { label: string; amount: number; sign?: string; indent?: number }) {
+                                    const { text, cls } = formatCFSAmount(amount, sign)
+                                    return (
+                                        <TableRow className="hover:bg-zinc-50/50">
+                                            <TableCell className={`text-sm text-zinc-700 pl-${indent}`}>{label}</TableCell>
+                                            <TableCell className={`text-right font-mono text-sm font-semibold ${cls}`}>{text}</TableCell>
+                                        </TableRow>
+                                    )
+                                }
+
+                                function SubtotalRow({ label, amount }: { label: string; amount: number }) {
+                                    const { text, cls } = formatCFSAmount(amount, 'AS_IS')
+                                    return (
+                                        <TableRow className="bg-zinc-100 dark:bg-zinc-800 border-t border-zinc-300">
+                                            <TableCell className="font-bold text-[11px] uppercase tracking-wide pl-6">{label}</TableCell>
+                                            <TableCell className={`text-right font-mono font-bold ${cls}`}>{text}</TableCell>
+                                        </TableRow>
+                                    )
+                                }
+
+                                const cf = cashFlowData
+                                const ops = cf.operatingActivities
+                                const inv = cf.investingActivities
+                                const fin = cf.financingActivities
+                                const proof = cf.proof
+
+                                return (
+                                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                                        {/* Header */}
+                                        <div className="px-4 py-3 border-b-2 border-black bg-teal-50 dark:bg-teal-900/20 flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <Wallet className="h-4 w-4 text-teal-600" />
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-teal-700">
+                                                    Laporan Arus Kas — Metode Tidak Langsung
+                                                </span>
+                                            </div>
+                                            {proof && (
+                                                proof.isBalanced ? (
+                                                    <span className="flex items-center gap-1 text-[10px] font-black uppercase text-emerald-600">
+                                                        <Check className="h-3.5 w-3.5" /> Seimbang
+                                                    </span>
+                                                ) : (
+                                                    <span className="flex items-center gap-1 text-[10px] font-black uppercase text-amber-600">
+                                                        <AlertTriangle className="h-3.5 w-3.5" /> Selisih {formatIDR(proof.difference)}
+                                                    </span>
+                                                )
+                                            )}
+                                        </div>
+
+                                        <Table>
+                                            <TableBody>
+
+                                                {/* ── SECTION I: OPERATING ───────────────────────── */}
+                                                <SectionHeader label="I. Arus Kas dari Aktivitas Operasi" color="bg-blue-50/60 dark:bg-blue-900/10" />
+
+                                                <CFSRow label="Laba Bersih Periode Ini" amount={ops.netIncome} sign="AS_IS" />
+
+                                                {/* Non-cash adjustments */}
+                                                {ops.adjustments && ops.adjustments.length > 0 && (
+                                                    <>
+                                                        <SubHeader label="Penyesuaian Non-Kas:" />
+                                                        {ops.adjustments.map((item: any, idx: number) => (
+                                                            <CFSRow key={idx} label={`Ditambah: ${item.description}`} amount={item.amount} sign={item.presentationSign} indent={10} />
+                                                        ))}
+                                                    </>
+                                                )}
+
+                                                {/* Working capital changes */}
+                                                {ops.changesInWorkingCapital && ops.changesInWorkingCapital.length > 0 && (
+                                                    <>
+                                                        <SubHeader label="Perubahan Modal Kerja:" />
+                                                        {ops.changesInWorkingCapital.map((item: any, idx: number) => (
+                                                            <CFSRow key={idx} label={item.description} amount={item.amount} sign={item.presentationSign} indent={10} />
+                                                        ))}
+                                                    </>
+                                                )}
+
+                                                {/* Direct operating cash items (interest paid/received) */}
+                                                {ops.operatingCashItems && ops.operatingCashItems.length > 0 && (
+                                                    <>
+                                                        <SubHeader label="Kas dari Aktivitas Operasional Lain:" />
+                                                        {ops.operatingCashItems.map((item: any, idx: number) => (
+                                                            <CFSRow key={idx} label={item.description} amount={item.amount} sign={item.presentationSign} indent={10} />
+                                                        ))}
+                                                    </>
+                                                )}
+
+                                                <SubtotalRow label="Arus Kas Bersih — Operasi" amount={ops.netCashFromOperating} />
+
+                                                {/* ── SECTION II: INVESTING ──────────────────────── */}
+                                                <SectionHeader label="II. Arus Kas dari Aktivitas Investasi" color="bg-purple-50/60 dark:bg-purple-900/10" />
+
+                                                {inv.items && inv.items.length > 0 ? (
+                                                    inv.items.map((item: any, idx: number) => (
+                                                        <CFSRow key={idx} label={item.description} amount={item.amount} sign={item.presentationSign} />
+                                                    ))
+                                                ) : (
+                                                    <TableRow>
+                                                        <TableCell colSpan={2} className="pl-8 text-sm text-zinc-400 italic py-2">
+                                                            Tidak ada aktivitas investasi pada periode ini
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )}
+
+                                                <SubtotalRow label="Arus Kas Bersih — Investasi" amount={inv.netCashFromInvesting} />
+
+                                                {/* ── SECTION III: FINANCING ─────────────────────── */}
+                                                <SectionHeader label="III. Arus Kas dari Aktivitas Pendanaan" color="bg-orange-50/60 dark:bg-orange-900/10" />
+
+                                                {fin.items && fin.items.length > 0 ? (
+                                                    fin.items.map((item: any, idx: number) => (
+                                                        <CFSRow key={idx} label={item.description} amount={item.amount} sign={item.presentationSign} />
+                                                    ))
+                                                ) : (
+                                                    <TableRow>
+                                                        <TableCell colSpan={2} className="pl-8 text-sm text-zinc-400 italic py-2">
+                                                            Tidak ada aktivitas pendanaan pada periode ini
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )}
+
+                                                <SubtotalRow label="Arus Kas Bersih — Pendanaan" amount={fin.netCashFromFinancing} />
+
+                                                {/* ── SUMMARY ────────────────────────────────────── */}
+                                                <TableRow className="font-black bg-teal-50 dark:bg-teal-900/20 border-t-2 border-black">
+                                                    <TableCell className="text-[13px] uppercase tracking-wide">
+                                                        Kenaikan/(Penurunan) Bersih Kas
+                                                    </TableCell>
+                                                    <TableCell className={`text-right font-mono text-[13px] font-black ${cf.netIncreaseInCash >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                        {cf.netIncreaseInCash >= 0 ? formatIDR(cf.netIncreaseInCash) : `(${formatIDR(Math.abs(cf.netIncreaseInCash))})`}
+                                                    </TableCell>
+                                                </TableRow>
+                                                <TableRow className="bg-zinc-50/50">
+                                                    <TableCell className="text-sm text-zinc-500 pl-8">Saldo Kas Awal Periode</TableCell>
+                                                    <TableCell className="text-right font-mono text-sm text-zinc-600">{formatIDR(cf.beginningCash)}</TableCell>
+                                                </TableRow>
+                                                <TableRow className="bg-teal-100/60 dark:bg-teal-900/30 border-t-2 border-teal-400">
+                                                    <TableCell className="font-black text-teal-800 dark:text-teal-200 uppercase tracking-wide">
+                                                        Saldo Kas Akhir Periode
+                                                    </TableCell>
+                                                    <TableCell className="text-right font-mono font-black text-teal-700 dark:text-teal-300 text-base">
+                                                        {formatIDR(cf.endingCash)}
+                                                    </TableCell>
+                                                </TableRow>
+
+                                            </TableBody>
+                                        </Table>
+
+                                        {/* Proof warning — shown only when imbalanced */}
+                                        {proof && !proof.isBalanced && (
+                                            <div className="border-t-2 border-amber-400 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 flex items-start gap-3">
+                                                <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                                                <div>
+                                                    <p className="text-[11px] font-black uppercase tracking-wide text-amber-800">
+                                                        Laporan Arus Kas Tidak Seimbang
+                                                    </p>
+                                                    <p className="text-xs text-amber-700 mt-0.5">
+                                                        Selisih: <span className="font-mono font-bold">{formatIDR(proof.difference)}</span>
+                                                        {" "}— Kas Terhitung: {formatIDR(proof.calculatedClosing)} vs Kas Aktual (GL): {formatIDR(proof.actualClosing)}.
+                                                        Kemungkinan penyebab: ada transaksi bank yang belum diklasifikasikan ke Investasi atau Pendanaan.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-                                    <Table>
-                                        <TableBody>
-                                            <TableRow className="bg-emerald-50/50 dark:bg-emerald-900/10 font-bold">
-                                                <TableCell colSpan={2}>Aktivitas Operasi</TableCell>
-                                            </TableRow>
-                                            <TableRow>
-                                                <TableCell className="pl-8">Laba Bersih</TableCell>
-                                                <TableCell className="text-right font-mono">{formatIDR(cashFlowData.operatingActivities?.netIncome)}</TableCell>
-                                            </TableRow>
-                                            {cashFlowData.operatingActivities?.changesInWorkingCapital?.map((adj: any, idx: number) => (
-                                                <TableRow key={idx}>
-                                                    <TableCell className="pl-8 text-sm text-zinc-500">{adj.description}</TableCell>
-                                                    <TableCell className={`text-right font-mono text-sm ${adj.amount >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatIDR(adj.amount)}</TableCell>
-                                                </TableRow>
-                                            ))}
-                                            <TableRow className="font-bold bg-zinc-50 dark:bg-zinc-800">
-                                                <TableCell>Arus Kas Bersih dari Operasi</TableCell>
-                                                <TableCell className={`text-right font-mono ${cashFlowData.operatingActivities?.netCashFromOperating >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatIDR(cashFlowData.operatingActivities?.netCashFromOperating)}</TableCell>
-                                            </TableRow>
-
-                                            <TableRow className="bg-zinc-50 dark:bg-zinc-800 font-bold">
-                                                <TableCell colSpan={2}>Aktivitas Investasi</TableCell>
-                                            </TableRow>
-                                            {cashFlowData.investingActivities?.items?.map((item: any, idx: number) => (
-                                                <TableRow key={idx}>
-                                                    <TableCell className="pl-8 text-sm text-zinc-500">{item.description}</TableCell>
-                                                    <TableCell className={`text-right font-mono text-sm ${item.amount >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatIDR(item.amount)}</TableCell>
-                                                </TableRow>
-                                            ))}
-                                            <TableRow className="font-bold bg-zinc-50 dark:bg-zinc-800">
-                                                <TableCell>Arus Kas Bersih dari Investasi</TableCell>
-                                                <TableCell className={`text-right font-mono ${cashFlowData.investingActivities?.netCashFromInvesting >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatIDR(cashFlowData.investingActivities?.netCashFromInvesting)}</TableCell>
-                                            </TableRow>
-
-                                            <TableRow className="bg-zinc-50 dark:bg-zinc-800 font-bold">
-                                                <TableCell colSpan={2}>Aktivitas Pendanaan</TableCell>
-                                            </TableRow>
-                                            {cashFlowData.financingActivities?.items?.map((item: any, idx: number) => (
-                                                <TableRow key={idx}>
-                                                    <TableCell className="pl-8 text-sm text-zinc-500">{item.description}</TableCell>
-                                                    <TableCell className={`text-right font-mono text-sm ${item.amount >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatIDR(item.amount)}</TableCell>
-                                                </TableRow>
-                                            ))}
-                                            <TableRow className="font-bold bg-zinc-50 dark:bg-zinc-800">
-                                                <TableCell>Arus Kas Bersih dari Pendanaan</TableCell>
-                                                <TableCell className={`text-right font-mono ${cashFlowData.financingActivities?.netCashFromFinancing >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatIDR(cashFlowData.financingActivities?.netCashFromFinancing)}</TableCell>
-                                            </TableRow>
-
-                                            <TableRow className="font-black bg-emerald-50 dark:bg-emerald-900/20 border-t-2 border-black">
-                                                <TableCell className="text-lg">KENAIKAN BERSIH KAS</TableCell>
-                                                <TableCell className={`text-right font-mono text-lg ${cashFlowData.netIncreaseInCash >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatIDR(cashFlowData.netIncreaseInCash)}</TableCell>
-                                            </TableRow>
-                                            <TableRow>
-                                                <TableCell>Saldo Kas Akhir</TableCell>
-                                                <TableCell className="text-right font-mono text-emerald-700 font-bold">{formatIDR(cashFlowData.endingCash)}</TableCell>
-                                            </TableRow>
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            )}
+                                )
+                            })()}
 
                             {/* Trial Balance */}
                             {reportType === "tb" && trialBalanceData && (
