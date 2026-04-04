@@ -180,7 +180,8 @@ export async function getInvoiceKanbanData(input?: InvoiceKanbanQueryInput): Pro
                 continue
             }
 
-            const isOverdue = inv.status === 'OVERDUE' || dueDate < now
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+            const isOverdue = inv.status === 'OVERDUE' || dueDate < todayStart
             if (isOverdue) {
                 const daysOver = Math.max(0, Math.ceil((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)))
                 data.overdue.push({ ...base, daysOverdue: daysOver })
@@ -531,6 +532,22 @@ export async function getInvoiceDetail(invoiceId: string) {
                         },
                         orderBy: { date: 'asc' },
                     },
+                    // CN/DN settlements applied to this invoice
+                    dcNoteSettlements: {
+                        include: {
+                            note: {
+                                select: {
+                                    id: true,
+                                    number: true,
+                                    type: true,
+                                    status: true,
+                                    totalAmount: true,
+                                    issueDate: true,
+                                    description: true,
+                                },
+                            },
+                        },
+                    },
                 }
             })
             if (!invoice) return { success: false, error: "Invoice tidak ditemukan" }
@@ -570,6 +587,18 @@ export async function getInvoiceDetail(invoiceId: string) {
                             debit: toNum(line.debit),
                             credit: toNum(line.credit),
                         })),
+                    })),
+                    // CN/DN settlements applied to this invoice
+                    dcNoteSettlements: (invoice.dcNoteSettlements || []).map((s: any) => ({
+                        id: s.id,
+                        amount: toNum(s.amount),
+                        noteId: s.note?.id || null,
+                        noteNumber: s.note?.number || null,
+                        noteType: s.note?.type || null,
+                        noteStatus: s.note?.status || null,
+                        noteTotalAmount: s.note ? toNum(s.note.totalAmount) : 0,
+                        noteIssueDate: s.note?.issueDate || null,
+                        noteDescription: s.note?.description || null,
                     })),
                 },
             }
@@ -1026,7 +1055,8 @@ export async function moveInvoiceToSent(invoiceId: string, _message?: string, _m
             const fallbackDueDate = new Date(now)
             fallbackDueDate.setDate(fallbackDueDate.getDate() + 30)
             const dueDate = existing.dueDate || fallbackDueDate
-            const nextStatus = dueDate < now ? 'OVERDUE' : 'ISSUED'
+            const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+            const nextStatus = dueDate < todayMidnight ? 'OVERDUE' : 'ISSUED'
 
             await prisma.invoice.update({
                 where: { id: invoiceId },

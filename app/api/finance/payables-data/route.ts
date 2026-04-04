@@ -36,7 +36,7 @@ export async function GET() {
                 : 0
 
             let bucket: "current" | "d1_30" | "d31_60" | "d61_90" | "d90_plus"
-            if (daysOverdue <= 0) { bucket = "current"; summary.current += due }
+            if (daysOverdue < 0) { bucket = "current"; summary.current += due }
             else if (daysOverdue <= 30) { bucket = "d1_30"; summary.d1_30 += due }
             else if (daysOverdue <= 60) { bucket = "d31_60"; summary.d31_60 += due }
             else if (daysOverdue <= 90) { bucket = "d61_90"; summary.d61_90 += due }

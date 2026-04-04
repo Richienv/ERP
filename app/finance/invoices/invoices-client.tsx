@@ -153,6 +153,7 @@ export function InvoicesPageClient() {
         subtotal: number; taxAmount: number; discountAmount: number; totalAmount: number; balanceDue: number
         payments: Array<{ id: string; number: string; amount: number; date: string; method: string }>
         journalEntries: Array<{ id: string; date: string; description: string; reference: string | null; lines: Array<{ accountCode: string; accountName: string; debit: number; credit: number }> }>
+        dcNoteSettlements: Array<{ id: string; amount: number; noteId: string | null; noteNumber: string | null; noteType: string | null; noteStatus: string | null; noteDescription: string | null }>
     } | null>(null)
 
     const [searchText, setSearchText] = useState("")
@@ -338,6 +339,15 @@ export function InvoicesPageClient() {
                             debit: Number(l.debit),
                             credit: Number(l.credit),
                         })),
+                    })),
+                    dcNoteSettlements: (inv.dcNoteSettlements || []).map((s: any) => ({
+                        id: s.id,
+                        amount: Number(s.amount),
+                        noteId: s.noteId,
+                        noteNumber: s.noteNumber,
+                        noteType: s.noteType,
+                        noteStatus: s.noteStatus,
+                        noteDescription: s.noteDescription,
                     })),
                 })
             }
@@ -1379,6 +1389,86 @@ export function InvoicesPageClient() {
                                         </div>
                                     )}
                                 </div>
+
+                                {/* CN/DN Adjustment Breakdown */}
+                                {viewData.dcNoteSettlements.length > 0 && (() => {
+                                    const cnSettlements = viewData.dcNoteSettlements.filter(s => s.noteType === "SALES_CN" || s.noteType === "PURCHASE_CN")
+                                    const dnSettlements = viewData.dcNoteSettlements.filter(s => s.noteType === "SALES_DN" || s.noteType === "PURCHASE_DN")
+                                    const totalCN = cnSettlements.reduce((s, n) => s + n.amount, 0)
+                                    const totalDN = dnSettlements.reduce((s, n) => s + n.amount, 0)
+                                    const totalPaid = viewData.payments.reduce((s, p) => s + p.amount, 0)
+                                    const netAmount = viewData.totalAmount - totalCN + totalDN
+
+                                    return (
+                                        <div>
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 block mb-2">Penyesuaian Nota Debit/Kredit</span>
+                                            <div className="border-2 border-black dark:border-white overflow-hidden">
+                                                <div className="divide-y divide-zinc-200 dark:divide-zinc-700">
+                                                    {viewData.dcNoteSettlements.map((s) => {
+                                                        const isCN = s.noteType === "SALES_CN" || s.noteType === "PURCHASE_CN"
+                                                        return (
+                                                            <div key={s.id} className="flex items-center justify-between px-3 py-2">
+                                                                <div className="flex items-center gap-2 min-w-0">
+                                                                    <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 border rounded-none ${
+                                                                        isCN
+                                                                            ? "bg-red-50 text-red-600 border-red-300 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800"
+                                                                            : "bg-orange-50 text-orange-600 border-orange-300 dark:bg-orange-950/30 dark:text-orange-400 dark:border-orange-800"
+                                                                    }`}>
+                                                                        {isCN ? "CN" : "DN"}
+                                                                    </span>
+                                                                    <div className="min-w-0">
+                                                                        <span className="text-xs font-mono font-bold text-zinc-800 dark:text-zinc-200">{s.noteNumber || "-"}</span>
+                                                                        {s.noteDescription && (
+                                                                            <span className="text-[10px] text-zinc-400 ml-2 truncate">{s.noteDescription}</span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                                <span className={`font-mono font-bold text-sm shrink-0 ${isCN ? "text-red-600 dark:text-red-400" : "text-orange-600 dark:text-orange-400"}`}>
+                                                                    {isCN ? "-" : "+"} {formatIDR(s.amount)}
+                                                                </span>
+                                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
+                                                {/* Net summary */}
+                                                <div className="bg-zinc-50 dark:bg-zinc-800 border-t-2 border-black dark:border-white px-3 py-2 space-y-1">
+                                                    <div className="flex justify-between items-center text-[11px]">
+                                                        <span className="text-zinc-500">Total Invoice</span>
+                                                        <span className="font-mono font-bold text-zinc-700 dark:text-zinc-300">{formatIDR(viewData.totalAmount)}</span>
+                                                    </div>
+                                                    {totalCN > 0 && (
+                                                        <div className="flex justify-between items-center text-[11px] text-red-600 dark:text-red-400">
+                                                            <span>Nota Kredit</span>
+                                                            <span className="font-mono font-bold">- {formatIDR(totalCN)}</span>
+                                                        </div>
+                                                    )}
+                                                    {totalDN > 0 && (
+                                                        <div className="flex justify-between items-center text-[11px] text-orange-600 dark:text-orange-400">
+                                                            <span>Nota Debit</span>
+                                                            <span className="font-mono font-bold">+ {formatIDR(totalDN)}</span>
+                                                        </div>
+                                                    )}
+                                                    <div className="flex justify-between items-center text-[11px] border-t border-zinc-200 dark:border-zinc-700 pt-1 mt-1">
+                                                        <span className="font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">Jumlah Bersih</span>
+                                                        <span className="font-mono font-black text-zinc-900 dark:text-white">{formatIDR(netAmount)}</span>
+                                                    </div>
+                                                    {totalPaid > 0 && (
+                                                        <div className="flex justify-between items-center text-[11px] text-emerald-600 dark:text-emerald-400">
+                                                            <span>Dibayar</span>
+                                                            <span className="font-mono font-bold">- {formatIDR(totalPaid)}</span>
+                                                        </div>
+                                                    )}
+                                                    <div className="flex justify-between items-center text-[11px] border-t border-zinc-300 dark:border-zinc-600 pt-1 mt-1">
+                                                        <span className="font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Sisa Tagihan</span>
+                                                        <span className={`font-mono font-black ${viewData.balanceDue > 0 ? "text-orange-600 dark:text-orange-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                                                            {formatIDR(viewData.balanceDue)}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )
+                                })()}
 
                                 {/* Payment history */}
                                 {viewData.payments.length > 0 && (

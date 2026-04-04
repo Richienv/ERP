@@ -804,7 +804,7 @@ export async function getARPaymentRegistry(input?: ARRegistryQueryInput): Promis
                     amount: toNum(inv.totalAmount),
                     balanceDue: toNum(inv.balanceDue),
                     dueDate: inv.dueDate,
-                    isOverdue: inv.dueDate < now,
+                    isOverdue: inv.dueDate < new Date(now.getFullYear(), now.getMonth(), now.getDate()),
                     status: inv.status,
                 })),
                 recentPayments: recentPayments.map((p) => ({
@@ -923,7 +923,7 @@ export async function getOpenInvoices(): Promise<OpenInvoice[]> {
                 amount: toNum(inv.totalAmount),
                 balanceDue: toNum(inv.balanceDue),
                 dueDate: inv.dueDate,
-                isOverdue: inv.dueDate < now,
+                isOverdue: inv.dueDate < new Date(now.getFullYear(), now.getMonth(), now.getDate()),
                 status: inv.status,
             }))
         })

@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
         })
 
         const now = new Date()
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
         const draft: unknown[] = []
         const sent: unknown[] = []
         const overdue: unknown[] = []
@@ -45,13 +46,13 @@ export async function GET(request: NextRequest) {
                 customerName: inv.customer?.name || inv.supplier?.name || "-",
                 totalAmount: Number(inv.totalAmount), balanceDue: Number(inv.balanceDue),
                 issueDate: inv.issueDate, dueDate: inv.dueDate, status: inv.status,
-                daysOverdue: inv.dueDate && inv.dueDate < now
-                    ? Math.floor((now.getTime() - inv.dueDate.getTime()) / 86400000)
+                daysOverdue: inv.dueDate && inv.dueDate < todayStart
+                    ? Math.floor((todayStart.getTime() - inv.dueDate.getTime()) / 86400000)
                     : 0,
             }
             if (inv.status === "DRAFT") draft.push(item)
             else if (inv.status === "PAID" || inv.status === "VOID") paid.push(item)
-            else if (inv.status === "OVERDUE" || (inv.dueDate && inv.dueDate < now)) overdue.push(item)
+            else if (inv.status === "OVERDUE" || (inv.dueDate && inv.dueDate < todayStart)) overdue.push(item)
             else sent.push(item)
         }
 

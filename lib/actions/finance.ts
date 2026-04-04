@@ -286,7 +286,8 @@ export async function getInvoiceKanbanData(): Promise<InvoiceKanbanData> {
                 continue
             }
 
-            const isOverdue = inv.status === 'OVERDUE' || dueDate < now
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+            const isOverdue = inv.status === 'OVERDUE' || dueDate < todayStart
             if (isOverdue) {
                 const daysOver = Math.max(0, Math.ceil((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)))
                 data.overdue.push({ ...base, daysOverdue: daysOver })
@@ -2268,7 +2269,7 @@ export async function getOpenInvoices(): Promise<OpenInvoice[]> {
                 amount: Number(inv.totalAmount),
                 balanceDue: Number(inv.balanceDue),
                 dueDate: inv.dueDate,
-                isOverdue: inv.dueDate < now
+                isOverdue: inv.dueDate < new Date(now.getFullYear(), now.getMonth(), now.getDate())
             }))
         })
     } catch (error) {
@@ -2542,7 +2543,7 @@ export async function getVendorBills(): Promise<VendorBill[]> {
                 amount: Number(bill.totalAmount),
                 balanceDue: Number(bill.balanceDue),
                 status: bill.status,
-                isOverdue: bill.dueDate < now && bill.status !== 'PAID'
+                isOverdue: bill.dueDate < new Date(now.getFullYear(), now.getMonth(), now.getDate()) && bill.status !== 'PAID'
             }))
         })
     } catch (error) {
@@ -3625,7 +3626,7 @@ export async function getVendorBillsRegistry(input?: VendorBillQueryInput): Prom
                 amount: Number(bill.totalAmount),
                 balanceDue: Number(bill.balanceDue),
                 status: bill.status,
-                isOverdue: bill.dueDate < now && bill.status !== 'PAID',
+                isOverdue: bill.dueDate < new Date(now.getFullYear(), now.getMonth(), now.getDate()) && bill.status !== 'PAID',
                 payments: bill.payments?.map(p => ({
                     id: p.id,
                     amount: Number(p.amount),
@@ -3821,12 +3822,12 @@ export async function getARAgingReport() {
                 const custCode = inv.customer?.code ?? null
 
                 let bucket: string = 'current'
-                if (daysOverdue <= 0) {
+                if (daysOverdue < 0) {
                     buckets.current += balance
                     bucket = 'current'
                 } else if (daysOverdue <= 30) {
                     buckets.d1_30 += balance
-                    bucket = '1-30'
+                    bucket = daysOverdue === 0 ? 'jatuh-tempo' : '1-30'
                 } else if (daysOverdue <= 60) {
                     buckets.d31_60 += balance
                     bucket = '31-60'
@@ -3868,6 +3869,58 @@ export async function getARAgingReport() {
                     balanceDue: balance,
                     daysOverdue,
                     bucket,
+                })
+            }
+
+            // ── Unapplied Credit Notes — negative rows in Current bucket ──
+            // SALES_CN that are POSTED or PARTIAL with remaining unapplied balance
+            // show as customer credit (negative outstanding) in "current" bucket
+            const unappliedCNs = await basePrisma.debitCreditNote.findMany({
+                where: {
+                    type: 'SALES_CN',
+                    status: { in: ['POSTED', 'PARTIAL'] },
+                    customerId: { not: null },
+                },
+                include: {
+                    customer: { select: { id: true, name: true, code: true } },
+                },
+            })
+
+            for (const cn of unappliedCNs) {
+                const unapplied = Number(cn.totalAmount) - Number(cn.settledAmount)
+                if (unapplied <= 0.01) continue // fully settled, skip
+
+                const negBalance = -unapplied
+                buckets.current += negBalance
+
+                const custId = cn.customer?.id || 'unknown'
+                const custName = cn.customer?.name || 'Tanpa Pelanggan'
+                const custCode = cn.customer?.code ?? null
+
+                const existing = customerMap.get(custId) || {
+                    customerId: custId, customerName: custName, customerCode: custCode,
+                    current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, total: 0, invoiceCount: 0,
+                    invoices: [],
+                }
+                existing.current += negBalance
+                existing.total += negBalance
+                existing.invoices.push({
+                    id: cn.id,
+                    invoiceNumber: cn.number,
+                    dueDate: cn.issueDate,
+                    balanceDue: negBalance,
+                    bucket: 'current',
+                    status: 'CREDIT_NOTE',
+                })
+                customerMap.set(custId, existing)
+
+                details.push({
+                    invoiceNumber: cn.number,
+                    customerName: custName,
+                    dueDate: cn.issueDate,
+                    balanceDue: negBalance,
+                    daysOverdue: 0,
+                    bucket: 'current',
                 })
             }
 
@@ -3974,12 +4027,12 @@ export async function getAPAgingReport() {
                 const suppCode = bill.supplier?.code ?? null
 
                 let bucket: string = 'current'
-                if (daysOverdue <= 0) {
+                if (daysOverdue < 0) {
                     buckets.current += balance
                     bucket = 'current'
                 } else if (daysOverdue <= 30) {
                     buckets.d1_30 += balance
-                    bucket = '1-30'
+                    bucket = daysOverdue === 0 ? 'jatuh-tempo' : '1-30'
                 } else if (daysOverdue <= 60) {
                     buckets.d31_60 += balance
                     bucket = '31-60'
@@ -4020,6 +4073,58 @@ export async function getAPAgingReport() {
                     balanceDue: balance,
                     daysOverdue,
                     bucket,
+                })
+            }
+
+            // ── Unapplied Debit Notes — negative rows in Current bucket ──
+            // PURCHASE_DN that are POSTED or PARTIAL with remaining unapplied balance
+            // show as supplier credit (negative payable) in "current" bucket
+            const unappliedDNs = await basePrisma.debitCreditNote.findMany({
+                where: {
+                    type: 'PURCHASE_DN',
+                    status: { in: ['POSTED', 'PARTIAL'] },
+                    supplierId: { not: null },
+                },
+                include: {
+                    supplier: { select: { id: true, name: true, code: true } },
+                },
+            })
+
+            for (const dn of unappliedDNs) {
+                const unapplied = Number(dn.totalAmount) - Number(dn.settledAmount)
+                if (unapplied <= 0.01) continue // fully settled, skip
+
+                const negBalance = -unapplied
+                buckets.current += negBalance
+
+                const suppId = dn.supplier?.id || 'unknown'
+                const suppName = dn.supplier?.name || 'Tanpa Supplier'
+                const suppCode = dn.supplier?.code ?? null
+
+                const existing = supplierMap.get(suppId) || {
+                    supplierId: suppId, supplierName: suppName, supplierCode: suppCode,
+                    current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, total: 0, billCount: 0,
+                    bills: [],
+                }
+                existing.current += negBalance
+                existing.total += negBalance
+                existing.bills.push({
+                    id: dn.id,
+                    billNumber: dn.number,
+                    dueDate: dn.issueDate,
+                    balanceDue: negBalance,
+                    bucket: 'current',
+                    status: 'DEBIT_NOTE',
+                })
+                supplierMap.set(suppId, existing)
+
+                details.push({
+                    billNumber: dn.number,
+                    supplierName: suppName,
+                    dueDate: dn.issueDate,
+                    balanceDue: negBalance,
+                    daysOverdue: 0,
+                    bucket: 'current',
                 })
             }
 
@@ -4091,7 +4196,7 @@ export async function getOpenVendorBills() {
                 amount: Number(b.totalAmount),
                 balanceDue: Number(b.balanceDue ?? b.totalAmount),
                 dueDate: b.dueDate,
-                isOverdue: b.dueDate ? new Date(b.dueDate) < new Date() : false,
+                isOverdue: b.dueDate ? (() => { const d = new Date(b.dueDate); const t = new Date(); return d < new Date(t.getFullYear(), t.getMonth(), t.getDate()) })() : false,
             }))
         })
     } catch (error) {

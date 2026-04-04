@@ -71,7 +71,7 @@ beforeEach(() => {
 // --- Tests ---
 
 describe('classifyReconciliationItem', () => {
-  it('marks item as BANK_CHARGE with correct excludeReason', async () => {
+  it('marks item as BANK_CHARGE with MATCHED status', async () => {
     const result = await classifyReconciliationItem('item-1', 'BANK_CHARGE')
 
     expect(result.success).toBe(true)
@@ -79,13 +79,12 @@ describe('classifyReconciliationItem', () => {
       where: { id: 'item-1' },
       data: {
         itemType: 'BANK_CHARGE',
-        matchStatus: 'EXCLUDED',
-        excludeReason: 'Biaya bank — jurnal otomatis saat finalisasi',
+        matchStatus: 'MATCHED',
       },
     })
   })
 
-  it('marks item as INTEREST_INCOME with correct excludeReason', async () => {
+  it('marks item as INTEREST_INCOME with MATCHED status', async () => {
     const result = await classifyReconciliationItem('item-2', 'INTEREST_INCOME')
 
     expect(result.success).toBe(true)
@@ -93,8 +92,7 @@ describe('classifyReconciliationItem', () => {
       where: { id: 'item-2' },
       data: {
         itemType: 'INTEREST_INCOME',
-        matchStatus: 'EXCLUDED',
-        excludeReason: 'Pendapatan bunga — jurnal otomatis saat finalisasi',
+        matchStatus: 'MATCHED',
       },
     })
   })

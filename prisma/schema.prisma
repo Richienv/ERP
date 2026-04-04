@@ -2980,7 +2980,7 @@ enum MatchStatus {
   UNMATCHED // Belum Cocok
   MATCHED // Cocok
   PARTIAL // Sebagian Cocok
-  EXCLUDED // Dikecualikan
+  EXCLUDED // DEPRECATED — remove in next major migration. No longer set by application code.
 }
 
 // ================================

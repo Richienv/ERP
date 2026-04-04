@@ -54,7 +54,7 @@ export async function GET() {
                     ...i,
                     totalAmount: Number(i.totalAmount || 0),
                     balanceDue: Number(i.balanceDue || 0),
-                    isOverdue: i.dueDate ? i.dueDate < now : false,
+                    isOverdue: i.dueDate ? i.dueDate < new Date(now.getFullYear(), now.getMonth(), now.getDate()) : false,
                 })),
                 recentPayments: recentPayments.map(p => ({ ...p, amount: Number(p.amount || 0) })),
                 customers,

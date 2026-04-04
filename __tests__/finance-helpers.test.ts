@@ -182,7 +182,8 @@ describe('Invoice Kanban categorization logic', () => {
     }, now: Date): 'draft' | 'sent' | 'overdue' | 'paid' {
         if (invoice.status === 'DRAFT') return 'draft'
         if (invoice.status === 'PAID') return 'paid'
-        const isOverdue = invoice.status === 'OVERDUE' || invoice.dueDate < now
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        const isOverdue = invoice.status === 'OVERDUE' || invoice.dueDate < todayStart
         return isOverdue ? 'overdue' : 'sent'
     }
 

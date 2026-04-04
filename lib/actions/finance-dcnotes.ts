@@ -844,24 +844,34 @@ export async function postDCNote(id: string) {
             if (note.originalInvoiceId) {
                 const linkedInvoice = await prisma.invoice.findUnique({
                     where: { id: note.originalInvoiceId },
-                    select: { id: true, balanceDue: true, status: true },
+                    select: { id: true, balanceDue: true, totalAmount: true, status: true },
                 })
                 if (linkedInvoice && Number(linkedInvoice.balanceDue) > 0) {
-                    const settlementAmount = Math.min(totalAmount, Number(linkedInvoice.balanceDue))
+                    // Cap at invoice balance to prevent over-crediting
+                    const invoiceBalance = Number(linkedInvoice.balanceDue)
+                    const settlementAmount = Math.min(totalAmount, invoiceBalance)
 
                     await prisma.debitCreditNoteSettlement.create({
                         data: { noteId: id, invoiceId: note.originalInvoiceId, amount: settlementAmount },
                     })
 
-                    const newBalance = Number(linkedInvoice.balanceDue) - settlementAmount
+                    // Update invoice balance + auto-calculate status
+                    const newBalance = invoiceBalance - settlementAmount
+                    let newInvoiceStatus = linkedInvoice.status
+                    if (newBalance <= 0.01) {
+                        newInvoiceStatus = 'PAID'
+                    } else if (newBalance < Number(linkedInvoice.totalAmount) - 0.01) {
+                        newInvoiceStatus = 'PARTIAL'
+                    }
                     await prisma.invoice.update({
                         where: { id: note.originalInvoiceId },
                         data: {
                             balanceDue: Math.max(0, newBalance),
-                            status: newBalance <= 0.01 ? 'PAID' : linkedInvoice.status,
+                            status: newInvoiceStatus as any,
                         },
                     })
 
+                    // Note status: APPLIED if fully settled, PARTIAL if excess remains
                     const newNoteStatus = settlementAmount >= totalAmount - 0.01 ? 'APPLIED' : 'PARTIAL'
                     await prisma.debitCreditNote.update({
                         where: { id },
@@ -906,41 +916,54 @@ export async function settleDCNote(noteId: string, settlements: { invoiceId: str
             }
 
             // Create settlements and update invoices
+            let actualTotalSettled = 0
             for (const settlement of settlements) {
                 if (settlement.amount <= 0) continue
 
                 // Validate invoice exists and has sufficient balance
                 const invoice = await prisma.invoice.findUnique({
                     where: { id: settlement.invoiceId },
-                    select: { id: true, balanceDue: true, status: true },
+                    select: { id: true, balanceDue: true, status: true, totalAmount: true },
                 })
                 if (!invoice) {
                     return { success: false as const, error: `Invoice ${settlement.invoiceId} tidak ditemukan` }
                 }
+
+                // Over-credit guard: cap settlement at invoice balance
+                const invoiceBalance = Number(invoice.balanceDue)
+                const appliedAmount = Math.min(settlement.amount, invoiceBalance)
+                if (appliedAmount <= 0) continue
 
                 // Create settlement record
                 await prisma.debitCreditNoteSettlement.create({
                     data: {
                         noteId,
                         invoiceId: settlement.invoiceId,
-                        amount: settlement.amount,
+                        amount: appliedAmount,
                     },
                 })
 
-                // Update invoice balance
-                const newBalance = Number(invoice.balanceDue) - settlement.amount
-                const newStatus = newBalance <= 0.01 ? 'PAID' : invoice.status
+                // Update invoice balance + auto-calculate status
+                const newBalance = invoiceBalance - appliedAmount
+                let newInvoiceStatus = invoice.status
+                if (newBalance <= 0.01) {
+                    newInvoiceStatus = 'PAID'
+                } else if (newBalance < Number(invoice.totalAmount) - 0.01) {
+                    newInvoiceStatus = 'PARTIAL'
+                }
                 await prisma.invoice.update({
                     where: { id: settlement.invoiceId },
                     data: {
                         balanceDue: Math.max(0, newBalance),
-                        status: newStatus as any,
+                        status: newInvoiceStatus as any,
                     },
                 })
+
+                actualTotalSettled += appliedAmount
             }
 
             // Update note settled amount and status
-            const newSettledAmount = currentSettled + totalNewSettlement
+            const newSettledAmount = currentSettled + actualTotalSettled
             const newStatus = newSettledAmount >= noteTotal - 0.01 ? 'APPLIED' : 'PARTIAL'
 
             await prisma.debitCreditNote.update({

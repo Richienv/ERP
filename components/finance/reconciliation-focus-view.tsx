@@ -23,9 +23,6 @@ import {
     Sparkles,
     UploadCloud,
     Search,
-    Ban,
-    Undo2,
-    MessageSquare,
     Lock,
     Wand2,
     Download,
@@ -35,19 +32,12 @@ import {
     CircleDot,
     Circle,
     CircleCheck,
-    CircleX,
     Plus,
     Save,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { toast } from "sonner"
 import { NB } from "@/lib/dialog-styles"
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog"
 import type {
     ReconciliationDetail,
     ReconciliationItemData,
@@ -72,8 +62,6 @@ export interface ReconciliationFocusViewProps {
     // Handlers
     onMatchItem: (bankItemId: string, systemEntryId: string) => Promise<void>
     onUnmatchItem: (itemId: string) => Promise<void>
-    onExcludeItem: (itemId: string, reason: string) => Promise<void>
-    onIncludeItem: (itemId: string) => Promise<void>
     onAutoMatch: () => Promise<void>
     onClose: () => Promise<void>
     onReloadDetail: () => Promise<void>
@@ -116,14 +104,13 @@ const formatDate = (iso: string) =>
     })
 
 // Queue status types
-type QueueStatus = "MATCHED" | "ACTIVE" | "PENDING" | "EXCLUDED"
+type QueueStatus = "MATCHED" | "ACTIVE" | "PENDING"
 
 function getQueueStatus(
     item: ReconciliationItemData,
     isActive: boolean
 ): QueueStatus {
     if (item.matchStatus === "MATCHED") return "MATCHED"
-    if (item.matchStatus === "EXCLUDED") return "EXCLUDED"
     if (isActive) return "ACTIVE"
     return "PENDING"
 }
@@ -132,7 +119,6 @@ const QUEUE_CONFIG: Record<QueueStatus, { icon: typeof CheckCircle2; bg: string;
     MATCHED: { icon: CircleCheck, bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-300", label: "COCOK" },
     ACTIVE: { icon: CircleDot, bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-400", label: "AKTIF" },
     PENDING: { icon: Circle, bg: "bg-white dark:bg-zinc-900", text: "text-zinc-500", border: "border-zinc-200 dark:border-zinc-700", label: "BELUM" },
-    EXCLUDED: { icon: CircleX, bg: "bg-zinc-100 dark:bg-zinc-800", text: "text-zinc-400", border: "border-zinc-200 dark:border-zinc-700", label: "DIKECUALIKAN" },
 }
 
 // ==============================================================================
@@ -277,7 +263,6 @@ function QueueSidebar({
                                     <div className="flex items-center justify-between gap-1.5">
                                         <span className={`text-[11px] font-medium truncate ${
                                             status === "MATCHED" ? "text-zinc-500 line-through" :
-                                            status === "EXCLUDED" ? "text-zinc-400 line-through" :
                                             isActive ? "text-zinc-900 dark:text-white font-bold" :
                                             "text-zinc-700 dark:text-zinc-300"
                                         }`}>
@@ -287,7 +272,7 @@ function QueueSidebar({
                                     <div className="flex items-center justify-between gap-1 mt-0.5">
                                         <span className={`text-[9px] font-mono ${
                                             item.bankAmount >= 0 ? "text-emerald-600" : "text-red-500"
-                                        } ${status === "EXCLUDED" ? "opacity-50" : ""}`}>
+                                        }`}>
                                             Rp {formatIDR(Math.abs(item.bankAmount))}
                                         </span>
                                         <span className={`text-[7px] font-black px-1 py-0.5 border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
@@ -1015,66 +1000,17 @@ function MatchedItemView({
 }
 
 // ==============================================================================
-// Excluded Item View
-// ==============================================================================
-
-function ExcludedItemView({
-    item,
-    isCompleted,
-    onInclude,
-}: {
-    item: ReconciliationItemData
-    isCompleted: boolean
-    onInclude: () => void
-}) {
-    return (
-        <div className="flex-1 flex flex-col items-center justify-center p-8">
-            <div className="max-w-md text-center space-y-4">
-                <div className="w-14 h-14 mx-auto bg-zinc-100 dark:bg-zinc-800 border-2 border-zinc-300 dark:border-zinc-700 flex items-center justify-center">
-                    <Ban className="h-7 w-7 text-zinc-400" />
-                </div>
-                <div>
-                    <h3 className="text-sm font-black uppercase tracking-wider text-zinc-500 mb-1">
-                        Item Dikecualikan
-                    </h3>
-                    <p className="text-xs text-zinc-500">
-                        {item.bankDescription || "-"} — Rp {formatIDR(Math.abs(item.bankAmount))}
-                    </p>
-                </div>
-                {item.excludeReason && (
-                    <div className="border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 p-3 text-left flex items-start gap-2">
-                        <MessageSquare className="h-3.5 w-3.5 text-zinc-400 shrink-0 mt-0.5" />
-                        <span className="text-xs text-zinc-500 italic">{item.excludeReason}</span>
-                    </div>
-                )}
-                {!isCompleted && (
-                    <Button
-                        variant="outline"
-                        className="border border-blue-300 text-blue-600 text-[10px] font-black uppercase h-8 px-4 rounded-none hover:bg-blue-50"
-                        onClick={onInclude}
-                    >
-                        <Undo2 className="h-3 w-3 mr-1.5" /> Kembalikan Item
-                    </Button>
-                )}
-            </div>
-        </div>
-    )
-}
-
-// ==============================================================================
 // Completion Screen
 // ==============================================================================
 
 function CompletionScreen({
     matchedCount,
-    excludedCount,
     detail,
     onClose,
     actionLoading,
     isCompleted,
 }: {
     matchedCount: number
-    excludedCount: number
     detail: ReconciliationDetail
     onClose: () => Promise<void>
     actionLoading: string | null
@@ -1085,11 +1021,9 @@ function CompletionScreen({
     // Balance calculation
     const bookBalance = detail.bookBalanceSnapshot ?? detail.glAccountBalance
     const unmatchedItems = detail.items.filter(i => i.matchStatus === "UNMATCHED")
-    const excludedItems = detail.items.filter(i => i.matchStatus === "EXCLUDED")
     const outDeposits = unmatchedItems.filter(i => i.bankAmount > 0).reduce((s, i) => s + i.bankAmount, 0)
     const outChecks = unmatchedItems.filter(i => i.bankAmount < 0).reduce((s, i) => s + i.bankAmount, 0)
-    const excludedTotal = excludedItems.reduce((s, i) => s + i.bankAmount, 0)
-    const adjustedBook = bookBalance + outDeposits + outChecks - excludedTotal
+    const adjustedBook = bookBalance + outDeposits + outChecks
     const bsBalance = detail.bankStatementBalance ?? 0
     const diff = adjustedBook - bsBalance
     const isBalanced = detail.bankStatementBalance != null ? Math.abs(diff) < 1 : true
@@ -1113,21 +1047,17 @@ function CompletionScreen({
                         {isCompleted
                             ? "Rekonsiliasi telah ditutup dan jurnal penyesuaian telah diposting."
                             : unmatchedCount === 0
-                                ? "Semua item bank telah dicocokkan atau dikecualikan."
+                                ? "Semua item bank telah dicocokkan."
                                 : `Masih ada ${unmatchedCount} item yang belum dicocokkan.`
                         }
                     </p>
                 </div>
 
                 {/* Stats */}
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                     <div className="border-2 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20 p-3">
                         <span className="text-2xl font-black text-emerald-600 font-mono block">{matchedCount}</span>
                         <span className="text-[9px] font-black uppercase tracking-wider text-emerald-600">Cocok</span>
-                    </div>
-                    <div className="border-2 border-zinc-300 bg-zinc-50 dark:bg-zinc-800 p-3">
-                        <span className="text-2xl font-black text-zinc-500 font-mono block">{excludedCount}</span>
-                        <span className="text-[9px] font-black uppercase tracking-wider text-zinc-500">Dikecualikan</span>
                     </div>
                     <div className={`border-2 p-3 ${
                         isBalanced
@@ -1181,8 +1111,6 @@ export function ReconciliationFocusView({
     actionLoading,
     onMatchItem,
     onUnmatchItem,
-    onExcludeItem,
-    onIncludeItem,
     onAutoMatch,
     onClose,
     onReloadDetail,
@@ -1217,16 +1145,11 @@ export function ReconciliationFocusView({
     const [selectedJournalId, setSelectedJournalId] = useState<string | null>(null)
     const [journalSearchQuery, setJournalSearchQuery] = useState("")
 
-    // Exclude dialog
-    const [excludeDialogOpen, setExcludeDialogOpen] = useState(false)
-    const [excludeReason, setExcludeReason] = useState("")
-
     // Derived
     const currentItem = allItems[currentIndex] ?? null
     const matchedCount = allItems.filter(i => i.matchStatus === "MATCHED").length
-    const excludedCount = allItems.filter(i => i.matchStatus === "EXCLUDED").length
     const totalCount = allItems.length
-    const allDone = allItems.every(i => i.matchStatus === "MATCHED" || i.matchStatus === "EXCLUDED")
+    const allDone = allItems.every(i => i.matchStatus === "MATCHED")
 
     // Find matched entry for current item (if it's matched)
     const matchedEntry = useMemo(() => {
@@ -1274,30 +1197,12 @@ export function ReconciliationFocusView({
         await onReloadDetail()
     }, [currentItem, selectedJournalId, currentIndex, onMatchItem, onReloadDetail, findNextUnmatched])
 
-    // Exclude and advance
-    const handleExclude = useCallback(async () => {
-        if (!currentItem || !excludeReason.trim()) return
-        await onExcludeItem(currentItem.id, excludeReason.trim())
-        setExcludeDialogOpen(false)
-        setExcludeReason("")
-        const nextIdx = findNextUnmatched(currentIndex)
-        setCurrentIndex(nextIdx)
-        await onReloadDetail()
-    }, [currentItem, excludeReason, currentIndex, onExcludeItem, onReloadDetail, findNextUnmatched])
-
     // Unmatch handler
     const handleUnmatch = useCallback(async () => {
         if (!currentItem) return
         await onUnmatchItem(currentItem.id)
         await onReloadDetail()
     }, [currentItem, onUnmatchItem, onReloadDetail])
-
-    // Include handler (for excluded items)
-    const handleInclude = useCallback(async () => {
-        if (!currentItem) return
-        await onIncludeItem(currentItem.id)
-        await onReloadDetail()
-    }, [currentItem, onIncludeItem, onReloadDetail])
 
     // No items yet — show upload prompt
     if (allItems.length === 0) {
@@ -1362,7 +1267,7 @@ export function ReconciliationFocusView({
             {/* Progress Header */}
             <ProgressHeader
                 detail={detail}
-                matchedCount={matchedCount + excludedCount}
+                matchedCount={matchedCount}
                 totalCount={totalCount}
                 isCompleted={isCompleted}
             />
@@ -1501,7 +1406,6 @@ export function ReconciliationFocusView({
                 // All done — show completion
                 <CompletionScreen
                     matchedCount={matchedCount}
-                    excludedCount={excludedCount}
                     detail={detail}
                     onClose={onClose}
                     actionLoading={actionLoading}
@@ -1537,7 +1441,6 @@ export function ReconciliationFocusView({
                                         <div className="flex items-center gap-0.5">
                                             {allItems.map((item, idx) => {
                                                 const isMatch = item.matchStatus === "MATCHED"
-                                                const isExcl = item.matchStatus === "EXCLUDED"
                                                 const isCurrent = idx === currentIndex
                                                 return (
                                                     <button
@@ -1548,9 +1451,7 @@ export function ReconciliationFocusView({
                                                                 ? "w-5 bg-orange-500"
                                                                 : isMatch
                                                                     ? "w-2 bg-emerald-500"
-                                                                    : isExcl
-                                                                        ? "w-2 bg-zinc-300 dark:bg-zinc-600"
-                                                                        : "w-2 bg-zinc-200 dark:bg-zinc-700"
+                                                                    : "w-2 bg-zinc-200 dark:bg-zinc-700"
                                                         }`}
                                                         title={item.bankDescription || `Item ${idx + 1}`}
                                                     />
@@ -1585,12 +1486,6 @@ export function ReconciliationFocusView({
                                                 onUnmatch={handleUnmatch}
                                                 actionLoading={actionLoading}
                                             />
-                                        ) : currentItem.matchStatus === "EXCLUDED" ? (
-                                            <ExcludedItemView
-                                                item={currentItem}
-                                                isCompleted={isCompleted}
-                                                onInclude={handleInclude}
-                                            />
                                         ) : (
                                             /* UNMATCHED — the main focus flow */
                                             <div className="flex-1 flex flex-col min-h-0">
@@ -1616,17 +1511,7 @@ export function ReconciliationFocusView({
 
                                                 {/* Action buttons */}
                                                 {!isCompleted && (
-                                                    <div className="px-4 py-3 border-t-2 border-black bg-zinc-900 dark:bg-black flex items-center justify-between gap-3">
-                                                        <Button
-                                                            variant="ghost"
-                                                            className="text-zinc-400 hover:text-red-400 hover:bg-red-950/30 text-[10px] font-black uppercase tracking-wider h-9 px-3 rounded-none"
-                                                            onClick={() => {
-                                                                setExcludeReason("")
-                                                                setExcludeDialogOpen(true)
-                                                            }}
-                                                        >
-                                                            <Ban className="h-3.5 w-3.5 mr-1.5" /> Dikecualikan
-                                                        </Button>
+                                                    <div className="px-4 py-3 border-t-2 border-black bg-zinc-900 dark:bg-black flex items-center justify-end gap-3">
                                                         <div className="flex items-center gap-2">
                                                             <Button
                                                                 variant="outline"
@@ -1660,54 +1545,6 @@ export function ReconciliationFocusView({
                 </div>
             )}
 
-            {/* Exclude Dialog */}
-            <Dialog open={excludeDialogOpen} onOpenChange={setExcludeDialogOpen}>
-                <DialogContent className={NB.contentNarrow}>
-                    <DialogHeader className={NB.header}>
-                        <DialogTitle className={NB.title}>
-                            <Ban className="h-5 w-5" /> Kecualikan Item
-                        </DialogTitle>
-                    </DialogHeader>
-                    <div className="p-6 space-y-4">
-                        {currentItem && (
-                            <div className="border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 p-3">
-                                <div className="text-xs font-medium">{currentItem.bankDescription || "-"}</div>
-                                <div className={`text-sm font-mono font-bold mt-1 ${
-                                    currentItem.bankAmount >= 0 ? "text-emerald-600" : "text-red-600"
-                                }`}>
-                                    Rp {formatIDR(Math.abs(currentItem.bankAmount))}
-                                </div>
-                            </div>
-                        )}
-                        <div>
-                            <label className={NB.label}>Alasan <span className={NB.labelRequired}>*</span></label>
-                            <Input
-                                className={NB.input}
-                                placeholder="biaya admin, bunga bank, dll"
-                                value={excludeReason}
-                                onChange={(e) => setExcludeReason(e.target.value)}
-                                onKeyDown={async (e) => {
-                                    if (e.key === "Enter" && excludeReason.trim()) {
-                                        await handleExclude()
-                                    }
-                                }}
-                            />
-                        </div>
-                        <div className={NB.footer}>
-                            <Button variant="outline" className={NB.cancelBtn} onClick={() => setExcludeDialogOpen(false)}>
-                                Batal
-                            </Button>
-                            <Button
-                                className={NB.submitBtn}
-                                disabled={!excludeReason.trim()}
-                                onClick={handleExclude}
-                            >
-                                Kecualikan
-                            </Button>
-                        </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
         </div>
     )
 }

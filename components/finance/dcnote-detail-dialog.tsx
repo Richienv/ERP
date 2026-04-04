@@ -84,13 +84,13 @@ export function DCNoteDetailDialog({ noteId, open, onOpenChange }: DCNoteDetailD
                         </div>
 
                         {/* Invoice Asal */}
-                        {data.originalInvoice && (
-                            <div className={NB.section}>
-                                <div className={NB.sectionHead}>
-                                    <Receipt className="h-3.5 w-3.5 text-orange-500" />
-                                    <span className={NB.sectionTitle}>Invoice Asal</span>
-                                </div>
-                                <div className={NB.sectionBody}>
+                        <div className={NB.section}>
+                            <div className={NB.sectionHead}>
+                                <Receipt className="h-3.5 w-3.5 text-orange-500" />
+                                <span className={NB.sectionTitle}>Invoice Asal</span>
+                            </div>
+                            <div className={NB.sectionBody}>
+                                {data.originalInvoice ? (
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
                                             <span className="font-mono font-black text-sm">{data.originalInvoice.number}</span>
@@ -117,9 +117,13 @@ export function DCNoteDetailDialog({ noteId, open, onOpenChange }: DCNoteDetailD
                                             <ExternalLink className="h-3 w-3" /> Buka Invoice
                                         </a>
                                     </div>
-                                </div>
+                                ) : (
+                                    <p className="text-xs text-zinc-400 italic">
+                                        Tidak terhubung ke invoice — diterapkan secara manual
+                                    </p>
+                                )}
                             </div>
-                        )}
+                        </div>
 
                         {/* Items */}
                         {data.items.length > 0 && (

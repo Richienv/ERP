@@ -69,7 +69,6 @@ export interface ReconciliationItemData {
     systemDescription: string | null
     matchStatus: string
     matchedAt: string | null
-    excludeReason: string | null
     // 3-tier automatch fields
     matchTier: MatchTier | null
     matchScore: number | null
@@ -277,7 +276,6 @@ export async function getReconciliationDetail(
                     : null,
                 matchStatus: i.matchStatus,
                 matchedAt: i.matchedAt?.toISOString() || null,
-                excludeReason: i.excludeReason ?? null,
                 matchTier: (i.matchTier as MatchTier) ?? null,
                 matchScore: i.matchScore ?? null,
                 matchAmountDiff: i.matchAmountDiff != null ? Number(i.matchAmountDiff) : null,
@@ -1022,7 +1020,7 @@ export async function matchMultipleItems(data: {
 /**
  * Classify a bank reconciliation item as BANK_CHARGE or INTEREST_INCOME.
  * These items will have auto-GL entries created during reconciliation finalization.
- * Sets matchStatus to EXCLUDED so closeReconciliation allows it (no system match needed).
+ * Sets matchStatus to MATCHED so closeReconciliation allows it (no system match needed).
  */
 export async function classifyReconciliationItem(
     itemId: string,
@@ -1034,10 +1032,7 @@ export async function classifyReconciliationItem(
                 where: { id: itemId },
                 data: {
                     itemType,
-                    matchStatus: 'EXCLUDED',
-                    excludeReason: itemType === 'BANK_CHARGE'
-                        ? 'Biaya bank — jurnal otomatis saat finalisasi'
-                        : 'Pendapatan bunga — jurnal otomatis saat finalisasi',
+                    matchStatus: 'MATCHED',
                 },
             })
         })
@@ -1059,18 +1054,18 @@ export async function closeReconciliation(
 ): Promise<{ success: boolean; error?: string }> {
     try {
         const result = await withPrismaAuth(async (prisma: PrismaClient) => {
-            // Validate: all items must be MATCHED or EXCLUDED before closing
+            // Validate: all items must be MATCHED before closing
             const unmatchedCount = await prisma.bankReconciliationItem.count({
                 where: {
                     reconciliationId,
-                    matchStatus: 'UNMATCHED',
+                    matchStatus: { in: ['UNMATCHED', 'EXCLUDED'] },
                 },
             })
 
             if (unmatchedCount > 0) {
                 return {
                     success: false as const,
-                    error: `Masih ada ${unmatchedCount} item belum dicocokkan atau dikecualikan`,
+                    error: `Masih ada ${unmatchedCount} item belum dicocokkan`,
                 }
             }
 
@@ -1192,56 +1187,8 @@ export async function updateReconciliationMeta(
     }
 }
 
-/**
- * Exclude a bank reconciliation item with a reason.
- */
-export async function excludeReconciliationItem(
-    itemId: string,
-    reason: string
-): Promise<{ success: boolean; error?: string }> {
-    try {
-        await withPrismaAuth(async (prisma: PrismaClient) => {
-            await prisma.bankReconciliationItem.update({
-                where: { id: itemId },
-                data: {
-                    matchStatus: 'EXCLUDED',
-                    excludeReason: reason,
-                },
-            })
-        })
-
-        return { success: true }
-    } catch (error) {
-        const msg = error instanceof Error ? error.message : 'Gagal mengecualikan item'
-        console.error("[excludeReconciliationItem] Error:", error)
-        return { success: false, error: msg }
-    }
-}
-
-/**
- * Re-include a previously excluded bank reconciliation item.
- */
-export async function includeReconciliationItem(
-    itemId: string
-): Promise<{ success: boolean; error?: string }> {
-    try {
-        await withPrismaAuth(async (prisma: PrismaClient) => {
-            await prisma.bankReconciliationItem.update({
-                where: { id: itemId },
-                data: {
-                    matchStatus: 'UNMATCHED',
-                    excludeReason: null,
-                },
-            })
-        })
-
-        return { success: true }
-    } catch (error) {
-        const msg = error instanceof Error ? error.message : 'Gagal mengembalikan item'
-        console.error("[includeReconciliationItem] Error:", error)
-        return { success: false, error: msg }
-    }
-}
+// REMOVED: excludeReconciliationItem and includeReconciliationItem
+// EXCLUDED status is deprecated — bank recon no longer supports excluding items.
 
 // ==============================================================================
 // Search + Inline Journal Creation

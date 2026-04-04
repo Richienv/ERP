@@ -564,7 +564,7 @@ async function fetchARaging(start?: Date, end?: Date) {
         const custCode = inv.customer?.code ?? null
 
         let bucket = 'current'
-        if (daysOverdue <= 0) { buckets.current += balance; bucket = 'current' }
+        if (daysOverdue < 0) { buckets.current += balance; bucket = 'current' }
         else if (daysOverdue <= 30) { buckets.d1_30 += balance; bucket = '1-30' }
         else if (daysOverdue <= 60) { buckets.d31_60 += balance; bucket = '31-60' }
         else if (daysOverdue <= 90) { buckets.d61_90 += balance; bucket = '61-90' }
@@ -667,7 +667,7 @@ async function fetchAPaging(start?: Date, end?: Date) {
         const suppCode = bill.supplier?.code ?? null
 
         let bucket = 'current'
-        if (daysOverdue <= 0) { buckets.current += balance; bucket = 'current' }
+        if (daysOverdue < 0) { buckets.current += balance; bucket = 'current' }
         else if (daysOverdue <= 30) { buckets.d1_30 += balance; bucket = '1-30' }
         else if (daysOverdue <= 60) { buckets.d31_60 += balance; bucket = '31-60' }
         else if (daysOverdue <= 90) { buckets.d61_90 += balance; bucket = '61-90' }

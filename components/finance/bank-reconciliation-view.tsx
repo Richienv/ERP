@@ -118,8 +118,6 @@ interface BankReconciliationViewProps {
     onClose: (reconciliationId: string) => Promise<{ success: boolean; error?: string }>
     onLoadDetail: (reconciliationId: string, options?: { bankPage?: number; bankPageSize?: number; systemPage?: number; systemPageSize?: number }) => Promise<ReconciliationDetail | null>
     onUpdateMeta: (reconciliationId: string, data: { bankStatementBalance?: number; notes?: string }) => Promise<{ success: boolean; error?: string }>
-    onExcludeItem: (itemId: string, reason: string) => Promise<{ success: boolean; error?: string }>
-    onIncludeItem: (itemId: string) => Promise<{ success: boolean; error?: string }>
     onSearchJournals?: (reconciliationId: string, query: string) => Promise<{ entryId: string; date: string; description: string; reference: string | null; amount: number; lineDescription: string | null }[]>
     onCreateJournalAndMatch?: (reconciliationId: string, bankLineId: string, journalData: { date: string; description: string; reference?: string; amount: number; debitAccountCode: string; creditAccountCode: string }) => Promise<{ success: boolean; journalId?: string; error?: string }>
 }
@@ -182,8 +180,6 @@ export function BankReconciliationView({
     onClose,
     onLoadDetail,
     onUpdateMeta,
-    onExcludeItem,
-    onIncludeItem,
     onSearchJournals,
     onCreateJournalAndMatch,
 }: BankReconciliationViewProps) {
@@ -1201,22 +1197,6 @@ export function BankReconciliationView({
                                     throw new Error(result.error)
                                 }
                                 toast.success("Pencocokan dibatalkan")
-                            }}
-                            onExcludeItem={async (itemId, reason) => {
-                                const result = await onExcludeItem(itemId, reason)
-                                if (!result.success) {
-                                    toast.error(result.error || "Gagal mengecualikan item")
-                                    throw new Error(result.error)
-                                }
-                                toast.success("Item dikecualikan")
-                            }}
-                            onIncludeItem={async (itemId) => {
-                                const result = await onIncludeItem(itemId)
-                                if (!result.success) {
-                                    toast.error(result.error || "Gagal mengembalikan item")
-                                    throw new Error(result.error)
-                                }
-                                toast.success("Item dikembalikan")
                             }}
                             onAutoMatch={handleAutoMatch}
                             onClose={handleClose}

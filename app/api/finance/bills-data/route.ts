@@ -30,7 +30,7 @@ export async function GET() {
             taxAmount: Number(b.taxAmount || 0),
             issueDate: b.issueDate, dueDate: b.dueDate,
             supplier: b.supplier,
-            isOverdue: b.dueDate ? b.dueDate < now : false,
+            isOverdue: b.dueDate ? b.dueDate < new Date(now.getFullYear(), now.getMonth(), now.getDate()) : false,
         }))
 
         return NextResponse.json({ bills: mapped, total: totalCount, page: 1, pageSize: 20 })

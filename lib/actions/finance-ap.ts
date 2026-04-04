@@ -119,7 +119,7 @@ export async function getVendorBills(): Promise<VendorBill[]> {
                 amount: toNum(bill.totalAmount),
                 balanceDue: toNum(bill.balanceDue),
                 status: bill.status,
-                isOverdue: bill.dueDate < now && bill.status !== 'PAID'
+                isOverdue: bill.dueDate < new Date(now.getFullYear(), now.getMonth(), now.getDate()) && bill.status !== 'PAID'
             }))
         })
     } catch (error) {
@@ -195,7 +195,7 @@ export async function getVendorBillsRegistry(input?: VendorBillQueryInput): Prom
                 amount: toNum(bill.totalAmount),
                 balanceDue: toNum(bill.balanceDue),
                 status: bill.status,
-                isOverdue: bill.dueDate < now && bill.status !== 'PAID',
+                isOverdue: bill.dueDate < new Date(now.getFullYear(), now.getMonth(), now.getDate()) && bill.status !== 'PAID',
                 payments: bill.payments?.map(p => ({
                     id: p.id,
                     amount: toNum(p.amount),
