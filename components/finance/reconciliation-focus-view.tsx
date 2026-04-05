@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -65,7 +65,7 @@ export interface ReconciliationFocusViewProps {
     onUnmatchItem: (itemId: string) => Promise<void>
     onAutoMatch: () => Promise<void>
     onClose: () => Promise<void>
-    onReloadDetail: () => Promise<void>
+    onReloadDetail: (activeBankItemId?: string) => Promise<void>
     onUpdateMeta: (data: { bankStatementBalance?: number; notes?: string }) => Promise<void>
     downloadTemplateCSV: () => void
 
@@ -87,7 +87,7 @@ export interface ReconciliationFocusViewProps {
     setEditNotes: (v: string) => void
 
     // Inline journal creation (optional — gracefully degrades if not provided)
-    onSearchJournals?: (reconciliationId: string, query: string) => Promise<{ entryId: string; date: string; description: string; reference: string | null; amount: number; lineDescription: string | null }[]>
+    onSearchJournals?: (reconciliationId: string, query: string, bankItemContext?: { bankAmount: number; bankDate: string | null }) => Promise<{ entryId: string; date: string; description: string; reference: string | null; amount: number; lineDescription: string | null }[]>
     onCreateJournalAndMatch?: (reconciliationId: string, bankLineId: string, journalData: { date: string; description: string; reference?: string; amount: number; debitAccountCode: string; creditAccountCode: string }) => Promise<{ success: boolean; journalId?: string; error?: string }>
     glAccounts?: { id: string; code: string; name: string; type: string }[]
 }
@@ -539,7 +539,7 @@ function JournalSuggestions({
     reconciliationId: string
     bankAccountCode: string
     onCreateJournalAndMatch?: (reconciliationId: string, bankLineId: string, journalData: { date: string; description: string; reference?: string; amount: number; debitAccountCode: string; creditAccountCode: string }) => Promise<{ success: boolean; journalId?: string; error?: string }>
-    onReloadDetail: () => Promise<void>
+    onReloadDetail: (activeBankItemId?: string) => Promise<void>
     glAccounts: { id: string; code: string; name: string; type: string }[]
 }) {
     // Inline journal creation state
@@ -989,7 +989,7 @@ function InlineJournalForm({
     inlineSaving: boolean
     setInlineSaving: (v: boolean) => void
     onCreateJournalAndMatch: (reconciliationId: string, bankLineId: string, journalData: { date: string; description: string; reference?: string; amount: number; debitAccountCode: string; creditAccountCode: string }) => Promise<{ success: boolean; journalId?: string; error?: string }>
-    onReloadDetail: () => Promise<void>
+    onReloadDetail: (activeBankItemId?: string) => Promise<void>
     onClose: () => void
 }) {
     return (
@@ -1103,7 +1103,7 @@ function InlineJournalForm({
                                 if (result.success) {
                                     toast.success("Jurnal dibuat & dicocokkan")
                                     onClose()
-                                    await onReloadDetail()
+                                    await onReloadDetail(currentItem.id)
                                 } else {
                                     toast.error(result.error || "Gagal membuat jurnal")
                                 }
@@ -1347,6 +1347,24 @@ export function ReconciliationFocusView({
     const totalCount = allItems.length
     const allDone = allItems.every(i => i.matchStatus === "MATCHED")
 
+    // Reload detail with active bank item context when navigating between items
+    const isInitialMount = useRef(true)
+    const prevItemIdRef = useRef<string | null>(currentItem?.id ?? null)
+    useEffect(() => {
+        if (isInitialMount.current) {
+            isInitialMount.current = false
+            // Trigger initial load with active item context
+            if (currentItem?.matchStatus === "UNMATCHED") {
+                onReloadDetail(currentItem.id)
+            }
+            return
+        }
+        if (currentItem && currentItem.id !== prevItemIdRef.current) {
+            prevItemIdRef.current = currentItem.id
+            onReloadDetail(currentItem.id)
+        }
+    }, [currentItem?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
     // Find matched entry for current item (if it's matched)
     const matchedEntry = useMemo(() => {
         if (!currentItem || currentItem.matchStatus !== "MATCHED") return undefined
@@ -1390,14 +1408,15 @@ export function ReconciliationFocusView({
         // After reload, advance to next unmatched
         const nextIdx = findNextUnmatched(currentIndex)
         setCurrentIndex(nextIdx)
-        await onReloadDetail()
-    }, [currentItem, selectedJournalId, currentIndex, onMatchItem, onReloadDetail, findNextUnmatched])
+        const nextItem = allItems[nextIdx]
+        await onReloadDetail(nextItem?.id)
+    }, [currentItem, selectedJournalId, currentIndex, allItems, onMatchItem, onReloadDetail, findNextUnmatched])
 
     // Unmatch handler
     const handleUnmatch = useCallback(async () => {
         if (!currentItem) return
         await onUnmatchItem(currentItem.id)
-        await onReloadDetail()
+        await onReloadDetail(currentItem.id)
     }, [currentItem, onUnmatchItem, onReloadDetail])
 
     // No items yet — show upload prompt

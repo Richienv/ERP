@@ -118,7 +118,7 @@ interface BankReconciliationViewProps {
     onClose: (reconciliationId: string) => Promise<{ success: boolean; error?: string }>
     onLoadDetail: (reconciliationId: string, options?: { bankPage?: number; bankPageSize?: number; systemPage?: number; systemPageSize?: number }) => Promise<ReconciliationDetail | null>
     onUpdateMeta: (reconciliationId: string, data: { bankStatementBalance?: number; notes?: string }) => Promise<{ success: boolean; error?: string }>
-    onSearchJournals?: (reconciliationId: string, query: string) => Promise<{ entryId: string; date: string; description: string; reference: string | null; amount: number; lineDescription: string | null }[]>
+    onSearchJournals?: (reconciliationId: string, query: string, bankItemContext?: { bankAmount: number; bankDate: string | null }) => Promise<{ entryId: string; date: string; description: string; reference: string | null; amount: number; lineDescription: string | null }[]>
     onCreateJournalAndMatch?: (reconciliationId: string, bankLineId: string, journalData: { date: string; description: string; reference?: string; amount: number; debitAccountCode: string; creditAccountCode: string }) => Promise<{ success: boolean; journalId?: string; error?: string }>
     currencies?: Array<{ code: string; name: string; symbol: string }>
 }
@@ -350,12 +350,13 @@ export function BankReconciliationView({
     }
 
     // ── Handlers ──────────────────────────────────────────────────────────────
-    const reloadDetail = async (recId: string, opts?: { bPage?: number; sPage?: number }) => {
+    const reloadDetail = async (recId: string, opts?: { bPage?: number; sPage?: number; activeBankItemId?: string }) => {
         const detail = await onLoadDetail(recId, {
             bankPage: opts?.bPage ?? bankPage,
             bankPageSize: PAGE_SIZE,
             systemPage: opts?.sPage ?? systemPage,
             systemPageSize: PAGE_SIZE,
+            activeBankItemId: opts?.activeBankItemId,
         })
         if (detail) setSelectedRec(detail)
         queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
@@ -1205,7 +1206,7 @@ export function BankReconciliationView({
                             }}
                             onAutoMatch={handleAutoMatch}
                             onClose={handleClose}
-                            onReloadDetail={async () => { if (selectedRec) await reloadDetail(selectedRec.id) }}
+                            onReloadDetail={async (activeBankItemId?: string) => { if (selectedRec) await reloadDetail(selectedRec.id, { activeBankItemId }) }}
                             onUpdateMeta={async (data) => {
                                 if (!selectedRec) return
                                 const result = await onUpdateMeta(selectedRec.id, data)

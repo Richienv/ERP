@@ -145,7 +145,7 @@ export async function getReconciliations(): Promise<ReconciliationSummary[]> {
  */
 export async function getReconciliationDetail(
     reconciliationId: string,
-    options?: { bankPage?: number; bankPageSize?: number; systemPage?: number; systemPageSize?: number }
+    options?: { bankPage?: number; bankPageSize?: number; systemPage?: number; systemPageSize?: number; activeBankItemId?: string }
 ): Promise<ReconciliationDetail | null> {
     try {
         await requireAuth()
@@ -169,6 +169,22 @@ export async function getReconciliationDetail(
         })
 
         if (!rec) return null
+
+        // Resolve active bank item for per-transaction filtering
+        let activeBankItem: { bankAmount: number; bankDate: Date | null } | null = null
+        if (options?.activeBankItemId) {
+            const item = rec.items.find(i => i.id === options.activeBankItemId)
+                ?? await prisma.bankReconciliationItem.findUnique({
+                    where: { id: options.activeBankItemId },
+                    select: { bankAmount: true, bankDate: true },
+                })
+            if (item) {
+                activeBankItem = {
+                    bankAmount: Number(item.bankAmount),
+                    bankDate: item.bankDate,
+                }
+            }
+        }
 
         // Get counts by match status for the header
         const [totalItems, matchedItemCount] = await Promise.all([
@@ -221,6 +237,34 @@ export async function getReconciliationDetail(
             }),
         ])
 
+        // ── Server-side per-transaction pre-filter ──
+        // When an active bank item is specified, filter journal lines to plausible matches only.
+        const filteredJournalLines = activeBankItem
+            ? journalLines.filter(line => {
+                const debit = Number(line.debit)
+                const credit = Number(line.credit)
+                const lineAmount = debit > 0 ? debit : credit
+
+                // Direction gate: bank KELUAR (negative) → only CREDIT journal lines on bank GL
+                const bankIsKeluar = activeBankItem!.bankAmount < 0
+                if (bankIsKeluar && debit > 0) return false
+                if (!bankIsKeluar && credit > 0) return false
+
+                // Amount tolerance: ±10% or ±Rp 10.000 (whichever is larger)
+                const bankAbsAmount = Math.abs(activeBankItem!.bankAmount)
+                const tolerance = Math.max(bankAbsAmount * 0.10, 10_000)
+                if (Math.abs(lineAmount - bankAbsAmount) > tolerance) return false
+
+                // Date proximity: ±30 days from bank transaction date
+                if (activeBankItem!.bankDate && line.entry.date) {
+                    const diffMs = Math.abs(new Date(activeBankItem!.bankDate).getTime() - new Date(line.entry.date).getTime())
+                    if (diffMs > 30 * 86_400_000) return false
+                }
+
+                return true
+            })
+            : journalLines
+
         // Build a map: entryId → matched bank item ID (from already-matched items in current page)
         const entryToItemMap = new Map<string, string>()
         for (const item of rec.items) {
@@ -231,12 +275,12 @@ export async function getReconciliationDetail(
 
         // Build a map: entryId → entry description (for resolving systemDescription)
         const entryDescriptionMap = new Map<string, string>()
-        for (const line of journalLines) {
+        for (const line of filteredJournalLines) {
             entryDescriptionMap.set(line.entryId, line.entry.description)
         }
 
         // Map journal lines to SystemEntryData[]
-        const systemEntries: SystemEntryData[] = journalLines.map((line) => {
+        const systemEntries: SystemEntryData[] = filteredJournalLines.map((line) => {
             const debit = Number(line.debit)
             const credit = Number(line.credit)
             const amount = debit > 0 ? debit : -credit
@@ -295,8 +339,10 @@ export async function getReconciliationDetail(
             systemPagination: {
                 page: systemPage,
                 pageSize: systemPageSize,
-                totalItems: totalSystemEntries,
-                totalPages: Math.ceil(totalSystemEntries / systemPageSize),
+                totalItems: activeBankItem ? filteredJournalLines.length : totalSystemEntries,
+                totalPages: activeBankItem
+                    ? Math.ceil(filteredJournalLines.length / systemPageSize)
+                    : Math.ceil(totalSystemEntries / systemPageSize),
             },
         }
     } catch (error) {
@@ -1222,7 +1268,8 @@ export interface SearchJournalResult {
  */
 export async function searchUnmatchedJournals(
     reconciliationId: string,
-    query: string
+    query: string,
+    bankItemContext?: { bankAmount: number; bankDate: string | null }
 ): Promise<SearchJournalResult[]> {
     try {
         await requireAuth()
@@ -1304,6 +1351,31 @@ export async function searchUnmatchedJournals(
                 reference: line.entry.reference,
                 amount,
                 lineDescription: line.description,
+            })
+        }
+
+        // Per-transaction filter when bank item context is available
+        if (bankItemContext) {
+            const bankAbsAmount = Math.abs(bankItemContext.bankAmount)
+            const bankIsKeluar = bankItemContext.bankAmount < 0
+            const tolerance = Math.max(bankAbsAmount * 0.10, 10_000)
+            const bankDateMs = bankItemContext.bankDate ? new Date(bankItemContext.bankDate).getTime() : null
+
+            return results.filter(r => {
+                // Direction gate
+                if (bankIsKeluar && r.amount > 0) return false
+                if (!bankIsKeluar && r.amount < 0) return false
+
+                // Amount tolerance
+                if (Math.abs(Math.abs(r.amount) - bankAbsAmount) > tolerance) return false
+
+                // Date proximity (±30 days)
+                if (bankDateMs) {
+                    const diffMs = Math.abs(new Date(r.date).getTime() - bankDateMs)
+                    if (diffMs > 30 * 86_400_000) return false
+                }
+
+                return true
             })
         }
 

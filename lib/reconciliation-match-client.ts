@@ -108,6 +108,9 @@ export function computeMatchScore(
 /**
  * Rank all system entries for a single bank line into 3 tiers.
  * Delegates scoring to the server-side engine via type adapters.
+ *
+ * Pre-filtering (direction, amount, date) is done server-side before
+ * entries reach this function. This function only scores and classifies.
  */
 export function rankMatchesForBankLine(
   bankLine: ClientBankLine,
