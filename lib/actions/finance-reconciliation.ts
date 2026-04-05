@@ -1159,6 +1159,177 @@ export async function bulkConfirmCocokItems(
 export const bulkConfirmAutoMatches = bulkConfirmCocokItems
 
 /**
+ * Score all UNMATCHED items that have no matchScore yet.
+ *
+ * This is a lightweight version of autoMatchReconciliation that ONLY persists
+ * score metadata (matchTier, matchScore, matchAmountDiff, matchNameSimilarity,
+ * matchDaysDiff) WITHOUT changing matchStatus — items stay UNMATCHED.
+ *
+ * Called on initial session load so the sidebar can show COCOK / POTENSI /
+ * HAMPIR / BELUM tiers immediately, without requiring the user to click
+ * AUTO-MATCH first.
+ */
+export async function scoreUnmatchedItems(
+    reconciliationId: string
+): Promise<{ success: boolean; scored?: number; error?: string }> {
+    try {
+        const result = await withPrismaAuth(async (prisma: PrismaClient) => {
+            const rec = await prisma.bankReconciliation.findUniqueOrThrow({
+                where: { id: reconciliationId },
+                include: {
+                    items: {
+                        where: {
+                            matchStatus: 'UNMATCHED',
+                            matchScore: null,
+                        },
+                    },
+                },
+            })
+
+            // Nothing to score — bail early
+            if (rec.items.length === 0) return { scored: 0 }
+
+            // Expand date range by ±30 days (same as autoMatch)
+            const dateFrom = new Date(rec.periodStart)
+            dateFrom.setDate(dateFrom.getDate() - 30)
+            const dateTo = new Date(rec.periodEnd)
+            dateTo.setDate(dateTo.getDate() + 30)
+
+            // Fetch POSTED journal lines for the GL account
+            const journalLines = await prisma.journalLine.findMany({
+                where: {
+                    accountId: rec.glAccountId,
+                    entry: {
+                        date: { gte: dateFrom, lte: dateTo },
+                        status: 'POSTED',
+                    },
+                },
+                include: {
+                    entry: {
+                        select: { id: true, date: true, description: true, reference: true },
+                    },
+                },
+            })
+
+            // Exclude already-matched transaction IDs (MATCHED or CONFIRMED)
+            const alreadyMatchedItems = await prisma.bankReconciliationItem.findMany({
+                where: {
+                    reconciliationId,
+                    matchStatus: { in: ['MATCHED', 'CONFIRMED'] },
+                    systemTransactionId: { not: null },
+                },
+                select: { systemTransactionId: true },
+            })
+            const matchedTxnIds = new Set(
+                alreadyMatchedItems.map((i) => i.systemTransactionId).filter(Boolean) as string[]
+            )
+
+            // Convert journal lines to SystemTransaction[], de-duplicate by entry ID
+            const seenEntryIds = new Set<string>()
+            const systemTransactions: SystemTransaction[] = []
+
+            for (const line of journalLines) {
+                const entryId = line.entry.id
+                if (seenEntryIds.has(entryId) || matchedTxnIds.has(entryId)) continue
+                seenEntryIds.add(entryId)
+
+                const debit = Number(line.debit)
+                const credit = Number(line.credit)
+                const amount = debit > 0 ? debit : -credit
+
+                systemTransactions.push({
+                    id: entryId,
+                    date: line.entry.date,
+                    amount,
+                    description: line.entry.description || '',
+                    reference: line.entry.reference,
+                })
+            }
+
+            // Build indexed pool for O(1) exact-amount lookups
+            const txnIndex = buildTransactionIndex(systemTransactions)
+
+            // Collect score-only updates (NO matchStatus change)
+            const updates: {
+                id: string
+                tier: string
+                score: number
+                amountDiff: number
+                nameSimilarity: number
+                daysDiff: number
+            }[] = []
+
+            for (const item of rec.items) {
+                if (!item.bankDate) {
+                    updates.push({
+                        id: item.id,
+                        tier: 'MANUAL',
+                        score: 0,
+                        amountDiff: 0,
+                        nameSimilarity: 0,
+                        daysDiff: 0,
+                    })
+                    continue
+                }
+
+                const bankLine: BankLine = {
+                    id: item.id,
+                    bankDate: item.bankDate,
+                    bankAmount: Number(item.bankAmount),
+                    bankDescription: item.bankDescription || '',
+                    bankRef: item.bankRef || '',
+                }
+
+                const matches = findMatchesIndexed(bankLine, txnIndex)
+
+                if (matches.length === 0) {
+                    updates.push({
+                        id: item.id,
+                        tier: 'MANUAL',
+                        score: 0,
+                        amountDiff: 0,
+                        nameSimilarity: 0,
+                        daysDiff: 0,
+                    })
+                } else {
+                    const best = matches[0]
+                    updates.push({
+                        id: item.id,
+                        tier: best.tier,
+                        score: best.score,
+                        amountDiff: best.amountDiff,
+                        nameSimilarity: best.nameSimilarity,
+                        daysDiff: best.daysDiff,
+                    })
+                }
+            }
+
+            // Persist score metadata ONLY — matchStatus stays UNMATCHED
+            for (const update of updates) {
+                await prisma.bankReconciliationItem.update({
+                    where: { id: update.id },
+                    data: {
+                        matchTier: update.tier,
+                        matchScore: update.score,
+                        matchAmountDiff: update.amountDiff,
+                        matchNameSimilarity: update.nameSimilarity,
+                        matchDaysDiff: update.daysDiff,
+                    },
+                })
+            }
+
+            return { scored: updates.length }
+        })
+
+        return { success: true, scored: result.scored }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal scoring items'
+        console.error("[scoreUnmatchedItems] Error:", error)
+        return { success: false, error: msg }
+    }
+}
+
+/**
  * Match multiple bank items to multiple system journal entries (checkbox multi-select).
  * User selects 1+ bank items and 1+ system entries, totals must match within Rp 1.
  */
