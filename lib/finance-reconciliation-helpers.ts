@@ -429,7 +429,9 @@ export function computeMatchScore(
     rawScore = Math.max(rawScore, 0.75)
   }
 
-  const score = Math.min(100, Math.round(Math.min(1.0, rawScore) * 100))
+  let score = Math.min(100, Math.round(Math.min(1.0, rawScore) * 100))
+  // Fix: 99% is a rounding artifact from sub-rupiah amount diffs — force to 100
+  if (score >= 99) score = 100
 
   return { score, amountDiff, nameSimilarity: descSignal, daysDiff: dd, refSignal, signals, matchedRefs }
 }

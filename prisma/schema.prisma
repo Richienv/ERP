@@ -2264,10 +2264,18 @@ model JournalEntry {
   fixedAssetDeprecEntries FixedAssetDeprecEntry[]
   fixedAssetMovements     FixedAssetMovement[]
 
+  // Reconciliation stamp — written when bank recon item is CONFIRMED
+  isReconciled        Boolean   @default(false)
+  reconciledAt        DateTime?
+  reconciledBy        String?   @db.Uuid
+  reconciliationId    String?   @db.Uuid
+  bankItemRef         String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([date])
+  @@index([isReconciled])
   @@map("journal_entries")
 }
 
@@ -2981,6 +2989,8 @@ enum MatchStatus {
   MATCHED // Cocok
   PARTIAL // Sebagian Cocok
   EXCLUDED // DEPRECATED — remove in next major migration. No longer set by application code.
+  CONFIRMED // Dikonfirmasi oleh user
+  IGNORED // Diabaikan (no GL match, known exception)
 }
 
 // ================================

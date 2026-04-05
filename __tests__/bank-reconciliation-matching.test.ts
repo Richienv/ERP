@@ -370,3 +370,29 @@ describe("Composite scoring integration", () => {
     expect(results[0].score).toBeLessThanOrEqual(85)
   })
 })
+
+// =============================================================================
+// 99% → 100% rounding fix
+// =============================================================================
+
+describe("99% score rounding fix", () => {
+  it("should round 99% score to 100% (sub-rupiah rounding artifact)", () => {
+    // Near-perfect match: sub-rupiah diff + exact ref + same date + good desc
+    const bank: BankLine = {
+      id: "test-99",
+      bankDate: new Date("2026-03-15"),
+      bankAmount: 1000000.50,
+      bankDescription: "PT NICHOLAS PEMBAYARAN INV-001",
+      bankRef: "INV-001",
+    }
+    const txn: SystemTransaction = {
+      id: "gl-99",
+      date: new Date("2026-03-15"),
+      amount: 1000000.00,
+      description: "Pembayaran INV-001 PT Nicholas",
+      reference: "INV-001",
+    }
+    const result = computeMatchScore(bank, txn)
+    expect(result.score).toBe(100)
+  })
+})
