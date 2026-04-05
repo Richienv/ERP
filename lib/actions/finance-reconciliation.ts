@@ -946,33 +946,217 @@ export async function autoMatchReconciliation(
 }
 
 /**
- * Bulk confirm all AUTO-matched items (Tier 1 bulk approve).
- * This is a no-op if items are already MATCHED — it's for items that were
- * auto-classified as AUTO but haven't been confirmed yet.
+ * Confirm a matched bank reconciliation item.
+ * Sets matchStatus to CONFIRMED and writes reconciliation stamp on the matched JournalEntry.
  */
-export async function bulkConfirmAutoMatches(
+export async function confirmReconciliationItem(
+    itemId: string
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        await withPrismaAuth(async (prisma: PrismaClient) => {
+            const supabase = await (await import('@/lib/supabase/server')).createClient()
+            const { data: { user } } = await supabase.auth.getUser()
+
+            const item = await prisma.bankReconciliationItem.findUnique({
+                where: { id: itemId },
+                include: { reconciliation: true },
+            })
+            if (!item) throw new Error('Item tidak ditemukan')
+            if (item.matchStatus !== 'MATCHED') {
+                throw new Error('Item harus berstatus MATCHED untuk dikonfirmasi')
+            }
+            if (!item.systemTransactionId) {
+                throw new Error('Item belum dipasangkan dengan transaksi sistem')
+            }
+
+            // Update item status to CONFIRMED
+            await prisma.bankReconciliationItem.update({
+                where: { id: itemId },
+                data: {
+                    matchStatus: 'CONFIRMED',
+                    matchedBy: user?.id ?? null,
+                    matchedAt: new Date(),
+                },
+            })
+
+            // Write reconciliation stamp on matched JournalEntry
+            await prisma.journalEntry.update({
+                where: { id: item.systemTransactionId },
+                data: {
+                    isReconciled: true,
+                    reconciledAt: new Date(),
+                    reconciledBy: user?.id ?? null,
+                    reconciliationId: item.reconciliationId,
+                    bankItemRef: item.bankRef,
+                },
+            })
+        })
+        return { success: true }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal konfirmasi item'
+        console.error("[confirmReconciliationItem] Error:", error)
+        return { success: false, error: msg }
+    }
+}
+
+/**
+ * Reject a matched bank reconciliation item.
+ * Clears the match link, removes reconciliation stamp from JournalEntry,
+ * and sets matchStatus back to UNMATCHED.
+ */
+export async function rejectReconciliationItem(
+    itemId: string
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        await withPrismaAuth(async (prisma: PrismaClient) => {
+            const item = await prisma.bankReconciliationItem.findUnique({
+                where: { id: itemId },
+            })
+            if (!item) throw new Error('Item tidak ditemukan')
+            if (item.matchStatus !== 'MATCHED' && item.matchStatus !== 'CONFIRMED') {
+                throw new Error('Item harus berstatus MATCHED atau CONFIRMED untuk ditolak')
+            }
+
+            // Remove stamp from JournalEntry if linked
+            if (item.systemTransactionId) {
+                await prisma.journalEntry.update({
+                    where: { id: item.systemTransactionId },
+                    data: {
+                        isReconciled: false,
+                        reconciledAt: null,
+                        reconciledBy: null,
+                        reconciliationId: null,
+                        bankItemRef: null,
+                    },
+                })
+            }
+
+            // Reset item to UNMATCHED
+            await prisma.bankReconciliationItem.update({
+                where: { id: itemId },
+                data: {
+                    matchStatus: 'UNMATCHED',
+                    systemTransactionId: null,
+                    matchedBy: null,
+                    matchedAt: null,
+                    matchTier: null,
+                    matchScore: null,
+                    matchAmountDiff: null,
+                    matchNameSimilarity: null,
+                    matchDaysDiff: null,
+                },
+            })
+        })
+        return { success: true }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal menolak match'
+        console.error("[rejectReconciliationItem] Error:", error)
+        return { success: false, error: msg }
+    }
+}
+
+/**
+ * Ignore a bank reconciliation item (no GL match, known exception).
+ * Does NOT write a journal stamp — this is a deliberate skip.
+ */
+export async function ignoreReconciliationItem(
+    itemId: string,
+    reason?: string
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        await withPrismaAuth(async (prisma: PrismaClient) => {
+            const item = await prisma.bankReconciliationItem.findUnique({
+                where: { id: itemId },
+            })
+            if (!item) throw new Error('Item tidak ditemukan')
+            if (item.matchStatus === 'CONFIRMED') {
+                throw new Error('Item sudah dikonfirmasi — tolak dulu sebelum mengabaikan')
+            }
+
+            await prisma.bankReconciliationItem.update({
+                where: { id: itemId },
+                data: {
+                    matchStatus: 'IGNORED',
+                    excludeReason: reason || null,
+                },
+            })
+        })
+        return { success: true }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal mengabaikan item'
+        console.error("[ignoreReconciliationItem] Error:", error)
+        return { success: false, error: msg }
+    }
+}
+
+/**
+ * Bulk confirm all COCOK-tier matched items (score >= 95).
+ * Writes reconciliation stamp on each matched JournalEntry.
+ */
+export async function bulkConfirmCocokItems(
     reconciliationId: string
 ): Promise<{ success: boolean; confirmed?: number; error?: string }> {
     try {
         const result = await withPrismaAuth(async (prisma: PrismaClient) => {
-            // Find all AUTO-tier items that are already matched
-            const autoItems = await prisma.bankReconciliationItem.findMany({
+            const supabase = await (await import('@/lib/supabase/server')).createClient()
+            const { data: { user } } = await supabase.auth.getUser()
+
+            // Find all matched items with score >= 95 that haven't been confirmed yet
+            const cocokItems = await prisma.bankReconciliationItem.findMany({
                 where: {
                     reconciliationId,
-                    matchTier: 'AUTO',
                     matchStatus: 'MATCHED',
+                    matchScore: { gte: 95 },
+                    systemTransactionId: { not: null },
                 },
             })
-            return { confirmed: autoItems.length }
+
+            if (cocokItems.length === 0) return { confirmed: 0 }
+
+            const now = new Date()
+
+            // Batch update items to CONFIRMED
+            await prisma.bankReconciliationItem.updateMany({
+                where: {
+                    id: { in: cocokItems.map(i => i.id) },
+                },
+                data: {
+                    matchStatus: 'CONFIRMED',
+                    matchedBy: user?.id ?? null,
+                    matchedAt: now,
+                },
+            })
+
+            // Write stamp on each matched JournalEntry
+            const journalIds = cocokItems
+                .map(i => i.systemTransactionId)
+                .filter((id): id is string => id !== null)
+
+            if (journalIds.length > 0) {
+                await prisma.journalEntry.updateMany({
+                    where: { id: { in: journalIds } },
+                    data: {
+                        isReconciled: true,
+                        reconciledAt: now,
+                        reconciledBy: user?.id ?? null,
+                        reconciliationId,
+                    },
+                })
+            }
+
+            return { confirmed: cocokItems.length }
         })
 
         return { success: true, confirmed: result.confirmed }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal konfirmasi bulk'
-        console.error("[bulkConfirmAutoMatches] Error:", error)
+        console.error("[bulkConfirmCocokItems] Error:", error)
         return { success: false, error: msg }
     }
 }
+
+/** @deprecated Use bulkConfirmCocokItems instead */
+export const bulkConfirmAutoMatches = bulkConfirmCocokItems
 
 /**
  * Match multiple bank items to multiple system journal entries (checkbox multi-select).

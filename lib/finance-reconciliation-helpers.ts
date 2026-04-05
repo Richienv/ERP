@@ -36,6 +36,17 @@ export interface SystemTransaction {
 
 export type MatchTier = "AUTO" | "POTENTIAL" | "MANUAL"
 
+/** 4-layer display classification for bank recon UI */
+export type ReconLayer = "COCOK" | "POTENSI" | "HAMPIR" | "BELUM"
+
+/** Classify a match score into one of 4 display layers */
+export function scoreToLayer(score: number | null | undefined): ReconLayer {
+  if (score == null || score < 40) return "BELUM"
+  if (score < 70) return "HAMPIR"
+  if (score < 95) return "POTENSI"
+  return "COCOK"
+}
+
 /** Legacy alias — maps AUTO->HIGH, POTENTIAL->MEDIUM, MANUAL->LOW */
 export type MatchConfidence = "HIGH" | "MEDIUM" | "LOW"
 

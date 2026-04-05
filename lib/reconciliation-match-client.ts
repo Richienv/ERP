@@ -16,6 +16,7 @@ import {
 
 // Re-export for convenience
 export type { MatchSignals }
+export { scoreToLayer, type ReconLayer } from "./finance-reconciliation-helpers"
 
 // =============================================================================
 // Client Types (string dates, nullable fields — as returned by the API)

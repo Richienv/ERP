@@ -5,6 +5,7 @@ import {
   extractDocNumbers,
   scoreReference,
   normalizeBankDescription,
+  scoreToLayer,
   type BankLine,
   type SystemTransaction,
 } from "@/lib/finance-reconciliation-helpers"
@@ -394,5 +395,30 @@ describe("99% score rounding fix", () => {
     }
     const result = computeMatchScore(bank, txn)
     expect(result.score).toBe(100)
+  })
+})
+
+// =============================================================================
+// scoreToLayer — 4-layer classification
+// =============================================================================
+
+describe("scoreToLayer — 4-layer classification", () => {
+  it("COCOK for score >= 95", () => {
+    expect(scoreToLayer(95)).toBe("COCOK")
+    expect(scoreToLayer(100)).toBe("COCOK")
+  })
+  it("POTENSI for score 70-94", () => {
+    expect(scoreToLayer(70)).toBe("POTENSI")
+    expect(scoreToLayer(94)).toBe("POTENSI")
+  })
+  it("HAMPIR for score 40-69", () => {
+    expect(scoreToLayer(40)).toBe("HAMPIR")
+    expect(scoreToLayer(69)).toBe("HAMPIR")
+  })
+  it("BELUM for score < 40 or null", () => {
+    expect(scoreToLayer(39)).toBe("BELUM")
+    expect(scoreToLayer(0)).toBe("BELUM")
+    expect(scoreToLayer(null)).toBe("BELUM")
+    expect(scoreToLayer(undefined)).toBe("BELUM")
   })
 })
