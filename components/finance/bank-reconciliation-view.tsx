@@ -526,7 +526,7 @@ export function BankReconciliationView({
                             if (result.success && (result.scored ?? 0) > 0) {
                                 await reloadDetail(detail.id)
                             }
-                        })
+                        }).catch(() => {})
                     }
                 }
             }
