@@ -1722,7 +1722,7 @@ export function ReconciliationFocusView({
             {/* Progress Header */}
             <ProgressHeader
                 detail={detail}
-                matchedCount={matchedCount}
+                matchedCount={confirmedCount}
                 totalCount={totalCount}
                 isCompleted={isCompleted}
             />
