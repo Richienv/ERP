@@ -422,3 +422,43 @@ describe("scoreToLayer — 4-layer classification", () => {
     expect(scoreToLayer(undefined)).toBe("BELUM")
   })
 })
+
+// =============================================================================
+// getItemDisplayLayer — UNMATCHED items with scores (mirrors component logic)
+// =============================================================================
+
+describe("getItemDisplayLayer — UNMATCHED items with scores", () => {
+  // Mirrors the component function in reconciliation-focus-view.tsx
+  // so we can verify the classification logic without importing the component.
+  function getLayer(matchStatus: string, matchScore: number | null): string {
+    if (matchStatus === "CONFIRMED") return "CONFIRMED"
+    if (matchStatus === "IGNORED") return "IGNORED"
+    const score = matchScore ?? 0
+    if (score >= 95) return "COCOK"
+    if (score >= 70) return "POTENSI"
+    if (score >= 40) return "HAMPIR"
+    return "BELUM"
+  }
+
+  it("UNMATCHED item with score 100 → COCOK", () => {
+    expect(getLayer("UNMATCHED", 100)).toBe("COCOK")
+  })
+  it("UNMATCHED item with score 80 → POTENSI", () => {
+    expect(getLayer("UNMATCHED", 80)).toBe("POTENSI")
+  })
+  it("UNMATCHED item with score 50 → HAMPIR", () => {
+    expect(getLayer("UNMATCHED", 50)).toBe("HAMPIR")
+  })
+  it("UNMATCHED item with null score → BELUM", () => {
+    expect(getLayer("UNMATCHED", null)).toBe("BELUM")
+  })
+  it("MATCHED item with score 100 → COCOK", () => {
+    expect(getLayer("MATCHED", 100)).toBe("COCOK")
+  })
+  it("CONFIRMED item ignores score", () => {
+    expect(getLayer("CONFIRMED", 50)).toBe("CONFIRMED")
+  })
+  it("IGNORED item ignores score", () => {
+    expect(getLayer("IGNORED", 95)).toBe("IGNORED")
+  })
+})
