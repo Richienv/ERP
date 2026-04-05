@@ -39,6 +39,14 @@ export type MatchTier = "AUTO" | "POTENTIAL" | "MANUAL"
 /** Legacy alias — maps AUTO->HIGH, POTENTIAL->MEDIUM, MANUAL->LOW */
 export type MatchConfidence = "HIGH" | "MEDIUM" | "LOW"
 
+export interface MatchSignals {
+  amount: number // 0..1
+  reference: number // 0..1
+  description: number // 0..1
+  date: number // 0..1
+  direction: number // 0 or 1
+}
+
 export interface MatchResult {
   transactionId: string
   tier: MatchTier
@@ -321,10 +329,10 @@ const MATCH_WEIGHTS = {
 } as const
 
 /** Collect reference tokens from both bank line and GL transaction */
-function collectRefs(
+export function collectRefs(
   bankLine: BankLine,
   txn: SystemTransaction
-): { bankRefs: string[]; glRefs: string[] } {
+): { bankRefs: string[]; glRefs: string[]; matchedRefs: string[] } {
   const bankRefs = extractDocNumbers(
     `${bankLine.bankRef} ${bankLine.bankDescription}`
   )
@@ -342,7 +350,19 @@ function collectRefs(
     if (nr && !glRefs.includes(nr)) glRefs.push(nr)
   }
 
-  return { bankRefs, glRefs }
+  // Find matched refs (for UI highlighting)
+  const bNorm = bankRefs.map((r) => r.toUpperCase().replace(/[\s\-\/]/g, "").replace(/^0+/, ""))
+  const gNorm = glRefs.map((r) => r.toUpperCase().replace(/[\s\-\/]/g, "").replace(/^0+/, ""))
+  const matchedRefs: string[] = []
+  for (const b of bNorm) {
+    for (const g of gNorm) {
+      if (b === g || b.includes(g) || g.includes(b)) {
+        if (!matchedRefs.includes(b)) matchedRefs.push(b)
+      }
+    }
+  }
+
+  return { bankRefs, glRefs, matchedRefs }
 }
 
 /**
@@ -362,19 +382,22 @@ export function computeMatchScore(
   nameSimilarity: number
   daysDiff: number
   refSignal: number
+  signals: MatchSignals
+  matchedRefs: string[]
 } {
   const amountDiff = Math.abs(
     Math.abs(bankLine.bankAmount) - Math.abs(txn.amount)
   )
   const dd = daysBetween(bankLine.bankDate, txn.date)
 
-  // Task 1: Direction hard gate
+  // Direction hard gate
   if (!sameDirection(bankLine.bankAmount, txn.amount)) {
-    return { score: 0, amountDiff, nameSimilarity: 0, daysDiff: dd, refSignal: 0 }
+    const zeroSignals: MatchSignals = { amount: 0, reference: 0, description: 0, date: 0, direction: 0 }
+    return { score: 0, amountDiff, nameSimilarity: 0, daysDiff: dd, refSignal: 0, signals: zeroSignals, matchedRefs: [] }
   }
 
   // Compute individual signals
-  const { bankRefs, glRefs } = collectRefs(bankLine, txn)
+  const { bankRefs, glRefs, matchedRefs } = collectRefs(bankLine, txn)
 
   const amtSignal = scoreAmount(
     Math.abs(bankLine.bankAmount),
@@ -384,6 +407,14 @@ export function computeMatchScore(
   const descSignal = scoreDescription(bankLine.bankDescription, txn.description)
   const dateSignal = scoreDateProximity(bankLine.bankDate, txn.date)
   const dirSignal = 1.0
+
+  const signals: MatchSignals = {
+    amount: amtSignal,
+    reference: refSignal,
+    description: descSignal,
+    date: dateSignal,
+    direction: dirSignal,
+  }
 
   let rawScore =
     amtSignal * MATCH_WEIGHTS.amount +
@@ -400,7 +431,7 @@ export function computeMatchScore(
 
   const score = Math.min(100, Math.round(Math.min(1.0, rawScore) * 100))
 
-  return { score, amountDiff, nameSimilarity: descSignal, daysDiff: dd, refSignal }
+  return { score, amountDiff, nameSimilarity: descSignal, daysDiff: dd, refSignal, signals, matchedRefs }
 }
 
 // =============================================================================

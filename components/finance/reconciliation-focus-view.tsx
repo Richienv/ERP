@@ -48,6 +48,7 @@ import {
     type ClientBankLine,
     type ClientMatchResult,
     type TieredMatches,
+    type MatchSignals,
 } from "@/lib/reconciliation-match-client"
 
 // ==============================================================================
@@ -140,6 +141,173 @@ function TierBadge({ tier, score }: { tier: string | null; score?: number | null
             {score != null && <span className="font-mono">{score}%</span>}
         </span>
     )
+}
+
+// ==============================================================================
+// Signal Bar — weighted breakdown of match quality
+// ==============================================================================
+
+const SIGNAL_LABELS: { key: keyof MatchSignals; label: string; weight: number }[] = [
+  { key: "amount", label: "Jumlah", weight: 35 },
+  { key: "reference", label: "Ref", weight: 25 },
+  { key: "description", label: "Nama", weight: 20 },
+  { key: "date", label: "Tgl", weight: 10 },
+  { key: "direction", label: "Arah", weight: 10 },
+]
+
+function signalColor(value: number): string {
+  if (value >= 0.75) return "bg-emerald-500"
+  if (value >= 0.40) return "bg-amber-400"
+  if (value > 0) return "bg-zinc-300"
+  return "bg-red-400"
+}
+
+function SignalBar({ signals, score }: { signals: MatchSignals; score: number }) {
+  return (
+    <div className="mt-2">
+      <div className="flex h-2 border border-black overflow-hidden">
+        {SIGNAL_LABELS.map(({ key, weight }) => (
+          <div
+            key={key}
+            className={`${signalColor(signals[key])} transition-colors`}
+            style={{ width: `${weight}%` }}
+            title={`${key}: ${Math.round(signals[key] * 100)}%`}
+          />
+        ))}
+      </div>
+      <div className="flex mt-0.5">
+        {SIGNAL_LABELS.map(({ key, label, weight }) => (
+          <span
+            key={key}
+            className="text-[6px] font-bold uppercase text-zinc-400 text-center truncate"
+            style={{ width: `${weight}%` }}
+          >
+            {label}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ==============================================================================
+// Direction Chip — inflow/outflow label
+// ==============================================================================
+
+function DirectionChip({ amount }: { amount: number }) {
+  const isInflow = amount >= 0
+  return (
+    <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[8px] font-black border ${
+      isInflow
+        ? "bg-emerald-100 text-emerald-700 border-emerald-400"
+        : "bg-red-100 text-red-700 border-red-400"
+    }`}>
+      {isInflow ? "\u2191 MASUK" : "\u2193 KELUAR"}
+    </span>
+  )
+}
+
+// ==============================================================================
+// Highlighted Text — highlight matched references in text
+// ==============================================================================
+
+function HighlightedText({ text, matchedRefs }: { text: string; matchedRefs: string[] }) {
+  if (!text || matchedRefs.length === 0) return <>{text || "-"}</>
+
+  const patterns = matchedRefs.map((ref) => {
+    const chars = ref.split("")
+    let pattern = ""
+    for (let i = 0; i < chars.length; i++) {
+      pattern += chars[i].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+      if (i < chars.length - 1) {
+        const curr = /[A-Z]/.test(chars[i])
+        const next = /[A-Z]/.test(chars[i + 1])
+        if (curr !== next) pattern += "[-\\/]?"
+      }
+    }
+    return pattern
+  })
+
+  try {
+    const regex = new RegExp(`(${patterns.join("|")})`, "gi")
+    const parts = text.split(regex)
+    return (
+      <>
+        {parts.map((part, i) =>
+          regex.test(part) ? (
+            <span key={i} className="bg-orange-100 border-b border-orange-400 font-bold text-orange-800 px-0.5">
+              {part}
+            </span>
+          ) : (
+            <span key={i}>{part}</span>
+          )
+        )}
+      </>
+    )
+  } catch {
+    return <>{text}</>
+  }
+}
+
+// ==============================================================================
+// Zero Match Diagnostic — explains why no matches were found
+// ==============================================================================
+
+function ZeroMatchDiagnostic({
+  currentItem,
+  allSystemEntries,
+}: {
+  currentItem: ReconciliationItemData
+  allSystemEntries: SystemEntryData[]
+}) {
+  const diagnostic = useMemo(() => {
+    if (allSystemEntries.length === 0) {
+      return { icon: AlertCircle, message: "Belum ada jurnal umum \u2014 buat jurnal baru?" }
+    }
+
+    const bankIsInflow = currentItem.bankAmount >= 0
+    const sameDir = allSystemEntries.filter((e) => (e.amount >= 0) === bankIsInflow)
+
+    if (sameDir.length === 0) {
+      return {
+        icon: ArrowRightLeft,
+        message: `Semua jurnal GL berlawanan arah (bank: ${bankIsInflow ? "masuk" : "keluar"}, GL: semua ${bankIsInflow ? "keluar" : "masuk"})`,
+      }
+    }
+
+    const bankDate = currentItem.bankDate ? new Date(currentItem.bankDate) : null
+    if (bankDate) {
+      const within30 = sameDir.filter((e) => Math.abs(new Date(e.date).getTime() - bankDate.getTime()) <= 30 * 86400000)
+      if (within30.length === 0) {
+        return { icon: AlertCircle, message: "Tidak ada jurnal dalam 30 hari dari tanggal bank" }
+      }
+    }
+
+    const bankAbs = Math.abs(currentItem.bankAmount)
+    const closest = sameDir.reduce((best, e) => {
+      const diff = Math.abs(Math.abs(e.amount) - bankAbs)
+      return diff < best.diff ? { diff, amount: Math.abs(e.amount) } : best
+    }, { diff: Infinity, amount: 0 })
+
+    if (closest.diff > 0 && bankAbs > 0) {
+      const pct = (closest.diff / bankAbs * 100).toFixed(1)
+      return {
+        icon: AlertCircle,
+        message: `Selisih jumlah terlalu besar \u2014 jurnal terdekat: Rp ${formatIDR(Math.round(closest.amount))} (selisih ${pct}%)`,
+      }
+    }
+
+    return { icon: AlertCircle, message: "Tidak ada kecocokan ditemukan" }
+  }, [currentItem, allSystemEntries])
+
+  const Icon = diagnostic.icon
+  return (
+    <div className="p-8 text-center space-y-3">
+      <Icon className="h-6 w-6 mx-auto text-zinc-300 mb-2" />
+      <span className="text-[11px] font-bold text-zinc-500 block">Tidak ada jurnal yang cocok</span>
+      <p className="text-[10px] text-zinc-400 italic">{diagnostic.message}</p>
+    </div>
+  )
 }
 
 // ==============================================================================
@@ -273,6 +441,7 @@ function QueueSidebar({
                                         <span className={`text-[9px] font-mono ${
                                             item.bankAmount >= 0 ? "text-emerald-600" : "text-red-500"
                                         }`}>
+                                            <span className="text-[7px]">{item.bankAmount >= 0 ? "\u25B2" : "\u25BC"}</span>{" "}
                                             Rp {formatIDR(Math.abs(item.bankAmount))}
                                         </span>
                                         <span className={`text-[7px] font-black px-1 py-0.5 border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
@@ -312,11 +481,14 @@ function BankLineCard({ item }: { item: ReconciliationItemData }) {
                     </div>
                     <div>
                         <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400 block">Jumlah</span>
-                        <span className={`text-lg font-mono font-black ${
-                            item.bankAmount >= 0 ? "text-emerald-600" : "text-red-600"
-                        }`}>
-                            Rp {formatIDR(Math.abs(item.bankAmount))}
-                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className={`text-lg font-mono font-black ${
+                                item.bankAmount >= 0 ? "text-emerald-600" : "text-red-600"
+                            }`}>
+                                Rp {formatIDR(Math.abs(item.bankAmount))}
+                            </span>
+                            <DirectionChip amount={item.bankAmount} />
+                        </div>
                     </div>
                 </div>
                 <div>
@@ -490,15 +662,21 @@ function JournalSuggestions({
             {/* 3-Tier Journal List */}
             <ScrollArea className="flex-1">
                 {totalFiltered === 0 && !showInlineForm ? (
-                    <div className="p-8 text-center space-y-3">
-                        <AlertCircle className="h-6 w-6 mx-auto text-zinc-300 mb-2" />
-                        <span className="text-[11px] font-bold text-zinc-500 block">
-                            {searchQuery ? `Tidak ada jurnal untuk "${searchQuery}"` : "Tidak ada jurnal yang bisa dicocokkan"}
-                        </span>
-                        <p className="text-[10px] text-zinc-400">
-                            Buat jurnal baru untuk transaksi ini.
-                        </p>
-                        <div className="flex items-center justify-center gap-2 pt-1">
+                    <div>
+                        {searchQuery ? (
+                            <div className="p-8 text-center space-y-3">
+                                <AlertCircle className="h-6 w-6 mx-auto text-zinc-300 mb-2" />
+                                <span className="text-[11px] font-bold text-zinc-500 block">
+                                    Tidak ada jurnal untuk &quot;{searchQuery}&quot;
+                                </span>
+                            </div>
+                        ) : (
+                            <ZeroMatchDiagnostic
+                                currentItem={currentItem}
+                                allSystemEntries={allSystemEntries}
+                            />
+                        )}
+                        <div className="flex items-center justify-center gap-2 py-3">
                             {onCreateJournalAndMatch && (
                                 <Button
                                     variant="outline"
@@ -528,7 +706,10 @@ function JournalSuggestions({
                                 <div className="px-4 py-2 bg-emerald-500 flex items-center gap-2">
                                     <CheckCircle2 className="h-3.5 w-3.5 text-white" />
                                     <span className="text-[10px] font-black uppercase tracking-widest text-white">
-                                        100% Cocok — Auto
+                                        Cocok Otomatis
+                                    </span>
+                                    <span className="text-[9px] font-mono font-bold text-emerald-200 ml-auto">
+                                        {filteredAuto[0]?.score ?? 100}% kecocokan
                                     </span>
                                 </div>
                                 {filteredAuto.map((m) => (
@@ -661,22 +842,26 @@ function AutoMatchCard({
                     <span className="text-[9px] font-mono text-emerald-500 shrink-0">
                         {formatDate(e.date)}
                     </span>
-                    <TierBadge tier="AUTO" score={100} />
+                    <TierBadge tier="AUTO" score={match.score} />
                 </div>
                 <span className={`text-sm font-mono font-black shrink-0 ${
                     e.amount >= 0 ? "text-emerald-600" : "text-red-600"
                 }`}>
                     Rp {formatIDR(Math.abs(e.amount))}
+                    <span className="text-[8px] font-black ml-1 opacity-60">
+                        {e.amount >= 0 ? "DR" : "CR"}
+                    </span>
                 </span>
             </div>
             <div className="text-xs font-bold text-zinc-800 dark:text-zinc-200 truncate">
-                {e.lineDescription || e.description || "-"}
+                <HighlightedText text={e.lineDescription || e.description || "-"} matchedRefs={match.matchedRefs} />
             </div>
             {e.reference && (
                 <div className="text-[9px] text-emerald-500 font-mono truncate mt-0.5">
-                    Ref: {e.reference}
+                    Ref: <HighlightedText text={e.reference} matchedRefs={match.matchedRefs} />
                 </div>
             )}
+            <SignalBar signals={match.signals} score={match.score} />
             {isSelected ? (
                 <div className="mt-2 flex items-center gap-1.5 text-[9px] font-bold text-emerald-700">
                     <CheckCircle2 className="h-3 w-3" />
@@ -729,21 +914,32 @@ function MatchRow({
                     e.amount >= 0 ? "text-emerald-600" : "text-red-600"
                 }`}>
                     Rp {formatIDR(Math.abs(e.amount))}
+                    <span className="text-[8px] font-black ml-1 opacity-60">
+                        {e.amount >= 0 ? "DR" : "CR"}
+                    </span>
                 </span>
             </div>
             <div className="text-xs font-medium truncate text-zinc-700 dark:text-zinc-300">
-                {e.lineDescription || e.description || "-"}
+                <HighlightedText text={e.lineDescription || e.description || "-"} matchedRefs={match.matchedRefs} />
             </div>
             {e.reference && (
                 <div className="text-[9px] text-zinc-400 font-mono truncate mt-0.5">
-                    Ref: {e.reference}
+                    Ref: <HighlightedText text={e.reference} matchedRefs={match.matchedRefs} />
                 </div>
             )}
-            {/* Score details */}
-            <div className="flex items-center gap-3 mt-1.5 text-[9px] text-zinc-400">
-                <span>Selisih: <span className={`font-mono font-bold ${match.amountDiff === 0 ? "text-emerald-500" : "text-zinc-500"}`}>Rp {formatIDR(Math.round(match.amountDiff))}</span></span>
-                <span>Nama: <span className={`font-mono font-bold ${match.nameSimilarity >= 0.65 ? "text-amber-500" : "text-zinc-500"}`}>{Math.round(match.nameSimilarity * 100)}%</span></span>
-                <span>±{match.daysDiff} hari</span>
+            <SignalBar signals={match.signals} score={match.score} />
+            <div className="flex items-center gap-2.5 mt-1 text-[8px] text-zinc-400">
+                {match.amountDiff === 0 ? (
+                    <span className="text-emerald-500 font-bold">Jumlah cocok</span>
+                ) : (
+                    <span>Selisih <span className="font-mono font-bold text-zinc-500">Rp {formatIDR(Math.round(match.amountDiff))}</span></span>
+                )}
+                {match.matchedRefs.length > 0 && (
+                    <span className="text-orange-600 font-bold">Ref {"\u2713"}</span>
+                )}
+                {match.daysDiff > 0 && (
+                    <span>{"\u00b1"}{match.daysDiff} hari</span>
+                )}
             </div>
             {isSelected && (
                 <div className="mt-2 flex items-center gap-1.5 text-[9px] font-bold text-orange-600">
@@ -1511,18 +1707,23 @@ export function ReconciliationFocusView({
 
                                                 {/* Action buttons */}
                                                 {!isCompleted && (
-                                                    <div className="px-4 py-3 border-t-2 border-black bg-zinc-900 dark:bg-black flex items-center justify-end gap-3">
-                                                        <div className="flex items-center gap-2">
+                                                    <div className="border-t border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-5 py-3.5 flex items-center justify-between">
+                                                        <Button
+                                                            variant="outline"
+                                                            className="border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-[10px] font-bold uppercase tracking-wider h-9 px-4 rounded-none"
+                                                            onClick={goPrev}
+                                                            disabled={currentIndex <= 0}
+                                                        >
+                                                            <ChevronLeft className="h-3.5 w-3.5 mr-1" /> Sebelumnya
+                                                        </Button>
+                                                        <div className="flex items-center gap-3">
+                                                            {selectedJournalId && (
+                                                                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                                                    <CheckCircle2 className="h-3.5 w-3.5" /> Jurnal dipilih
+                                                                </span>
+                                                            )}
                                                             <Button
-                                                                variant="outline"
-                                                                className="border border-zinc-600 text-zinc-300 hover:text-white hover:border-zinc-500 text-[10px] font-bold uppercase tracking-wider h-9 px-3 rounded-none"
-                                                                onClick={goPrev}
-                                                                disabled={currentIndex <= 0}
-                                                            >
-                                                                <ChevronLeft className="h-3.5 w-3.5 mr-1" /> Sebelumnya
-                                                            </Button>
-                                                            <Button
-                                                                className="bg-white text-black border-2 border-white shadow-[3px_3px_0px_0px_rgba(255,255,255,0.3)] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.3)] transition-all font-black uppercase text-[10px] tracking-wider px-5 h-9 rounded-none disabled:opacity-40"
+                                                                className="bg-orange-500 text-white border-2 border-orange-600 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-[10px] tracking-wider px-5 h-9 rounded-none disabled:opacity-40 disabled:cursor-not-allowed"
                                                                 disabled={!selectedJournalId || actionLoading !== null}
                                                                 onClick={handleMatchAndNext}
                                                             >

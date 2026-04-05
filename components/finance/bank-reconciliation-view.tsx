@@ -725,8 +725,8 @@ export function BankReconciliationView({
                                     </div>
                                 </div>
 
-                                {/* Preview */}
-                                {(newBankCode.trim() || newBankName) && (
+                                {/* Preview — only when code is valid (1000-1999) and bank name is set */}
+                                {(/^1\d{3}$/.test(newBankCode) && newBankName) && (
                                     <div className="border-2 border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 space-y-1">
                                         <div className="flex items-center gap-3">
                                             <Landmark className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
@@ -799,7 +799,6 @@ export function BankReconciliationView({
                                                 setNewBankAccountHolder("")
                                                 setNewBankBranch("")
                                                 setNewBankCurrency("IDR")
-                                                setNewBankCoaId("")
                                                 setNewBankIsActive(true)
                                                 queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
                                                 queryClient.invalidateQueries({ queryKey: queryKeys.glAccounts.all })
