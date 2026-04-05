@@ -1723,7 +1723,7 @@ export function ReconciliationFocusView({
                                                                 </span>
                                                             )}
                                                             <Button
-                                                                className="bg-orange-500 text-white border-2 border-orange-600 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-[10px] tracking-wider px-5 h-9 rounded-none disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                className="bg-orange-500 hover:bg-orange-600 text-white border-2 border-orange-600 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-[10px] tracking-wider px-5 h-9 rounded-none disabled:opacity-40 disabled:cursor-not-allowed"
                                                                 disabled={!selectedJournalId || actionLoading !== null}
                                                                 onClick={handleMatchAndNext}
                                                             >

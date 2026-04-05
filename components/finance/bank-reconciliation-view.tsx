@@ -113,7 +113,7 @@ interface BankReconciliationViewProps {
         rows: { date: string; description: string; amount: number; reference?: string }[]
     ) => Promise<{ success: boolean; importedCount?: number; error?: string }>
     onAutoMatch: (reconciliationId: string) => Promise<{ success: boolean; matched?: number; matchedCount?: number; potentialCount?: number; manualCount?: number; suggestions?: unknown[]; error?: string }>
-    onMatchItems: (data: { bankItemIds: string[]; systemEntryIds: string[] }) => Promise<{ success: boolean; error?: string }>
+    onMatchItems: (data: { bankItemIds: string[]; systemEntryIds: string[] }) => Promise<{ success: boolean; error?: string; amountDiff?: number }>
     onUnmatchItem: (itemId: string) => Promise<{ success: boolean; error?: string }>
     onClose: (reconciliationId: string) => Promise<{ success: boolean; error?: string }>
     onLoadDetail: (reconciliationId: string, options?: { bankPage?: number; bankPageSize?: number; systemPage?: number; systemPageSize?: number }) => Promise<ReconciliationDetail | null>
@@ -1189,7 +1189,11 @@ export function BankReconciliationView({
                                     toast.error(result.error)
                                     throw new Error(result.error)
                                 }
-                                toast.success("Transaksi berhasil dicocokkan")
+                                if (result.amountDiff && result.amountDiff > 1) {
+                                    toast.success(`Dicocokkan dengan selisih Rp ${result.amountDiff.toLocaleString("id-ID")}`)
+                                } else {
+                                    toast.success("Transaksi berhasil dicocokkan")
+                                }
                             }}
                             onUnmatchItem={async (itemId) => {
                                 const result = await onUnmatchItem(itemId)

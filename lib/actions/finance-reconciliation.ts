@@ -935,10 +935,12 @@ export async function bulkConfirmAutoMatches(
 export async function matchMultipleItems(data: {
     bankItemIds: string[]
     systemEntryIds: string[]
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<{ success: boolean; error?: string; amountDiff?: number }> {
     if (!data.bankItemIds.length || !data.systemEntryIds.length) {
         return { success: false, error: 'Pilih minimal 1 item bank dan 1 transaksi sistem' }
     }
+
+    let amountDiff = 0
 
     try {
         await withPrismaAuth(async (prisma: PrismaClient) => {
@@ -981,12 +983,8 @@ export async function matchMultipleItems(data: {
                 0
             )
 
-            // Validate totals match within Rp 1 tolerance
-            if (Math.abs(bankTotal - systemTotal) > 1) {
-                throw new Error(
-                    `Total tidak cocok: Bank Rp ${bankTotal.toLocaleString('id-ID')} vs Sistem Rp ${systemTotal.toLocaleString('id-ID')}`
-                )
-            }
+            // Calculate difference — allow user-initiated matches even if amounts differ
+            amountDiff = Math.abs(bankTotal - systemTotal)
 
             // Match bank items to system entries
             // For N:1 (multiple bank items to 1 system entry) — all items get the same systemTransactionId
@@ -1024,7 +1022,7 @@ export async function matchMultipleItems(data: {
             }
         })
 
-        return { success: true }
+        return { success: true, amountDiff }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal mencocokkan item'
         console.error("[matchMultipleItems] Error:", error)
