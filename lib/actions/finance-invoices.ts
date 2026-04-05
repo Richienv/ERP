@@ -847,6 +847,12 @@ export async function createInvoiceFromSalesOrder(
                 }
             }
 
+            // Credit limit check — uses salesOrder.total (PPN-inclusive grand total)
+            const creditCheck = await checkCreditLimit(prisma, salesOrder.customerId, Number(salesOrder.total))
+            if (!creditCheck.ok) {
+                return { success: false as const, error: creditCheck.message }
+            }
+
             // Generate Invoice Number
             const year = new Date().getFullYear()
             const count = await prisma.invoice.count({
@@ -1023,7 +1029,9 @@ export async function moveInvoiceToSent(invoiceId: string, _message?: string, _m
         // Period lock: fail fast before mutation
         await assertPeriodOpen(new Date())
 
-        // Credit limit pre-check before mutation (uses read-only prisma, no transaction needed)
+        // Credit limit soft-check at send time (non-blocking).
+        // The hard block is enforced at invoice CREATE — this is a safety-net warning
+        // for legacy invoices that may have been created before the create-time check existed.
         const preCheck = await prisma.invoice.findUnique({
             where: { id: invoiceId },
             select: { type: true, customerId: true, totalAmount: true, id: true },
@@ -1031,7 +1039,7 @@ export async function moveInvoiceToSent(invoiceId: string, _message?: string, _m
         if (preCheck?.type === 'INV_OUT' && preCheck.customerId) {
             const creditCheck = await checkCreditLimit(prisma, preCheck.customerId, toNum(preCheck.totalAmount), preCheck.id)
             if (!creditCheck.ok) {
-                return { success: false, error: creditCheck.message }
+                console.warn('[moveInvoiceToSent] Credit limit exceeded at send time (non-blocking):', creditCheck.message)
             }
         }
 
