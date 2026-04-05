@@ -18,6 +18,7 @@ import {
     rejectReconciliationItem,
     ignoreReconciliationItem,
     bulkConfirmCocokItems,
+    scoreUnmatchedItems,
 } from "@/lib/actions/finance-reconciliation"
 
 export default function ReconciliationPage() {
@@ -49,6 +50,7 @@ export default function ReconciliationPage() {
                 onRejectItem={rejectReconciliationItem}
                 onIgnoreItem={ignoreReconciliationItem}
                 onBulkConfirmCocok={bulkConfirmCocokItems}
+                onScoreItems={scoreUnmatchedItems}
             />
         </div>
     )

@@ -124,6 +124,7 @@ interface BankReconciliationViewProps {
     onRejectItem?: (itemId: string) => Promise<{ success: boolean; error?: string }>
     onIgnoreItem?: (itemId: string, reason?: string) => Promise<{ success: boolean; error?: string }>
     onBulkConfirmCocok?: (reconciliationId: string) => Promise<{ success: boolean; confirmed?: number; error?: string }>
+    onScoreItems?: (reconciliationId: string) => Promise<{ success: boolean; scored?: number; error?: string }>
     currencies?: Array<{ code: string; name: string; symbol: string }>
 }
 
@@ -191,6 +192,7 @@ export function BankReconciliationView({
     onRejectItem,
     onIgnoreItem,
     onBulkConfirmCocok,
+    onScoreItems,
     currencies: currenciesProp = [],
 }: BankReconciliationViewProps) {
     const queryClient = useQueryClient()
@@ -511,6 +513,22 @@ export function BankReconciliationView({
             if (detail) {
                 setEditBankStatementBalance(detail.bankStatementBalance != null ? String(detail.bankStatementBalance) : "")
                 setEditNotes(detail.notes ?? "")
+
+                // Auto-score unscored items on first session load (non-blocking)
+                const EAGER_SCORE_THRESHOLD = 50
+                if (onScoreItems) {
+                    const needsScoring = detail.items.some(
+                        (i: { matchStatus: string; matchScore?: number | null }) =>
+                            i.matchStatus === "UNMATCHED" && i.matchScore == null
+                    )
+                    if (needsScoring && detail.items.length <= EAGER_SCORE_THRESHOLD) {
+                        onScoreItems(detail.id).then(async (result) => {
+                            if (result.success && (result.scored ?? 0) > 0) {
+                                await reloadDetail(detail.id)
+                            }
+                        })
+                    }
+                }
             }
         } catch {
             toast.error("Gagal memuat detail rekonsiliasi")
