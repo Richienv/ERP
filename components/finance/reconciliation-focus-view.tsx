@@ -86,6 +86,12 @@ export interface ReconciliationFocusViewProps {
     editNotes: string
     setEditNotes: (v: string) => void
 
+    // Confirm/Reject/Ignore handlers
+    onConfirmItem: (itemId: string) => Promise<void>
+    onRejectItem: (itemId: string) => Promise<void>
+    onIgnoreItem: (itemId: string, reason?: string) => Promise<void>
+    onBulkConfirmCocok: () => Promise<void>
+
     // Inline journal creation (optional — gracefully degrades if not provided)
     onSearchJournals?: (reconciliationId: string, query: string, bankItemContext?: { bankAmount: number; bankDate: string | null }) => Promise<{ entryId: string; date: string; description: string; reference: string | null; amount: number; lineDescription: string | null }[]>
     onCreateJournalAndMatch?: (reconciliationId: string, bankLineId: string, journalData: { date: string; description: string; reference?: string; amount: number; debitAccountCode: string; creditAccountCode: string }) => Promise<{ success: boolean; journalId?: string; error?: string }>
@@ -104,37 +110,71 @@ const formatDate = (iso: string) =>
         year: "numeric",
     })
 
-// Queue status types
-type QueueStatus = "MATCHED" | "ACTIVE" | "PENDING"
+// 4-Layer display classification
+type ReconDisplayLayer = "COCOK" | "POTENSI" | "HAMPIR" | "BELUM" | "CONFIRMED" | "IGNORED"
 
-function getQueueStatus(
-    item: ReconciliationItemData,
-    isActive: boolean
-): QueueStatus {
-    if (item.matchStatus === "MATCHED") return "MATCHED"
-    if (isActive) return "ACTIVE"
-    return "PENDING"
+function getItemDisplayLayer(item: ReconciliationItemData): ReconDisplayLayer {
+    if (item.matchStatus === "CONFIRMED") return "CONFIRMED"
+    if (item.matchStatus === "IGNORED") return "IGNORED"
+    if (item.matchStatus === "MATCHED") {
+        const score = item.matchScore ?? 0
+        if (score >= 95) return "COCOK"
+        if (score >= 70) return "POTENSI"
+        if (score >= 40) return "HAMPIR"
+        return "BELUM"
+    }
+    return "BELUM"
 }
 
-const QUEUE_CONFIG: Record<QueueStatus, { icon: typeof CheckCircle2; bg: string; text: string; border: string; label: string }> = {
-    MATCHED: { icon: CircleCheck, bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-300", label: "COCOK" },
-    ACTIVE: { icon: CircleDot, bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-400", label: "AKTIF" },
-    PENDING: { icon: Circle, bg: "bg-white dark:bg-zinc-900", text: "text-zinc-500", border: "border-zinc-200 dark:border-zinc-700", label: "BELUM" },
+const LAYER_CONFIG: Record<ReconDisplayLayer, {
+    icon: typeof CheckCircle2
+    bg: string
+    text: string
+    border: string
+    label: string
+    headerIcon: string
+    headerBg: string
+}> = {
+    COCOK: {
+        icon: CircleCheck, bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-300",
+        label: "COCOK", headerIcon: "\u2705", headerBg: "bg-emerald-50",
+    },
+    POTENSI: {
+        icon: CircleDot, bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-300",
+        label: "POTENSI", headerIcon: "\u26A1", headerBg: "bg-amber-50",
+    },
+    HAMPIR: {
+        icon: AlertCircle, bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-300",
+        label: "HAMPIR", headerIcon: "\u26A0\uFE0F", headerBg: "bg-orange-50",
+    },
+    BELUM: {
+        icon: Circle, bg: "bg-zinc-50", text: "text-zinc-500", border: "border-zinc-200",
+        label: "BELUM", headerIcon: "\u274C", headerBg: "bg-zinc-50",
+    },
+    CONFIRMED: {
+        icon: CheckCircle2, bg: "bg-emerald-100", text: "text-emerald-800", border: "border-emerald-400",
+        label: "DIKONFIRMASI", headerIcon: "\u2713", headerBg: "bg-emerald-100",
+    },
+    IGNORED: {
+        icon: X, bg: "bg-zinc-100", text: "text-zinc-500", border: "border-zinc-300",
+        label: "DIABAIKAN", headerIcon: "\u2014", headerBg: "bg-zinc-100",
+    },
 }
+
+type FilterTab = "SEMUA" | "COCOK" | "POTENSI" | "HAMPIR" | "BELUM"
 
 // ==============================================================================
-// Tier Badge
+// Tier Badge (uses new LAYER_CONFIG)
 // ==============================================================================
-
-const TIER_CONFIG: Record<string, { label: string; bg: string; text: string; border: string }> = {
-    AUTO: { label: "AUTO", bg: "bg-emerald-100", text: "text-emerald-800", border: "border-emerald-400" },
-    POTENTIAL: { label: "POTENSI", bg: "bg-amber-100", text: "text-amber-800", border: "border-amber-400" },
-    MANUAL: { label: "MANUAL", bg: "bg-zinc-100", text: "text-zinc-600", border: "border-zinc-300" },
-}
 
 function TierBadge({ tier, score }: { tier: string | null; score?: number | null }) {
     if (!tier) return null
-    const cfg = TIER_CONFIG[tier] || TIER_CONFIG.MANUAL
+    // Map old tier names to new layer display
+    const layerMap: Record<string, ReconDisplayLayer> = {
+        AUTO: "COCOK", POTENTIAL: "POTENSI", MANUAL: "HAMPIR",
+    }
+    const layer = layerMap[tier] || "BELUM"
+    const cfg = LAYER_CONFIG[layer]
     return (
         <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[7px] font-black border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
             {cfg.label}
@@ -382,74 +422,262 @@ function ProgressHeader({
 }
 
 // ==============================================================================
-// Queue Sidebar
+// Queue Item Row
+// ==============================================================================
+
+function QueueItemRow({
+    item,
+    layer,
+    isActive,
+    onSelect,
+    onConfirm,
+    onReject,
+    onIgnore,
+    actionLoading,
+}: {
+    item: ReconciliationItemData
+    layer: ReconDisplayLayer
+    isActive: boolean
+    onSelect: () => void
+    onConfirm?: () => void
+    onReject?: () => void
+    onIgnore?: () => void
+    actionLoading: string | null
+}) {
+    const cfg = LAYER_CONFIG[layer]
+    const Icon = cfg.icon
+    const isLoading = actionLoading === item.id
+
+    return (
+        <div
+            className={`relative text-left px-3 py-2 transition-all duration-100 group ${
+                isActive
+                    ? `${cfg.bg} border ${cfg.border} shadow-sm`
+                    : `border border-transparent hover:bg-white dark:hover:bg-zinc-800 hover:border-zinc-200`
+            }`}
+        >
+            {isActive && (
+                <div className="absolute left-0 top-1.5 bottom-1.5 w-[3px] bg-orange-500 rounded-r" />
+            )}
+            <button onClick={onSelect} className="w-full text-left flex items-center gap-2.5">
+                <Icon className={`h-3.5 w-3.5 shrink-0 ${cfg.text}`} />
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1.5">
+                        <span className={`text-[11px] font-medium truncate ${
+                            layer === "CONFIRMED" ? "text-zinc-500 line-through" :
+                            layer === "IGNORED" ? "text-zinc-400 italic" :
+                            isActive ? "text-zinc-900 font-bold" :
+                            "text-zinc-700"
+                        }`}>
+                            {item.bankDescription || item.bankRef || "-"}
+                        </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-1 mt-0.5">
+                        <span className={`text-[9px] font-mono ${
+                            item.bankAmount >= 0 ? "text-emerald-600" : "text-red-500"
+                        }`}>
+                            <span className="text-[7px]">{item.bankAmount >= 0 ? "\u25B2" : "\u25BC"}</span>{" "}
+                            Rp {formatIDR(Math.abs(item.bankAmount))}
+                        </span>
+                        <span className={`text-[7px] font-black px-1 py-0.5 border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+                            {cfg.label}
+                            {item.matchScore != null && layer !== "CONFIRMED" && layer !== "IGNORED" && (
+                                <span className="font-mono ml-0.5">{item.matchScore}%</span>
+                            )}
+                        </span>
+                    </div>
+                </div>
+            </button>
+            {(onConfirm || onReject || onIgnore) && (
+                <div className={`flex gap-1 mt-1.5 ${isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}>
+                    {onConfirm && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onConfirm() }}
+                            disabled={isLoading}
+                            className="flex-1 text-[7px] font-bold uppercase px-1.5 py-1 bg-emerald-500 text-white border border-emerald-600 hover:bg-emerald-600 disabled:opacity-50"
+                        >
+                            {isLoading ? "..." : "Konfirmasi"}
+                        </button>
+                    )}
+                    {onReject && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onReject() }}
+                            disabled={isLoading}
+                            className="flex-1 text-[7px] font-bold uppercase px-1.5 py-1 bg-white text-red-600 border border-red-300 hover:bg-red-50 disabled:opacity-50"
+                        >
+                            Tolak
+                        </button>
+                    )}
+                    {onIgnore && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onIgnore() }}
+                            disabled={isLoading}
+                            className="flex-1 text-[7px] font-bold uppercase px-1.5 py-1 bg-white text-zinc-500 border border-zinc-300 hover:bg-zinc-50 disabled:opacity-50"
+                        >
+                            Abaikan
+                        </button>
+                    )}
+                </div>
+            )}
+        </div>
+    )
+}
+
+// ==============================================================================
+// Queue Sidebar (4-layer grouped)
 // ==============================================================================
 
 function QueueSidebar({
     items,
     currentIndex,
     onSelect,
+    activeFilter,
+    onFilterChange,
+    onConfirmItem,
+    onRejectItem,
+    onIgnoreItem,
+    onBulkConfirmCocok,
+    actionLoading,
+    isCompleted,
 }: {
     items: ReconciliationItemData[]
     currentIndex: number
     onSelect: (index: number) => void
+    activeFilter: FilterTab
+    onFilterChange: (tab: FilterTab) => void
+    onConfirmItem: (itemId: string) => Promise<void>
+    onRejectItem: (itemId: string) => Promise<void>
+    onIgnoreItem: (itemId: string) => Promise<void>
+    onBulkConfirmCocok: () => Promise<void>
+    actionLoading: string | null
+    isCompleted: boolean
 }) {
+    const classified = useMemo(() => {
+        const groups: Record<ReconDisplayLayer, { item: ReconciliationItemData; originalIndex: number }[]> = {
+            CONFIRMED: [], COCOK: [], POTENSI: [], HAMPIR: [], BELUM: [], IGNORED: [],
+        }
+        items.forEach((item, idx) => {
+            const layer = getItemDisplayLayer(item)
+            groups[layer].push({ item, originalIndex: idx })
+        })
+        return groups
+    }, [items])
+
+    const tabCounts: Record<FilterTab, number> = useMemo(() => ({
+        SEMUA: items.length,
+        COCOK: classified.COCOK.length,
+        POTENSI: classified.POTENSI.length,
+        HAMPIR: classified.HAMPIR.length,
+        BELUM: classified.BELUM.length,
+    }), [items.length, classified])
+
+    const displayOrder: ReconDisplayLayer[] = ["CONFIRMED", "COCOK", "POTENSI", "HAMPIR", "BELUM", "IGNORED"]
+    const filteredGroups = useMemo(() => {
+        if (activeFilter === "SEMUA") return displayOrder.filter(l => classified[l].length > 0)
+        return displayOrder.filter(l => {
+            if (l === "CONFIRMED" || l === "IGNORED") return classified[l].length > 0
+            if (l === activeFilter) return classified[l].length > 0
+            return false
+        })
+    }, [activeFilter, classified]) // eslint-disable-line react-hooks/exhaustive-deps
+
+    const confirmedCount = classified.CONFIRMED.length + classified.IGNORED.length
+
     return (
-        <div className="w-[280px] shrink-0 border-r border-zinc-200 dark:border-zinc-700 flex flex-col bg-zinc-50/50 dark:bg-zinc-900/50">
-            <div className="px-3.5 py-2.5 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
-                    Antrian
-                </span>
-                <span className="text-[10px] font-mono font-bold text-zinc-400">
-                    {items.length} item
-                </span>
+        <div className="w-[300px] shrink-0 border-r border-zinc-200 dark:border-zinc-700 flex flex-col bg-zinc-50/50 dark:bg-zinc-900/50">
+            {/* Header + progress */}
+            <div className="px-3.5 py-2.5 border-b border-zinc-200 dark:border-zinc-700">
+                <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                        Rekonsiliasi
+                    </span>
+                    <span className="text-[10px] font-mono font-bold text-zinc-400">
+                        {confirmedCount}/{items.length}
+                    </span>
+                </div>
+                <div className="h-1.5 bg-zinc-200 rounded-full overflow-hidden">
+                    <div
+                        className="h-full bg-emerald-500 transition-all duration-300"
+                        style={{ width: `${items.length > 0 ? (confirmedCount / items.length) * 100 : 0}%` }}
+                    />
+                </div>
             </div>
+
+            {/* Filter tabs */}
+            <div className="px-2 py-1.5 border-b border-zinc-200 dark:border-zinc-700 flex gap-0.5 overflow-x-auto">
+                {(["SEMUA", "COCOK", "POTENSI", "HAMPIR", "BELUM"] as FilterTab[]).map(tab => (
+                    <button
+                        key={tab}
+                        onClick={() => onFilterChange(tab)}
+                        className={`px-2 py-1 text-[8px] font-black uppercase tracking-wider whitespace-nowrap border transition-colors ${
+                            activeFilter === tab
+                                ? "bg-zinc-900 text-white border-zinc-900"
+                                : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-400"
+                        }`}
+                    >
+                        {tab} {tabCounts[tab]}
+                    </button>
+                ))}
+            </div>
+
+            {/* Grouped item list */}
             <ScrollArea className="flex-1">
-                <div className="p-1.5 space-y-0.5">
-                    {items.map((item, idx) => {
-                        const isActive = idx === currentIndex
-                        const status = getQueueStatus(item, isActive)
-                        const cfg = QUEUE_CONFIG[status]
-                        const Icon = cfg.icon
+                <div className="p-1.5 space-y-2">
+                    {filteredGroups.map(layer => {
+                        const groupItems = classified[layer]
+                        if (groupItems.length === 0) return null
+                        const layerCfg = LAYER_CONFIG[layer]
 
                         return (
-                            <button
-                                key={item.id}
-                                onClick={() => onSelect(idx)}
-                                className={`w-full text-left px-3 py-2 transition-all duration-100 flex items-center gap-2.5 group relative ${
-                                    isActive
-                                        ? `${cfg.bg} border ${cfg.border} shadow-sm`
-                                        : `border border-transparent hover:bg-white dark:hover:bg-zinc-800 hover:border-zinc-200 dark:hover:border-zinc-700`
-                                }`}
-                            >
-                                {/* Active indicator */}
-                                {isActive && (
-                                    <div className="absolute left-0 top-1.5 bottom-1.5 w-[3px] bg-orange-500 rounded-r" />
-                                )}
-                                <Icon className={`h-3.5 w-3.5 shrink-0 ${cfg.text}`} />
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center justify-between gap-1.5">
-                                        <span className={`text-[11px] font-medium truncate ${
-                                            status === "MATCHED" ? "text-zinc-500 line-through" :
-                                            isActive ? "text-zinc-900 dark:text-white font-bold" :
-                                            "text-zinc-700 dark:text-zinc-300"
-                                        }`}>
-                                            {item.bankDescription || item.bankRef || "-"}
+                            <div key={layer}>
+                                <div className={`flex items-center justify-between px-2 py-1.5 ${layerCfg.headerBg} border-b border-zinc-200`}>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-xs">{layerCfg.headerIcon}</span>
+                                        <span className={`text-[9px] font-black uppercase tracking-wider ${layerCfg.text}`}>
+                                            {layerCfg.label} ({groupItems.length})
                                         </span>
                                     </div>
-                                    <div className="flex items-center justify-between gap-1 mt-0.5">
-                                        <span className={`text-[9px] font-mono ${
-                                            item.bankAmount >= 0 ? "text-emerald-600" : "text-red-500"
-                                        }`}>
-                                            <span className="text-[7px]">{item.bankAmount >= 0 ? "\u25B2" : "\u25BC"}</span>{" "}
-                                            Rp {formatIDR(Math.abs(item.bankAmount))}
-                                        </span>
-                                        <span className={`text-[7px] font-black px-1 py-0.5 border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
-                                            {cfg.label}
-                                        </span>
-                                    </div>
+                                    {layer === "COCOK" && groupItems.length > 0 && !isCompleted && (
+                                        <button
+                                            onClick={onBulkConfirmCocok}
+                                            disabled={!!actionLoading}
+                                            className="text-[7px] font-bold uppercase px-1.5 py-0.5 bg-emerald-600 text-white border border-emerald-700 hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                                        >
+                                            {actionLoading === "bulk-confirm" ? "..." : "Konfirmasi Semua"}
+                                        </button>
+                                    )}
                                 </div>
-                            </button>
+                                <div className="space-y-0.5">
+                                    {groupItems.map(({ item, originalIndex }) => {
+                                        const isActive = originalIndex === currentIndex
+                                        return (
+                                            <QueueItemRow
+                                                key={item.id}
+                                                item={item}
+                                                layer={layer}
+                                                isActive={isActive}
+                                                onSelect={() => onSelect(originalIndex)}
+                                                onConfirm={
+                                                    (layer === "COCOK" || layer === "POTENSI") && !isCompleted
+                                                        ? () => onConfirmItem(item.id)
+                                                        : undefined
+                                                }
+                                                onReject={
+                                                    (layer === "COCOK" || layer === "POTENSI" || layer === "CONFIRMED") && !isCompleted
+                                                        ? () => onRejectItem(item.id)
+                                                        : undefined
+                                                }
+                                                onIgnore={
+                                                    layer === "BELUM" && !isCompleted
+                                                        ? () => onIgnoreItem(item.id)
+                                                        : undefined
+                                                }
+                                                actionLoading={actionLoading}
+                                            />
+                                        )
+                                    })}
+                                </div>
+                            </div>
                         )
                     })}
                 </div>
@@ -1325,6 +1553,10 @@ export function ReconciliationFocusView({
     setEditBankStatementBalance,
     editNotes,
     setEditNotes,
+    onConfirmItem,
+    onRejectItem,
+    onIgnoreItem,
+    onBulkConfirmCocok,
     onSearchJournals,
     onCreateJournalAndMatch,
     glAccounts = [],
@@ -1340,12 +1572,20 @@ export function ReconciliationFocusView({
     })
     const [selectedJournalId, setSelectedJournalId] = useState<string | null>(null)
     const [journalSearchQuery, setJournalSearchQuery] = useState("")
+    const [activeFilter, setActiveFilter] = useState<FilterTab>("SEMUA")
 
     // Derived
     const currentItem = allItems[currentIndex] ?? null
-    const matchedCount = allItems.filter(i => i.matchStatus === "MATCHED").length
+    const confirmedCount = allItems.filter(i =>
+        i.matchStatus === "CONFIRMED" || i.matchStatus === "IGNORED"
+    ).length
+    const matchedCount = allItems.filter(i =>
+        i.matchStatus === "MATCHED" || i.matchStatus === "CONFIRMED"
+    ).length
     const totalCount = allItems.length
-    const allDone = allItems.every(i => i.matchStatus === "MATCHED")
+    const allDone = allItems.every(i =>
+        i.matchStatus === "CONFIRMED" || i.matchStatus === "IGNORED"
+    )
 
     // Reload detail with active bank item context when navigating between items
     const isInitialMount = useRef(true)
@@ -1633,6 +1873,14 @@ export function ReconciliationFocusView({
                         items={allItems}
                         currentIndex={currentIndex}
                         onSelect={goTo}
+                        activeFilter={activeFilter}
+                        onFilterChange={setActiveFilter}
+                        onConfirmItem={onConfirmItem}
+                        onRejectItem={onRejectItem}
+                        onIgnoreItem={(id) => onIgnoreItem(id)}
+                        onBulkConfirmCocok={onBulkConfirmCocok}
+                        actionLoading={actionLoading}
+                        isCompleted={isCompleted}
                     />
 
                     {/* Focus Panel */}

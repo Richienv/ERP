@@ -14,6 +14,10 @@ import {
     updateReconciliationMeta,
     searchUnmatchedJournals,
     createJournalAndMatch,
+    confirmReconciliationItem,
+    rejectReconciliationItem,
+    ignoreReconciliationItem,
+    bulkConfirmCocokItems,
 } from "@/lib/actions/finance-reconciliation"
 
 export default function ReconciliationPage() {
@@ -41,6 +45,10 @@ export default function ReconciliationPage() {
                 onUpdateMeta={updateReconciliationMeta}
                 onSearchJournals={searchUnmatchedJournals}
                 onCreateJournalAndMatch={createJournalAndMatch}
+                onConfirmItem={confirmReconciliationItem}
+                onRejectItem={rejectReconciliationItem}
+                onIgnoreItem={ignoreReconciliationItem}
+                onBulkConfirmCocok={bulkConfirmCocokItems}
             />
         </div>
     )

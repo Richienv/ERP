@@ -120,6 +120,10 @@ interface BankReconciliationViewProps {
     onUpdateMeta: (reconciliationId: string, data: { bankStatementBalance?: number; notes?: string }) => Promise<{ success: boolean; error?: string }>
     onSearchJournals?: (reconciliationId: string, query: string, bankItemContext?: { bankAmount: number; bankDate: string | null }) => Promise<{ entryId: string; date: string; description: string; reference: string | null; amount: number; lineDescription: string | null }[]>
     onCreateJournalAndMatch?: (reconciliationId: string, bankLineId: string, journalData: { date: string; description: string; reference?: string; amount: number; debitAccountCode: string; creditAccountCode: string }) => Promise<{ success: boolean; journalId?: string; error?: string }>
+    onConfirmItem?: (itemId: string) => Promise<{ success: boolean; error?: string }>
+    onRejectItem?: (itemId: string) => Promise<{ success: boolean; error?: string }>
+    onIgnoreItem?: (itemId: string, reason?: string) => Promise<{ success: boolean; error?: string }>
+    onBulkConfirmCocok?: (reconciliationId: string) => Promise<{ success: boolean; confirmed?: number; error?: string }>
     currencies?: Array<{ code: string; name: string; symbol: string }>
 }
 
@@ -183,6 +187,10 @@ export function BankReconciliationView({
     onUpdateMeta,
     onSearchJournals,
     onCreateJournalAndMatch,
+    onConfirmItem,
+    onRejectItem,
+    onIgnoreItem,
+    onBulkConfirmCocok,
     currencies: currenciesProp = [],
 }: BankReconciliationViewProps) {
     const queryClient = useQueryClient()
@@ -1234,6 +1242,66 @@ export function BankReconciliationView({
                             onSearchJournals={onSearchJournals}
                             onCreateJournalAndMatch={onCreateJournalAndMatch}
                             glAccounts={glAccounts}
+                            onConfirmItem={async (itemId) => {
+                                if (!onConfirmItem) return
+                                setActionLoading(itemId)
+                                try {
+                                    const result = await onConfirmItem(itemId)
+                                    if (result.success) {
+                                        toast.success("Item dikonfirmasi")
+                                        if (selectedRec) await reloadDetail(selectedRec.id)
+                                    } else {
+                                        toast.error(result.error || "Gagal konfirmasi")
+                                    }
+                                } finally {
+                                    setActionLoading(null)
+                                }
+                            }}
+                            onRejectItem={async (itemId) => {
+                                if (!onRejectItem) return
+                                setActionLoading(itemId)
+                                try {
+                                    const result = await onRejectItem(itemId)
+                                    if (result.success) {
+                                        toast.success("Match ditolak")
+                                        if (selectedRec) await reloadDetail(selectedRec.id)
+                                    } else {
+                                        toast.error(result.error || "Gagal menolak")
+                                    }
+                                } finally {
+                                    setActionLoading(null)
+                                }
+                            }}
+                            onIgnoreItem={async (itemId) => {
+                                if (!onIgnoreItem) return
+                                setActionLoading(itemId)
+                                try {
+                                    const result = await onIgnoreItem(itemId)
+                                    if (result.success) {
+                                        toast.success("Item diabaikan")
+                                        if (selectedRec) await reloadDetail(selectedRec.id)
+                                    } else {
+                                        toast.error(result.error || "Gagal mengabaikan")
+                                    }
+                                } finally {
+                                    setActionLoading(null)
+                                }
+                            }}
+                            onBulkConfirmCocok={async () => {
+                                if (!onBulkConfirmCocok || !selectedRec) return
+                                setActionLoading("bulk-confirm")
+                                try {
+                                    const result = await onBulkConfirmCocok(selectedRec.id)
+                                    if (result.success) {
+                                        toast.success(`${result.confirmed ?? 0} item dikonfirmasi`)
+                                        await reloadDetail(selectedRec.id)
+                                    } else {
+                                        toast.error(result.error || "Gagal konfirmasi bulk")
+                                    }
+                                } finally {
+                                    setActionLoading(null)
+                                }
+                            }}
                         />
                     ) : (
                         /* Empty state — onboarding card */
