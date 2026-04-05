@@ -997,3 +997,44 @@ export async function getPPh23Report(startDate?: string, endDate?: string) {
         return { success: false, error: error.message, data: null }
     }
 }
+
+// ==========================================
+// UNRECONCILED BANK ENTRIES WARNING
+// ==========================================
+
+/**
+ * Count unreconciled POSTED journal entries that touch bank/cash accounts.
+ * Used by financial reports to surface warning banners.
+ */
+export async function getUnreconciledBankEntryCount(
+    startDate: Date,
+    endDate: Date
+): Promise<{ count: number; totalAmount: number }> {
+    // Bank accounts use codes starting with 111 (Kas & Bank)
+    const unreconciledLines = await basePrisma.journalLine.findMany({
+        where: {
+            entry: {
+                status: 'POSTED',
+                isReconciled: false,
+                date: {
+                    gte: startDate,
+                    lte: endDate,
+                },
+            },
+            account: {
+                code: { startsWith: '111' },
+            },
+        },
+        select: {
+            debit: true,
+            credit: true,
+        },
+    })
+
+    const totalAmount = unreconciledLines.reduce(
+        (sum, line) => sum + Math.abs(Number(line.debit) - Number(line.credit)),
+        0
+    )
+
+    return { count: unreconciledLines.length, totalAmount }
+}

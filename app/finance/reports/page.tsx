@@ -51,6 +51,7 @@ import { useWithholdingTaxes, usePPhSummary } from "@/hooks/use-withholding-taxe
 import { markWithholdingDeposited } from "@/lib/actions/finance-pph"
 import { getDepositDeadline, getFilingDeadline } from "@/lib/pph-helpers"
 import { useQueryClient } from "@tanstack/react-query"
+import { UnreconciledWarning } from "@/components/finance/unreconciled-warning"
 
 type ReportType = "pnl" | "bs" | "cf" | "tb" | "equity_changes" | "ar_aging" | "ap_aging" | "inventory_turnover" | "tax_report" | "pph_report" | "budget_vs_actual"
 
@@ -946,6 +947,10 @@ export default function FinancialReportsPage() {
                         </div>
                     ) : (
                         <>
+                            {/* Unreconciled bank entries warning */}
+                            {(reportType === "pnl" || reportType === "bs" || reportType === "cf") && (
+                                <UnreconciledWarning startDate={startDate} endDate={endDate} />
+                            )}
                             {/* P&L */}
                             {reportType === "pnl" && pnlData && (
                                 <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
