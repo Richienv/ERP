@@ -55,6 +55,7 @@ export function useReconciliation() {
                 }>
                 bankAccountRecords: BankAccountRecord[]
                 coaAccounts: COAAccount[]
+                currencies: Array<{ code: string; name: string; symbol: string }>
             }>
         },
     })

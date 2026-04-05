@@ -139,11 +139,25 @@ export async function GET() {
             // ignore
         }
 
+        // Fetch active currencies from Currency table
+        let currencies: Array<{ code: string; name: string; symbol: string }> = []
+        try {
+            const curr = await prisma.currency.findMany({
+                where: { isActive: { not: false } },
+                select: { code: true, name: true, symbol: true },
+                orderBy: { code: "asc" },
+            })
+            currencies = curr
+        } catch {
+            // Currency table may not exist yet
+        }
+
         return NextResponse.json({
             reconciliations,
             bankAccounts,
             bankAccountRecords,
             coaAccounts,
+            currencies,
         })
     } catch (error) {
         console.error("[GET /api/finance/reconciliation]", error)

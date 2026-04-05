@@ -120,6 +120,7 @@ interface BankReconciliationViewProps {
     onUpdateMeta: (reconciliationId: string, data: { bankStatementBalance?: number; notes?: string }) => Promise<{ success: boolean; error?: string }>
     onSearchJournals?: (reconciliationId: string, query: string) => Promise<{ entryId: string; date: string; description: string; reference: string | null; amount: number; lineDescription: string | null }[]>
     onCreateJournalAndMatch?: (reconciliationId: string, bankLineId: string, journalData: { date: string; description: string; reference?: string; amount: number; debitAccountCode: string; creditAccountCode: string }) => Promise<{ success: boolean; journalId?: string; error?: string }>
+    currencies?: Array<{ code: string; name: string; symbol: string }>
 }
 
 // ==============================================================================
@@ -182,6 +183,7 @@ export function BankReconciliationView({
     onUpdateMeta,
     onSearchJournals,
     onCreateJournalAndMatch,
+    currencies: currenciesProp = [],
 }: BankReconciliationViewProps) {
     const queryClient = useQueryClient()
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -224,7 +226,6 @@ export function BankReconciliationView({
     const [newBankAccountHolder, setNewBankAccountHolder] = useState("")
     const [newBankBranch, setNewBankBranch] = useState("")
     const [newBankCurrency, setNewBankCurrency] = useState("IDR")
-    const [newBankCoaId, setNewBankCoaId] = useState("")
     const [newBankIsActive, setNewBankIsActive] = useState(true)
     const [addingBank, setAddingBank] = useState(false)
 
@@ -570,7 +571,23 @@ export function BankReconciliationView({
                                         <div className="grid grid-cols-3 gap-3">
                                             <div>
                                                 <label className={NB.label}>Kode <span className={NB.labelRequired}>*</span></label>
-                                                <Input className={NB.inputMono} placeholder="1100" value={newBankCode} onChange={(e) => setNewBankCode(e.target.value)} />
+                                                <Input
+                                                    className={`${NB.inputMono} ${newBankCode && !/^(1\d{3})$/.test(newBankCode) ? "border-red-400 bg-red-50/50" : newBankCode ? NB.inputActive : NB.inputEmpty}`}
+                                                    placeholder="1100"
+                                                    value={newBankCode}
+                                                    maxLength={4}
+                                                    inputMode="numeric"
+                                                    onChange={(e) => {
+                                                        const v = e.target.value.replace(/\D/g, "").slice(0, 4)
+                                                        setNewBankCode(v)
+                                                    }}
+                                                />
+                                                <p className={`text-[9px] mt-0.5 font-bold ${newBankCode && !/^1\d{3}$/.test(newBankCode) ? "text-red-500" : "text-zinc-400"}`}>
+                                                    {newBankCode && !/^1\d{3}$/.test(newBankCode) ? "Kode harus dalam range 1000–1999 (Akun Aset)" : "Range: 1000–1999 (Akun Aset)"}
+                                                </p>
+                                                {newBankCode && /^1\d{3}$/.test(newBankCode) && (
+                                                    <p className="text-[9px] mt-0.5 font-bold text-green-600">✓ Akan otomatis terhubung ke COA {newBankCode}</p>
+                                                )}
                                             </div>
                                             <div className="col-span-2">
                                                 <label className={NB.label}>Nama Bank <span className={NB.labelRequired}>*</span></label>
@@ -638,40 +655,21 @@ export function BankReconciliationView({
                                         <ArrowRightLeft className="h-3 w-3" /> Pengaturan
                                     </h3>
                                     <div className="space-y-3">
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <label className={NB.label}>Mata Uang</label>
-                                                <Select value={newBankCurrency} onValueChange={setNewBankCurrency}>
-                                                    <SelectTrigger className={NB.select}>
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="IDR">IDR — Rupiah</SelectItem>
-                                                        <SelectItem value="USD">USD — US Dollar</SelectItem>
-                                                        <SelectItem value="EUR">EUR — Euro</SelectItem>
-                                                        <SelectItem value="SGD">SGD — Singapore Dollar</SelectItem>
-                                                        <SelectItem value="JPY">JPY — Japanese Yen</SelectItem>
-                                                        <SelectItem value="CNY">CNY — Chinese Yuan</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <div>
-                                                <label className={NB.label}>Akun COA</label>
-                                                <Select value={newBankCoaId} onValueChange={setNewBankCoaId}>
-                                                    <SelectTrigger className={NB.select}>
-                                                        <SelectValue placeholder="Auto / Pilih..." />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="__auto__">Buat otomatis</SelectItem>
-                                                        {coaAccounts.map((coa) => (
-                                                            <SelectItem key={coa.id} value={coa.id}>
-                                                                {coa.code} — {coa.name}
-                                                            </SelectItem>
+                                        <div>
+                                            <label className={NB.label}>Mata Uang</label>
+                                            <Select value={newBankCurrency} onValueChange={setNewBankCurrency}>
+                                                <SelectTrigger className={NB.select}>
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="IDR">IDR — Rupiah</SelectItem>
+                                                    {currenciesProp
+                                                        .filter(c => c.code !== "IDR")
+                                                        .map(c => (
+                                                            <SelectItem key={c.code} value={c.code}>{c.code} — {c.name}</SelectItem>
                                                         ))}
-                                                    </SelectContent>
-                                                </Select>
-                                                <p className="text-[9px] text-zinc-400 mt-0.5">Link ke Chart of Accounts (ASSET)</p>
-                                            </div>
+                                                </SelectContent>
+                                            </Select>
                                         </div>
                                         <div>
                                             <label className={NB.label}>Saldo Awal</label>
@@ -759,6 +757,11 @@ export function BankReconciliationView({
                                             toast.error("Kode dan nama bank wajib diisi")
                                             return
                                         }
+                                        const codeNum = Number(newBankCode)
+                                        if (codeNum < 1000 || codeNum > 1999) {
+                                            toast.error("Kode harus dalam range 1000–1999 (Akun Aset)")
+                                            return
+                                        }
                                         if (!newBankAccountNumber.trim()) {
                                             toast.error("Nomor rekening wajib diisi")
                                             return
@@ -781,7 +784,6 @@ export function BankReconciliationView({
                                                 accountHolder: newBankAccountHolder.trim(),
                                                 branch: newBankBranch.trim() || undefined,
                                                 currency: newBankCurrency,
-                                                coaAccountId: newBankCoaId && newBankCoaId !== "__auto__" ? newBankCoaId : undefined,
                                                 openingBalance: Number(newBankBalance) || 0,
                                                 description: cleanDesc || undefined,
                                                 isActive: newBankIsActive,

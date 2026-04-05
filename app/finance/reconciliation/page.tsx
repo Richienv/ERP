@@ -30,6 +30,7 @@ export default function ReconciliationPage() {
                 bankAccounts={data.bankAccounts ?? []}
                 bankAccountRecords={data.bankAccountRecords ?? []}
                 coaAccounts={data.coaAccounts ?? []}
+                currencies={data.currencies ?? []}
                 onCreateReconciliation={createReconciliation}
                 onImportRows={importBankStatementRows}
                 onAutoMatch={autoMatchReconciliation}

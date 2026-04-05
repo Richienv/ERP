@@ -360,6 +360,21 @@ export async function createBankAccount(data: {
     try {
         await requireAuth()
 
+        // Validate code range — bank accounts must be ASSET type (1000–1999)
+        const codeNum = Number(data.code)
+        if (isNaN(codeNum) || codeNum < 1000 || codeNum > 1999) {
+            return { success: false, error: 'Kode harus dalam range 1000–1999 (Akun Aset)' }
+        }
+
+        // Validate currency — must be IDR or exist in Currency table
+        const currencyCode = data.currency || 'IDR'
+        if (currencyCode !== 'IDR') {
+            const currExists = await prisma.currency.findUnique({ where: { code: currencyCode } })
+            if (!currExists) {
+                return { success: false, error: `Mata uang ${currencyCode} belum terdaftar. Tambahkan di halaman Kurs Mata Uang terlebih dahulu.` }
+            }
+        }
+
         // Check code uniqueness on BankAccount table
         const existingBank = await prisma.bankAccount.findFirst({ where: { code: data.code } })
         if (existingBank) return { success: false, error: `Kode ${data.code} sudah digunakan` }

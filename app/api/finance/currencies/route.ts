@@ -15,7 +15,7 @@ export async function GET() {
         await requireAuth()
 
         const currencies = await prisma.currency.findMany({
-            where: { isActive: true },
+            where: { isActive: { not: false } },
             include: {
                 rates: {
                     orderBy: { date: "desc" },
@@ -104,7 +104,9 @@ export async function POST(request: NextRequest) {
                 code: code.trim().toUpperCase(),
                 name: name.trim(),
                 symbol: symbol.trim(),
+                isActive: true,
             },
+            include: { rates: true },
         })
 
         return NextResponse.json(
@@ -128,7 +130,7 @@ export async function POST(request: NextRequest) {
     }
 }
 
-// DELETE /api/finance/currencies — delete a rate or deactivate currency
+// DELETE /api/finance/currencies — delete an exchange rate or a currency (hard delete)
 export async function DELETE(request: NextRequest) {
     try {
         await requireAuth()
@@ -142,11 +144,14 @@ export async function DELETE(request: NextRequest) {
         }
 
         if (currencyId) {
-            await prisma.currency.update({
-                where: { id: currencyId },
-                data: { isActive: false },
+            // Hard delete: remove all exchange rates first, then the currency
+            await prisma.exchangeRate.deleteMany({
+                where: { currencyId },
             })
-            return NextResponse.json({ success: true, message: "Mata uang dinonaktifkan" })
+            await prisma.currency.delete({
+                where: { id: currencyId },
+            })
+            return NextResponse.json({ success: true, message: "Mata uang berhasil dihapus" })
         }
 
         return NextResponse.json({ success: false, error: "ID tidak ditemukan" }, { status: 400 })

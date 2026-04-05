@@ -52,38 +52,10 @@ export function useCreateCurrency() {
             if (!json.success) throw new Error(json.error)
             return json.data as Currency
         },
-        onMutate: async (data) => {
-            await queryClient.cancelQueries({ queryKey: queryKeys.currencies.all })
-            const previous = queryClient.getQueryData<Currency[]>(queryKeys.currencies.list())
-            const optimistic: Currency = {
-                id: `temp-${Date.now()}`,
-                code: data.code,
-                name: data.name,
-                symbol: data.symbol,
-                isActive: true,
-                rates: [],
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-            }
-            queryClient.setQueryData<Currency[]>(queryKeys.currencies.list(), (old) =>
-                [...(old ?? []), optimistic]
-            )
-            return { previous }
-        },
-        onSuccess: (serverData) => {
-            queryClient.setQueryData<Currency[]>(queryKeys.currencies.list(), (old) =>
-                old?.map((c) => c.id.startsWith("temp-") ? serverData : c) ?? [serverData]
-            )
-            toast.success("Mata uang berhasil ditambahkan")
-        },
-        onError: (err: Error, _vars, context) => {
-            if (context?.previous) {
-                queryClient.setQueryData(queryKeys.currencies.list(), context.previous)
-            }
-            toast.error(err.message || "Gagal menambahkan mata uang")
-        },
-        onSettled: () => {
+        onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: queryKeys.currencies.all })
+            // Also invalidate reconciliation cache so Tambah Akun Bank dropdown picks up new currencies
+            queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
         },
     })
 }
@@ -189,22 +161,9 @@ export function useDeleteCurrency() {
             if (!json.success) throw new Error(json.error)
             return json
         },
-        onMutate: async (currencyId: string) => {
-            await queryClient.cancelQueries({ queryKey: queryKeys.currencies.all })
-            const previous = queryClient.getQueryData<Currency[]>(queryKeys.currencies.list())
-            queryClient.setQueryData<Currency[]>(queryKeys.currencies.list(), (old) =>
-                old?.filter((c) => c.id !== currencyId) ?? []
-            )
-            return { previous }
-        },
-        onError: (_err, _vars, context) => {
-            if (context?.previous) {
-                queryClient.setQueryData(queryKeys.currencies.list(), context.previous)
-            }
-            toast.error("Gagal menghapus mata uang")
-        },
-        onSettled: () => {
+        onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: queryKeys.currencies.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
         },
     })
 }

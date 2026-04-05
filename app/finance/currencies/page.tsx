@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo, useRef } from "react"
 import { toast } from "sonner"
 import {
     Plus,
@@ -10,6 +10,7 @@ import {
     DollarSign,
     Eye,
     EyeOff,
+    Search,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { format } from "date-fns"
@@ -34,6 +35,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { searchCurrencies } from "@/lib/currency-search"
+import type { RankedCurrency } from "@/lib/currency-search"
 
 /* ─── Animation variants ─── */
 const stagger = {
@@ -52,46 +55,204 @@ function fmtIDR(val: number | string) {
     return `Rp ${Number(val).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
 }
 
+// ─── ISO 4217 currency list ──────────────────────────────────
+const ISO_CURRENCIES: { code: string; name: string; symbol: string }[] = [
+    { code: "USD", name: "Dolar Amerika Serikat", symbol: "$" },
+    { code: "EUR", name: "Euro", symbol: "€" },
+    { code: "GBP", name: "Pound Sterling", symbol: "£" },
+    { code: "JPY", name: "Yen Jepang", symbol: "¥" },
+    { code: "CNY", name: "Yuan Tiongkok", symbol: "¥" },
+    { code: "SGD", name: "Dolar Singapura", symbol: "S$" },
+    { code: "MYR", name: "Ringgit Malaysia", symbol: "RM" },
+    { code: "THB", name: "Baht Thailand", symbol: "฿" },
+    { code: "AUD", name: "Dolar Australia", symbol: "A$" },
+    { code: "HKD", name: "Dolar Hong Kong", symbol: "HK$" },
+    { code: "KRW", name: "Won Korea Selatan", symbol: "₩" },
+    { code: "TWD", name: "Dolar Taiwan", symbol: "NT$" },
+    { code: "INR", name: "Rupee India", symbol: "₹" },
+    { code: "PHP", name: "Peso Filipina", symbol: "₱" },
+    { code: "VND", name: "Dong Vietnam", symbol: "₫" },
+    { code: "SAR", name: "Riyal Arab Saudi", symbol: "ر.س" },
+    { code: "AED", name: "Dirham Uni Emirat Arab", symbol: "د.إ" },
+    { code: "NZD", name: "Dolar Selandia Baru", symbol: "NZ$" },
+    { code: "CAD", name: "Dolar Kanada", symbol: "C$" },
+    { code: "CHF", name: "Franc Swiss", symbol: "CHF" },
+    { code: "SEK", name: "Krona Swedia", symbol: "kr" },
+    { code: "BRL", name: "Real Brasil", symbol: "R$" },
+]
+
 // ─── Add Currency Dialog ──────────────────────────────────────
 function AddCurrencyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
-    const [code, setCode] = useState("")
-    const [name, setName] = useState("")
-    const [symbol, setSymbol] = useState("")
+    const [search, setSearch] = useState("")
+    const [selectedCode, setSelectedCode] = useState("")
+    const inputRef = useRef<HTMLInputElement>(null)
     const createCurrency = useCreateCurrency()
+    const { data: existingCurrencies } = useCurrencies()
+
+    const existingCodes = useMemo(() =>
+        new Set((existingCurrencies ?? []).map(c => c.code)),
+        [existingCurrencies]
+    )
+
+    const availableCurrencies = useMemo(() =>
+        ISO_CURRENCIES.filter(c => !existingCodes.has(c.code)),
+        [existingCodes]
+    )
+
+    // Ranked fuzzy search — only fires at 2+ chars
+    const ranked: RankedCurrency[] = useMemo(() => {
+        if (search.trim().length < 2) return []
+        return searchCurrencies(search, availableCurrencies)
+    }, [search, availableCurrencies])
+
+    const selected = ISO_CURRENCIES.find(c => c.code === selectedCode)
+
+    const showDropdown = search.trim().length >= 2 && !selectedCode
+
+    const reset = () => { setSearch(""); setSelectedCode("") }
+
+    const clearSelection = () => {
+        setSearch("")
+        setSelectedCode("")
+        // Re-focus input after clearing
+        setTimeout(() => inputRef.current?.focus(), 0)
+    }
 
     const handleSubmit = async () => {
-        if (!code.trim() || !name.trim() || !symbol.trim()) { toast.error("Semua field wajib diisi"); return }
+        if (!selected) { toast.error("Pilih mata uang terlebih dahulu"); return }
+        // Client-side duplicate guard (in case existingCodes is stale)
+        if (existingCodes.has(selected.code)) {
+            toast.error(`Mata uang ${selected.code} sudah terdaftar`)
+            return
+        }
         try {
-            await createCurrency.mutateAsync({ code, name, symbol })
-            toast.success("Mata uang berhasil ditambahkan")
-            setCode(""); setName(""); setSymbol("")
+            await createCurrency.mutateAsync({ code: selected.code, name: selected.name, symbol: selected.symbol })
+            toast.success(`${selected.code} — ${selected.name} berhasil ditambahkan`)
+            reset()
             onOpenChange(false)
         } catch (err: any) { toast.error(err.message || "Gagal menambahkan mata uang") }
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o) }}>
             <DialogContent className={NB.contentNarrow}>
                 <DialogHeader className={NB.header}>
                     <DialogTitle className={NB.title}><DollarSign className="h-5 w-5" /> Tambah Mata Uang</DialogTitle>
-                    <DialogDescription className={NB.subtitle}>Daftarkan mata uang asing baru</DialogDescription>
+                    <DialogDescription className={NB.subtitle}>Pilih mata uang asing untuk didaftarkan</DialogDescription>
                 </DialogHeader>
                 <div className="p-6 space-y-4">
-                    <div>
-                        <label className={NB.label}>Kode ISO <span className={NB.labelRequired}>*</span></label>
-                        <Input className={NB.input} placeholder="USD" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} maxLength={3} />
-                    </div>
+                    {/* Search input / pill chip area */}
                     <div>
                         <label className={NB.label}>Nama Mata Uang <span className={NB.labelRequired}>*</span></label>
-                        <Input className={NB.input} placeholder="Dolar Amerika" value={name} onChange={(e) => setName(e.target.value)} />
+
+                        {selected ? (
+                            /* ── Pill chip after selection ── */
+                            <div className={`${NB.input} flex items-center h-9 px-2 border-emerald-400 dark:border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20`}>
+                                <span className="inline-flex items-center gap-2 bg-emerald-100 dark:bg-emerald-900/40 border border-emerald-300 dark:border-emerald-700 px-2.5 py-0.5 text-xs font-bold text-emerald-800 dark:text-emerald-200 rounded-none select-none">
+                                    <span className="font-bold text-sm">{selected.symbol}</span>
+                                    <span className="font-mono font-black tracking-wider">{selected.code}</span>
+                                    <span className="text-emerald-600 dark:text-emerald-400 font-medium">&mdash;</span>
+                                    <span className="font-medium text-emerald-700 dark:text-emerald-300">{selected.name}</span>
+                                    <button
+                                        type="button"
+                                        className="ml-1 text-emerald-400 dark:text-emerald-500 hover:text-red-500 dark:hover:text-red-400 transition-colors font-black text-xs leading-none"
+                                        onClick={clearSelection}
+                                        title="Hapus pilihan"
+                                    >&#10005;</button>
+                                </span>
+                            </div>
+                        ) : (
+                            /* ── Search input ── */
+                            <div className="relative">
+                                <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none ${search ? NB.inputIconActive : NB.inputIconEmpty}`} />
+                                <Input
+                                    ref={inputRef}
+                                    className={`${NB.input} pl-8 ${search.trim().length >= 2 ? NB.inputActive : NB.inputEmpty}`}
+                                    placeholder="Ketik nama mata uang... (Euro, Yen, Dolar)"
+                                    value={search}
+                                    onChange={(e) => { setSearch(e.target.value); setSelectedCode("") }}
+                                    autoFocus
+                                />
+                                {search && (
+                                    <button
+                                        type="button"
+                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 text-xs font-bold transition-colors"
+                                        onClick={() => setSearch("")}
+                                    >&#10005;</button>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Hint text */}
+                        {!selected && search.trim().length < 2 && (
+                            <p className="text-[9px] mt-0.5 font-bold text-zinc-400">
+                                Ketik minimal 2 huruf untuk mencari
+                            </p>
+                        )}
                     </div>
-                    <div>
-                        <label className={NB.label}>Simbol <span className={NB.labelRequired}>*</span></label>
-                        <Input className={NB.input} placeholder="$" value={symbol} onChange={(e) => setSymbol(e.target.value)} maxLength={5} />
-                    </div>
+
+                    {/* Dropdown results — only when 2+ chars typed & not yet selected */}
+                    {showDropdown && (
+                        <div className="border-2 border-zinc-200 dark:border-zinc-700 -mt-2 overflow-hidden">
+                            <ScrollArea className="max-h-[180px]">
+                                {ranked.length === 0 ? (
+                                    <div className="px-4 py-4 text-center">
+                                        <p className="text-xs text-zinc-400 font-medium">
+                                            Mata uang tidak ditemukan untuk &apos;{search.trim()}&apos;
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                        {ranked.map(c => (
+                                            <button
+                                                key={c.code}
+                                                type="button"
+                                                className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-orange-50 dark:hover:bg-orange-950/20 transition-colors"
+                                                onClick={() => { setSelectedCode(c.code); setSearch("") }}
+                                            >
+                                                <span className="w-7 text-center text-base font-bold text-zinc-500 dark:text-zinc-400 shrink-0">{c.symbol}</span>
+                                                <span className="font-mono font-black text-xs tracking-wider text-zinc-700 dark:text-zinc-200">{c.code}</span>
+                                                <span className="text-xs text-zinc-500 dark:text-zinc-400 truncate flex-1">{c.name}</span>
+                                                {c.matchTier === 4 && (
+                                                    <span className="text-[9px] font-mono font-medium text-amber-500 dark:text-amber-400 shrink-0 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-1.5 py-0.5">
+                                                        &asymp; &quot;{search.trim().toLowerCase()}&quot;
+                                                    </span>
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </ScrollArea>
+                        </div>
+                    )}
+
+                    {/* Auto-filled preview — shown after selection */}
+                    {selected && (
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className={NB.label}>Kode ISO</label>
+                                <div className={`${NB.inputMono} flex items-center h-9 px-3 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700`}>
+                                    {selected.code}
+                                </div>
+                            </div>
+                            <div>
+                                <label className={NB.label}>Simbol</label>
+                                <div className={`${NB.input} flex items-center h-9 px-3 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700`}>
+                                    {selected.symbol}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <div className={NB.footer}>
                         <Button type="button" className={NB.cancelBtn} onClick={() => onOpenChange(false)}>Batal</Button>
-                        <Button className={NB.submitBtn} onClick={handleSubmit} disabled={createCurrency.isPending}>{createCurrency.isPending ? "Menyimpan..." : "Simpan"}</Button>
+                        <Button
+                            className={NB.submitBtn}
+                            onClick={handleSubmit}
+                            disabled={createCurrency.isPending || !selectedCode}
+                        >
+                            {createCurrency.isPending ? "Menyimpan..." : "Simpan"}
+                        </Button>
                     </div>
                 </div>
             </DialogContent>
@@ -187,7 +348,7 @@ function CurrencyCard({ currency, onAddRate, onDelete }: { currency: Currency; o
                     <button
                         className="text-zinc-400 hover:text-red-400 transition-colors h-7 w-7 flex items-center justify-center"
                         onClick={() => onDelete(currency)}
-                        title="Nonaktifkan mata uang"
+                        title="Hapus mata uang"
                     >
                         <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -380,9 +541,9 @@ export default function CurrenciesPage() {
                             currency={c}
                             onAddRate={(cur) => setRateDialogCurrency(cur)}
                             onDelete={(cur) => {
-                                if (confirm(`Nonaktifkan mata uang ${cur.code}?`)) {
+                                if (confirm(`Hapus mata uang ${cur.code}? Semua data kurs untuk mata uang ini juga akan dihapus.`)) {
                                     deleteCurrency.mutate(cur.id, {
-                                        onSuccess: () => toast.success(`${cur.code} dinonaktifkan`),
+                                        onSuccess: () => toast.success(`${cur.code} berhasil dihapus`),
                                         onError: (e) => toast.error(e.message),
                                     })
                                 }
