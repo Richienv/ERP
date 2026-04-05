@@ -116,13 +116,11 @@ type ReconDisplayLayer = "COCOK" | "POTENSI" | "HAMPIR" | "BELUM" | "CONFIRMED" 
 function getItemDisplayLayer(item: ReconciliationItemData): ReconDisplayLayer {
     if (item.matchStatus === "CONFIRMED") return "CONFIRMED"
     if (item.matchStatus === "IGNORED") return "IGNORED"
-    if (item.matchStatus === "MATCHED") {
-        const score = item.matchScore ?? 0
-        if (score >= 95) return "COCOK"
-        if (score >= 70) return "POTENSI"
-        if (score >= 40) return "HAMPIR"
-        return "BELUM"
-    }
+    // Classify by score — works for both MATCHED and scored UNMATCHED items
+    const score = item.matchScore ?? 0
+    if (score >= 95) return "COCOK"
+    if (score >= 70) return "POTENSI"
+    if (score >= 40) return "HAMPIR"
     return "BELUM"
 }
 
@@ -658,17 +656,19 @@ function QueueSidebar({
                                                 isActive={isActive}
                                                 onSelect={() => onSelect(originalIndex)}
                                                 onConfirm={
-                                                    (layer === "COCOK" || layer === "POTENSI") && !isCompleted
+                                                    (layer === "COCOK" || layer === "POTENSI") && item.matchStatus === "MATCHED" && !isCompleted
                                                         ? () => onConfirmItem(item.id)
                                                         : undefined
                                                 }
                                                 onReject={
-                                                    (layer === "COCOK" || layer === "POTENSI" || layer === "CONFIRMED") && !isCompleted
+                                                    (layer === "COCOK" || layer === "POTENSI" || layer === "CONFIRMED")
+                                                        && (item.matchStatus === "MATCHED" || item.matchStatus === "CONFIRMED")
+                                                        && !isCompleted
                                                         ? () => onRejectItem(item.id)
                                                         : undefined
                                                 }
                                                 onIgnore={
-                                                    layer === "BELUM" && !isCompleted
+                                                    item.matchStatus === "UNMATCHED" && !isCompleted
                                                         ? () => onIgnoreItem(item.id)
                                                         : undefined
                                                 }
