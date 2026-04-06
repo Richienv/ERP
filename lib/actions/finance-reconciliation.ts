@@ -1199,17 +1199,21 @@ export async function confirmReconciliationItem(
                 },
             })
 
-            // Write reconciliation stamp on matched JournalEntry
-            await prisma.journalEntry.update({
-                where: { id: item.systemTransactionId },
-                data: {
-                    isReconciled: true,
-                    reconciledAt: new Date(),
-                    reconciledBy: user?.id ?? null,
-                    reconciliationId: item.reconciliationId,
-                    bankItemRef: item.bankRef,
-                },
-            })
+            // Write reconciliation stamp on matched JournalEntry (best-effort)
+            try {
+                await prisma.journalEntry.update({
+                    where: { id: item.systemTransactionId },
+                    data: {
+                        isReconciled: true,
+                        reconciledAt: new Date(),
+                        reconciledBy: user?.id ?? null,
+                        reconciliationId: item.reconciliationId,
+                        bankItemRef: item.bankRef,
+                    },
+                })
+            } catch (stampErr) {
+                console.warn("[confirmReconciliationItem] Journal stamp write failed (non-blocking):", stampErr)
+            }
         })
         return { success: true }
     } catch (error) {
@@ -1237,18 +1241,22 @@ export async function rejectReconciliationItem(
                 throw new Error('Item harus berstatus MATCHED atau CONFIRMED untuk ditolak')
             }
 
-            // Remove stamp from JournalEntry if linked
+            // Remove stamp from JournalEntry if linked (best-effort)
             if (item.systemTransactionId) {
-                await prisma.journalEntry.update({
-                    where: { id: item.systemTransactionId },
-                    data: {
-                        isReconciled: false,
-                        reconciledAt: null,
-                        reconciledBy: null,
-                        reconciliationId: null,
-                        bankItemRef: null,
-                    },
-                })
+                try {
+                    await prisma.journalEntry.update({
+                        where: { id: item.systemTransactionId },
+                        data: {
+                            isReconciled: false,
+                            reconciledAt: null,
+                            reconciledBy: null,
+                            reconciliationId: null,
+                            bankItemRef: null,
+                        },
+                    })
+                } catch (stampErr) {
+                    console.warn("[rejectReconciliationItem] Journal stamp removal failed (non-blocking):", stampErr)
+                }
             }
 
             // Reset item to UNMATCHED
@@ -1347,21 +1355,25 @@ export async function bulkConfirmCocokItems(
                 },
             })
 
-            // Write stamp on each matched JournalEntry
+            // Write stamp on each matched JournalEntry (best-effort)
             const journalIds = cocokItems
                 .map(i => i.systemTransactionId)
                 .filter((id): id is string => id !== null)
 
             if (journalIds.length > 0) {
-                await prisma.journalEntry.updateMany({
-                    where: { id: { in: journalIds } },
-                    data: {
-                        isReconciled: true,
-                        reconciledAt: now,
-                        reconciledBy: user?.id ?? null,
-                        reconciliationId,
-                    },
-                })
+                try {
+                    await prisma.journalEntry.updateMany({
+                        where: { id: { in: journalIds } },
+                        data: {
+                            isReconciled: true,
+                            reconciledAt: now,
+                            reconciledBy: user?.id ?? null,
+                            reconciliationId,
+                        },
+                    })
+                } catch (stampErr) {
+                    console.warn("[bulkConfirmCocokItems] Journal stamp write failed (non-blocking):", stampErr)
+                }
             }
 
             return { confirmed: cocokItems.length }

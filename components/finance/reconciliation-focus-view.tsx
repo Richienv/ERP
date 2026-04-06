@@ -32,6 +32,7 @@ import {
     CircleDot,
     Circle,
     CircleCheck,
+    MinusCircle,
     Plus,
     Save,
 } from "lucide-react"
@@ -130,32 +131,32 @@ const LAYER_CONFIG: Record<ReconDisplayLayer, {
     text: string
     border: string
     label: string
-    headerIcon: string
+    headerIcon: typeof CheckCircle2
     headerBg: string
 }> = {
     COCOK: {
         icon: CircleCheck, bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-300",
-        label: "COCOK", headerIcon: "\u2705", headerBg: "bg-emerald-50",
+        label: "COCOK", headerIcon: CircleCheck, headerBg: "bg-emerald-50",
     },
     POTENSI: {
         icon: CircleDot, bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-300",
-        label: "POTENSI", headerIcon: "\u26A1", headerBg: "bg-amber-50",
+        label: "POTENSI", headerIcon: CircleDot, headerBg: "bg-amber-50",
     },
     HAMPIR: {
         icon: AlertCircle, bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-300",
-        label: "HAMPIR", headerIcon: "\u26A0\uFE0F", headerBg: "bg-orange-50",
+        label: "HAMPIR", headerIcon: AlertCircle, headerBg: "bg-orange-50",
     },
     BELUM: {
         icon: Circle, bg: "bg-zinc-50", text: "text-zinc-500", border: "border-zinc-200",
-        label: "BELUM", headerIcon: "\u274C", headerBg: "bg-zinc-50",
+        label: "BELUM", headerIcon: Circle, headerBg: "bg-zinc-50",
     },
     CONFIRMED: {
         icon: CheckCircle2, bg: "bg-emerald-100", text: "text-emerald-800", border: "border-emerald-400",
-        label: "DIKONFIRMASI", headerIcon: "\u2713", headerBg: "bg-emerald-100",
+        label: "DIKONFIRMASI", headerIcon: CheckCircle2, headerBg: "bg-emerald-100",
     },
     IGNORED: {
-        icon: X, bg: "bg-zinc-100", text: "text-zinc-500", border: "border-zinc-300",
-        label: "DIABAIKAN", headerIcon: "\u2014", headerBg: "bg-zinc-100",
+        icon: MinusCircle, bg: "bg-zinc-100", text: "text-zinc-500", border: "border-zinc-300",
+        label: "DIABAIKAN", headerIcon: MinusCircle, headerBg: "bg-zinc-100",
     },
 }
 
@@ -176,7 +177,7 @@ function TierBadge({ tier, score }: { tier: string | null; score?: number | null
     return (
         <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[7px] font-black border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
             {cfg.label}
-            {score != null && <span className="font-mono">{score}%</span>}
+            {score != null && <span className="font-mono">{score >= 99 ? 100 : score}%</span>}
         </span>
     )
 }
@@ -491,7 +492,7 @@ function QueueItemRow({
                             <span className={`text-[7px] font-black px-1 py-0.5 border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
                                 {cfg.label}
                                 {item.matchScore != null && layer !== "CONFIRMED" && layer !== "IGNORED" && (
-                                    <span className="font-mono ml-0.5">{item.matchScore}%</span>
+                                    <span className="font-mono ml-0.5">{(item.matchScore ?? 0) >= 99 ? 100 : item.matchScore}%</span>
                                 )}
                             </span>
                         </div>
@@ -499,7 +500,7 @@ function QueueItemRow({
                 </div>
             </button>
             {(onConfirm || onReject || onIgnore) && (
-                <div className={`flex gap-1 mt-1.5 ${isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}>
+                <div className="flex gap-1 mt-1.5">
                     {onConfirm && (
                         <button
                             onClick={(e) => { e.stopPropagation(); onConfirm() }}
@@ -642,7 +643,7 @@ function QueueSidebar({
                             <div key={layer}>
                                 <div className={`flex items-center justify-between px-2 py-1.5 ${layerCfg.headerBg} border-b border-zinc-200`}>
                                     <div className="flex items-center gap-1.5">
-                                        <span className="text-xs">{layerCfg.headerIcon}</span>
+                                        <layerCfg.headerIcon className={`h-3.5 w-3.5 ${layerCfg.text}`} />
                                         <span className={`text-[9px] font-black uppercase tracking-wider ${layerCfg.text}`}>
                                             {layerCfg.label} ({groupItems.length})
                                         </span>
@@ -1175,7 +1176,7 @@ function MatchRow({
                     <span>Selisih <span className="font-mono font-bold text-zinc-500">Rp {formatIDR(Math.round(match.amountDiff))}</span></span>
                 )}
                 {match.matchedRefs.length > 0 && (
-                    <span className="text-orange-600 font-bold">Ref {"\u2713"}</span>
+                    <span className="text-orange-600 font-bold flex items-center gap-0.5">Ref <CircleCheck className="h-2.5 w-2.5" /></span>
                 )}
                 {match.daysDiff > 0 && (
                     <span>{"\u00b1"}{match.daysDiff} hari</span>
