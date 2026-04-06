@@ -3,8 +3,11 @@ import { PrismaClient } from '@prisma/client'
 // Top-level import would leak "next/headers" into any file that imports prisma.
 
 // Singleton pattern for Prisma Client with optimized settings
+// Version tag: bump after running prisma generate to invalidate stale singletons in dev
+const PRISMA_CLIENT_VERSION = "2026-04-06-recon-stamp"
 const globalForPrisma = globalThis as unknown as {
     prisma: PrismaClient | undefined
+    prismaVersion: string | undefined
 }
 
 // Append connection_limit to DATABASE_URL for Supabase session-mode pooler compatibility.
@@ -20,12 +23,20 @@ function getDatasourceUrl(): string | undefined {
 }
 
 // Base Prisma client (without auth context)
+// Invalidate stale singleton when schema version changes (e.g., after prisma generate)
+if (globalForPrisma.prismaVersion !== PRISMA_CLIENT_VERSION && globalForPrisma.prisma) {
+    globalForPrisma.prisma.$disconnect().catch(() => {})
+    globalForPrisma.prisma = undefined
+}
 const basePrisma = globalForPrisma.prisma ?? new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
     datasourceUrl: getDatasourceUrl(),
 })
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = basePrisma
+if (process.env.NODE_ENV !== 'production') {
+    globalForPrisma.prisma = basePrisma
+    globalForPrisma.prismaVersion = PRISMA_CLIENT_VERSION
+}
 
 export async function withPrismaAuth<T>(
     operation: (prisma: PrismaClient) => Promise<T>,
