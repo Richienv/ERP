@@ -418,7 +418,7 @@ export function CashflowPlanningBoard({
                 <div className="flex flex-col lg:flex-row gap-0 divide-y lg:divide-y-0 lg:divide-x divide-zinc-200 dark:divide-zinc-800">
                     {/* Total Cash Position */}
                     <div
-                        className="p-5 flex-shrink-0 lg:w-[280px] cursor-pointer hover:bg-zinc-50 transition-colors"
+                        className="p-5 flex-shrink-0 lg:w-[320px] overflow-hidden cursor-pointer hover:bg-zinc-50 transition-colors"
                         onClick={() => { setOverrideAmount(String(data.effectiveStartingBalance)); setOverrideDialogOpen(true) }}
                     >
                         <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-zinc-500 mb-1">
@@ -428,8 +428,10 @@ export function CashflowPlanningBoard({
                                 <Badge variant="outline" className="text-[10px] font-bold border-amber-400 text-amber-600 px-1.5 py-0 ml-1">Override</Badge>
                             )}
                         </div>
-                        <div className="text-3xl font-black tabular-nums">
-                            {formatCurrency(data.effectiveStartingBalance)}
+                        <div className="min-w-0 overflow-hidden">
+                            <div className="text-2xl font-black tabular-nums truncate">
+                                {formatCurrency(data.effectiveStartingBalance)}
+                            </div>
                         </div>
                         <div className="text-xs text-zinc-400 mt-0.5">Saldo awal {MONTH_NAMES[month]}</div>
                     </div>
