@@ -1100,3 +1100,43 @@ export async function voidDCNote(id: string) {
         return { success: false as const, error: (error as Error).message || "Gagal membatalkan nota" }
     }
 }
+
+/**
+ * One-time data fix: invoices incorrectly set to PARTIAL by CN/DN settlements
+ * should be ISSUED (CN is a price adjustment, not a payment).
+ * Finds invoices with PARTIAL status, CN/DN settlements, and zero actual payments,
+ * then corrects them to ISSUED.
+ */
+export async function fixCNPartialInvoices(): Promise<{ success: boolean; fixed?: string[]; error?: string }> {
+    try {
+        await requireAuth()
+
+        const partialInvoices = await basePrisma.invoice.findMany({
+            where: { status: 'PARTIAL' },
+            select: { id: true, number: true, totalAmount: true, balanceDue: true },
+        })
+
+        const fixed: string[] = []
+        for (const inv of partialInvoices) {
+            // Check if invoice has actual payments
+            const paymentCount = await basePrisma.payment.count({ where: { invoiceId: inv.id } })
+            if (paymentCount > 0) continue // Has real payments — PARTIAL is correct
+
+            // Check if it has CN/DN settlements
+            const settlementCount = await basePrisma.debitCreditNoteSettlement.count({ where: { invoiceId: inv.id } })
+            if (settlementCount === 0) continue // No CN/DN settlements — some other cause
+
+            // This invoice is PARTIAL only because of CN/DN — fix to ISSUED
+            await basePrisma.invoice.update({
+                where: { id: inv.id },
+                data: { status: 'ISSUED' },
+            })
+            fixed.push(inv.number)
+        }
+
+        return { success: true, fixed }
+    } catch (error: unknown) {
+        console.error("Failed to fix CN partial invoices:", error)
+        return { success: false, error: (error as Error).message || "Gagal memperbaiki status invoice" }
+    }
+}
