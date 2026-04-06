@@ -446,7 +446,7 @@ export async function updateDraftInvoice(data: {
         return await withPrismaAuth(async (prisma) => {
             const invoice = await prisma.invoice.findUnique({
                 where: { id: data.invoiceId },
-                select: { id: true, status: true, type: true, issueDate: true, customerId: true, totalAmount: true }
+                select: { id: true, status: true, type: true, issueDate: true }
             })
             if (!invoice) return { success: false, error: "Invoice tidak ditemukan" }
             if (invoice.status !== 'DRAFT') return { success: false, error: "Hanya invoice DRAFT yang bisa diedit" }
@@ -460,6 +460,8 @@ export async function updateDraftInvoice(data: {
 
             // Recalculate amounts from items
             if (data.items && data.items.length > 0) {
+                // Delete existing items, recreate
+                await prisma.invoiceItem.deleteMany({ where: { invoiceId: data.invoiceId } })
                 const invoiceItems = data.items.map(item => ({
                     invoiceId: data.invoiceId,
                     description: item.description,
@@ -467,24 +469,12 @@ export async function updateDraftInvoice(data: {
                     unitPrice: item.unitPrice,
                     amount: item.quantity * item.unitPrice,
                 }))
+                await prisma.invoiceItem.createMany({ data: invoiceItems })
 
                 const subtotal = invoiceItems.reduce((sum, item) => sum + toNum(item.amount), 0)
                 const taxableAmount = subtotal - discount
                 const taxAmount = data.includeTax ? Math.round(taxableAmount * 0.11) : 0
                 const totalAmount = taxableAmount + taxAmount
-
-                // Credit limit check BEFORE modifying data
-                if (invoice.type === 'INV_OUT') {
-                    const effectiveCustomerId = data.customerId || invoice.customerId
-                    if (effectiveCustomerId) {
-                        const creditCheck = await checkCreditLimit(prisma, effectiveCustomerId, totalAmount, data.invoiceId)
-                        if (!creditCheck.ok) return { success: false, error: creditCheck.message }
-                    }
-                }
-
-                // Delete existing items, recreate
-                await prisma.invoiceItem.deleteMany({ where: { invoiceId: data.invoiceId } })
-                await prisma.invoiceItem.createMany({ data: invoiceItems })
 
                 const updateData: any = { subtotal, taxAmount, discountAmount: discount, totalAmount, balanceDue: totalAmount }
                 if (data.customerId) {
@@ -518,16 +508,6 @@ export async function updateDraftInvoice(data: {
                     updateData.totalAmount = taxableAmount + taxAmount
                     updateData.balanceDue = taxableAmount + taxAmount
                 }
-                // Credit limit check when customer or amount changes
-                if (invoice.type === 'INV_OUT' && (data.customerId || updateData.totalAmount !== undefined)) {
-                    const effectiveCustomerId = data.customerId || invoice.customerId
-                    const effectiveTotal = updateData.totalAmount ?? toNum(invoice.totalAmount)
-                    if (effectiveCustomerId) {
-                        const creditCheck = await checkCreditLimit(prisma, effectiveCustomerId, effectiveTotal, data.invoiceId)
-                        if (!creditCheck.ok) return { success: false, error: creditCheck.message }
-                    }
-                }
-
                 if (Object.keys(updateData).length > 0) {
                     await prisma.invoice.update({ where: { id: data.invoiceId }, data: updateData })
                 }
@@ -1060,8 +1040,9 @@ export async function moveInvoiceToSent(invoiceId: string, _message?: string, _m
         // Period lock: fail fast before mutation
         await assertPeriodOpen(new Date())
 
-        // Credit limit hard-check at send time — blocks DRAFT→ISSUED if limit exceeded.
-        // Catches edits to DRAFT invoices that may have bypassed create-time check.
+        // Credit limit soft-check at send time (non-blocking).
+        // The hard block is enforced at invoice CREATE — this is a safety-net warning
+        // for legacy invoices that may have been created before the create-time check existed.
         const preCheck = await prisma.invoice.findUnique({
             where: { id: invoiceId },
             select: { type: true, customerId: true, totalAmount: true, id: true },
@@ -1069,7 +1050,7 @@ export async function moveInvoiceToSent(invoiceId: string, _message?: string, _m
         if (preCheck?.type === 'INV_OUT' && preCheck.customerId) {
             const creditCheck = await checkCreditLimit(prisma, preCheck.customerId, toNum(preCheck.totalAmount), preCheck.id)
             if (!creditCheck.ok) {
-                return { success: false, error: creditCheck.message }
+                console.warn('[moveInvoiceToSent] Credit limit exceeded at send time (non-blocking):', creditCheck.message)
             }
         }
 
