@@ -754,7 +754,13 @@ export async function getARPaymentRegistry(input?: ARRegistryQueryInput): Promis
                 }),
                 prisma.invoice.findMany({
                     where: invoiceWhere,
-                    include: { customer: { select: { id: true, name: true } } },
+                    include: {
+                        customer: { select: { id: true, name: true } },
+                        dcNoteSettlements: {
+                            select: { amount: true },
+                            where: { note: { status: { notIn: ['VOID', 'CANCELLED'] } } },
+                        },
+                    },
                     orderBy: { dueDate: 'asc' },
                     skip: (query.invoicePage - 1) * query.pageSize,
                     take: query.pageSize,
@@ -797,16 +803,22 @@ export async function getARPaymentRegistry(input?: ARRegistryQueryInput): Promis
                     invoiceNumber: p.invoice?.number ?? null,
                     invoiceStatus: p.invoice?.status ?? null,
                 })),
-                openInvoices: invoices.map((inv) => ({
-                    id: inv.id,
-                    number: inv.number,
-                    customer: inv.customer ? { id: inv.customer.id, name: inv.customer.name } : null,
-                    amount: toNum(inv.totalAmount),
-                    balanceDue: toNum(inv.balanceDue),
-                    dueDate: inv.dueDate,
-                    isOverdue: inv.dueDate < new Date(now.getFullYear(), now.getMonth(), now.getDate()),
-                    status: inv.status,
-                })),
+                openInvoices: invoices.map((inv) => {
+                    const cnReduction = (inv.dcNoteSettlements || []).reduce(
+                        (sum: number, s: { amount: any }) => sum + Number(s.amount), 0
+                    )
+                    return {
+                        id: inv.id,
+                        number: inv.number,
+                        customer: inv.customer ? { id: inv.customer.id, name: inv.customer.name } : null,
+                        amount: toNum(inv.totalAmount),
+                        balanceDue: toNum(inv.balanceDue),
+                        cnReduction,
+                        dueDate: inv.dueDate,
+                        isOverdue: inv.dueDate < new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+                        status: inv.status,
+                    }
+                }),
                 recentPayments: recentPayments.map((p) => ({
                     id: p.id,
                     number: p.number,

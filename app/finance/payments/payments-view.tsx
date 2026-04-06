@@ -435,7 +435,8 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                             </thead>
                             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                                 {visibleOpenInvoices.map((inv) => {
-                                    const paid = (inv.amount || 0) - inv.balanceDue
+                                    const cnReduction = inv.cnReduction ?? 0
+                                    const paid = (inv.amount || 0) - inv.balanceDue - cnReduction
                                     const statusLabel = inv.status === "ISSUED" ? "Terkirim" : inv.status === "PARTIAL" ? "Sebagian" : inv.status === "OVERDUE" ? "Jatuh Tempo" : inv.status
                                     const statusColor = inv.status === "OVERDUE" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-300 dark:border-red-700" : inv.status === "PARTIAL" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-300 dark:border-amber-700" : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-300 dark:border-blue-700"
                                     return (
@@ -446,7 +447,17 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                                 <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 border ${statusColor}`}>{statusLabel}</span>
                                             </td>
                                             <td className="px-4 py-2.5 text-right font-mono text-zinc-700 dark:text-zinc-300">{formatIDR(inv.amount || 0)}</td>
-                                            <td className="px-4 py-2.5 text-right font-mono text-emerald-600 dark:text-emerald-400">{paid > 0 ? formatIDR(paid) : "—"}</td>
+                                            <td className="px-4 py-2.5 text-right">
+                                                {paid > 0 && (
+                                                    <div className="font-mono text-emerald-600 dark:text-emerald-400">{formatIDR(paid)}</div>
+                                                )}
+                                                {cnReduction > 0 && (
+                                                    <div className="font-mono text-[10px] text-blue-600 dark:text-blue-400">CN: -{formatIDR(cnReduction)}</div>
+                                                )}
+                                                {paid <= 0 && cnReduction <= 0 && (
+                                                    <span className="font-mono text-zinc-300 dark:text-zinc-600">—</span>
+                                                )}
+                                            </td>
                                             <td className="px-4 py-2.5 text-right font-mono font-bold text-zinc-900 dark:text-zinc-100">{formatIDR(inv.balanceDue)}</td>
                                             <td className={`px-4 py-2.5 text-right font-mono text-xs ${inv.isOverdue ? "text-red-600 dark:text-red-400 font-bold" : "text-zinc-500"}`}>
                                                 {new Date(inv.dueDate).toLocaleDateString("id-ID")}
@@ -483,8 +494,15 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                     <td className="px-4 py-2 text-right font-mono font-bold text-zinc-700 dark:text-zinc-300">
                                         {formatIDR(openInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0))}
                                     </td>
-                                    <td className="px-4 py-2 text-right font-mono font-bold text-emerald-600">
-                                        {formatIDR(openInvoices.reduce((sum, inv) => sum + ((inv.amount || 0) - inv.balanceDue), 0))}
+                                    <td className="px-4 py-2 text-right">
+                                        <div className="font-mono font-bold text-emerald-600">
+                                            {formatIDR(openInvoices.reduce((sum, inv) => sum + ((inv.amount || 0) - inv.balanceDue - (inv.cnReduction ?? 0)), 0))}
+                                        </div>
+                                        {openInvoices.reduce((sum, inv) => sum + (inv.cnReduction ?? 0), 0) > 0 && (
+                                            <div className="font-mono text-[10px] text-blue-600">
+                                                CN: -{formatIDR(openInvoices.reduce((sum, inv) => sum + (inv.cnReduction ?? 0), 0))}
+                                            </div>
+                                        )}
                                     </td>
                                     <td className="px-4 py-2 text-right font-mono font-black text-orange-600">
                                         {formatIDR(openInvoices.reduce((sum, inv) => sum + inv.balanceDue, 0))}
