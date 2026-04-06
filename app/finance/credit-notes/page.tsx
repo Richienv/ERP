@@ -15,6 +15,7 @@ import {
     EyeOff,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
+import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
 import { CheckboxFilter } from "@/components/ui/checkbox-filter"
@@ -470,10 +471,14 @@ export default function CreditDebitNotesPage() {
 
                                         {/* Invoice Terkait */}
                                         <div className="truncate">
-                                            {note.originalInvoice?.number ? (
-                                                <span className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">
+                                            {note.originalInvoice?.number && note.originalInvoiceId ? (
+                                                <Link
+                                                    href={`/finance/invoices?highlight=${note.originalInvoiceId}`}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline"
+                                                >
                                                     {note.originalInvoice.number}
-                                                </span>
+                                                </Link>
                                             ) : (
                                                 <span className="text-xs text-zinc-300 dark:text-zinc-600">&mdash;</span>
                                             )}

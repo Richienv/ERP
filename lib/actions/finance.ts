@@ -4647,6 +4647,7 @@ export async function getCreditDebitNotes() {
                     party: isCN
                         ? e.invoice?.customer?.name ?? '-'
                         : e.invoice?.supplier?.name ?? '-',
+                    invoiceId: e.invoice?.id ?? null,
                     invoiceNumber: e.invoice?.number ?? null,
                     status: e.status,
                 }

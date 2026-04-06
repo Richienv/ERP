@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { queryKeys } from "@/lib/query-keys"
 import { Plus, FileText, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -164,7 +165,19 @@ export function NotaKreditTab() {
                                 <TableRow key={note.id}>
                                     <TableCell className="font-mono font-bold text-sm">{note.number}</TableCell>
                                     <TableCell className="text-sm">{note.party || "-"}</TableCell>
-                                    <TableCell className="font-mono text-xs font-bold text-blue-600">{note.invoiceNumber || "—"}</TableCell>
+                                    <TableCell>
+                                        {note.invoiceNumber && note.invoiceId ? (
+                                            <Link
+                                                href={`/finance/invoices?highlight=${note.invoiceId}`}
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="font-mono text-xs font-bold text-blue-600 hover:underline"
+                                            >
+                                                {note.invoiceNumber}
+                                            </Link>
+                                        ) : (
+                                            <span className="font-mono text-xs text-zinc-300">—</span>
+                                        )}
+                                    </TableCell>
                                     <TableCell className="text-sm text-zinc-500 max-w-[200px] truncate">{note.reason}</TableCell>
                                     <TableCell className="text-right font-mono font-bold">{formatIDR(Number(note.amount || 0))}</TableCell>
                                     <TableCell>
