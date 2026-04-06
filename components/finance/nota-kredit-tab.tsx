@@ -144,6 +144,7 @@ export function NotaKreditTab() {
                         <TableRow className="bg-zinc-50">
                             <TableHead className="text-[10px] font-black uppercase tracking-widest">No</TableHead>
                             <TableHead className="text-[10px] font-black uppercase tracking-widest">Customer</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest">Invoice</TableHead>
                             <TableHead className="text-[10px] font-black uppercase tracking-widest">Alasan</TableHead>
                             <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Jumlah</TableHead>
                             <TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead>
@@ -154,7 +155,7 @@ export function NotaKreditTab() {
                     <TableBody>
                         {creditNotes.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={7} className="text-center py-8 text-zinc-400 text-xs font-bold uppercase">
+                                <TableCell colSpan={8} className="text-center py-8 text-zinc-400 text-xs font-bold uppercase">
                                     Belum ada nota kredit
                                 </TableCell>
                             </TableRow>
@@ -163,6 +164,7 @@ export function NotaKreditTab() {
                                 <TableRow key={note.id}>
                                     <TableCell className="font-mono font-bold text-sm">{note.number}</TableCell>
                                     <TableCell className="text-sm">{note.party || "-"}</TableCell>
+                                    <TableCell className="font-mono text-xs font-bold text-blue-600">{note.invoiceNumber || "—"}</TableCell>
                                     <TableCell className="text-sm text-zinc-500 max-w-[200px] truncate">{note.reason}</TableCell>
                                     <TableCell className="text-right font-mono font-bold">{formatIDR(Number(note.amount || 0))}</TableCell>
                                     <TableCell>
