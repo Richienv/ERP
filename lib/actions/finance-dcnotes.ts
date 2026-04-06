@@ -855,13 +855,12 @@ export async function postDCNote(id: string) {
                         data: { noteId: id, invoiceId: note.originalInvoiceId, amount: settlementAmount },
                     })
 
-                    // Update invoice balance + auto-calculate status
+                    // CN/DN reduces effective amount owed — not a payment.
+                    // Keep status as-is unless CN fully covers the balance → PAID.
                     const newBalance = invoiceBalance - settlementAmount
                     let newInvoiceStatus = linkedInvoice.status
                     if (newBalance <= 0.01) {
                         newInvoiceStatus = 'PAID'
-                    } else if (newBalance < Number(linkedInvoice.totalAmount) - 0.01) {
-                        newInvoiceStatus = 'PARTIAL'
                     }
                     await prisma.invoice.update({
                         where: { id: note.originalInvoiceId },
@@ -943,13 +942,11 @@ export async function settleDCNote(noteId: string, settlements: { invoiceId: str
                     },
                 })
 
-                // Update invoice balance + auto-calculate status
+                // CN/DN reduces effective amount owed — not a payment.
                 const newBalance = invoiceBalance - appliedAmount
                 let newInvoiceStatus = invoice.status
                 if (newBalance <= 0.01) {
                     newInvoiceStatus = 'PAID'
-                } else if (newBalance < Number(invoice.totalAmount) - 0.01) {
-                    newInvoiceStatus = 'PARTIAL'
                 }
                 await prisma.invoice.update({
                     where: { id: settlement.invoiceId },
