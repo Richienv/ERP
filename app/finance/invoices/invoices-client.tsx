@@ -857,6 +857,11 @@ export function InvoicesPageClient() {
                                                 }`}>
                                                 {formatIDR(invoice.amount)}
                                             </span>
+                                            {(invoice.cnReduction ?? 0) > 0 && (
+                                                <span className="text-[9px] text-emerald-600 dark:text-emerald-400 block font-mono font-bold">
+                                                    CN: -{formatIDR(invoice.cnReduction!)}
+                                                </span>
+                                            )}
                                             {invoice.balanceDue != null && invoice.balanceDue > 0 && invoice.balanceDue < invoice.amount && (
                                                 <span className="text-[9px] text-zinc-400 block font-mono">Sisa {formatIDR(invoice.balanceDue)}</span>
                                             )}
