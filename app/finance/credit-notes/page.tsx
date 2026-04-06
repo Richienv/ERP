@@ -400,8 +400,8 @@ export default function CreditDebitNotesPage() {
                 style={{ minHeight: 480 }}
             >
                 {/* Table Header */}
-                <div className="hidden md:grid grid-cols-[1fr_80px_100px_1.2fr_1.2fr_110px_90px_100px_100px_120px] gap-2 px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black">
-                    {["No. Nota", "Tipe", "Tanggal", "Pihak", "Alasan", "Subtotal", "PPN", "Total", "Status", "Aksi"].map((h) => (
+                <div className="hidden md:grid grid-cols-[1fr_80px_100px_1fr_120px_1fr_110px_90px_100px_100px_120px] gap-2 px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black">
+                    {["No. Nota", "Tipe", "Tanggal", "Pihak", "Invoice", "Alasan", "Subtotal", "PPN", "Total", "Status", "Aksi"].map((h) => (
                         <span key={h} className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{h}</span>
                     ))}
                 </div>
@@ -438,7 +438,7 @@ export default function CreditDebitNotesPage() {
                                         initial="hidden"
                                         animate="show"
                                         transition={{ delay: idx * 0.03 }}
-                                        className={`grid grid-cols-1 md:grid-cols-[1fr_80px_100px_1.2fr_1.2fr_110px_90px_100px_100px_120px] gap-2 px-5 py-3 items-center transition-all hover:bg-orange-50/50 dark:hover:bg-orange-950/10 ${idx % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/60 dark:bg-zinc-800/20"}`}
+                                        className={`grid grid-cols-1 md:grid-cols-[1fr_80px_100px_1fr_120px_1fr_110px_90px_100px_100px_120px] gap-2 px-5 py-3 items-center transition-all hover:bg-orange-50/50 dark:hover:bg-orange-950/10 ${idx % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/60 dark:bg-zinc-800/20"}`}
                                     >
                                         {/* Number */}
                                         <div>
@@ -466,6 +466,17 @@ export default function CreditDebitNotesPage() {
                                         {/* Party */}
                                         <div className="truncate">
                                             <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{getPartyName(note)}</span>
+                                        </div>
+
+                                        {/* Invoice Terkait */}
+                                        <div className="truncate">
+                                            {note.originalInvoice?.number ? (
+                                                <span className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">
+                                                    {note.originalInvoice.number}
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-zinc-300 dark:text-zinc-600">&mdash;</span>
+                                            )}
                                         </div>
 
                                         {/* Reason */}
