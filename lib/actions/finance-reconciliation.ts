@@ -75,6 +75,8 @@ export interface ReconciliationItemData {
     matchAmountDiff: number | null
     matchNameSimilarity: number | null
     matchDaysDiff: number | null
+    // Item origin
+    source: string | null  // 'GL_AUTO' | 'CSV_IMPORT' | null (legacy)
 }
 
 export interface SystemEntryData {
@@ -169,6 +171,10 @@ export async function getReconciliationDetail(
         })
 
         if (!rec) return null
+
+        // NOTE: GL auto-backfill is NOT done inline here — it's triggered from the client
+        // after initial render via backfillReconciliationItems(). This keeps getReconciliationDetail
+        // fast (pure read, no write side-effects).
 
         // Resolve active bank item for per-transaction filtering
         let activeBankItem: { bankAmount: number; bankDate: Date | null } | null = null
@@ -273,14 +279,32 @@ export async function getReconciliationDetail(
             }
         }
 
-        // Build a map: entryId → entry description (for resolving systemDescription)
+        // Collect ALL GL_AUTO linked entry IDs for the full session (not just current page)
+        // so we can exclude them from the right panel — they are already shown in the left panel.
+        let glAutoLinkedEntryIds = new Set<string>()
+        try {
+            const glAutoLinks = await prisma.bankReconciliationItem.findMany({
+                where: { reconciliationId, source: 'GL_AUTO', systemTransactionId: { not: null } },
+                select: { systemTransactionId: true },
+            })
+            glAutoLinkedEntryIds = new Set(glAutoLinks.map(l => l.systemTransactionId!))
+        } catch {
+            // Non-blocking: if this fails, right panel shows all entries (no GL filter)
+        }
+
+        // Right panel only shows GL entries NOT already present as GL_AUTO left-panel items
+        const rightPanelLines = filteredJournalLines.filter(
+            line => !glAutoLinkedEntryIds.has(line.entryId)
+        )
+
+        // Build a map: entryId → entry description (for resolving systemDescription on left-panel items)
         const entryDescriptionMap = new Map<string, string>()
         for (const line of filteredJournalLines) {
             entryDescriptionMap.set(line.entryId, line.entry.description)
         }
 
-        // Map journal lines to SystemEntryData[]
-        const systemEntries: SystemEntryData[] = filteredJournalLines.map((line) => {
+        // Map right-panel lines to SystemEntryData[]
+        const systemEntries: SystemEntryData[] = rightPanelLines.map((line) => {
             const debit = Number(line.debit)
             const credit = Number(line.credit)
             const amount = debit > 0 ? debit : -credit
@@ -325,6 +349,7 @@ export async function getReconciliationDetail(
                 matchAmountDiff: i.matchAmountDiff != null ? Number(i.matchAmountDiff) : null,
                 matchNameSimilarity: i.matchNameSimilarity != null ? Number(i.matchNameSimilarity) : null,
                 matchDaysDiff: i.matchDaysDiff ?? null,
+                source: i.source ?? null,
             })),
             systemEntries,
             // Pagination metadata
@@ -339,10 +364,10 @@ export async function getReconciliationDetail(
             systemPagination: {
                 page: systemPage,
                 pageSize: systemPageSize,
-                totalItems: activeBankItem ? filteredJournalLines.length : totalSystemEntries,
+                totalItems: activeBankItem ? rightPanelLines.length : Math.max(0, totalSystemEntries - glAutoLinkedEntryIds.size),
                 totalPages: activeBankItem
-                    ? Math.ceil(filteredJournalLines.length / systemPageSize)
-                    : Math.ceil(totalSystemEntries / systemPageSize),
+                    ? Math.ceil(rightPanelLines.length / systemPageSize)
+                    : Math.ceil(Math.max(0, totalSystemEntries - glAutoLinkedEntryIds.size) / systemPageSize),
             },
         }
     } catch (error) {
@@ -514,6 +539,94 @@ export async function getBankAccountsList(): Promise<
 // Write Actions (keep withPrismaAuth for transactional safety)
 // ==============================================================================
 
+// ==============================================================================
+// GL Auto-Populate — internal helper
+// ==============================================================================
+
+/**
+ * Auto-populate BankReconciliationItem rows from POSTED GL journal lines
+ * that touch the given GL account within the reconciliation period.
+ *
+ * - Deduplicates by entryId (one item per journal entry, not per line).
+ * - Skips journal entries already linked to an item in this session.
+ * - Sets session status to REC_IN_PROGRESS when items are created.
+ * - GL_AUTO items are pre-linked (systemTransactionId set) with matchStatus=MATCHED.
+ */
+async function autoPopulateFromGL(
+    reconciliationId: string,
+    glAccountId: string,
+    periodStart: Date,
+    periodEnd: Date
+): Promise<{ created: number }> {
+    // 1. Fetch all POSTED journal lines touching this GL account in the period
+    const journalLines = await prisma.journalLine.findMany({
+        where: {
+            accountId: glAccountId,
+            entry: {
+                status: 'POSTED',
+                date: { gte: periodStart, lte: periodEnd },
+                isReversed: false,
+            },
+        },
+        select: {
+            debit: true,
+            credit: true,
+            entry: {
+                select: { id: true, date: true, description: true, reference: true },
+            },
+        },
+    })
+
+    if (journalLines.length === 0) return { created: 0 }
+
+    // 2. Deduplicate: one item per journal entry (a journal can have multiple lines touching the same account)
+    const byEntry = new Map<string, typeof journalLines[0]>()
+    for (const line of journalLines) {
+        if (!byEntry.has(line.entry.id)) byEntry.set(line.entry.id, line)
+    }
+
+    // 3. Get existing linked journal IDs to prevent duplicates
+    const existing = await prisma.bankReconciliationItem.findMany({
+        where: { reconciliationId, systemTransactionId: { not: null } },
+        select: { systemTransactionId: true },
+    })
+    const existingIds = new Set(existing.map(e => e.systemTransactionId!))
+
+    // 4. Build items for journals not yet linked
+    const items = Array.from(byEntry.values())
+        .filter(line => !existingIds.has(line.entry.id))
+        .map(line => {
+            const debit = Number(line.debit)
+            const credit = Number(line.credit)
+            // Positive = money IN to bank account (debit on bank GL), negative = money OUT (credit on bank GL)
+            const amount = debit > 0 ? debit : -credit
+            return {
+                reconciliationId,
+                systemTransactionId: line.entry.id,
+                bankDate: line.entry.date,
+                bankAmount: amount,
+                bankDescription: line.entry.description,
+                bankRef: line.entry.reference ?? null,
+                source: 'GL_AUTO',
+                matchStatus: 'MATCHED' as const,  // pre-linked to the GL entry it came from
+                matchTier: 'AUTO',
+                matchScore: 100,
+            }
+        })
+
+    if (items.length === 0) return { created: 0 }
+
+    await prisma.$transaction([
+        prisma.bankReconciliationItem.createMany({ data: items }),
+        prisma.bankReconciliation.update({
+            where: { id: reconciliationId },
+            data: { status: 'REC_IN_PROGRESS' },
+        }),
+    ])
+
+    return { created: items.length }
+}
+
 /**
  * Create a new reconciliation session.
  */
@@ -548,10 +661,57 @@ export async function createReconciliation(data: {
             return rec.id
         })
 
+        // Auto-populate from GL — runs outside the session creation transaction so the session
+        // is always created even if populate fails (non-fatal, can be backfilled later).
+        try {
+            const { created } = await autoPopulateFromGL(
+                recId,
+                data.glAccountId,
+                new Date(data.periodStart),
+                new Date(data.periodEnd)
+            )
+            if (created > 0) {
+                console.log(`[createReconciliation] Auto-populated ${created} GL items for session ${recId}`)
+            }
+        } catch (e) {
+            console.error('[createReconciliation] GL auto-populate failed (non-fatal):', e)
+        }
+
         return { success: true, reconciliationId: recId }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal membuat rekonsiliasi'
         console.error("[createReconciliation] Error:", error)
+        return { success: false, error: msg }
+    }
+}
+
+/**
+ * Backfill GL_AUTO items for a session that was created before auto-populate existed.
+ * Idempotent — safe to call multiple times (skips already-linked journals).
+ */
+export async function backfillReconciliationItems(
+    reconciliationId: string
+): Promise<{ success: boolean; created?: number; error?: string }> {
+    try {
+        await requireAuth()
+
+        const rec = await prisma.bankReconciliation.findUnique({
+            where: { id: reconciliationId },
+            select: { glAccountId: true, periodStart: true, periodEnd: true, status: true },
+        })
+        if (!rec) return { success: false, error: 'Sesi rekonsiliasi tidak ditemukan' }
+        if (rec.status === 'REC_COMPLETED') return { success: true, created: 0 }
+
+        const { created } = await autoPopulateFromGL(
+            reconciliationId,
+            rec.glAccountId,
+            rec.periodStart,
+            rec.periodEnd
+        )
+        return { success: true, created }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal backfill item'
+        console.error('[backfillReconciliationItems] Error:', error)
         return { success: false, error: msg }
     }
 }
@@ -619,19 +779,79 @@ export async function importBankStatementRows(
     }
 
     try {
-        const count = await withPrismaAuth(async (prisma: PrismaClient) => {
-            const items = rows.map((r, i) => ({
-                reconciliationId,
-                bankRef: r.reference || null,
-                bankDescription: r.description,
-                bankDate: parsedDates[i],
-                bankAmount: r.amount,
-                matchStatus: 'UNMATCHED' as const,
-            }))
+        // Check if GL_AUTO items already exist for this session (overlay mode vs legacy mode)
+        const glAutoItems = await prisma.bankReconciliationItem.findMany({
+            where: { reconciliationId, source: 'GL_AUTO' },
+            select: { id: true, bankAmount: true, bankDate: true, bankRef: true },
+        })
+        const hasGLItems = glAutoItems.length > 0
 
-            const result = await prisma.bankReconciliationItem.createMany({
-                data: items,
-            })
+        const autoConfirmedIds: string[] = []
+        const newCsvRows: { row: BankStatementRow; date: Date }[] = []
+
+        if (hasGLItems) {
+            // ── OVERLAY MODE ──
+            // Match each CSV row against existing GL_AUTO items.
+            // Exact amount + date ±3 days → auto-confirm the GL item (bank statement confirms it).
+            // No match → create a new CSV_IMPORT item (bank has it, GL doesn't).
+            const used = new Set<string>()
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i]
+                const csvDate = parsedDates[i]
+                const csvAmount = row.amount
+
+                const match = glAutoItems.find(item => {
+                    if (used.has(item.id)) return false
+                    const amountMatch = Math.abs(Number(item.bankAmount) - csvAmount) < 1 // within Rp 1
+                    if (!amountMatch) return false
+                    if (!item.bankDate) return true
+                    const daysDiff = Math.abs(
+                        (item.bankDate.getTime() - csvDate.getTime()) / 86_400_000
+                    )
+                    return daysDiff <= 3
+                })
+
+                if (match) {
+                    used.add(match.id)
+                    autoConfirmedIds.push(match.id)
+                } else {
+                    newCsvRows.push({ row, date: csvDate })
+                }
+            }
+        } else {
+            // ── LEGACY MODE ── no GL items present; treat all CSV rows as bank items (original behavior)
+            for (let i = 0; i < rows.length; i++) {
+                newCsvRows.push({ row: rows[i], date: parsedDates[i] })
+            }
+        }
+
+        const count = await withPrismaAuth(async (prisma: PrismaClient) => {
+            // Auto-confirm GL_AUTO items matched by CSV
+            for (const itemId of autoConfirmedIds) {
+                await prisma.bankReconciliationItem.update({
+                    where: { id: itemId },
+                    data: {
+                        matchStatus: 'CONFIRMED',
+                        matchedAt: new Date(),
+                    },
+                })
+            }
+
+            // Create CSV_IMPORT items for unmatched CSV rows
+            let csvCreated = 0
+            if (newCsvRows.length > 0) {
+                const csvItems = newCsvRows.map(({ row, date }) => ({
+                    reconciliationId,
+                    bankRef: row.reference || null,
+                    bankDescription: row.description,
+                    bankDate: date,
+                    bankAmount: row.amount,
+                    matchStatus: 'UNMATCHED' as const,
+                    source: 'CSV_IMPORT',
+                }))
+                const result = await prisma.bankReconciliationItem.createMany({ data: csvItems })
+                csvCreated = result.count
+            }
 
             // Update status to IN_PROGRESS
             await prisma.bankReconciliation.update({
@@ -639,7 +859,7 @@ export async function importBankStatementRows(
                 data: { status: 'REC_IN_PROGRESS' },
             })
 
-            return result.count
+            return autoConfirmedIds.length + csvCreated
         })
 
         return { success: true, importedCount: count }

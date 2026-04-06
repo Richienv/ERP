@@ -477,12 +477,24 @@ function QueueItemRow({
                             <span className="text-[7px]">{item.bankAmount >= 0 ? "\u25B2" : "\u25BC"}</span>{" "}
                             Rp {formatIDR(Math.abs(item.bankAmount))}
                         </span>
-                        <span className={`text-[7px] font-black px-1 py-0.5 border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
-                            {cfg.label}
-                            {item.matchScore != null && layer !== "CONFIRMED" && layer !== "IGNORED" && (
-                                <span className="font-mono ml-0.5">{item.matchScore}%</span>
+                        <div className="flex items-center gap-1">
+                            {item.source === 'GL_AUTO' && (
+                                <span className="text-[7px] font-bold uppercase px-1 py-0.5 bg-blue-100 text-blue-700 border border-blue-300">
+                                    GL
+                                </span>
                             )}
-                        </span>
+                            {item.source === 'CSV_IMPORT' && (
+                                <span className="text-[7px] font-bold uppercase px-1 py-0.5 bg-zinc-100 text-zinc-500 border border-zinc-300">
+                                    CSV
+                                </span>
+                            )}
+                            <span className={`text-[7px] font-black px-1 py-0.5 border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+                                {cfg.label}
+                                {item.matchScore != null && layer !== "CONFIRMED" && layer !== "IGNORED" && (
+                                    <span className="font-mono ml-0.5">{item.matchScore}%</span>
+                                )}
+                            </span>
+                        </div>
                     </div>
                 </div>
             </button>

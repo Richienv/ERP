@@ -2975,12 +2975,16 @@ model BankReconciliationItem {
   matchNameSimilarity Decimal?    @db.Decimal(5, 4)   // 0.0000–1.0000
   matchDaysDiff       Int?                            // Selisih hari
 
+  // Item origin — GL_AUTO (auto-populated from Jurnal Umum) | CSV_IMPORT (imported from bank CSV) | null (legacy)
+  source              String?
+
   reconciliation BankReconciliation @relation(fields: [reconciliationId], references: [id], onDelete: Cascade)
 
   @@index([reconciliationId])
   @@index([matchStatus])
   @@index([systemTransactionId])
   @@index([matchTier])
+  @@index([source])
   @@map("bank_reconciliation_items")
 }
 

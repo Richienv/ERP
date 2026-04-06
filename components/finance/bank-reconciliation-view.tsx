@@ -51,7 +51,7 @@ import type {
 } from "@/lib/actions/finance-reconciliation"
 // MatchTier type: "AUTO" | "POTENTIAL" | "MANUAL" — from lib/finance-reconciliation-helpers
 import { Switch } from "@/components/ui/switch"
-import { createBankAccount } from "@/lib/actions/finance-reconciliation"
+import { createBankAccount, backfillReconciliationItems } from "@/lib/actions/finance-reconciliation"
 import type { BankAccountRecord, COAAccount } from "@/hooks/use-reconciliation"
 import { ReconciliationFocusView } from "@/components/finance/reconciliation-focus-view"
 import { useGLAccounts } from "@/hooks/use-gl-accounts"
@@ -116,7 +116,7 @@ interface BankReconciliationViewProps {
     onMatchItems: (data: { bankItemIds: string[]; systemEntryIds: string[] }) => Promise<{ success: boolean; error?: string; amountDiff?: number }>
     onUnmatchItem: (itemId: string) => Promise<{ success: boolean; error?: string }>
     onClose: (reconciliationId: string) => Promise<{ success: boolean; error?: string }>
-    onLoadDetail: (reconciliationId: string, options?: { bankPage?: number; bankPageSize?: number; systemPage?: number; systemPageSize?: number }) => Promise<ReconciliationDetail | null>
+    onLoadDetail: (reconciliationId: string, options?: { bankPage?: number; bankPageSize?: number; systemPage?: number; systemPageSize?: number; activeBankItemId?: string }) => Promise<ReconciliationDetail | null>
     onUpdateMeta: (reconciliationId: string, data: { bankStatementBalance?: number; notes?: string }) => Promise<{ success: boolean; error?: string }>
     onSearchJournals?: (reconciliationId: string, query: string, bankItemContext?: { bankAmount: number; bankDate: string | null }) => Promise<{ entryId: string; date: string; description: string; reference: string | null; amount: number; lineDescription: string | null }[]>
     onCreateJournalAndMatch?: (reconciliationId: string, bankLineId: string, journalData: { date: string; description: string; reference?: string; amount: number; debitAccountCode: string; creditAccountCode: string }) => Promise<{ success: boolean; journalId?: string; error?: string }>
@@ -513,6 +513,19 @@ export function BankReconciliationView({
             if (detail) {
                 setEditBankStatementBalance(detail.bankStatementBalance != null ? String(detail.bankStatementBalance) : "")
                 setEditNotes(detail.notes ?? "")
+
+                // ── GL Auto-backfill (non-blocking, fire-and-forget) ──
+                // If this session has no GL_AUTO items yet, trigger backfill in background.
+                // This keeps getReconciliationDetail fast (pure read), while still populating
+                // GL items for legacy sessions on first view.
+                const hasGLAutoItems = detail.items.some(i => i.source === "GL_AUTO")
+                if (!hasGLAutoItems && detail.status !== "REC_COMPLETED") {
+                    backfillReconciliationItems(detail.id).then(async (result) => {
+                        if (result.success && (result.created ?? 0) > 0) {
+                            await reloadDetail(detail.id)
+                        }
+                    }).catch(() => {})
+                }
 
                 // Auto-score unscored items on first session load (non-blocking)
                 const EAGER_SCORE_THRESHOLD = 50
