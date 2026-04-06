@@ -13,6 +13,7 @@ import {
     ChevronRight,
     Eye,
     EyeOff,
+    Wrench,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
@@ -87,6 +88,7 @@ export default function CreditDebitNotesPage() {
     const [selectedTypes, setSelectedTypes] = useState<string[]>([])
     const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
     const [actionLoading, setActionLoading] = useState<string | null>(null)
+    const [fixLoading, setFixLoading] = useState(false)
     const [showAmounts, setShowAmounts] = useState(false)
     const [page, setPage] = useState(1)
 
@@ -180,6 +182,29 @@ export default function CreditDebitNotesPage() {
         }
     }
 
+    const handleFixData = async () => {
+        if (!confirm("Perbaiki status invoice yang salah?\n\nIni akan mengubah invoice dengan status SEBAGIAN (yang hanya punya nota kredit/debit, tanpa pembayaran riil) kembali ke TERKIRIM.")) return
+        setFixLoading(true)
+        try {
+            const result = await fixCNPartialInvoices()
+            if (result.success) {
+                const count = result.fixed?.length ?? 0
+                if (count > 0) {
+                    toast.success(`${count} invoice diperbaiki: ${result.fixed!.join(", ")}`)
+                    await queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
+                } else {
+                    toast.info("Tidak ada invoice yang perlu diperbaiki")
+                }
+            } else {
+                toast.error(result.error || "Gagal memperbaiki data")
+            }
+        } catch {
+            toast.error("Terjadi kesalahan")
+        } finally {
+            setFixLoading(false)
+        }
+    }
+
     const resetFilters = () => {
         setSearch("")
         setSelectedTypes([])
@@ -235,6 +260,15 @@ export default function CreditDebitNotesPage() {
                         </div>
                     </div>
                     <div className="flex items-center gap-0">
+                        <Button
+                            onClick={handleFixData}
+                            disabled={fixLoading}
+                            variant="outline"
+                            title="Perbaiki invoice yang salah status SEBAGIAN karena nota kredit/debit"
+                            className={`${NB.toolbarBtn} ${NB.toolbarBtnJoin}`}
+                        >
+                            <Wrench className="h-3.5 w-3.5 mr-1.5" /> Perbaiki Status
+                        </Button>
                         <Button
                             onClick={() => {
                                 const cols = [
