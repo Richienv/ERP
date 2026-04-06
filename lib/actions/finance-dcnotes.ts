@@ -1010,12 +1010,24 @@ export async function voidDCNote(id: string) {
             // 1. Reverse settlements — add amounts back to invoice balanceDue
             if (note.settlements.length > 0) {
                 for (const settlement of note.settlements) {
+                    const inv = await prisma.invoice.findUnique({
+                        where: { id: settlement.invoiceId },
+                        select: { totalAmount: true, balanceDue: true },
+                    })
+                    const restoredBalance = Number(inv?.balanceDue ?? 0) + Number(settlement.amount)
+                    const total = Number(inv?.totalAmount ?? restoredBalance)
+                    // Recalculate status based on restored balance
+                    let newStatus: string = 'ISSUED'
+                    if (restoredBalance <= 0.01) {
+                        newStatus = 'PAID'
+                    } else if (restoredBalance < total - 0.01) {
+                        newStatus = 'PARTIAL'
+                    }
                     await prisma.invoice.update({
                         where: { id: settlement.invoiceId },
                         data: {
-                            balanceDue: { increment: Number(settlement.amount) },
-                            // Reset invoice status if it was PAID — set back to ISSUED
-                            status: 'ISSUED',
+                            balanceDue: restoredBalance,
+                            status: newStatus as any,
                         },
                     })
                 }
