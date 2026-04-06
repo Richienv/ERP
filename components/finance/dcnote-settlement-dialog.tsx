@@ -91,9 +91,9 @@ export function DCNoteSettlementDialog({ open, onOpenChange, note }: DCNoteSettl
             const result = await settleDCNote(note.id, settlements)
             if (result.success) {
                 toast.success("Nota berhasil diterapkan ke invoice")
-                queryClient.invalidateQueries({ queryKey: queryKeys.dcNotes.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
+                await queryClient.invalidateQueries({ queryKey: queryKeys.dcNotes.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all, refetchType: 'none' })
+                queryClient.invalidateQueries({ queryKey: queryKeys.bills.all, refetchType: 'none' })
                 onOpenChange(false)
             } else {
                 toast.error(result.error || "Gagal menerapkan nota")

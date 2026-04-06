@@ -131,15 +131,17 @@ export default function CreditDebitNotesPage() {
     const dnAmount = useMemo(() => notes.filter(n => n.type === "SALES_DN" || n.type === "PURCHASE_DN").reduce((s, n) => s + (Number(n.totalAmount) || 0), 0), [notes])
 
     // ──────── Actions ────────
-    const invalidateAll = () => {
-        queryClient.invalidateQueries({ queryKey: queryKeys.dcNotes.all })
-        queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
-        queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
-        queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
-        queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
-        queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
-        queryClient.invalidateQueries({ queryKey: queryKeys.accountTransactions.all })
-        queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
+    const invalidateAll = async () => {
+        // Primary — refetch immediately
+        await queryClient.invalidateQueries({ queryKey: queryKeys.dcNotes.all })
+        // Secondary — mark stale, refetch on next access
+        queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all, refetchType: 'none' })
+        queryClient.invalidateQueries({ queryKey: queryKeys.journal.all, refetchType: 'none' })
+        queryClient.invalidateQueries({ queryKey: queryKeys.bills.all, refetchType: 'none' })
+        queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all, refetchType: 'none' })
+        queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all, refetchType: 'none' })
+        queryClient.invalidateQueries({ queryKey: queryKeys.accountTransactions.all, refetchType: 'none' })
+        queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all, refetchType: 'none' })
     }
 
     const handlePost = async (id: string) => {
@@ -148,7 +150,7 @@ export default function CreditDebitNotesPage() {
             const result = await postDCNote(id)
             if (result.success) {
                 toast.success("Nota berhasil diposting")
-                invalidateAll()
+                await invalidateAll()
             } else {
                 toast.error(result.error || "Gagal memposting nota")
             }
@@ -166,7 +168,7 @@ export default function CreditDebitNotesPage() {
             const result = await voidDCNote(id)
             if (result.success) {
                 toast.success("Nota berhasil dibatalkan")
-                invalidateAll()
+                await invalidateAll()
             } else {
                 toast.error(result.error || "Gagal membatalkan nota")
             }

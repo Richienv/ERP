@@ -258,11 +258,11 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
                 toast.success(`Nota ${result.number} berhasil disimpan sebagai draft`)
             }
 
-            // Invalidate caches
-            queryClient.invalidateQueries({ queryKey: queryKeys.dcNotes.all })
-            queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
-            queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
-            queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
+            // Invalidate caches — await primary, defer secondary
+            await queryClient.invalidateQueries({ queryKey: queryKeys.dcNotes.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all, refetchType: 'none' })
+            queryClient.invalidateQueries({ queryKey: queryKeys.journal.all, refetchType: 'none' })
+            queryClient.invalidateQueries({ queryKey: queryKeys.bills.all, refetchType: 'none' })
 
             handleOpenChange(false)
         } catch {
