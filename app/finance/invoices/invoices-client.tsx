@@ -23,6 +23,7 @@ import {
     Eye,
     EyeOff,
     Trash2,
+    FileText,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -310,10 +311,11 @@ export function InvoicesPageClient() {
                         }))
                         : inv.number?.match(/^(DN|CN)-/)
                             ? [{
-                                description: ((inv.journalEntries || [])[0]?.description || '').replace(/^\[(CREDIT|DEBIT)_NOTE\]\s*\S+:\s*/, '') || 'Nota Debit/Kredit',
+                                description: ((inv.journalEntries || [])[0]?.description || '')
+                                    .replace(/^\[(CREDIT|DEBIT)_NOTE\]\s*\S+:\s*/, '') || 'Nota Debit/Kredit',
                                 quantity: 1,
-                                unitPrice: Math.abs(inv.subtotal),
-                                lineTotal: Math.abs(inv.subtotal),
+                                unitPrice: Math.abs(inv.subtotal || inv.totalAmount || 0),
+                                lineTotal: Math.abs(inv.subtotal || inv.totalAmount || 0),
                             }]
                             : [],
                     subtotal: inv.subtotal,
@@ -825,6 +827,7 @@ export function InvoicesPageClient() {
                         <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
                             {pagedInvoices.map((invoice, idx) => {
                                 const isOverdue = invoice.status === 'OVERDUE'
+                                const invoiceDueToday = (invoice as any).isDueToday
 
                                 return (
                                     <motion.div
@@ -834,7 +837,7 @@ export function InvoicesPageClient() {
                                         initial="hidden"
                                         animate="show"
                                         transition={{ delay: idx * 0.03 }}
-                                        className={`grid grid-cols-1 md:grid-cols-[1fr_1.2fr_90px_140px_120px_110px_120px] gap-2 px-5 py-3 items-center transition-all hover:bg-orange-50/50 dark:hover:bg-orange-950/10 cursor-pointer ${idx % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-zinc-50/60 dark:bg-zinc-800/20'} ${isOverdue ? 'border-l-4 border-l-red-500' : ''}`}
+                                        className={`grid grid-cols-1 md:grid-cols-[1fr_1.2fr_90px_140px_120px_110px_120px] gap-2 px-5 py-3 items-center transition-all hover:bg-orange-50/50 dark:hover:bg-orange-950/10 cursor-pointer ${idx % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-zinc-50/60 dark:bg-zinc-800/20'} ${isOverdue ? 'border-l-4 border-l-red-500' : invoiceDueToday ? 'border-l-4 border-l-orange-400' : ''}`}
                                         onClick={() => invoice.status === 'DRAFT' ? openEditDialog(invoice) : openViewDialog(invoice)}
                                     >
                                         <div>
@@ -867,18 +870,24 @@ export function InvoicesPageClient() {
                                             )}
                                         </div>
                                         <div>
-                                            <StatusBadge
-                                                status={invoice.status}
-                                                className={isOverdue ? 'animate-pulse' : ''}
-                                            />
-                                            {invoice.status === 'ISSUED' && invoice.issueDate && (
+                                            {invoiceDueToday ? (
+                                                <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-none bg-orange-50 dark:bg-orange-950/30 border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-400">
+                                                    HARI INI
+                                                </span>
+                                            ) : (
+                                                <StatusBadge
+                                                    status={invoice.status}
+                                                    className={isOverdue ? 'animate-pulse' : ''}
+                                                />
+                                            )}
+                                            {invoice.status === 'ISSUED' && !invoiceDueToday && invoice.issueDate && (
                                                 <p className="text-[9px] text-zinc-400 mt-0.5 font-medium">
                                                     {new Date(invoice.issueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
                                                 </p>
                                             )}
                                         </div>
                                         <div>
-                                            <span className={`text-xs font-medium ${isOverdue ? 'text-red-600 dark:text-red-400 font-bold' : 'text-zinc-500'}`}>
+                                            <span className={`text-xs font-medium ${isOverdue ? 'text-red-600 dark:text-red-400 font-bold' : invoiceDueToday ? 'text-orange-600 dark:text-orange-400 font-bold' : 'text-zinc-500'}`}>
                                                 {new Date(invoice.dueDate).toLocaleDateString('id-ID')}
                                             </span>
                                         </div>
@@ -1343,6 +1352,29 @@ export function InvoicesPageClient() {
                                         <div className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{viewData.dueDate}</div>
                                     </div>
                                 </div>
+
+                                {/* DN/CN Notice — shown for legacy Debit/Credit Note invoices */}
+                                {viewData.number?.match(/^(DN|CN)-\d/) && (
+                                    <div className="border border-orange-200 dark:border-orange-800 bg-orange-50/60 dark:bg-orange-950/20 px-4 py-3 flex items-start gap-3">
+                                        <FileText className="h-4 w-4 text-orange-500 mt-0.5 shrink-0" />
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-[9px] font-black uppercase tracking-widest bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300 border border-orange-300 dark:border-orange-700 px-2 py-0.5">
+                                                    {viewData.number.startsWith("CN") ? "Nota Kredit" : "Nota Debit"}
+                                                </span>
+                                                <span className="text-[9px] font-medium text-zinc-400">Penyesuaian tagihan</span>
+                                            </div>
+                                            <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300 truncate">
+                                                {(viewData.journalEntries[0]?.description || "")
+                                                    .replace(/^\[(CREDIT|DEBIT)_NOTE\]\s*\S+:\s*/, "")
+                                                    || "Dokumen penyesuaian tagihan"}
+                                            </p>
+                                            <p className="text-[10px] text-zinc-400 mt-0.5 italic">
+                                                Invoice asal tidak tersimpan pada catatan lama ini.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Items table */}
                                 <div>

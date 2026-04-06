@@ -9,6 +9,7 @@ import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl
 import { assertPeriodOpen } from "@/lib/period-helpers"
 import { getPPhLiabilityAccount, type PPhTypeValue } from "@/lib/pph-helpers"
 import { toNum } from "@/lib/utils"
+import * as dueDateUtils from "@/lib/due-date-utils"
 
 // ==========================================
 // VENDOR BILLS (AP - From Purchase Orders)
@@ -119,7 +120,8 @@ export async function getVendorBills(): Promise<VendorBill[]> {
                 amount: toNum(bill.totalAmount),
                 balanceDue: toNum(bill.balanceDue),
                 status: bill.status,
-                isOverdue: bill.dueDate < new Date(now.getFullYear(), now.getMonth(), now.getDate()) && bill.status !== 'PAID'
+                isOverdue: dueDateUtils.isOverdue(bill.dueDate) && bill.status !== 'PAID',
+                isDueToday: dueDateUtils.isDueToday(bill.dueDate) && bill.status !== 'PAID',
             }))
         })
     } catch (error) {
@@ -195,7 +197,8 @@ export async function getVendorBillsRegistry(input?: VendorBillQueryInput): Prom
                 amount: toNum(bill.totalAmount),
                 balanceDue: toNum(bill.balanceDue),
                 status: bill.status,
-                isOverdue: bill.dueDate < new Date(now.getFullYear(), now.getMonth(), now.getDate()) && bill.status !== 'PAID',
+                isOverdue: dueDateUtils.isOverdue(bill.dueDate) && bill.status !== 'PAID',
+                isDueToday: dueDateUtils.isDueToday(bill.dueDate) && bill.status !== 'PAID',
                 payments: bill.payments?.map(p => ({
                     id: p.id,
                     amount: toNum(p.amount),

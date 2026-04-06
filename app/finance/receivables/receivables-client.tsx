@@ -36,8 +36,8 @@ export function ReceivablesPageClient() {
         queryFn: () => getARAgingReport(),
         ...CACHE_TIERS.TRANSACTIONAL,
     })
-    const b = aging?.summary || { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0 }
-    const total = b.current + b.d1_30 + b.d31_60 + b.d61_90 + b.d90_plus
+    const b = aging?.summary || { current: 0, hari_ini: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0 }
+    const total = b.current + (b.hari_ini || 0) + b.d1_30 + b.d31_60 + b.d61_90 + b.d90_plus
 
     return (
         <motion.div
@@ -98,6 +98,7 @@ export function ReceivablesPageClient() {
                             {[
                                 { label: "Total", value: total, color: "text-zinc-900 dark:text-white" },
                                 { label: "Belum Jatuh Tempo", value: b.current, color: "text-emerald-600" },
+                                { label: "Hari Ini", value: b.hari_ini || 0, color: "text-orange-600" },
                                 { label: "1-30 Hari", value: b.d1_30, color: "text-amber-600" },
                                 { label: "31-60 Hari", value: b.d31_60, color: "text-orange-600" },
                                 { label: "61-90 Hari", value: b.d61_90, color: "text-red-500" },

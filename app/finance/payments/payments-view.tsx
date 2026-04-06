@@ -203,12 +203,17 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
         return openInvoices.filter((invoice) => invoice.customer?.id === selectedPayment.customerId)
     }, [openInvoices, selectedPayment])
 
-    // Sort invoices: OVERDUE first, then by due date ascending (most urgent first)
+    // Sort invoices: OVERDUE first, then DUE TODAY, then by due date ascending
     const sortedOpenInvoices = useMemo(() => {
         return [...openInvoices].sort((a, b) => {
             // OVERDUE first
             if (a.isOverdue && !b.isOverdue) return -1
             if (!a.isOverdue && b.isOverdue) return 1
+            // Due today second
+            const aDueToday = (a as any).isDueToday
+            const bDueToday = (b as any).isDueToday
+            if (aDueToday && !bDueToday) return -1
+            if (!aDueToday && bDueToday) return 1
             // Then by due date ascending (earliest = most urgent)
             return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
         })
@@ -437,8 +442,9 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                 {visibleOpenInvoices.map((inv) => {
                                     const cnReduction = inv.cnReduction ?? 0
                                     const paid = (inv.amount || 0) - inv.balanceDue - cnReduction
-                                    const statusLabel = inv.status === "ISSUED" ? "Terkirim" : inv.status === "PARTIAL" ? "Sebagian" : inv.status === "OVERDUE" ? "Jatuh Tempo" : inv.status
-                                    const statusColor = inv.status === "OVERDUE" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-300 dark:border-red-700" : inv.status === "PARTIAL" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-300 dark:border-amber-700" : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-300 dark:border-blue-700"
+                                    const invDueToday = (inv as any).isDueToday
+                                    const statusLabel = inv.isOverdue ? "Jatuh Tempo" : invDueToday ? "Hari Ini" : inv.status === "ISSUED" ? "Terkirim" : inv.status === "PARTIAL" ? "Sebagian" : inv.status
+                                    const statusColor = inv.isOverdue ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-300 dark:border-red-700" : invDueToday ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-orange-300 dark:border-orange-700" : inv.status === "PARTIAL" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-300 dark:border-amber-700" : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-300 dark:border-blue-700"
                                     return (
                                         <tr key={inv.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors">
                                             <td className="px-4 py-2.5 font-mono font-bold text-zinc-900 dark:text-zinc-100">{inv.number}</td>
@@ -459,9 +465,10 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                                 )}
                                             </td>
                                             <td className="px-4 py-2.5 text-right font-mono font-bold text-zinc-900 dark:text-zinc-100">{formatIDR(inv.balanceDue)}</td>
-                                            <td className={`px-4 py-2.5 text-right font-mono text-xs ${inv.isOverdue ? "text-red-600 dark:text-red-400 font-bold" : "text-zinc-500"}`}>
+                                            <td className={`px-4 py-2.5 text-right font-mono text-xs ${inv.isOverdue ? "text-red-600 dark:text-red-400 font-bold" : invDueToday ? "text-orange-600 dark:text-orange-400 font-bold" : "text-zinc-500"}`}>
                                                 {new Date(inv.dueDate).toLocaleDateString("id-ID")}
                                                 {inv.isOverdue && <AlertTriangle className="inline h-3 w-3 ml-1 text-red-500" />}
+                                                {invDueToday && <AlertTriangle className="inline h-3 w-3 ml-1 text-orange-500" />}
                                             </td>
                                             <td className="px-4 py-2.5 text-center">
                                                 <button

@@ -15,6 +15,7 @@ describe("normalizeAPAgingSummary", () => {
             })
         ).toEqual({
             current: 83250000,
+            hari_ini: 0,
             d1_30: 0,
             d31_60: 0,
             d61_90: 0,
@@ -35,11 +36,34 @@ describe("normalizeAPAgingSummary", () => {
             })
         ).toEqual({
             current: 83250000,
+            hari_ini: 0,
             d1_30: 0,
             d31_60: 0,
             d61_90: 0,
             d90_plus: 0,
             totalOutstanding: 83250000,
+            billCount: 0,
+        })
+    })
+
+    it("includes hari_ini bucket when provided", () => {
+        expect(
+            normalizeAPAgingSummary({
+                current: 50000000,
+                hari_ini: 10000000,
+                d1_30: 5000000,
+                d31_60: 0,
+                d61_90: 0,
+                d90_plus: 0,
+            })
+        ).toEqual({
+            current: 50000000,
+            hari_ini: 10000000,
+            d1_30: 5000000,
+            d31_60: 0,
+            d61_90: 0,
+            d90_plus: 0,
+            totalOutstanding: 65000000,
             billCount: 0,
         })
     })

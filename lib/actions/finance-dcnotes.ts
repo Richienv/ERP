@@ -528,7 +528,9 @@ export async function getDCNoteDetail(id: string) {
         const inv = legacyEntry.invoice
         const absSubtotal = inv ? Math.abs(Number(inv.subtotal)) : 0
         const absTax = inv ? Math.abs(Number(inv.taxAmount)) : 0
-        const absTotal = inv ? Math.abs(Number(inv.totalAmount)) : 0
+        // Fallback: derive total from journal debit lines when inv is null
+        const fallbackTotal = legacyEntry.lines.reduce((s, l) => s + Number(l.debit), 0)
+        const absTotal = inv ? Math.abs(Number(inv.totalAmount)) : fallbackTotal
 
         return {
             success: true as const,
@@ -541,19 +543,19 @@ export async function getDCNoteDetail(id: string) {
                 issueDate: legacyEntry.date,
                 notes: reasonText || null,
                 description: legacyEntry.description,
-                subtotal: absSubtotal,
+                subtotal: absSubtotal || absTotal,
                 ppnAmount: absTax,
                 totalAmount: absTotal,
                 settledAmount: 0,
                 customer: isCN ? (inv?.customer ?? null) : null,
                 supplier: !isCN ? (inv?.supplier ?? null) : null,
                 originalInvoice: null,
-                items: absSubtotal > 0 ? [{
+                items: absTotal > 0 ? [{
                     id: `legacy-${legacyEntry.id}`,
                     description: reasonText || (isCN ? 'Nota Kredit' : 'Nota Debit'),
                     quantity: 1,
-                    unitPrice: absSubtotal,
-                    amount: absSubtotal,
+                    unitPrice: absSubtotal || absTotal,
+                    amount: absSubtotal || absTotal,
                     ppnAmount: absTax,
                     totalAmount: absTotal,
                 }] : [],

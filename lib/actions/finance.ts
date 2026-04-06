@@ -12,6 +12,7 @@ import { inferSubType } from "@/lib/account-subtype-helpers"
 import { getExchangeRate, convertToIDR } from "@/lib/currency-helpers"
 import { TAX_RATES } from "@/lib/tax-rates"
 import { toNum } from "@/lib/utils"
+import * as dueDateUtils from "@/lib/due-date-utils"
 
 export interface FinancialMetrics {
     cashBalance: number
@@ -2269,7 +2270,7 @@ export async function getOpenInvoices(): Promise<OpenInvoice[]> {
                 amount: Number(inv.totalAmount),
                 balanceDue: Number(inv.balanceDue),
                 dueDate: inv.dueDate,
-                isOverdue: inv.dueDate < new Date(now.getFullYear(), now.getMonth(), now.getDate())
+                isOverdue: dueDateUtils.isOverdue(inv.dueDate),
             }))
         })
     } catch (error) {
@@ -2543,7 +2544,7 @@ export async function getVendorBills(): Promise<VendorBill[]> {
                 amount: Number(bill.totalAmount),
                 balanceDue: Number(bill.balanceDue),
                 status: bill.status,
-                isOverdue: bill.dueDate < new Date(now.getFullYear(), now.getMonth(), now.getDate()) && bill.status !== 'PAID'
+                isOverdue: dueDateUtils.isOverdue(bill.dueDate) && bill.status !== 'PAID',
             }))
         })
     } catch (error) {
@@ -3626,7 +3627,7 @@ export async function getVendorBillsRegistry(input?: VendorBillQueryInput): Prom
                 amount: Number(bill.totalAmount),
                 balanceDue: Number(bill.balanceDue),
                 status: bill.status,
-                isOverdue: bill.dueDate < new Date(now.getFullYear(), now.getMonth(), now.getDate()) && bill.status !== 'PAID',
+                isOverdue: dueDateUtils.isOverdue(bill.dueDate) && bill.status !== 'PAID',
                 payments: bill.payments?.map(p => ({
                     id: p.id,
                     amount: Number(p.amount),
@@ -3787,12 +3788,13 @@ export async function getARAgingReport() {
             // Normalize today to start-of-day to avoid timezone-related bucket misplacement
             const now = new Date()
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-            const buckets = { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0 }
+            const buckets = { current: 0, hari_ini: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0 }
             const customerMap = new Map<string, {
                 customerId: string
                 customerName: string
                 customerCode: string | null
                 current: number
+                hari_ini: number
                 d1_30: number
                 d31_60: number
                 d61_90: number
@@ -3825,9 +3827,12 @@ export async function getARAgingReport() {
                 if (daysOverdue < 0) {
                     buckets.current += balance
                     bucket = 'current'
+                } else if (daysOverdue === 0) {
+                    buckets.hari_ini += balance
+                    bucket = 'hari_ini'
                 } else if (daysOverdue <= 30) {
                     buckets.d1_30 += balance
-                    bucket = daysOverdue === 0 ? 'jatuh-tempo' : '1-30'
+                    bucket = '1-30'
                 } else if (daysOverdue <= 60) {
                     buckets.d31_60 += balance
                     bucket = '31-60'
@@ -3842,12 +3847,13 @@ export async function getARAgingReport() {
                 // Customer summary
                 const existing = customerMap.get(custId) || {
                     customerId: custId, customerName: custName, customerCode: custCode,
-                    current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, total: 0, invoiceCount: 0,
+                    current: 0, hari_ini: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, total: 0, invoiceCount: 0,
                     invoices: [],
                 }
                 existing.invoiceCount++
                 existing.total += balance
                 if (bucket === 'current') existing.current += balance
+                else if (bucket === 'hari_ini') existing.hari_ini += balance
                 else if (bucket === '1-30') existing.d1_30 += balance
                 else if (bucket === '31-60') existing.d31_60 += balance
                 else if (bucket === '61-90') existing.d61_90 += balance
@@ -3924,7 +3930,7 @@ export async function getARAgingReport() {
                 })
             }
 
-            const totalOutstanding = buckets.current + buckets.d1_30 + buckets.d31_60 + buckets.d61_90 + buckets.d90_plus
+            const totalOutstanding = buckets.current + buckets.hari_ini + buckets.d1_30 + buckets.d31_60 + buckets.d61_90 + buckets.d90_plus
 
             // Fetch DRAFT invoices separately (not mixed into aging buckets)
             const pendingInvoices = await basePrisma.invoice.findMany({
@@ -3961,7 +3967,7 @@ export async function getARAgingReport() {
     } catch (error) {
         console.error("Failed to generate AR aging report:", error)
         return {
-            summary: { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, totalOutstanding: 0, invoiceCount: 0 },
+            summary: { current: 0, hari_ini: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, totalOutstanding: 0, invoiceCount: 0 },
             byCustomer: [],
             details: [],
             pending: [],
@@ -3992,12 +3998,13 @@ export async function getAPAgingReport() {
             // Normalize today to start-of-day to avoid timezone-related bucket misplacement
             const now2 = new Date()
             const today = new Date(now2.getFullYear(), now2.getMonth(), now2.getDate())
-            const buckets = { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0 }
+            const buckets = { current: 0, hari_ini: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0 }
             const supplierMap = new Map<string, {
                 supplierId: string
                 supplierName: string
                 supplierCode: string | null
                 current: number
+                hari_ini: number
                 d1_30: number
                 d31_60: number
                 d61_90: number
@@ -4030,9 +4037,12 @@ export async function getAPAgingReport() {
                 if (daysOverdue < 0) {
                     buckets.current += balance
                     bucket = 'current'
+                } else if (daysOverdue === 0) {
+                    buckets.hari_ini += balance
+                    bucket = 'hari_ini'
                 } else if (daysOverdue <= 30) {
                     buckets.d1_30 += balance
-                    bucket = daysOverdue === 0 ? 'jatuh-tempo' : '1-30'
+                    bucket = '1-30'
                 } else if (daysOverdue <= 60) {
                     buckets.d31_60 += balance
                     bucket = '31-60'
@@ -4046,12 +4056,13 @@ export async function getAPAgingReport() {
 
                 const existing = supplierMap.get(suppId) || {
                     supplierId: suppId, supplierName: suppName, supplierCode: suppCode,
-                    current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, total: 0, billCount: 0,
+                    current: 0, hari_ini: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, total: 0, billCount: 0,
                     bills: [],
                 }
                 existing.billCount++
                 existing.total += balance
                 if (bucket === 'current') existing.current += balance
+                else if (bucket === 'hari_ini') existing.hari_ini += balance
                 else if (bucket === '1-30') existing.d1_30 += balance
                 else if (bucket === '31-60') existing.d31_60 += balance
                 else if (bucket === '61-90') existing.d61_90 += balance
@@ -4128,7 +4139,7 @@ export async function getAPAgingReport() {
                 })
             }
 
-            const totalOutstanding = buckets.current + buckets.d1_30 + buckets.d31_60 + buckets.d61_90 + buckets.d90_plus
+            const totalOutstanding = buckets.current + buckets.hari_ini + buckets.d1_30 + buckets.d31_60 + buckets.d61_90 + buckets.d90_plus
 
             // Fetch DRAFT bills separately (not mixed into aging buckets)
             const pendingBills = await basePrisma.invoice.findMany({
@@ -4165,7 +4176,7 @@ export async function getAPAgingReport() {
     } catch (error) {
         console.error("Failed to generate AP aging report:", error)
         return {
-            summary: { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, totalOutstanding: 0, billCount: 0 },
+            summary: { current: 0, hari_ini: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, totalOutstanding: 0, billCount: 0 },
             bySupplier: [],
             details: [],
             pending: [],
@@ -4196,7 +4207,8 @@ export async function getOpenVendorBills() {
                 amount: Number(b.totalAmount),
                 balanceDue: Number(b.balanceDue ?? b.totalAmount),
                 dueDate: b.dueDate,
-                isOverdue: b.dueDate ? (() => { const d = new Date(b.dueDate); const t = new Date(); return d < new Date(t.getFullYear(), t.getMonth(), t.getDate()) })() : false,
+                isOverdue: b.dueDate ? dueDateUtils.isOverdue(b.dueDate) : false,
+                isDueToday: b.dueDate ? dueDateUtils.isDueToday(b.dueDate) : false,
             }))
         })
     } catch (error) {

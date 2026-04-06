@@ -529,23 +529,23 @@ export default function FinancialReportsPage() {
 
         if (reportType === "ar_aging" && arAgingData) {
             const aoa: any[][] = [
-                ["AGING PIUTANG (AR)", "", "", "", "", ""],
-                [periodLabel, "", "", "", "", ""],
-                ["", "", "", "", "", ""],
-                ["PELANGGAN", "BELUM JATUH TEMPO (Rp)", "1-30 HARI (Rp)", "31-60 HARI (Rp)", "61-90 HARI (Rp)", "90+ HARI (Rp)", "TOTAL (Rp)"],
-                ...arAgingData.byCustomer.map((c: any) => ([
-                    c.customerName, c.current || 0, c.d1_30 || 0, c.d31_60 || 0, c.d61_90 || 0, c.d90_plus || 0, c.total || 0,
-                ])),
+                ["AGING PIUTANG (AR)", "", "", "", "", "", ""],
+                [periodLabel, "", "", "", "", "", ""],
                 ["", "", "", "", "", "", ""],
+                ["PELANGGAN", "BELUM JATUH TEMPO (Rp)", "HARI INI (Rp)", "1-30 HARI (Rp)", "31-60 HARI (Rp)", "61-90 HARI (Rp)", "90+ HARI (Rp)", "TOTAL (Rp)"],
+                ...arAgingData.byCustomer.map((c: any) => ([
+                    c.customerName, c.current || 0, c.hari_ini || 0, c.d1_30 || 0, c.d31_60 || 0, c.d61_90 || 0, c.d90_plus || 0, c.total || 0,
+                ])),
+                ["", "", "", "", "", "", "", ""],
                 ["TOTAL",
-                    arAgingData.summary.current || 0, arAgingData.summary.d1_30 || 0,
+                    arAgingData.summary.current || 0, arAgingData.summary.hari_ini || 0, arAgingData.summary.d1_30 || 0,
                     arAgingData.summary.d31_60 || 0, arAgingData.summary.d61_90 || 0,
                     arAgingData.summary.d90_plus || 0, arAgingData.summary.totalOutstanding || 0],
             ]
             const ws = XLSX.utils.aoa_to_sheet(aoa)
-            ws["!cols"] = [{ wch: 30 }, { wch: 20 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 22 }]
+            ws["!cols"] = [{ wch: 30 }, { wch: 20 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 22 }]
             for (let r = 4; r < aoa.length; r++) {
-                for (let c = 1; c <= 6; c++) {
+                for (let c = 1; c <= 7; c++) {
                     const cell = ws[XLSX.utils.encode_cell({ r, c })]
                     if (cell && typeof cell.v === "number") cell.z = idr
                 }
@@ -555,23 +555,23 @@ export default function FinancialReportsPage() {
 
         if (reportType === "ap_aging" && apAgingData) {
             const aoa: any[][] = [
-                ["AGING HUTANG (AP)", "", "", "", "", ""],
-                [periodLabel, "", "", "", "", ""],
-                ["", "", "", "", "", ""],
-                ["PEMASOK", "BELUM JATUH TEMPO (Rp)", "1-30 HARI (Rp)", "31-60 HARI (Rp)", "61-90 HARI (Rp)", "90+ HARI (Rp)", "TOTAL (Rp)"],
-                ...apAgingData.bySupplier.map((s: any) => ([
-                    s.supplierName, s.current || 0, s.d1_30 || 0, s.d31_60 || 0, s.d61_90 || 0, s.d90_plus || 0, s.total || 0,
-                ])),
+                ["AGING HUTANG (AP)", "", "", "", "", "", ""],
+                [periodLabel, "", "", "", "", "", ""],
                 ["", "", "", "", "", "", ""],
+                ["PEMASOK", "BELUM JATUH TEMPO (Rp)", "HARI INI (Rp)", "1-30 HARI (Rp)", "31-60 HARI (Rp)", "61-90 HARI (Rp)", "90+ HARI (Rp)", "TOTAL (Rp)"],
+                ...apAgingData.bySupplier.map((s: any) => ([
+                    s.supplierName, s.current || 0, s.hari_ini || 0, s.d1_30 || 0, s.d31_60 || 0, s.d61_90 || 0, s.d90_plus || 0, s.total || 0,
+                ])),
+                ["", "", "", "", "", "", "", ""],
                 ["TOTAL",
-                    apAgingData.summary.current || 0, apAgingData.summary.d1_30 || 0,
+                    apAgingData.summary.current || 0, apAgingData.summary.hari_ini || 0, apAgingData.summary.d1_30 || 0,
                     apAgingData.summary.d31_60 || 0, apAgingData.summary.d61_90 || 0,
                     apAgingData.summary.d90_plus || 0, apAgingData.summary.totalOutstanding || 0],
             ]
             const ws = XLSX.utils.aoa_to_sheet(aoa)
-            ws["!cols"] = [{ wch: 30 }, { wch: 20 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 22 }]
+            ws["!cols"] = [{ wch: 30 }, { wch: 20 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 22 }]
             for (let r = 4; r < aoa.length; r++) {
-                for (let c = 1; c <= 6; c++) {
+                for (let c = 1; c <= 7; c++) {
                     const cell = ws[XLSX.utils.encode_cell({ r, c })]
                     if (cell && typeof cell.v === "number") cell.z = idr
                 }
@@ -1906,9 +1906,10 @@ export default function FinancialReportsPage() {
                                                 {arAgingData.summary.invoiceCount} Invoice
                                             </span>
                                         </div>
-                                        <div className="grid grid-cols-2 md:grid-cols-6 divide-x divide-zinc-100 dark:divide-zinc-800">
+                                        <div className="grid grid-cols-2 md:grid-cols-7 divide-x divide-zinc-100 dark:divide-zinc-800">
                                             {[
                                                 { label: "Belum Jatuh Tempo", value: arAgingData.summary.current, color: "emerald" },
+                                                { label: "Hari Ini", value: arAgingData.summary.hari_ini || 0, color: "orange" },
                                                 { label: "1-30 Hari", value: arAgingData.summary.d1_30, color: "blue" },
                                                 { label: "31-60 Hari", value: arAgingData.summary.d31_60, color: "amber" },
                                                 { label: "61-90 Hari", value: arAgingData.summary.d61_90, color: "orange" },
@@ -1935,6 +1936,7 @@ export default function FinancialReportsPage() {
                                                 <TableRow className="bg-zinc-50 dark:bg-zinc-800">
                                                     <TableHead className="text-[10px] font-black uppercase tracking-widest">Pelanggan</TableHead>
                                                     <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Belum Jatuh Tempo</TableHead>
+                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Hari Ini</TableHead>
                                                     <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">1-30 Hari</TableHead>
                                                     <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">31-60 Hari</TableHead>
                                                     <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">61-90 Hari</TableHead>
@@ -1946,7 +1948,7 @@ export default function FinancialReportsPage() {
                                             <TableBody>
                                                 {arAgingData.byCustomer.length === 0 ? (
                                                     <TableRow>
-                                                        <TableCell colSpan={8} className="text-center py-8 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                                                        <TableCell colSpan={9} className="text-center py-8 text-zinc-400 text-xs font-bold uppercase tracking-widest">
                                                             Tidak ada piutang terbuka
                                                         </TableCell>
                                                     </TableRow>
@@ -1972,6 +1974,7 @@ export default function FinancialReportsPage() {
                                                                         </button>
                                                                     </TableCell>
                                                                     <TableCell className="text-right font-mono text-sm">{cust.current > 0 ? formatIDR(cust.current) : "-"}</TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm text-orange-600">{(cust.hari_ini || 0) > 0 ? formatIDR(cust.hari_ini) : "-"}</TableCell>
                                                                     <TableCell className="text-right font-mono text-sm">{cust.d1_30 > 0 ? formatIDR(cust.d1_30) : "-"}</TableCell>
                                                                     <TableCell className="text-right font-mono text-sm">{cust.d31_60 > 0 ? formatIDR(cust.d31_60) : "-"}</TableCell>
                                                                     <TableCell className="text-right font-mono text-sm">{cust.d61_90 > 0 ? formatIDR(cust.d61_90) : "-"}</TableCell>
@@ -2000,6 +2003,7 @@ export default function FinancialReportsPage() {
                                                                             <span className="block text-[9px] text-zinc-400 mt-0.5">{issueLbl} — jt. {dueLbl}</span>
                                                                         </TableCell>
                                                                         <TableCell className="text-right text-[10px] font-mono">{b === 'current' ? formatIDR(bal) : "-"}</TableCell>
+                                                                        <TableCell className="text-right text-[10px] font-mono text-orange-600">{b === 'hari_ini' ? formatIDR(bal) : "-"}</TableCell>
                                                                         <TableCell className="text-right text-[10px] font-mono">{b === '1-30' ? formatIDR(bal) : "-"}</TableCell>
                                                                         <TableCell className="text-right text-[10px] font-mono">{b === '31-60' ? formatIDR(bal) : "-"}</TableCell>
                                                                         <TableCell className="text-right text-[10px] font-mono">{b === '61-90' ? formatIDR(bal) : "-"}</TableCell>
@@ -2008,9 +2012,10 @@ export default function FinancialReportsPage() {
                                                                         <TableCell className="text-center">
                                                                             <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-sm ${
                                                                                 inv.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
+                                                                                b === 'hari_ini' ? 'bg-orange-100 text-orange-700' :
                                                                                 inv.status === 'PARTIAL' ? 'bg-amber-100 text-amber-700' :
                                                                                 'bg-blue-100 text-blue-700'
-                                                                            }`}>{inv.status}</span>
+                                                                            }`}>{b === 'hari_ini' ? 'HARI INI' : inv.status}</span>
                                                                         </TableCell>
                                                                     </TableRow>
                                                                     )
@@ -2036,9 +2041,10 @@ export default function FinancialReportsPage() {
                                                 {apAgingData.summary.billCount} Bill
                                             </span>
                                         </div>
-                                        <div className="grid grid-cols-2 md:grid-cols-6 divide-x divide-zinc-100 dark:divide-zinc-800">
+                                        <div className="grid grid-cols-2 md:grid-cols-7 divide-x divide-zinc-100 dark:divide-zinc-800">
                                             {[
                                                 { label: "Belum Jatuh Tempo", value: apAgingData.summary.current, color: "emerald" },
+                                                { label: "Hari Ini", value: apAgingData.summary.hari_ini || 0, color: "orange" },
                                                 { label: "1-30 Hari", value: apAgingData.summary.d1_30, color: "blue" },
                                                 { label: "31-60 Hari", value: apAgingData.summary.d31_60, color: "amber" },
                                                 { label: "61-90 Hari", value: apAgingData.summary.d61_90, color: "orange" },
@@ -2065,6 +2071,7 @@ export default function FinancialReportsPage() {
                                                 <TableRow className="bg-zinc-50 dark:bg-zinc-800">
                                                     <TableHead className="text-[10px] font-black uppercase tracking-widest">Pemasok</TableHead>
                                                     <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Belum Jatuh Tempo</TableHead>
+                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Hari Ini</TableHead>
                                                     <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">1-30 Hari</TableHead>
                                                     <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">31-60 Hari</TableHead>
                                                     <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">61-90 Hari</TableHead>
@@ -2076,7 +2083,7 @@ export default function FinancialReportsPage() {
                                             <TableBody>
                                                 {apAgingData.bySupplier.length === 0 ? (
                                                     <TableRow>
-                                                        <TableCell colSpan={8} className="text-center py-8 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                                                        <TableCell colSpan={9} className="text-center py-8 text-zinc-400 text-xs font-bold uppercase tracking-widest">
                                                             Tidak ada hutang terbuka
                                                         </TableCell>
                                                     </TableRow>
@@ -2102,6 +2109,7 @@ export default function FinancialReportsPage() {
                                                                         </button>
                                                                     </TableCell>
                                                                     <TableCell className="text-right font-mono text-sm">{supp.current > 0 ? formatIDR(supp.current) : "-"}</TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm text-orange-600">{(supp.hari_ini || 0) > 0 ? formatIDR(supp.hari_ini) : "-"}</TableCell>
                                                                     <TableCell className="text-right font-mono text-sm">{supp.d1_30 > 0 ? formatIDR(supp.d1_30) : "-"}</TableCell>
                                                                     <TableCell className="text-right font-mono text-sm">{supp.d31_60 > 0 ? formatIDR(supp.d31_60) : "-"}</TableCell>
                                                                     <TableCell className="text-right font-mono text-sm">{supp.d61_90 > 0 ? formatIDR(supp.d61_90) : "-"}</TableCell>
@@ -2130,6 +2138,7 @@ export default function FinancialReportsPage() {
                                                                             <span className="block text-[9px] text-zinc-400 mt-0.5">{issueLbl} — jt. {dueLbl}</span>
                                                                         </TableCell>
                                                                         <TableCell className="text-right text-[10px] font-mono">{b === 'current' ? formatIDR(bal) : "-"}</TableCell>
+                                                                        <TableCell className="text-right text-[10px] font-mono text-orange-600">{b === 'hari_ini' ? formatIDR(bal) : "-"}</TableCell>
                                                                         <TableCell className="text-right text-[10px] font-mono">{b === '1-30' ? formatIDR(bal) : "-"}</TableCell>
                                                                         <TableCell className="text-right text-[10px] font-mono">{b === '31-60' ? formatIDR(bal) : "-"}</TableCell>
                                                                         <TableCell className="text-right text-[10px] font-mono">{b === '61-90' ? formatIDR(bal) : "-"}</TableCell>
@@ -2138,9 +2147,10 @@ export default function FinancialReportsPage() {
                                                                         <TableCell className="text-center">
                                                                             <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-sm ${
                                                                                 bill.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
+                                                                                b === 'hari_ini' ? 'bg-orange-100 text-orange-700' :
                                                                                 bill.status === 'PARTIAL' ? 'bg-amber-100 text-amber-700' :
                                                                                 'bg-blue-100 text-blue-700'
-                                                                            }`}>{bill.status}</span>
+                                                                            }`}>{b === 'hari_ini' ? 'HARI INI' : bill.status}</span>
                                                                         </TableCell>
                                                                     </TableRow>
                                                                     )

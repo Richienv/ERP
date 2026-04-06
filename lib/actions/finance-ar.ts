@@ -6,6 +6,7 @@ import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl
 import { assertPeriodOpen } from "@/lib/period-helpers"
 import { type PPhTypeValue } from "@/lib/pph-helpers"
 import { toNum } from "@/lib/utils"
+import * as dueDateUtils from "@/lib/due-date-utils"
 
 // ==========================================
 // BAD DEBT WRITE-OFF
@@ -815,7 +816,8 @@ export async function getARPaymentRegistry(input?: ARRegistryQueryInput): Promis
                         balanceDue: toNum(inv.balanceDue),
                         cnReduction,
                         dueDate: inv.dueDate,
-                        isOverdue: inv.dueDate < new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+                        isOverdue: dueDateUtils.isOverdue(inv.dueDate),
+                        isDueToday: dueDateUtils.isDueToday(inv.dueDate),
                         status: inv.status,
                     }
                 }),
@@ -935,7 +937,8 @@ export async function getOpenInvoices(): Promise<OpenInvoice[]> {
                 amount: toNum(inv.totalAmount),
                 balanceDue: toNum(inv.balanceDue),
                 dueDate: inv.dueDate,
-                isOverdue: inv.dueDate < new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+                isOverdue: dueDateUtils.isOverdue(inv.dueDate),
+                isDueToday: dueDateUtils.isDueToday(inv.dueDate),
                 status: inv.status,
             }))
         })

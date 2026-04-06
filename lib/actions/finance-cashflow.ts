@@ -4,6 +4,7 @@ import { prisma, withPrismaAuth } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import type { CashflowDirection, CashflowCategory, ProcurementStatus } from "@prisma/client"
 import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
+import * as dueDateUtils from "@/lib/due-date-utils"
 import {
     BPJS_KES_EMPLOYEE_RATE,
     BPJS_KES_EMPLOYER_RATE,
@@ -1198,7 +1199,7 @@ export async function getUpcomingObligations(days: number = 90): Promise<Upcomin
     )
 
     const arItems: UpcomingObligationItem[] = arInvoices.map(inv => {
-        const isOverdue = inv.dueDate < today
+        const isOverdue = dueDateUtils.isOverdue(inv.dueDate)
         return {
             id: `upcoming-ar-${inv.id}`,
             date: toDateStr(inv.dueDate),
@@ -1229,7 +1230,7 @@ export async function getUpcomingObligations(days: number = 90): Promise<Upcomin
     )
 
     const apItems: UpcomingObligationItem[] = apInvoices.map(inv => {
-        const isOverdue = inv.dueDate < today
+        const isOverdue = dueDateUtils.isOverdue(inv.dueDate)
         return {
             id: `upcoming-ap-${inv.id}`,
             date: toDateStr(inv.dueDate),

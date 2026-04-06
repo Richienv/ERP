@@ -102,6 +102,7 @@ export function PayablesPageClient() {
                             {[
                                 { label: "Total", value: total, color: "text-zinc-900 dark:text-white" },
                                 { label: "Belum Jatuh Tempo", value: b.current, color: "text-emerald-600" },
+                                { label: "Hari Ini", value: b.hari_ini, color: "text-orange-600" },
                                 { label: "1-30 Hari", value: b.d1_30, color: "text-amber-600" },
                                 { label: "31-60 Hari", value: b.d31_60, color: "text-orange-600" },
                                 { label: "61-90 Hari", value: b.d61_90, color: "text-red-500" },

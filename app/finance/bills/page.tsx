@@ -360,12 +360,14 @@ export default function APBillsStackPage() {
     // KPI (only count active bills)
     const totalBills = activeBills.length
     const pendingBills = activeBills.filter((b) => b.status === "ISSUED" || b.status === "DRAFT").length
+    const dueTodayBills = activeBills.filter((b) => (b as any).isDueToday).length
     const overdueBills = activeBills.filter((b) => b.isOverdue).length
     const totalAmount = activeBills.reduce((sum, b) => sum + b.balanceDue, 0)
     const hasActiveFilters = searchText || selectedStatuses.length > 0
 
-    const getStatusColor = (status: string, isOverdue: boolean) => {
+    const getStatusColor = (status: string, isOverdue: boolean, isDueToday?: boolean) => {
         if (isOverdue) return "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 border-red-300 dark:border-red-700"
+        if (isDueToday) return "bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400 border-orange-300 dark:border-orange-700"
         switch (status) {
             case "PAID": return "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700"
             case "DISPUTED": return "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700"
@@ -427,7 +429,7 @@ export default function APBillsStackPage() {
                 </div>
 
                 {/* Row 2: KPI Strip — big, colorful, attention-grabbing */}
-                <div className="grid grid-cols-3 border-b border-zinc-200 dark:border-zinc-800">
+                <div className="grid grid-cols-4 border-b border-zinc-200 dark:border-zinc-800">
                     {/* Total Tagihan */}
                     <div className="px-5 py-4 border-r border-zinc-200 dark:border-zinc-800 bg-blue-50/50 dark:bg-blue-950/10">
                         <div className="flex items-center gap-1.5 mb-1">
@@ -446,6 +448,14 @@ export default function APBillsStackPage() {
                             <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Pending</span>
                         </div>
                         <span className="text-3xl font-black text-amber-600 dark:text-amber-400 tabular-nums">{pendingBills}</span>
+                    </div>
+                    {/* Hari Ini / Due Today */}
+                    <div className={`px-5 py-4 border-r border-zinc-200 dark:border-zinc-800 ${dueTodayBills > 0 ? "bg-orange-50/50 dark:bg-orange-950/10" : ""}`}>
+                        <div className="flex items-center gap-1.5 mb-1">
+                            <span className={`w-2 h-2 rounded-full ${dueTodayBills > 0 ? "bg-orange-500" : "bg-zinc-300"}`} />
+                            <span className={`text-[10px] font-black uppercase tracking-widest ${dueTodayBills > 0 ? "text-orange-600 dark:text-orange-400" : "text-zinc-400"}`}>Hari Ini</span>
+                        </div>
+                        <span className={`text-3xl font-black tabular-nums ${dueTodayBills > 0 ? "text-orange-600 dark:text-orange-400" : "text-zinc-300 dark:text-zinc-600"}`}>{dueTodayBills}</span>
                     </div>
                     {/* Jatuh Tempo / Overdue */}
                     <div className={`px-5 py-4 ${overdueBills > 0 ? "bg-red-50 dark:bg-red-950/20" : ""}`}>
@@ -532,6 +542,7 @@ export default function APBillsStackPage() {
                         <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
                             {activeBills.map((bill, idx) => {
                                 const isOverdue = bill.isOverdue
+                                const billDueToday = (bill as any).isDueToday
                                 return (
                                     <motion.div
                                         key={bill.id}
@@ -541,7 +552,7 @@ export default function APBillsStackPage() {
                                         transition={{ delay: idx * 0.03 }}
                                         className={`grid grid-cols-1 md:grid-cols-[1fr_1.5fr_110px_100px_140px_110px] gap-2 px-5 py-3 items-center transition-all hover:bg-orange-50/50 dark:hover:bg-orange-950/10 ${
                                             idx % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/60 dark:bg-zinc-800/20"
-                                        } ${isOverdue ? "border-l-4 border-l-red-500" : ""}`}
+                                        } ${isOverdue ? "border-l-4 border-l-red-500" : billDueToday ? "border-l-4 border-l-orange-400" : ""}`}
                                     >
                                         {/* Bill number */}
                                         <div>
@@ -553,20 +564,21 @@ export default function APBillsStackPage() {
                                         </div>
                                         {/* Due date */}
                                         <div>
-                                            <span className={`text-xs font-medium ${isOverdue ? "text-red-600 dark:text-red-400 font-bold" : "text-zinc-500"}`}>
+                                            <span className={`text-xs font-medium ${isOverdue ? "text-red-600 dark:text-red-400 font-bold" : billDueToday ? "text-orange-600 dark:text-orange-400 font-bold" : "text-zinc-500"}`}>
                                                 {new Date(bill.dueDate).toLocaleDateString("id-ID")}
                                             </span>
                                         </div>
                                         {/* Status */}
                                         <div>
-                                            <span className={`inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wide px-2 py-1 border rounded-none ${getStatusColor(bill.status, isOverdue)}`}>
+                                            <span className={`inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wide px-2 py-1 border rounded-none ${getStatusColor(bill.status, isOverdue, billDueToday)}`}>
                                                 <span className={`w-1.5 h-1.5 ${
                                                     isOverdue ? "bg-red-500" :
+                                                    billDueToday ? "bg-orange-500" :
                                                     bill.status === "PAID" ? "bg-emerald-500" :
                                                     bill.status === "DISPUTED" ? "bg-amber-500" :
                                                     "bg-zinc-400"
                                                 }`} />
-                                                {isOverdue ? "Overdue" : bill.status}
+                                                {isOverdue ? "Overdue" : billDueToday ? "Hari Ini" : bill.status}
                                             </span>
                                         </div>
                                         {/* Amount */}
@@ -913,6 +925,9 @@ export default function APBillsStackPage() {
                                                                     <span className="font-mono text-xs font-bold">{row.billNumber}</span>
                                                                     {row.isOverdue && (
                                                                         <span className="ml-2 text-[9px] font-black uppercase text-red-600 bg-red-100 px-1.5 py-0.5">Overdue</span>
+                                                                    )}
+                                                                    {!row.isOverdue && (row as any).isDueToday && (
+                                                                        <span className="ml-2 text-[9px] font-black uppercase text-orange-600 bg-orange-100 px-1.5 py-0.5">Hari Ini</span>
                                                                     )}
                                                                 </div>
                                                                 <div className="col-span-2 text-xs text-zinc-500">

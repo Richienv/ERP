@@ -19,6 +19,7 @@ import { legacyTermToDays, calculateDueDate } from "@/lib/payment-term-helpers"
 import { getExchangeRate, convertToIDR } from "@/lib/currency-helpers"
 import { TAX_RATES } from "@/lib/tax-rates"
 import { toNum } from "@/lib/utils"
+import * as dueDateUtils from "@/lib/due-date-utils"
 
 export interface InvoiceKanbanItem {
     id: string
@@ -32,6 +33,7 @@ export interface InvoiceKanbanItem {
     status: InvoiceStatus
     type: InvoiceType
     daysOverdue?: number
+    isDueToday?: boolean
 }
 
 export interface InvoiceKanbanData {
@@ -191,11 +193,12 @@ export async function getInvoiceKanbanData(input?: InvoiceKanbanQueryInput): Pro
                 continue
             }
 
-            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-            const isOverdue = inv.status === 'OVERDUE' || dueDate < todayStart
-            if (isOverdue) {
-                const daysOver = Math.max(0, Math.ceil((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)))
+            const dueDateStatus = dueDateUtils.getDueDateStatus(dueDate)
+            if (inv.status === 'OVERDUE' || dueDateStatus === 'OVERDUE') {
+                const daysOver = Math.max(0, dueDateUtils.getDaysLate(dueDate))
                 data.overdue.push({ ...base, daysOverdue: daysOver })
+            } else if (dueDateStatus === 'JATUH_TEMPO_HARI_INI') {
+                data.sent.push({ ...base, isDueToday: true })
             } else {
                 data.sent.push(base)
             }
@@ -446,7 +449,7 @@ export async function updateDraftInvoice(data: {
         return await withPrismaAuth(async (prisma) => {
             const invoice = await prisma.invoice.findUnique({
                 where: { id: data.invoiceId },
-                select: { id: true, status: true, type: true, issueDate: true }
+                select: { id: true, status: true, type: true, issueDate: true, customerId: true }
             })
             if (!invoice) return { success: false, error: "Invoice tidak ditemukan" }
             if (invoice.status !== 'DRAFT') return { success: false, error: "Hanya invoice DRAFT yang bisa diedit" }
@@ -484,6 +487,15 @@ export async function updateDraftInvoice(data: {
                 if (data.issueDate) updateData.issueDate = data.issueDate
                 if (data.dueDate) updateData.dueDate = data.dueDate
 
+                // Credit limit check for AR invoices — must pass before saving
+                if (invoice.type === 'INV_OUT') {
+                    const effectiveCustomerId = data.customerId ?? invoice.customerId
+                    if (effectiveCustomerId) {
+                        const creditCheck = await checkCreditLimit(prisma, effectiveCustomerId, totalAmount, data.invoiceId)
+                        if (!creditCheck.ok) return { success: false, error: creditCheck.message }
+                    }
+                }
+
                 await prisma.invoice.update({ where: { id: data.invoiceId }, data: updateData })
             } else {
                 // Just update dates/customer/tax/discount
@@ -507,6 +519,15 @@ export async function updateDraftInvoice(data: {
                     updateData.discountAmount = disc
                     updateData.totalAmount = taxableAmount + taxAmount
                     updateData.balanceDue = taxableAmount + taxAmount
+
+                    // Credit limit check when total changes due to tax/discount adjustment
+                    if (invoice.type === 'INV_OUT') {
+                        const effectiveCustomerId = data.customerId ?? invoice.customerId
+                        if (effectiveCustomerId) {
+                            const creditCheck = await checkCreditLimit(prisma, effectiveCustomerId, taxableAmount + taxAmount, data.invoiceId)
+                            if (!creditCheck.ok) return { success: false, error: creditCheck.message }
+                        }
+                    }
                 }
                 if (Object.keys(updateData).length > 0) {
                     await prisma.invoice.update({ where: { id: data.invoiceId }, data: updateData })
@@ -1074,8 +1095,7 @@ export async function moveInvoiceToSent(invoiceId: string, _message?: string, _m
             const fallbackDueDate = new Date(now)
             fallbackDueDate.setDate(fallbackDueDate.getDate() + 30)
             const dueDate = existing.dueDate || fallbackDueDate
-            const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-            const nextStatus = dueDate < todayMidnight ? 'OVERDUE' : 'ISSUED'
+            const nextStatus = dueDateUtils.isOverdue(dueDate) ? 'OVERDUE' : 'ISSUED'
 
             await prisma.invoice.update({
                 where: { id: invoiceId },
