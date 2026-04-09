@@ -940,7 +940,7 @@ export default function AccountTransactionsPage() {
                                                             <span className="text-[11px] font-mono font-bold text-right px-3 py-1.5">
                                                                 {row.credit > 0 ? (
                                                                     <span className="text-zinc-900 dark:text-zinc-100">
-                                                                        ({formatIDR(row.credit)})
+                                                                        {formatIDR(row.credit)}
                                                                     </span>
                                                                 ) : (
                                                                     <span className="text-zinc-200 dark:text-zinc-700">
@@ -955,9 +955,9 @@ export default function AccountTransactionsPage() {
                                                                         : "text-zinc-900 dark:text-zinc-100"
                                                                 }`}
                                                             >
-                                                                {formatIDR(
-                                                                    Math.abs(row.runningBalance)
-                                                                )}
+                                                                {row.runningBalance < 0
+                                                                    ? `(${formatIDR(Math.abs(row.runningBalance))})`
+                                                                    : formatIDR(Math.abs(row.runningBalance))}
                                                             </span>
                                                         </div>
                                                     )
@@ -977,7 +977,7 @@ export default function AccountTransactionsPage() {
                                                         {formatIDR(groupDebit)}
                                                     </span>
                                                     <span className="text-[11px] font-mono text-right px-3 py-2 text-zinc-900 dark:text-zinc-100 truncate">
-                                                        ({formatIDR(groupCredit)})
+                                                        {formatIDR(groupCredit)}
                                                     </span>
                                                     <span
                                                         className={`text-[11px] font-mono text-right px-3 py-2 truncate ${
@@ -986,7 +986,9 @@ export default function AccountTransactionsPage() {
                                                                 : "text-zinc-900 dark:text-zinc-100"
                                                         }`}
                                                     >
-                                                        {formatIDR(Math.abs(closingBalance))}
+                                                        {closingBalance < 0
+                                                            ? `(${formatIDR(Math.abs(closingBalance))})`
+                                                            : formatIDR(Math.abs(closingBalance))}
                                                     </span>
                                                 </div>
 
