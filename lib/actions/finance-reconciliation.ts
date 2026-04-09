@@ -2038,8 +2038,8 @@ export async function createJournalAndMatch(
                 throw new Error(errMsg)
             }
 
-            const journalId = 'journalEntryId' in jeResult
-                ? (jeResult as { journalEntryId: string }).journalEntryId
+            const journalId = 'id' in jeResult
+                ? (jeResult as { id: string }).id
                 : null
 
             if (!journalId) throw new Error('Journal entry ID tidak ditemukan')
