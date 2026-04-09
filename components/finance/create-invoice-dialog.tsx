@@ -124,7 +124,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
 
     const handleCreate = async () => {
         if (sourceType !== 'MANUAL' && !selectedOrderId) return
-        if (sourceType === 'MANUAL' && (!selectedCustomer || !manualPrice || manualQty <= 0)) return
+        if (sourceType === 'MANUAL' && (!selectedCustomer || !manualPrice || manualQty <= 0 || !selectedAccountId)) return
 
         setCreating(true)
         try {
