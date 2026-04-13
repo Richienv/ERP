@@ -64,35 +64,72 @@ type MovementInput = {
 // FIXED ASSET CATEGORIES
 // ============================================================
 
-let _categoriesSeeded = false
+// Maps default category codes to their COA account codes.
+// Used by getFixedAssetCategories() to auto-link GL accounts on upsert,
+// so depreciation runs and acquisition journals never fail with "akun tidak ditemukan".
+const DEFAULT_CATEGORY_GL_MAP: Record<string, { asset: string; accDep: string; depExp: string; gainLoss: string }> = {
+    "FA-TAN": { asset: SYS_ACCOUNTS.FA_LAND_BUILDING, accDep: SYS_ACCOUNTS.ACC_DEPRECIATION, depExp: SYS_ACCOUNTS.DEPRECIATION, gainLoss: SYS_ACCOUNTS.GAIN_ON_DISPOSAL },
+    "FA-BNG": { asset: SYS_ACCOUNTS.FA_LAND_BUILDING, accDep: SYS_ACCOUNTS.ACC_DEPRECIATION, depExp: SYS_ACCOUNTS.DEPRECIATION, gainLoss: SYS_ACCOUNTS.GAIN_ON_DISPOSAL },
+    "FA-KND": { asset: SYS_ACCOUNTS.FA_VEHICLE,       accDep: SYS_ACCOUNTS.ACC_DEPRECIATION, depExp: SYS_ACCOUNTS.DEPRECIATION, gainLoss: SYS_ACCOUNTS.GAIN_ON_DISPOSAL },
+    "FA-MSN": { asset: SYS_ACCOUNTS.FA_MACHINERY,     accDep: SYS_ACCOUNTS.ACC_DEPRECIATION, depExp: SYS_ACCOUNTS.DEPRECIATION, gainLoss: SYS_ACCOUNTS.GAIN_ON_DISPOSAL },
+    "FA-KMP": { asset: SYS_ACCOUNTS.FA_COMPUTER,      accDep: SYS_ACCOUNTS.ACC_DEPRECIATION, depExp: SYS_ACCOUNTS.DEPRECIATION, gainLoss: SYS_ACCOUNTS.GAIN_ON_DISPOSAL },
+    "FA-FRN": { asset: SYS_ACCOUNTS.FA_FURNITURE,     accDep: SYS_ACCOUNTS.ACC_DEPRECIATION, depExp: SYS_ACCOUNTS.DEPRECIATION, gainLoss: SYS_ACCOUNTS.GAIN_ON_DISPOSAL },
+    "FA-LIN": { asset: SYS_ACCOUNTS.FA_OFFICE_EQUIP,  accDep: SYS_ACCOUNTS.ACC_DEPRECIATION, depExp: SYS_ACCOUNTS.DEPRECIATION, gainLoss: SYS_ACCOUNTS.GAIN_ON_DISPOSAL },
+}
+
+const DEFAULT_CATEGORY_DEFS = [
+    { code: "FA-TAN", name: "Tanah", defaultUsefulLife: 0, defaultResidualPct: 100 },
+    { code: "FA-BNG", name: "Bangunan", defaultUsefulLife: 240, defaultResidualPct: 10 },
+    { code: "FA-KND", name: "Kendaraan", defaultUsefulLife: 96, defaultResidualPct: 10 },
+    { code: "FA-MSN", name: "Mesin & Peralatan", defaultUsefulLife: 96, defaultResidualPct: 5 },
+    { code: "FA-KMP", name: "Komputer & IT", defaultUsefulLife: 48, defaultResidualPct: 0 },
+    { code: "FA-FRN", name: "Furnitur & Inventaris", defaultUsefulLife: 48, defaultResidualPct: 5 },
+    { code: "FA-LIN", name: "Peralatan Kantor", defaultUsefulLife: 48, defaultResidualPct: 5 },
+]
 
 export async function getFixedAssetCategories() {
     try {
+        await ensureSystemAccounts()
         return await withPrismaAuth(async (prisma) => {
-            if (!_categoriesSeeded) {
-                const defaults = [
-                    { code: "FA-TAN", name: "Tanah", defaultUsefulLife: 0, defaultResidualPct: 100 },
-                    { code: "FA-BNG", name: "Bangunan", defaultUsefulLife: 240, defaultResidualPct: 10 },
-                    { code: "FA-KND", name: "Kendaraan", defaultUsefulLife: 96, defaultResidualPct: 10 },
-                    { code: "FA-MSN", name: "Mesin & Peralatan", defaultUsefulLife: 96, defaultResidualPct: 5 },
-                    { code: "FA-KMP", name: "Komputer & IT", defaultUsefulLife: 48, defaultResidualPct: 0 },
-                    { code: "FA-FRN", name: "Furnitur & Inventaris", defaultUsefulLife: 48, defaultResidualPct: 5 },
-                    { code: "FA-LIN", name: "Peralatan Kantor", defaultUsefulLife: 48, defaultResidualPct: 5 },
-                ]
-                for (const d of defaults) {
-                    await prisma.fixedAssetCategory.upsert({
-                        where: { code: d.code },
-                        create: {
+            // Bulk-load GL accounts by code so we can resolve IDs once
+            const allCodes = Array.from(new Set(Object.values(DEFAULT_CATEGORY_GL_MAP).flatMap(m => [m.asset, m.accDep, m.depExp, m.gainLoss])))
+            const glAccounts = await prisma.gLAccount.findMany({ where: { code: { in: allCodes } }, select: { id: true, code: true } })
+            const idByCode = new Map(glAccounts.map(a => [a.code, a.id]))
+
+            for (const d of DEFAULT_CATEGORY_DEFS) {
+                const map = DEFAULT_CATEGORY_GL_MAP[d.code]
+                const assetId = map ? idByCode.get(map.asset) ?? null : null
+                const accDepId = map ? idByCode.get(map.accDep) ?? null : null
+                const depExpId = map ? idByCode.get(map.depExp) ?? null : null
+                const gainLossId = map ? idByCode.get(map.gainLoss) ?? null : null
+
+                // Upsert: create with full GL links; for existing rows, only patch fields that are still null
+                // so we don't overwrite user customizations.
+                const existing = await prisma.fixedAssetCategory.findUnique({ where: { code: d.code }, select: { id: true, assetAccountId: true, accDepAccountId: true, depExpAccountId: true, gainLossAccountId: true } })
+                if (!existing) {
+                    await prisma.fixedAssetCategory.create({
+                        data: {
                             code: d.code,
                             name: d.name,
                             defaultMethod: "STRAIGHT_LINE",
                             defaultUsefulLife: d.defaultUsefulLife,
                             defaultResidualPct: d.defaultResidualPct,
+                            assetAccountId: assetId,
+                            accDepAccountId: accDepId,
+                            depExpAccountId: depExpId,
+                            gainLossAccountId: gainLossId,
                         },
-                        update: {},
                     })
+                } else {
+                    const patch: Prisma.FixedAssetCategoryUpdateInput = {}
+                    if (!existing.assetAccountId && assetId) patch.assetAccount = { connect: { id: assetId } }
+                    if (!existing.accDepAccountId && accDepId) patch.accDepAccount = { connect: { id: accDepId } }
+                    if (!existing.depExpAccountId && depExpId) patch.depExpAccount = { connect: { id: depExpId } }
+                    if (!existing.gainLossAccountId && gainLossId) patch.gainLossAccount = { connect: { id: gainLossId } }
+                    if (Object.keys(patch).length > 0) {
+                        await prisma.fixedAssetCategory.update({ where: { id: existing.id }, data: patch })
+                    }
                 }
-                _categoriesSeeded = true
             }
 
             const categories = await prisma.fixedAssetCategory.findMany({
@@ -351,12 +388,23 @@ function generateDepreciationSchedule(
 export async function createFixedAsset(data: FixedAssetInput) {
     try {
         const userId = await getAuthUserId()
+        await ensureSystemAccounts()
         return await withPrismaAuth(async (prisma) => {
             const assetCode = data.assetCode || await generateAssetCode(prisma)
 
             // Check for duplicate code
             const existing = await prisma.fixedAsset.findUnique({ where: { assetCode } })
             if (existing) return { success: false, error: `Kode aset ${assetCode} sudah digunakan` }
+
+            // Resolve category's asset GL account up front — fail fast if missing
+            const category = await prisma.fixedAssetCategory.findUnique({
+                where: { id: data.categoryId },
+                include: { assetAccount: { select: { code: true } } },
+            })
+            if (!category) return { success: false, error: "Kategori aset tidak ditemukan" }
+            if (!category.assetAccount?.code) {
+                return { success: false, error: `Kategori "${category.name}" belum punya akun aset di COA. Buka Pengaturan → Kategori Aset.` }
+            }
 
             const nbv = data.purchaseCost - 0 // No depreciation yet
             const asset = await prisma.fixedAsset.create({
@@ -406,6 +454,27 @@ export async function createFixedAsset(data: FixedAssetInput) {
                 }
             }
 
+            // Post acquisition journal: DR asset register, CR Opening Equity (saldo awal).
+            // Rationale: most users register historical assets, not buying new through AP.
+            // A future enhancement can add a "Sumber Dana" dropdown for Kas/Bank/Hutang sources.
+            const journal = await postJournalEntry({
+                date: new Date(data.capitalizationDate),
+                description: `Akuisisi Aset Tetap — ${asset.name} (${assetCode})`,
+                reference: assetCode,
+                lines: [
+                    { accountCode: category.assetAccount.code, debit: data.purchaseCost, credit: 0 },
+                    { accountCode: SYS_ACCOUNTS.OPENING_EQUITY, debit: 0, credit: data.purchaseCost },
+                ],
+            })
+
+            if (!journal?.success) {
+                // Atomic rollback per CLAUDE.md finance rules
+                await prisma.fixedAssetDeprecSchedule.deleteMany({ where: { assetId: asset.id } })
+                await prisma.fixedAsset.delete({ where: { id: asset.id } })
+                const errMsg = (journal && "error" in journal ? journal.error : null) || "Gagal mencatat jurnal akuisisi aset"
+                return { success: false, error: errMsg }
+            }
+
             // Audit log
             await prisma.auditLog.create({
                 data: {
@@ -422,6 +491,68 @@ export async function createFixedAsset(data: FixedAssetInput) {
     } catch (error) {
         console.error("Failed to create fixed asset:", error)
         return { success: false, error: "Gagal membuat aset tetap" }
+    }
+}
+
+// One-time backfill: post opening journals for assets created before the GL wiring existed.
+// Idempotent — skips assets that already have a posted journal with matching reference.
+export async function backfillFixedAssetGL() {
+    try {
+        await ensureSystemAccounts()
+        return await withPrismaAuth(async (prisma) => {
+            const assets = await prisma.fixedAsset.findMany({
+                include: { category: { include: { assetAccount: { select: { code: true } } } } },
+            })
+
+            const skipped: { assetCode: string; reason: string }[] = []
+            let processed = 0
+
+            for (const asset of assets) {
+                // Idempotency: skip if any posted journal already references this asset code
+                const existingJournal = await prisma.journalEntry.findFirst({
+                    where: { reference: asset.assetCode, status: "POSTED" },
+                    select: { id: true },
+                })
+                if (existingJournal) continue
+
+                const assetCode = asset.category?.assetAccount?.code
+                if (!assetCode) {
+                    skipped.push({ assetCode: asset.assetCode, reason: `Kategori "${asset.category?.name ?? "?"}" belum punya akun aset` })
+                    continue
+                }
+
+                const cost = Number(asset.purchaseCost)
+                const accDep = Number(asset.accumulatedDepreciation ?? 0)
+                const nbv = cost - accDep
+
+                const lines: { accountCode: string; debit: number; credit: number }[] = [
+                    { accountCode: assetCode, debit: cost, credit: 0 },
+                ]
+                if (accDep > 0) {
+                    lines.push({ accountCode: SYS_ACCOUNTS.ACC_DEPRECIATION, debit: 0, credit: accDep })
+                }
+                lines.push({ accountCode: SYS_ACCOUNTS.OPENING_EQUITY, debit: 0, credit: nbv })
+
+                const journal = await postJournalEntry({
+                    date: new Date(asset.capitalizationDate),
+                    description: `Saldo awal aset tetap — ${asset.name} (${asset.assetCode})`,
+                    reference: asset.assetCode,
+                    lines,
+                })
+
+                if (!journal?.success) {
+                    const reason = (journal && "error" in journal ? journal.error : null) || "Gagal posting jurnal"
+                    skipped.push({ assetCode: asset.assetCode, reason })
+                    continue
+                }
+                processed++
+            }
+
+            return { success: true, processed, skipped, total: assets.length }
+        })
+    } catch (error) {
+        console.error("Failed to backfill fixed asset GL:", error)
+        return { success: false, error: "Gagal sinkronisasi aset tetap ke COA", processed: 0, skipped: [], total: 0 }
     }
 }
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import {
     getFixedAssets,
@@ -14,6 +14,7 @@ import {
     getDepreciationScheduleReport,
     getAssetMovementReport,
     getNetBookValueSummary,
+    backfillFixedAssetGL,
 } from "@/lib/actions/finance-fixed-assets"
 
 export function useFixedAssets(filters?: { status?: string; categoryId?: string; search?: string }) {
@@ -124,5 +125,17 @@ export function useNetBookValueSummary() {
         queryKey: queryKeys.fixedAssetReports.nbv(),
         queryFn: () => getNetBookValueSummary(),
         retry: 1,
+    })
+}
+
+export function useBackfillFixedAssetGL() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: () => backfillFixedAssetGL(),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.glAccounts.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
+        },
     })
 }

@@ -90,8 +90,19 @@ export const SYS_ACCOUNTS = {
   // --- Tax Carry-Forward ---
   PPN_LEBIH_BAYAR: "1410",  // PPN Lebih Bayar (Input Tax Carry-Forward)
 
+  // --- Fixed Asset Register (1500–1560) ---
+  FA_LAND_BUILDING: "1500", // Tanah & Bangunan (seed: 1500)
+  FA_VEHICLE:       "1510", // Kendaraan (seed: 1510)
+  FA_OFFICE_EQUIP:  "1520", // Peralatan Kantor (seed: 1520)
+  FA_MACHINERY:     "1530", // Mesin & Peralatan
+  FA_FURNITURE:     "1540", // Furnitur & Inventaris
+  FA_COMPUTER:      "1560", // Komputer & IT
+
   // --- Accumulated Depreciation ---
   ACC_DEPRECIATION: "1590", // Akumulasi Penyusutan (seed: 1590)
+
+  // --- Gain on Disposal of Fixed Assets ---
+  GAIN_ON_DISPOSAL: "4310", // Laba Penjualan Aset Tetap
 } as const
 
 /**

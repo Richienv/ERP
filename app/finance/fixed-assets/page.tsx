@@ -1,17 +1,18 @@
 "use client"
 
 import { useState } from "react"
-import { useFixedAssets, useFixedAssetCategories } from "@/hooks/use-fixed-assets"
+import { useFixedAssets, useFixedAssetCategories, useBackfillFixedAssetGL } from "@/hooks/use-fixed-assets"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 import { CreateAssetDialog } from "@/components/finance/fixed-assets/create-asset-dialog"
 import { AssetMovementDialog } from "@/components/finance/fixed-assets/asset-movement-dialog"
 import { Button } from "@/components/ui/button"
 import { CheckboxFilter } from "@/components/ui/checkbox-filter"
 import { NB } from "@/lib/dialog-styles"
+import { toast } from "sonner"
 import Link from "next/link"
 import {
     Building, Plus, Search, ArrowRightLeft,
-    Settings, FolderTree, Calculator, FileBarChart, X,
+    Settings, FolderTree, Calculator, FileBarChart, X, RefreshCw,
 } from "lucide-react"
 import { motion } from "framer-motion"
 
@@ -54,6 +55,30 @@ export default function FixedAssetsPage() {
     const [categoryFilter, setCategoryFilter] = useState<string>("")
     const [createOpen, setCreateOpen] = useState(false)
     const [movementAsset, setMovementAsset] = useState<any>(null)
+    const backfillMutation = useBackfillFixedAssetGL()
+
+    const handleBackfill = () => {
+        backfillMutation.mutate(undefined, {
+            onSuccess: (result: any) => {
+                if (!result?.success) {
+                    toast.error(result?.error || "Sinkronisasi gagal")
+                    return
+                }
+                if (result.processed === 0) {
+                    toast.info(`Tidak ada aset yang perlu disinkronkan (${result.total} aset diperiksa)`)
+                } else {
+                    toast.success(`${result.processed} aset disinkronkan ke COA`)
+                }
+                if (result.skipped?.length) {
+                    const reasons = result.skipped.filter((s: any) => s.reason !== "Sudah ada jurnal")
+                    if (reasons.length > 0) {
+                        toast.warning(`${reasons.length} aset dilewati: ${reasons.slice(0, 2).map((s: any) => `${s.assetCode} (${s.reason})`).join("; ")}`)
+                    }
+                }
+            },
+            onError: () => toast.error("Gagal menjalankan sinkronisasi COA"),
+        })
+    }
 
     const { data, isLoading } = useFixedAssets({
         search: search || undefined,
@@ -112,10 +137,19 @@ export default function FixedAssetsPage() {
                             </Button>
                         </Link>
                         <Link href="/finance/fixed-assets/reports">
-                            <Button variant="outline" className={NB.toolbarBtn}>
+                            <Button variant="outline" className={NB.toolbarBtn + " " + NB.toolbarBtnJoin}>
                                 <FileBarChart className="h-3.5 w-3.5 mr-1.5" /> Laporan
                             </Button>
                         </Link>
+                        <Button
+                            variant="outline"
+                            onClick={handleBackfill}
+                            disabled={backfillMutation.isPending}
+                            className={NB.toolbarBtn}
+                            title="Posting saldo awal aset tetap ke Chart of Accounts"
+                        >
+                            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${backfillMutation.isPending ? "animate-spin" : ""}`} /> Sinkron COA
+                        </Button>
                         <Button onClick={() => setCreateOpen(true)} className={NB.toolbarBtnPrimary}>
                             <Plus className="h-3.5 w-3.5 mr-1.5" /> Tambah Aset
                         </Button>
