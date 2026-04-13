@@ -232,6 +232,32 @@ export async function getInvoiceCustomers(): Promise<Array<{ id: string; name: s
     })
 }
 
+export async function getInvoiceProducts(): Promise<Array<{
+    id: string
+    code: string
+    name: string
+    unit: string
+    sellingPrice: number
+    costPrice: number
+}>> {
+    return withPrismaAuth(async (prisma) => {
+        const products = await prisma.product.findMany({
+            select: { id: true, code: true, name: true, unit: true, sellingPrice: true, costPrice: true },
+            where: { isActive: true },
+            orderBy: { name: 'asc' },
+            take: 200,
+        })
+        return products.map(p => ({
+            id: p.id,
+            code: p.code,
+            name: p.name,
+            unit: p.unit,
+            sellingPrice: Number(p.sellingPrice),
+            costPrice: Number(p.costPrice),
+        }))
+    })
+}
+
 // ==========================================
 // CREDIT LIMIT CHECK
 // ==========================================
@@ -431,7 +457,7 @@ export async function createCustomerInvoice(data: {
 export async function updateDraftInvoice(data: {
     invoiceId: string
     customerId?: string
-    items?: Array<{ description: string; quantity: number; unitPrice: number }>
+    items?: Array<{ productId?: string | null; description: string; quantity: number; unitPrice: number }>
     includeTax?: boolean
     discountAmount?: number
     issueDate?: Date
@@ -467,6 +493,7 @@ export async function updateDraftInvoice(data: {
                 await prisma.invoiceItem.deleteMany({ where: { invoiceId: data.invoiceId } })
                 const invoiceItems = data.items.map(item => ({
                     invoiceId: data.invoiceId,
+                    productId: item.productId ?? null,
                     description: item.description,
                     quantity: item.quantity,
                     unitPrice: item.unitPrice,

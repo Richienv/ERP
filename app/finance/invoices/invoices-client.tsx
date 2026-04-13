@@ -53,6 +53,7 @@ import {
     getInvoiceDetail,
     updateDraftInvoice,
     getInvoiceCustomers,
+    getInvoiceProducts,
     deleteDraftInvoice,
 } from "@/lib/actions/finance-invoices"
 
@@ -129,7 +130,8 @@ export function InvoicesPageClient() {
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
     const [editLoading, setEditLoading] = useState(false)
     const [editSaving, setEditSaving] = useState(false)
-    const [editItems, setEditItems] = useState<Array<{ description: string; quantity: number; unitPrice: number }>>([])
+    const [editItems, setEditItems] = useState<Array<{ productId: string | null; description: string; quantity: number; unitPrice: number }>>([])
+    const [editProducts, setEditProducts] = useState<Array<{ id: string; code: string; name: string; unit: string; sellingPrice: number; costPrice: number }>>([])
     const [editIncludeTax, setEditIncludeTax] = useState(true)
     const [editIssueDate, setEditIssueDate] = useState("")
     const [editDueDate, setEditDueDate] = useState("")
@@ -365,13 +367,15 @@ export function InvoicesPageClient() {
         setEditLoading(true)
         setIsEditDialogOpen(true)
         try {
-            const [detailResult, parties] = await Promise.all([
+            const [detailResult, parties, products] = await Promise.all([
                 getInvoiceDetail(invoice.id) as any,
                 getInvoiceCustomers(),
+                getInvoiceProducts(),
             ])
             if (detailResult.success && detailResult.data) {
                 const inv = detailResult.data as any
                 setEditItems(inv.items.map((item: any) => ({
+                    productId: item.productId ?? null,
                     description: item.description || '',
                     quantity: Number(item.quantity),
                     unitPrice: Number(item.unitPrice),
@@ -385,6 +389,7 @@ export function InvoicesPageClient() {
                 setEditNumber(inv.number || "")
             }
             setEditParties(parties || [])
+            setEditProducts(products || [])
         } catch {
             toast.error("Gagal memuat detail invoice")
         } finally {
@@ -1120,7 +1125,8 @@ export function InvoicesPageClient() {
                                         Item Invoice <span className={NB.labelRequired}>*</span>
                                     </Label>
                                     <div className={NB.tableWrap}>
-                                        <div className={`grid grid-cols-[1fr_80px_120px_100px_36px] gap-0 ${NB.tableHead}`}>
+                                        <div className={`grid grid-cols-[180px_1fr_70px_110px_100px_36px] gap-0 ${NB.tableHead}`}>
+                                            <span className={NB.tableHeadCell}>Produk</span>
                                             <span className={NB.tableHeadCell}>Deskripsi</span>
                                             <span className={NB.tableHeadCell}>Qty</span>
                                             <span className={NB.tableHeadCell}>Harga Satuan</span>
@@ -1135,8 +1141,43 @@ export function InvoicesPageClient() {
                                                     animate={{ opacity: 1, height: "auto" }}
                                                     exit={{ opacity: 0, height: 0, x: -20 }}
                                                     transition={{ duration: 0.2 }}
-                                                    className={`grid grid-cols-[1fr_80px_120px_100px_36px] gap-0 ${NB.tableRow} items-center`}
+                                                    className={`grid grid-cols-[180px_1fr_70px_110px_100px_36px] gap-0 ${NB.tableRow} items-center`}
                                                 >
+                                                    <div className="px-1.5 py-1">
+                                                        <Select
+                                                            value={item.productId ?? '__manual__'}
+                                                            onValueChange={(value) => {
+                                                                const next = [...editItems]
+                                                                if (value === '__manual__') {
+                                                                    next[idx] = { ...next[idx], productId: null }
+                                                                } else {
+                                                                    const p = editProducts.find(x => x.id === value)
+                                                                    if (p) {
+                                                                        const price = editInvoiceType === 'INV_OUT' ? p.sellingPrice : p.costPrice
+                                                                        next[idx] = {
+                                                                            ...next[idx],
+                                                                            productId: p.id,
+                                                                            description: p.name,
+                                                                            unitPrice: price || next[idx].unitPrice,
+                                                                        }
+                                                                    }
+                                                                }
+                                                                setEditItems(next)
+                                                            }}
+                                                        >
+                                                            <SelectTrigger className={NB.select}>
+                                                                <SelectValue placeholder="Pilih produk" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="__manual__">Item Manual</SelectItem>
+                                                                {editProducts.map((p) => (
+                                                                    <SelectItem key={p.id} value={p.id}>
+                                                                        {p.code} — {p.name}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
                                                     <div className="px-1.5 py-1">
                                                         <Input className={NB.input} placeholder="Deskripsi item..." value={item.description}
                                                             onChange={(e) => { const next = [...editItems]; next[idx] = { ...next[idx], description: e.target.value }; setEditItems(next) }}
@@ -1174,7 +1215,7 @@ export function InvoicesPageClient() {
                                         variant="outline"
                                         size="sm"
                                         className="border-dashed border-2 text-[10px] font-bold uppercase w-full hover:bg-orange-50 hover:border-orange-300 rounded-none transition-all"
-                                        onClick={() => setEditItems([...editItems, { description: '', quantity: 1, unitPrice: 0 }])}
+                                        onClick={() => setEditItems([...editItems, { productId: null, description: '', quantity: 1, unitPrice: 0 }])}
                                     >
                                         <Plus className="h-3 w-3 mr-1" /> Tambah Item
                                     </Button>
