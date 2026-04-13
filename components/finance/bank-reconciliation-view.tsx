@@ -150,6 +150,48 @@ const formatDate = (iso: string) =>
         year: "numeric",
     })
 
+// Parse a numeric string that may use either US (1,234.56) or ID (1.234,56) thousand/decimal separators.
+function parseAmount(raw: string | undefined): number {
+    if (!raw) return NaN
+    const s = raw.trim().replace(/\s/g, "")
+    if (!s) return NaN
+    // If it contains a comma, treat comma as decimal separator (Indonesian locale): strip dots, swap comma→dot.
+    // Otherwise leave dots alone (US locale or integer).
+    const normalized = s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : s
+    return parseFloat(normalized)
+}
+
+// Quoted-field-aware CSV line splitter. Handles "a,b","c" and escaped "" quotes.
+function splitCsvLine(line: string, sep: string): string[] {
+    const out: string[] = []
+    let cur = ""
+    let inQuotes = false
+    for (let i = 0; i < line.length; i++) {
+        const ch = line[i]
+        if (inQuotes) {
+            if (ch === '"') {
+                if (line[i + 1] === '"') {
+                    cur += '"'
+                    i++
+                } else {
+                    inQuotes = false
+                }
+            } else {
+                cur += ch
+            }
+        } else if (ch === '"') {
+            inQuotes = true
+        } else if (ch === sep) {
+            out.push(cur)
+            cur = ""
+        } else {
+            cur += ch
+        }
+    }
+    out.push(cur)
+    return out
+}
+
 function detectColumns(headers: string[]): {
     dateIdx: number
     descIdx: number
@@ -274,24 +316,36 @@ export function BankReconciliationView({
         try {
             if (ext === "csv") {
                 const text = await file.text()
-                // Strip BOM and skip comment lines (starting with #)
-                const cleaned = text.replace(/^\uFEFF/, "")
+                // Strip BOM and normalize all line endings (CRLF / CR-only Mac → LF)
+                const cleaned = text.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n")
                 const lines = cleaned.trim().split("\n").filter(l => l.trim() && !l.trim().startsWith("#"))
                 if (lines.length < 2) {
                     toast.error("File CSV kosong atau hanya berisi header")
                     return
                 }
-                const headers = lines[0].split(",")
+                // Auto-detect separator from header line: comma, semicolon, or tab
+                const headerLine = lines[0]
+                const sepCounts: Array<[string, number]> = [
+                    [",", (headerLine.match(/,/g) || []).length],
+                    [";", (headerLine.match(/;/g) || []).length],
+                    ["\t", (headerLine.match(/\t/g) || []).length],
+                ]
+                const sep = sepCounts.reduce((best, cur) => (cur[1] > best[1] ? cur : best), [",", -1])[0]
+                const headers = splitCsvLine(headerLine, sep).map((h) => h.trim())
                 const { dateIdx, descIdx, amountIdx, refIdx } = detectColumns(headers)
                 const rows = lines.slice(1).map((line) => {
-                    const parts = line.split(",").map((p) => p.trim())
+                    const parts = splitCsvLine(line, sep).map((p) => p.trim())
                     return {
                         date: parts[dateIdx] || "",
                         description: parts[descIdx] || "",
-                        amount: parseFloat(parts[amountIdx] || "0"),
+                        amount: parseAmount(parts[amountIdx]),
                         reference: parts[refIdx] || undefined,
                     }
-                }).filter((r) => r.date && r.amount !== 0)
+                }).filter((r) => r.date && !Number.isNaN(r.amount) && r.amount !== 0)
+                if (rows.length === 0) {
+                    toast.error("Tidak ada baris valid (cek format tanggal & jumlah)")
+                    return
+                }
                 setParsedRows(rows)
             } else if (ext === "xlsx" || ext === "xls") {
                 const buf = await file.arrayBuffer()
@@ -302,7 +356,7 @@ export function BankReconciliationView({
                     toast.error("File Excel kosong atau hanya berisi header")
                     return
                 }
-                const headers = (json[0] as unknown[]).map(String)
+                const headers = (json[0] as unknown[]).map((h) => String(h ?? "").trim())
                 const { dateIdx, descIdx, amountIdx, refIdx } = detectColumns(headers)
                 const rows = json.slice(1).map((row) => {
                     const arr = row as unknown[]
@@ -312,7 +366,11 @@ export function BankReconciliationView({
                         amount: parseFloat(String(arr[amountIdx] || "0")),
                         reference: arr[refIdx] ? String(arr[refIdx]) : undefined,
                     }
-                }).filter((r) => r.date && r.amount !== 0)
+                }).filter((r) => r.date && !Number.isNaN(r.amount) && r.amount !== 0)
+                if (rows.length === 0) {
+                    toast.error("Tidak ada baris valid (cek format tanggal & jumlah)")
+                    return
+                }
                 setParsedRows(rows)
             } else {
                 toast.error("Format file tidak didukung. Gunakan .csv atau .xlsx")
