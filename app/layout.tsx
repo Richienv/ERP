@@ -18,8 +18,38 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "Sistem ERP Darren Raymon",
-  description: "Sistem Perencanaan Sumber Daya Perusahaan (ERP) Darren Raymon",
+  title: {
+    default: "Integra — Satu sistem. Semua kendali.",
+    template: "%s | Integra",
+  },
+  description:
+    "Satu sistem. Semua kendali. Dibuat untuk pemilik usaha. Bukan departemen IT.",
+  metadataBase: new URL("https://integra-id.vercel.app"),
+  openGraph: {
+    type: "website",
+    locale: "id_ID",
+    siteName: "Integra",
+    title: "Integra — Satu sistem. Semua kendali.",
+    description:
+      "Dibuat untuk pemilik usaha. Bukan departemen IT. Satu platform, kendali penuh.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Integra — Satu sistem. Semua kendali.",
+    description:
+      "Dibuat untuk pemilik usaha. Bukan departemen IT. Satu platform, kendali penuh.",
+  },
+  keywords: [
+    "ERP",
+    "Integra",
+    "ERP Indonesia",
+    "sistem ERP",
+    "manajemen inventaris",
+    "keuangan",
+    "manufaktur",
+  ],
+  authors: [{ name: "Integra" }],
+  creator: "Integra",
 };
 
 export default function RootLayout({

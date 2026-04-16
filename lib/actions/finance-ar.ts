@@ -855,22 +855,8 @@ export async function getARPaymentRegistry(input?: ARRegistryQueryInput): Promis
             }
         })
     } catch (error) {
-        console.error("Failed to fetch AR payment registry:", error)
-        return {
-            unallocated: [],
-            openInvoices: [],
-            recentPayments: [],
-            allCustomers: [],
-            meta: {
-                payments: { page: 1, pageSize: query.pageSize, total: 0, totalPages: 1 },
-                invoices: { page: 1, pageSize: query.pageSize, total: 0, totalPages: 1 },
-            },
-            query: {
-                paymentsQ: query.paymentsQ,
-                invoicesQ: query.invoicesQ,
-                customerId: query.customerId,
-            },
-        }
+        console.error("[getARPaymentRegistry] failed:", error)
+        throw error
     }
 }
 
@@ -905,8 +891,8 @@ export async function getUnallocatedPayments(): Promise<UnallocatedPayment[]> {
             }))
         })
     } catch (error) {
-        console.error("Failed to fetch unallocated payments:", error)
-        return []
+        console.error("[getUnallocatedPayments] failed:", error)
+        throw error
     }
 }
 
@@ -943,8 +929,8 @@ export async function getOpenInvoices(): Promise<OpenInvoice[]> {
             }))
         })
     } catch (error) {
-        console.error("Failed to fetch open invoices:", error)
-        return []
+        console.error("[getOpenInvoices] failed:", error)
+        throw error
     }
 }
 
@@ -1212,14 +1198,8 @@ export async function getARPaymentStats() {
             todayPayments: todayTotal
         }
     } catch (error) {
-        console.error("Failed to fetch AR stats:", error)
-        return {
-            unallocatedCount: 0,
-            unallocatedAmount: 0,
-            openInvoicesCount: 0,
-            outstandingAmount: 0,
-            todayPayments: 0
-        }
+        console.error("[getARPaymentStats] failed:", error)
+        throw error
     }
 }
 
@@ -1261,7 +1241,7 @@ export async function getCashBankAccountsForPayment(): Promise<{
             return { bankAccounts, cashAccounts }
         })
     } catch (error) {
-        console.error("getCashBankAccountsForPayment failed:", error)
-        return { bankAccounts: [], cashAccounts: [] }
+        console.error("[getCashBankAccountsForPayment] failed:", error)
+        throw error
     }
 }

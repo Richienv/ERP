@@ -98,8 +98,8 @@ export async function getChartOfAccountsTree(): Promise<GLAccountNode[]> {
             return roots
         })
     } catch (error) {
-        console.error("Failed to fetch COA tree:", error)
-        return []
+        console.error("[getChartOfAccountsTree] failed:", error)
+        throw error
     }
 }
 
@@ -113,8 +113,8 @@ export async function getGLAccountsList(): Promise<Array<{ id: string; code: str
             return accounts
         })
     } catch (error) {
-        console.error("Failed to fetch GL accounts list:", error)
-        return []
+        console.error("[getGLAccountsList] failed:", error)
+        throw error
     }
 }
 
@@ -378,8 +378,8 @@ export async function getJournalEntries(limit = 50): Promise<JournalEntryItem[]>
             }))
         })
     } catch (error) {
-        console.error("Failed to fetch journal entries:", error)
-        return []
+        console.error("[getJournalEntries] failed:", error)
+        throw error
     }
 }
 
@@ -416,8 +416,8 @@ export async function getJournalEntryById(entryId: string): Promise<JournalEntry
             }
         })
     } catch (error) {
-        console.error("Failed to fetch journal entry:", error)
-        return null
+        console.error("[getJournalEntryById] failed:", error)
+        throw error
     }
 }
 
@@ -816,8 +816,8 @@ export async function getRecurringTemplates(): Promise<RecurringTemplate[]> {
             }))
         })
     } catch (error) {
-        console.error("[getRecurringTemplates] Error:", error)
-        return []
+        console.error("[getRecurringTemplates] failed:", error)
+        throw error
     }
 }
 
@@ -1313,8 +1313,9 @@ export async function getOpeningBalanceSummary(): Promise<{
             arCount: arAgg._count ?? 0,
             arTotal: Number(arAgg._sum.totalAmount ?? 0),
         }
-    } catch {
-        return { glPosted: false, glDate: null, glAccountCount: 0, apCount: 0, apTotal: 0, arCount: 0, arTotal: 0 }
+    } catch (error) {
+        console.error("[getOpeningBalanceSummary] failed:", error)
+        throw error
     }
 }
 
@@ -1341,8 +1342,8 @@ export async function getOpeningBalanceParties(): Promise<{
             return { customers, suppliers }
         })
     } catch (error) {
-        console.error("[getOpeningBalanceParties] Error:", error)
-        return { customers: [], suppliers: [] }
+        console.error("[getOpeningBalanceParties] failed:", error)
+        throw error
     }
 }
 
@@ -1728,8 +1729,8 @@ export async function getAccountDrillDown(
             }
         })
     } catch (error) {
-        console.error('[getAccountDrillDown] Error:', error)
-        return []
+        console.error("[getAccountDrillDown] failed:", error)
+        throw error
     }
 }
 

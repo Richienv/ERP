@@ -7,13 +7,7 @@ import { getPettyCashTransactions } from "@/lib/actions/finance-petty-cash"
 export function usePettyCash() {
     return useQuery({
         queryKey: queryKeys.pettyCash.list(),
-        queryFn: async () => {
-            const result = await getPettyCashTransactions()
-            if (!result || !result.success) {
-                return { transactions: [], currentBalance: 0, totalTopup: 0, totalDisbursement: 0 }
-            }
-            return result
-        },
+        queryFn: () => getPettyCashTransactions(),
         retry: 1,
     })
 }

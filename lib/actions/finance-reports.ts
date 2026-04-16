@@ -308,12 +308,8 @@ export async function getFinanceDashboardData(): Promise<FinanceDashboardData> {
             }
         })
     } catch (error) {
-        console.error("Failed to fetch finance dashboard data:", error)
-        return {
-            cashFlow: [],
-            actionItems: [],
-            recentTransactions: [],
-        }
+        console.error("[getFinanceDashboardData] failed:", error)
+        throw error
     }
 }
 
@@ -540,21 +536,8 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
         }
 
     } catch (error) {
-        console.error("Failed to fetch financial metrics:", error)
-        return {
-            cashBalance: 0,
-            receivables: 0,
-            payables: 0,
-            receivablesCount: 0,
-            payablesCount: 0,
-            unallocatedReceiptsCount: 0,
-            netMargin: 0,
-            revenue: 0,
-            burnRate: 0,
-            overdueInvoices: [],
-            upcomingPayables: [],
-            status: { cash: 'Critical', margin: 'Critical' }
-        }
+        console.error("[getFinancialMetrics] failed:", error)
+        throw error
     }
 }
 

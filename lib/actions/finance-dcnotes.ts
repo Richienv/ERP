@@ -148,9 +148,9 @@ export async function getDCNotes(filters?: {
 
         result.sort((a: any, b: any) => new Date(b.issueDate).getTime() - new Date(a.issueDate).getTime())
         return result
-    } catch (error: unknown) {
-        console.error("Failed to fetch DC Notes:", error)
-        return []
+    } catch (error) {
+        console.error("[getDCNotes] failed:", error)
+        throw error
     }
 }
 
@@ -253,9 +253,9 @@ export async function getDCNoteById(id: string) {
                 })),
             } : null,
         }
-    } catch (error: unknown) {
-        console.error("Failed to fetch DC Note:", error)
-        return null
+    } catch (error) {
+        console.error("[getDCNoteById] failed:", error)
+        throw error
     }
 }
 
@@ -395,20 +395,8 @@ export async function getDCNoteFormData(filters?: { customerId?: string; supplie
             })),
         }
     } catch (error: unknown) {
-        console.error("Failed to fetch DC Note form data:", error)
-        return {
-            customers: [],
-            suppliers: [],
-            products: [],
-            revenueAccounts: [],
-            arAccounts: [],
-            apAccounts: [],
-            expenseAccounts: [],
-            ppnKeluaranAccounts: [],
-            ppnMasukanAccounts: [],
-            outstandingCustomerInvoices: [],
-            outstandingSupplierBills: [],
-        }
+        console.error("[getDCNoteFormData] failed:", error)
+        throw error
     }
 }
 

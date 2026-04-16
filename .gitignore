@@ -91,3 +91,4 @@ scripts/ralph/runs/
 
 # External repos accidentally placed in project root
 codex/
+.vercel

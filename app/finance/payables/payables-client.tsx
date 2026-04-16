@@ -12,6 +12,8 @@ import { normalizeAPAgingSummary } from "@/lib/ap-aging"
 import { Receipt } from "lucide-react"
 import { getAPAgingReport } from "@/lib/actions/finance"
 import { PendingApprovalSection } from "@/components/finance/pending-approval-section"
+import { queryKeys } from "@/lib/query-keys"
+import { CACHE_TIERS } from "@/lib/cache-tiers"
 
 const BillsTab = dynamic(() => import("@/app/finance/bills/page"), {
     ssr: false,
@@ -36,9 +38,9 @@ export function PayablesPageClient() {
     const [activeTab, setActiveTab] = useState(initialTab)
 
     const { data: aging } = useQuery({
-        queryKey: ["finance", "ap-aging"],
+        queryKey: queryKeys.apAging.all,
         queryFn: () => getAPAgingReport(),
-        staleTime: 30_000,
+        ...CACHE_TIERS.TRANSACTIONAL,
     })
     const b = normalizeAPAgingSummary(aging?.summary)
     const total = b.totalOutstanding

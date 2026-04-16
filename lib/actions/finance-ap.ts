@@ -125,8 +125,8 @@ export async function getVendorBills(): Promise<VendorBill[]> {
             }))
         })
     } catch (error) {
-        console.error("Failed to fetch vendor bills:", error)
-        return []
+        console.error("[getVendorBills] failed:", error)
+        throw error
     }
 }
 
@@ -223,12 +223,8 @@ export async function getVendorBillsRegistry(input?: VendorBillQueryInput): Prom
             }
         })
     } catch (error) {
-        console.error("Failed to fetch vendor bills registry:", error)
-        return {
-            rows: [],
-            meta: { page: 1, pageSize: query.pageSize, total: 0, totalPages: 1 },
-            query: { q: query.q, status: query.status }
-        }
+        console.error("[getVendorBillsRegistry] failed:", error)
+        throw error
     }
 }
 
@@ -399,8 +395,8 @@ export async function getVendorPayments(): Promise<VendorPayment[]> {
             }))
         })
     } catch (error) {
-        console.error("Failed to fetch vendor payments:", error)
-        return []
+        console.error("[getVendorPayments] failed:", error)
+        throw error
     }
 }
 
@@ -814,8 +810,8 @@ export async function getVendorAPBalances(): Promise<Array<{
                 .sort((a, b) => b.totalOutstanding - a.totalOutstanding)
         })
     } catch (error) {
-        console.error("Failed to fetch vendor AP balances:", error)
-        return []
+        console.error("[getVendorAPBalances] failed:", error)
+        throw error
     }
 }
 
@@ -871,14 +867,8 @@ export async function getAPStats() {
             }
         })
     } catch (error) {
-        console.error("Failed to fetch AP stats:", error)
-        return {
-            totalPayables: 0,
-            payablesCount: 0,
-            overduePayables: 0,
-            overdueCount: 0,
-            monthPayments: 0
-        }
+        console.error("[getAPStats] failed:", error)
+        throw error
     }
 }
 

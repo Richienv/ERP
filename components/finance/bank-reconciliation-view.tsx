@@ -150,6 +150,39 @@ const formatDate = (iso: string) =>
         year: "numeric",
     })
 
+/** Parse a CSV line handling quoted fields (commas inside quotes are preserved). */
+function parseCSVLine(line: string): string[] {
+    const fields: string[] = []
+    let current = ""
+    let inQuotes = false
+    for (let i = 0; i < line.length; i++) {
+        const ch = line[i]
+        if (inQuotes) {
+            if (ch === '"') {
+                if (i + 1 < line.length && line[i + 1] === '"') {
+                    current += '"'
+                    i++ // skip escaped quote
+                } else {
+                    inQuotes = false
+                }
+            } else {
+                current += ch
+            }
+        } else {
+            if (ch === '"') {
+                inQuotes = true
+            } else if (ch === ',') {
+                fields.push(current.trim())
+                current = ""
+            } else {
+                current += ch
+            }
+        }
+    }
+    fields.push(current.trim())
+    return fields
+}
+
 function detectColumns(headers: string[]): {
     dateIdx: number
     descIdx: number
@@ -281,10 +314,10 @@ export function BankReconciliationView({
                     toast.error("File CSV kosong atau hanya berisi header")
                     return
                 }
-                const headers = lines[0].split(",")
+                const headers = parseCSVLine(lines[0])
                 const { dateIdx, descIdx, amountIdx, refIdx } = detectColumns(headers)
                 const rows = lines.slice(1).map((line) => {
-                    const parts = line.split(",").map((p) => p.trim())
+                    const parts = parseCSVLine(line)
                     return {
                         date: parts[dateIdx] || "",
                         description: parts[descIdx] || "",
@@ -948,6 +981,7 @@ export function BankReconciliationView({
                                     <div>
                                         <NBInput
                                             label="Tanggal Statement"
+                                            required
                                             type="date"
                                             value={newStatementDate}
                                             onChange={setNewStatementDate}
@@ -984,7 +1018,7 @@ export function BankReconciliationView({
                             onSubmit={handleCreate}
                             submitting={loading}
                             submitLabel="Buat Rekonsiliasi"
-                            disabled={!newAccountId || (bankAccounts || []).length === 0}
+                            disabled={!newAccountId || !newStatementDate || !newPeriodStart || !newPeriodEnd || (bankAccounts || []).length === 0}
                         />
                     </NBDialog>
                     </div>

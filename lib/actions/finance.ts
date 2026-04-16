@@ -230,18 +230,8 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
         }
 
     } catch (error) {
-        console.error("Failed to fetch financial metrics:", error)
-        return {
-            cashBalance: 0,
-            receivables: 0,
-            payables: 0,
-            netMargin: 0,
-            revenue: 0,
-            burnRate: 0,
-            overdueInvoices: [],
-            upcomingPayables: [],
-            status: { cash: 'Critical', margin: 'Critical' },
-        }
+        console.error("[getFinancialMetrics] failed:", error)
+        throw error
     }
 }
 
@@ -597,22 +587,8 @@ export async function getProfitLossStatement(startDate?: Date | string, endDate?
                 }
             }
     } catch (error) {
-        console.error("Failed to fetch P&L:", error)
-        return {
-            revenue: 0,
-            costOfGoodsSold: 0,
-            grossProfit: 0,
-            operatingExpenses: [],
-            totalOperatingExpenses: 0,
-            operatingIncome: 0,
-            otherIncome: 0,
-            otherExpenses: 0,
-            depreciation: 0,
-            netIncomeBeforeTax: 0,
-            taxExpense: 0,
-            netIncome: 0,
-            period: { startDate: '', endDate: '' }
-        }
+        console.error("[getProfitLossStatement] failed:", error)
+        throw error
     }
 }
 
@@ -846,20 +822,8 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
             asOfDate: date.toISOString()
         }
     } catch (error) {
-        console.error("Failed to fetch Balance Sheet:", error)
-        return {
-            assets: {
-                currentAssets: [], fixedAssets: [], otherAssets: [],
-                totalCurrentAssets: 0, totalFixedAssets: 0, totalOtherAssets: 0, totalAssets: 0
-            },
-            liabilities: {
-                currentLiabilities: [], longTermLiabilities: [],
-                totalCurrentLiabilities: 0, totalLongTermLiabilities: 0, totalLiabilities: 0
-            },
-            equity: { capital: [], retainedEarnings: 0, currentYearNetIncome: 0, totalEquity: 0 },
-            totalLiabilitiesAndEquity: 0,
-            asOfDate: ''
-        }
+        console.error("[getBalanceSheet] failed:", error)
+        throw error
     }
 }
 
@@ -1144,8 +1108,8 @@ export async function getCashFlowStatement(startDate?: Date | string, endDate?: 
             period: { startDate: start.toISOString(), endDate: end.toISOString() },
         }
     } catch (error) {
-        console.error('getCashFlowStatement failed:', error)
-        return emptyResult
+        console.error("[getCashFlowStatement] failed:", error)
+        throw error
     }
 }
 
@@ -2238,8 +2202,8 @@ export async function getUnallocatedPayments(): Promise<UnallocatedPayment[]> {
             }))
         })
     } catch (error) {
-        console.error("Failed to fetch unallocated payments:", error)
-        return []
+        console.error("[getUnallocatedPayments] failed:", error)
+        throw error
     }
 }
 
@@ -2274,8 +2238,8 @@ export async function getOpenInvoices(): Promise<OpenInvoice[]> {
             }))
         })
     } catch (error) {
-        console.error("Failed to fetch open invoices:", error)
-        return []
+        console.error("[getOpenInvoices] failed:", error)
+        throw error
     }
 }
 
@@ -2466,14 +2430,8 @@ export async function getARPaymentStats() {
             todayPayments: todayTotal
         }
     } catch (error) {
-        console.error("Failed to fetch AR stats:", error)
-        return {
-            unallocatedCount: 0,
-            unallocatedAmount: 0,
-            openInvoicesCount: 0,
-            outstandingAmount: 0,
-            todayPayments: 0
-        }
+        console.error("[getARPaymentStats] failed:", error)
+        throw error
     }
 }
 
@@ -2548,8 +2506,8 @@ export async function getVendorBills(): Promise<VendorBill[]> {
             }))
         })
     } catch (error) {
-        console.error("Failed to fetch vendor bills:", error)
-        return []
+        console.error("[getVendorBills] failed:", error)
+        throw error
     }
 }
 
@@ -2732,8 +2690,8 @@ export async function getVendorPayments(): Promise<VendorPayment[]> {
             }))
         })
     } catch (error) {
-        console.error("Failed to fetch vendor payments:", error)
-        return []
+        console.error("[getVendorPayments] failed:", error)
+        throw error
     }
 }
 
@@ -2906,8 +2864,8 @@ export async function getChartOfAccountsTree(): Promise<GLAccountNode[]> {
             return roots
         })
     } catch (error) {
-        console.error("Failed to fetch COA tree:", error)
-        return []
+        console.error("[getChartOfAccountsTree] failed:", error)
+        throw error
     }
 }
 
@@ -2924,8 +2882,8 @@ export async function getGLAccountsList(): Promise<Array<{ id: string; code: str
             return accounts
         })
     } catch (error) {
-        console.error("Failed to fetch GL accounts list:", error)
-        return []
+        console.error("[getGLAccountsList] failed:", error)
+        throw error
     }
 }
 
@@ -3027,8 +2985,8 @@ export async function getJournalEntries(limit = 50): Promise<JournalEntryItem[]>
             }))
         })
     } catch (error) {
-        console.error("Failed to fetch journal entries:", error)
-        return []
+        console.error("[getJournalEntries] failed:", error)
+        throw error
     }
 }
 
@@ -3067,8 +3025,8 @@ export async function getJournalEntryById(entryId: string): Promise<JournalEntry
             }
         })
     } catch (error) {
-        console.error("Failed to fetch journal entry:", error)
-        return null
+        console.error("[getJournalEntryById] failed:", error)
+        throw error
     }
 }
 
@@ -3124,14 +3082,8 @@ export async function getAPStats() {
             }
         })
     } catch (error) {
-        console.error("Failed to fetch AP stats:", error)
-        return {
-            totalPayables: 0,
-            payablesCount: 0,
-            overduePayables: 0,
-            overdueCount: 0,
-            monthPayments: 0
-        }
+        console.error("[getAPStats] failed:", error)
+        throw error
     }
 }
 
@@ -3403,12 +3355,8 @@ export async function getFinanceDashboardData() {
 
         return { cashFlow, recentTransactions, actionItems }
     } catch (error) {
-        console.error("Failed to get finance dashboard data:", error)
-        return {
-            cashFlow: [],
-            recentTransactions: [],
-            actionItems: [],
-        }
+        console.error("[getFinanceDashboardData] failed:", error)
+        throw error
     }
 }
 
@@ -3503,22 +3451,8 @@ export async function getARPaymentRegistry(params: {
             }
         }
     } catch (error) {
-        console.error("Failed to get AR payment registry:", error)
-        return {
-            unallocated: [],
-            openInvoices: [],
-            recentPayments: [] as { id: string; amount: number; method: string; reference: string | null; createdAt: Date; invoice: { id: string; number: string; status: string } | null }[],
-            allCustomers: [],
-            meta: {
-                payments: { page: 1, pageSize, total: 0, totalPages: 0 },
-                invoices: { page: 1, pageSize, total: 0, totalPages: 0 },
-            },
-            query: {
-                paymentsQ: params.paymentsQ || null,
-                invoicesQ: params.invoicesQ || null,
-                customerId: params.customerId || null,
-            }
-        }
+        console.error("[getARPaymentRegistry] failed:", error)
+        throw error
     }
 }
 
@@ -3652,12 +3586,8 @@ export async function getVendorBillsRegistry(input?: VendorBillQueryInput): Prom
             }
         })
     } catch (error) {
-        console.error("Failed to fetch vendor bills registry:", error)
-        return {
-            rows: [],
-            meta: { page: 1, pageSize: query.pageSize, total: 0, totalPages: 1 },
-            query: { q: query.q, status: query.status }
-        }
+        console.error("[getVendorBillsRegistry] failed:", error)
+        throw error
     }
 }
 
@@ -3715,12 +3645,8 @@ export async function getTrialBalance(startDate: Date, endDate: Date) {
                 period: { start: startDate, end: endDate },
             }
     } catch (error) {
-        console.error("Failed to generate trial balance:", error)
-        return {
-            rows: [],
-            totals: { totalDebits: 0, totalCredits: 0, difference: 0, isBalanced: true },
-            period: { start: startDate, end: endDate },
-        }
+        console.error("[getTrialBalance] failed:", error)
+        throw error
     }
 }
 
@@ -3760,8 +3686,8 @@ export async function getRevenueFromInvoices(startDate?: Date | string, endDate?
             invoiceCount: invoices.length,
         }
     } catch (error) {
-        console.error("Failed to get revenue from invoices:", error)
-        return { totalRevenue: 0, totalPaid: 0, totalOutstanding: 0, invoiceCount: 0 }
+        console.error("[getRevenueFromInvoices] failed:", error)
+        throw error
     }
 }
 
@@ -3965,13 +3891,8 @@ export async function getARAgingReport() {
                 pending,
             }
     } catch (error) {
-        console.error("Failed to generate AR aging report:", error)
-        return {
-            summary: { current: 0, hari_ini: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, totalOutstanding: 0, invoiceCount: 0 },
-            byCustomer: [],
-            details: [],
-            pending: [],
-        }
+        console.error("[getARAgingReport] failed:", error)
+        throw error
     }
 }
 
@@ -4174,13 +4095,8 @@ export async function getAPAgingReport() {
                 pending,
             }
     } catch (error) {
-        console.error("Failed to generate AP aging report:", error)
-        return {
-            summary: { current: 0, hari_ini: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, totalOutstanding: 0, billCount: 0 },
-            bySupplier: [],
-            details: [],
-            pending: [],
-        }
+        console.error("[getAPAgingReport] failed:", error)
+        throw error
     }
 }
 
@@ -4212,8 +4128,8 @@ export async function getOpenVendorBills() {
             }))
         })
     } catch (error) {
-        console.error("Failed to fetch open vendor bills:", error)
-        return []
+        console.error("[getOpenVendorBills] failed:", error)
+        throw error
     }
 }
 
@@ -4316,8 +4232,8 @@ export async function getExpenses() {
             })
         })
     } catch (error) {
-        console.error("Failed to fetch expenses:", error)
-        return []
+        console.error("[getExpenses] failed:", error)
+        throw error
     }
 }
 
@@ -4352,8 +4268,8 @@ export async function getExpenseAccounts() {
             return { expenseAccounts, revenueAccounts, cashAccounts }
         })
     } catch (error) {
-        console.error("Failed to fetch expense accounts:", error)
-        return { expenseAccounts: [], revenueAccounts: [], cashAccounts: [] }
+        console.error("[getExpenseAccounts] failed:", error)
+        throw error
     }
 }
 
@@ -4666,8 +4582,8 @@ export async function getCreditDebitNotes() {
             })
         })
     } catch (error) {
-        console.error("Failed to fetch credit/debit notes:", error)
-        return []
+        console.error("[getCreditDebitNotes] failed:", error)
+        throw error
     }
 }
 
@@ -4685,8 +4601,8 @@ export async function getCreditDebitNoteAccounts() {
             return { revenueAccounts, arAccounts, apAccounts, expenseAccounts, customers, suppliers }
         })
     } catch (error) {
-        console.error("Failed to fetch CN/DN accounts:", error)
-        return { revenueAccounts: [], arAccounts: [], apAccounts: [], expenseAccounts: [], customers: [], suppliers: [] }
+        console.error("[getCreditDebitNoteAccounts] failed:", error)
+        throw error
     }
 }
 

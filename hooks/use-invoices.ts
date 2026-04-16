@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { CACHE_TIERS } from "@/lib/cache-tiers"
 import { getInvoiceKanbanData, type InvoiceKanbanData } from "@/lib/actions/finance-invoices"
 
 const emptyKanban: InvoiceKanbanData = { draft: [], sent: [], overdue: [], paid: [] }
@@ -16,5 +17,6 @@ export function useInvoiceKanban(params?: { q?: string; type?: string }) {
             })
             return kanban || emptyKanban
         },
+        ...CACHE_TIERS.TRANSACTIONAL,
     })
 }

@@ -62,8 +62,8 @@ export async function getPettyCashTransactions() {
             totalDisbursement,
         }
     } catch (error: any) {
-        console.error("getPettyCashTransactions error:", error)
-        return { success: false as const, error: error?.message || "Gagal memuat data peti kas", transactions: [], currentBalance: 0, totalTopup: 0, totalDisbursement: 0 }
+        console.error("[getPettyCashTransactions] failed:", error)
+        throw error
     }
 }
 
@@ -218,8 +218,9 @@ export async function getExpenseAccounts() {
             orderBy: { code: "asc" },
             select: { code: true, name: true },
         })
-    } catch {
-        return []
+    } catch (error) {
+        console.error("[getExpenseAccounts] failed:", error)
+        throw error
     }
 }
 
@@ -286,8 +287,8 @@ export async function getBankAccounts() {
             select: { code: true, name: true },
         })
     } catch (error) {
-        console.error("getBankAccounts failed:", error)
-        return []
+        console.error("[getBankAccounts] failed:", error)
+        throw error
     }
 }
 

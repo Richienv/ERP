@@ -15,13 +15,12 @@ import { getJournalEntries, getGLAccountsList } from "@/lib/actions/finance-gl"
 import { getARAgingReport, getAPAgingReport } from "@/lib/actions/finance"
 import { getPayrollRun, getPayrollComplianceReport } from "@/app/actions/hcm"
 
-/** Helper: fetch JSON from an API route, return parsed data or fallback */
-const fetchJson = async (url: string, fallback: unknown = []) => {
-    try {
-        const res = await fetch(url)
-        if (!res.ok) return fallback
-        return await res.json()
-    } catch { return fallback }
+/** Helper: fetch JSON from an API route. Throws on error so TanStack Query
+ *  treats failures as errors (keeps stale data) instead of caching empty fallbacks. */
+const fetchJson = async (url: string, _fallback?: unknown) => {
+    const res = await fetch(url)
+    if (!res.ok) throw new Error(`Prefetch ${url} failed: ${res.status}`)
+    return await res.json()
 }
 /**
  * Maps sidebar routes to their data prefetch config.

@@ -73,8 +73,8 @@ export async function getEFakturEligibleInvoices(): Promise<{
             fakturPajakDate: inv.fakturPajakDate?.toISOString() || null,
         }))
     } catch (error) {
-        console.error("[getEFakturEligibleInvoices] Error:", error)
-        return []
+        console.error("[getEFakturEligibleInvoices] failed:", error)
+        throw error
     }
 }
 
@@ -442,7 +442,7 @@ export async function getNSFPRanges(): Promise<{
             }
         })
     } catch (error) {
-        console.error("[getNSFPRanges] Error:", error)
-        return []
+        console.error("[getNSFPRanges] failed:", error)
+        throw error
     }
 }

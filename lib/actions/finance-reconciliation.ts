@@ -137,8 +137,8 @@ export async function getReconciliations(): Promise<ReconciliationSummary[]> {
             }
         })
     } catch (error) {
-        console.error("[getReconciliations] Error:", error)
-        return []
+        console.error("[getReconciliations] failed:", error)
+        throw error
     }
 }
 
@@ -371,8 +371,8 @@ export async function getReconciliationDetail(
             },
         }
     } catch (error) {
-        console.error("[getReconciliationDetail] Error:", error)
-        return null
+        console.error("[getReconciliationDetail] failed:", error)
+        throw error
     }
 }
 
@@ -407,8 +407,8 @@ export async function getBankAccounts(): Promise<
             return true
         }).map((a) => ({ ...a, balance: Number(a.balance) }))
     } catch (error) {
-        console.error("[getBankAccounts] Error:", error)
-        return []
+        console.error("[getBankAccounts] failed:", error)
+        throw error
     }
 }
 
@@ -530,8 +530,8 @@ export async function getBankAccountsList(): Promise<
             coaBalance: a.coaAccount ? Number(a.coaAccount.balance) : 0,
         }))
     } catch (error) {
-        console.error("[getBankAccountsList] Error:", error)
-        return []
+        console.error("[getBankAccountsList] failed:", error)
+        throw error
     }
 }
 
@@ -1387,8 +1387,6 @@ export async function bulkConfirmCocokItems(
     }
 }
 
-/** @deprecated Use bulkConfirmCocokItems instead */
-export const bulkConfirmAutoMatches = bulkConfirmCocokItems
 
 /**
  * Score all UNMATCHED items that have no matchScore yet.
@@ -1968,8 +1966,8 @@ export async function searchUnmatchedJournals(
 
         return results
     } catch (error) {
-        console.error("[searchUnmatchedJournals] Error:", error)
-        return []
+        console.error("[searchUnmatchedJournals] failed:", error)
+        throw error
     }
 }
 
