@@ -1722,7 +1722,6 @@ export async function createProduct(input: CreateProductInput) {
                     code: finalCode,
                     name: data.name,
                     description: data.description || null,
-                    categoryId: data.categoryId === "" ? null : data.categoryId,
                     productType: productType as any,
                     unit: data.unit,
                     costPrice: data.costPrice ?? 0,
@@ -1859,7 +1858,6 @@ export async function getProductById(productId: string) {
 export async function updateProduct(productId: string, data: {
     name?: string
     description?: string
-    categoryId?: string
     unit?: string
     costPrice?: number
     sellingPrice?: number
@@ -1876,7 +1874,6 @@ export async function updateProduct(productId: string, data: {
         const updateData: any = {}
         if (data.name !== undefined) updateData.name = data.name
         if (data.description !== undefined) updateData.description = data.description
-        if (data.categoryId !== undefined) updateData.categoryId = data.categoryId || null
         if (data.unit !== undefined) updateData.unit = data.unit
         if (data.costPrice !== undefined) updateData.costPrice = data.costPrice
         if (data.sellingPrice !== undefined) updateData.sellingPrice = data.sellingPrice
@@ -1888,7 +1885,7 @@ export async function updateProduct(productId: string, data: {
         // Fetch old values for audit diff
         const oldProduct = await prisma.product.findUnique({
             where: { id: productId },
-            select: { name: true, description: true, categoryId: true, unit: true, costPrice: true, sellingPrice: true, minStock: true, maxStock: true, reorderLevel: true, barcode: true },
+            select: { name: true, description: true, unit: true, costPrice: true, sellingPrice: true, minStock: true, maxStock: true, reorderLevel: true, barcode: true },
         })
 
         await prisma.product.update({
@@ -2107,13 +2104,6 @@ export async function bulkImportProducts(rows: BulkImportProductRow[]): Promise<
     let imported = 0
 
     try {
-        // Pre-fetch all categories so we can match by name
-        const allCategories = await prisma.category.findMany({
-            where: { isActive: true },
-            select: { id: true, name: true },
-        })
-        const categoryMap = new Map(allCategories.map(c => [c.name.toLowerCase().trim(), c.id]))
-
         // Pre-fetch last product codes to generate sequences without conflicts
         // We'll batch the sequence lookups up front for each prefix we'll need
         const prefixCounts = new Map<string, number>()
@@ -2155,10 +2145,6 @@ export async function bulkImportProducts(rows: BulkImportProductRow[]): Promise<
                     }
                 }
 
-                // Resolve category
-                const categoryNameKey = (row.categoryName ?? '').toLowerCase().trim()
-                const categoryId = categoryNameKey ? (categoryMap.get(categoryNameKey) ?? null) : null
-
                 // Generate barcode
                 const barcode = generateBarcode(finalCode)
 
@@ -2170,7 +2156,6 @@ export async function bulkImportProducts(rows: BulkImportProductRow[]): Promise<
                         code: finalCode,
                         name: row.name.trim(),
                         description: row.description?.trim() || null,
-                        categoryId,
                         productType: 'TRADING',
                         unit,
                         costPrice: row.costPrice ?? 0,

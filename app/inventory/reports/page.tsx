@@ -53,14 +53,6 @@ const reportCards = [
         href: "/inventory/alerts",
     },
     {
-        title: "Kategori Produk",
-        description: "Analisis produk berdasarkan kategori",
-        icon: Tags,
-        color: "bg-amber-500",
-        lightBg: "bg-amber-50",
-        href: "/inventory/categories",
-    },
-    {
         title: "Valuasi Inventori",
         description: "Nilai aset persediaan saat ini",
         icon: DollarSign,

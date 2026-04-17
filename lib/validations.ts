@@ -7,7 +7,6 @@ export const createProductSchemaBase = z.object({
   code: z.string().max(50, 'Kode produk maksimal 50 karakter').optional().default(''),
   name: z.string().min(1, 'Nama produk wajib diisi').max(200, 'Nama produk maksimal 200 karakter'),
   description: z.string().optional(),
-  categoryId: z.string().optional(),
   productType: z.enum(['MANUFACTURED', 'TRADING', 'RAW_MATERIAL']).optional().default('TRADING'),
   // Structured code segments (server builds final code from these)
   codeCategory: z.enum(['MFG', 'TRD', 'RAW']).optional().default('TRD'),

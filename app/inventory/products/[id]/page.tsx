@@ -45,7 +45,7 @@ import { queryKeys } from "@/lib/query-keys"
 import { formatCurrency } from "@/lib/utils"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 import { ProductManufacturingTab } from "@/components/inventory/product-manufacturing-tab"
-import { useMasterCategories, useUnits } from "@/hooks/use-master-data"
+import { useUnits } from "@/hooks/use-master-data"
 import { toast } from "sonner"
 
 // Helper: resolve a clickable link for a transaction based on its type and references
@@ -120,7 +120,6 @@ export default function ProductDetailPage() {
   const [editForm, setEditForm] = useState({
     name: "",
     description: "",
-    categoryId: "",
     unit: "",
     costPrice: "",
     sellingPrice: "",
@@ -129,7 +128,6 @@ export default function ProductDetailPage() {
     reorderLevel: "",
   })
   const queryClient = useQueryClient()
-  const { data: categories } = useMasterCategories()
   const { data: units } = useUnits()
 
   const { data, isLoading, isError } = useQuery({
@@ -218,7 +216,6 @@ export default function ProductDetailPage() {
     setEditForm({
       name: product.name ?? "",
       description: product.description ?? "",
-      categoryId: product.categoryId ?? "",
       unit: product.unit ?? "",
       costPrice: String(costPrice),
       sellingPrice: String(sellingPrice),
@@ -242,7 +239,6 @@ export default function ProductDetailPage() {
         body: JSON.stringify({
           name: editForm.name,
           description: editForm.description || null,
-          categoryId: editForm.categoryId || null,
           unit: editForm.unit,
           costPrice: editForm.costPrice,
           sellingPrice: editForm.sellingPrice,
@@ -544,25 +540,6 @@ export default function ProductDetailPage() {
                   placeholder="Deskripsi..."
                   rows={3}
                 />
-              </div>
-              <Separator />
-              <div>
-                <label className="text-sm text-muted-foreground mb-1 block">Kategori</label>
-                <Select
-                  value={editForm.categoryId}
-                  onValueChange={(val) => setEditForm((f) => ({ ...f, categoryId: val }))}
-                >
-                  <SelectTrigger className="border-2 border-black rounded-none font-bold">
-                    <SelectValue placeholder="Pilih kategori..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(categories ?? []).map((cat: { id: string; name: string }) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
               <Separator />
               <div>

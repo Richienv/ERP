@@ -116,7 +116,6 @@ export const navMain: SidebarNavItem[] = [
     items: [
       { title: "Dashboard Inventori", url: "/inventory", icon: IconLayoutDashboard },
       { title: "Kelola Produk", url: "/inventory/products", icon: IconPackage },
-      { title: "Kategori Produk", url: "/inventory/categories", icon: IconCategory },
       { title: "Level Stok", url: "/inventory/stock", icon: IconChartBar, group: "Stok" },
       { title: "Pergerakan Stok", url: "/inventory/movements", icon: IconArrowsExchange },
       { title: "Transfer Stok", url: "/inventory/transfers", icon: IconTransfer },

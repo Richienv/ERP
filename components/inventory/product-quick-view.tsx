@@ -219,7 +219,6 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
             const result = await updateProduct(productId, {
                 name: editForm.name,
                 description: editForm.description || undefined,
-                categoryId: editForm.categoryId || undefined,
                 unit: editForm.unit,
                 costPrice: editForm.costPrice,
                 sellingPrice: editForm.sellingPrice,
@@ -527,20 +526,6 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                                                         />
                                                     </div>
                                                 </div>
-                                                {categories.length > 0 && (
-                                                    <div>
-                                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Kategori</label>
-                                                        <Select value={editForm.categoryId || "none"} onValueChange={v => setEditForm(f => ({ ...f, categoryId: v === "none" ? null : v }))}>
-                                                            <SelectTrigger className="mt-1 border-2 border-black font-bold h-9">
-                                                                <SelectValue />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="none">Tanpa Kategori</SelectItem>
-                                                                {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.code} - {c.name}</SelectItem>)}
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </div>
-                                                )}
                                                 <div className="flex gap-2 pt-2">
                                                     <Button
                                                         onClick={handleSave}

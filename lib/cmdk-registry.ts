@@ -154,9 +154,6 @@ const INVENTORI: CmdKAction[] = [
   nav("nav-inv-products", "Kelola Produk", "/inventory/products", "inventori", "IconBox", [
     "products", "produk", "material", "barang",
   ]),
-  nav("nav-inv-categories", "Kategori Produk", "/inventory/categories", "inventori", "IconCategory", [
-    "categories", "kategori",
-  ]),
   nav("nav-inv-stock", "Level Stok", "/inventory/stock", "inventori", "IconChartBar", [
     "stock level", "stok", "persediaan",
   ]),

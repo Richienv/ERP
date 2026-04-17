@@ -19,8 +19,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
 import { toast } from "sonner"
 import { createProductSchema, type CreateProductInput } from "@/lib/validations"
-import { createUnit, createCategory, createUomConversion } from "@/lib/actions/master-data"
-import { useUnits, useMasterCategories, useUomConversions, useInvalidateMasterData } from "@/hooks/use-master-data"
+import { createUnit, createUomConversion } from "@/lib/actions/master-data"
+import { useUnits, useUomConversions, useInvalidateMasterData } from "@/hooks/use-master-data"
 import {
   Select,
   SelectContent,
@@ -52,14 +52,11 @@ export function ProductForm({
 
   // DB-backed master data
   const { data: dbUnits = [], isLoading: unitsLoading } = useUnits()
-  const { data: dbCategories = [], isLoading: categoriesLoading } = useMasterCategories()
   const { data: uomConversions = [] } = useUomConversions()
-  const { invalidateUnits, invalidateCategories, invalidateUomConversions } = useInvalidateMasterData()
+  const { invalidateUnits, invalidateUomConversions } = useInvalidateMasterData()
 
   const unitOptions = useMemo(() =>
     dbUnits.map((u: { code: string; name: string }) => ({ value: u.code, label: u.name, subtitle: u.code })), [dbUnits])
-  const categoryOptions = useMemo(() =>
-    dbCategories.map((c: { id: string; code: string; name: string }) => ({ value: c.id, label: c.name, subtitle: c.code })), [dbCategories])
 
   const form = useForm<CreateProductInput>({
     resolver: zodResolver(createProductSchema),
@@ -67,7 +64,6 @@ export function ProductForm({
       code: initialData?.code || "",
       name: initialData?.name || "",
       description: initialData?.description || "",
-      categoryId: initialData?.categoryId || "",
       unit: initialData?.unit || "pcs",
       costPrice: initialData?.costPrice || 0,
       sellingPrice: initialData?.sellingPrice || 0,
@@ -120,14 +116,6 @@ export function ProductForm({
     await invalidateUnits()
     toast.success(`Satuan "${name}" berhasil dibuat`)
     return unit.code
-  }
-
-  const handleCreateCategory = async (name: string) => {
-    const code = name.substring(0, 3).toUpperCase()
-    const category = await createCategory(code, name)
-    await invalidateCategories()
-    toast.success(`Kategori "${name}" berhasil dibuat`)
-    return category.id
   }
 
   return (
@@ -205,30 +193,6 @@ export function ProductForm({
                           placeholder="Deskripsi produk (opsional)"
                           className="min-h-[80px]"
                           {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="categoryId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Kategori</FormLabel>
-                      <FormControl>
-                        <ComboboxWithCreate
-                          options={categoryOptions}
-                          value={field.value || ""}
-                          onChange={field.onChange}
-                          placeholder="Pilih kategori..."
-                          searchPlaceholder="Cari kategori..."
-                          emptyMessage="Kategori tidak ditemukan."
-                          createLabel="+ Buat Kategori Baru"
-                          onCreate={handleCreateCategory}
-                          isLoading={categoriesLoading}
                         />
                       </FormControl>
                       <FormMessage />

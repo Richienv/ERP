@@ -137,7 +137,6 @@ export async function PUT(
         ...(body.code && { code: body.code }),
         ...(body.name && { name: body.name }),
         ...(body.description !== undefined && { description: body.description }),
-        ...(body.categoryId !== undefined && { categoryId: body.categoryId }),
         ...(body.unit && { unit: body.unit }),
         ...(body.costPrice !== undefined && { costPrice: parseFloat(body.costPrice) }),
         ...(body.sellingPrice !== undefined && { sellingPrice: parseFloat(body.sellingPrice) }),

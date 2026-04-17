@@ -30,8 +30,8 @@ import {
     CATEGORY_TO_PRODUCT_TYPE,
     buildStructuredCode,
 } from "@/lib/inventory-utils"
-import { createUnit, createBrand, createColor, createCategory } from "@/lib/actions/master-data"
-import { useBrands, useColors, useUnits, useMasterCategories, useInvalidateMasterData } from "@/hooks/use-master-data"
+import { createUnit, createBrand, createColor } from "@/lib/actions/master-data"
+import { useBrands, useColors, useUnits, useInvalidateMasterData } from "@/hooks/use-master-data"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
@@ -103,8 +103,7 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
     const { data: dbBrands = [], isLoading: brandsLoading } = useBrands()
     const { data: dbColors = [], isLoading: colorsLoading } = useColors()
     const { data: dbUnits = [], isLoading: unitsLoading } = useUnits()
-    const { data: dbCategories = [], isLoading: categoriesLoading } = useMasterCategories()
-    const { invalidateBrands, invalidateColors, invalidateUnits, invalidateCategories } = useInvalidateMasterData()
+    const { invalidateBrands, invalidateColors, invalidateUnits } = useInvalidateMasterData()
 
     // Map DB data to combobox options
     const brandOptions: ComboboxOption[] = useMemo(() =>
@@ -113,13 +112,11 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
         dbColors.map((c: { code: string; name: string }) => ({ value: c.code, label: c.name, subtitle: c.code })), [dbColors])
     const unitOptions: ComboboxOption[] = useMemo(() =>
         dbUnits.map((u: { code: string; name: string }) => ({ value: u.code, label: u.name, subtitle: u.code })), [dbUnits])
-    const categoryOptions: ComboboxOption[] = useMemo(() =>
-        dbCategories.map((c: { id: string; code: string; name: string }) => ({ value: c.id, label: c.name, subtitle: c.code })), [dbCategories])
 
     const form = useForm<CreateProductInput>({
         resolver: zodResolver(createProductSchema),
         defaultValues: {
-            code: "", name: "", description: "", categoryId: "",
+            code: "", name: "", description: "",
             productType: "TRADING",
             codeCategory: "TRD",
             codeType: "OTR",
@@ -141,7 +138,6 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
     const watchMaxStock = form.watch("maxStock") ?? 0
     const watchReorder = form.watch("reorderLevel") ?? 0
     const watchName = form.watch("name") || ""
-    const watchCategoryId = form.watch("categoryId")
 
     // ─── Code builder logic ───
     const availableTypes = useMemo(() => CODE_PRODUCT_TYPES[watchCat] || [], [watchCat])
@@ -181,39 +177,6 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
         manuallySet.current = { ...INITIAL_MANUALLY_SET }
     }
 
-    // ─── Effect: Category → unit + description auto-fill ───
-    useEffect(() => {
-        if (!watchCategoryId) return
-        const cat = dbCategories.find((c: { id: string; name: string }) => c.id === watchCategoryId)
-        if (!cat) return
-        const catNameLower = cat.name.toLowerCase()
-
-        // Auto-fill unit
-        if (!manuallySet.current.unit) {
-            for (const [pattern, unitCode] of Object.entries(CATEGORY_UNIT_MAP)) {
-                if (catNameLower.includes(pattern)) {
-                    const unitExists = dbUnits.some((u: { code: string }) => u.code === unitCode)
-                    if (unitExists) {
-                        form.setValue("unit", unitCode)
-                        setAutoTags(prev => ({ ...prev, unit: true }))
-                    }
-                    break
-                }
-            }
-        }
-
-        // Auto-fill description template
-        if (!manuallySet.current.desc) {
-            for (const [pattern, template] of Object.entries(CATEGORY_DESC_TEMPLATES)) {
-                if (catNameLower.includes(pattern)) {
-                    form.setValue("description", template)
-                    setAutoTags(prev => ({ ...prev, desc: true }))
-                    break
-                }
-            }
-        }
-    }, [watchCategoryId]) // eslint-disable-line react-hooks/exhaustive-deps
-
     // ─── Effect: Margin preset + HPP → selling price ───
     useEffect(() => {
         if (marginPreset !== null && watchCost > 0) {
@@ -252,7 +215,6 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                 setOpen(false)
                 queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.categories.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.sidebarActions.all })
             } else {
                 toast.error((result as any).error || "Gagal membuat produk")
@@ -320,19 +282,6 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
             return unit.code
         } catch {
             toast.error("Gagal membuat satuan")
-            return ""
-        }
-    }
-
-    const handleCreateCategory = async (name: string) => {
-        try {
-            const code = name.substring(0, 3).toUpperCase()
-            const category = await createCategory(code, name)
-            await invalidateCategories()
-            toast.success(`Kategori "${name}" berhasil dibuat`)
-            return category.id
-        } catch {
-            toast.error("Gagal membuat kategori")
             return ""
         }
     }
@@ -521,44 +470,28 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                                 )}
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className={NB.label}>Kategori Inventori</label>
-                                    <ComboboxWithCreate
-                                        options={categoryOptions}
-                                        value={form.watch("categoryId") || ""}
-                                        onChange={v => form.setValue("categoryId", v)}
-                                        placeholder="Pilih kategori..."
-                                        searchPlaceholder="Cari kategori..."
-                                        emptyMessage="Kategori tidak ditemukan."
-                                        createLabel="+ Buat Kategori Baru"
-                                        onCreate={handleCreateCategory}
-                                        isLoading={categoriesLoading}
-                                    />
-                                </div>
-                                <div>
-                                    <label className={NB.label}>
-                                        Satuan <span className={NB.labelRequired}>*</span>
-                                        {autoTags.unit && (
-                                            <span className="ml-1.5 text-[8px] font-bold text-orange-400 uppercase tracking-widest border border-orange-200 bg-orange-50 px-1 py-px inline-block">otomatis</span>
-                                        )}
-                                    </label>
-                                    <ComboboxWithCreate
-                                        options={unitOptions}
-                                        value={form.watch("unit") || "pcs"}
-                                        onChange={v => {
-                                            form.setValue("unit", v)
-                                            manuallySet.current.unit = true
-                                            setAutoTags(prev => ({ ...prev, unit: false }))
-                                        }}
-                                        placeholder="Pilih satuan..."
-                                        searchPlaceholder="Cari satuan..."
-                                        emptyMessage="Satuan tidak ditemukan."
-                                        createLabel="+ Buat Satuan Baru"
-                                        onCreate={handleCreateUnit}
-                                        isLoading={unitsLoading}
-                                    />
-                                </div>
+                            <div>
+                                <label className={NB.label}>
+                                    Satuan <span className={NB.labelRequired}>*</span>
+                                    {autoTags.unit && (
+                                        <span className="ml-1.5 text-[8px] font-bold text-orange-400 uppercase tracking-widest border border-orange-200 bg-orange-50 px-1 py-px inline-block">otomatis</span>
+                                    )}
+                                </label>
+                                <ComboboxWithCreate
+                                    options={unitOptions}
+                                    value={form.watch("unit") || "pcs"}
+                                    onChange={v => {
+                                        form.setValue("unit", v)
+                                        manuallySet.current.unit = true
+                                        setAutoTags(prev => ({ ...prev, unit: false }))
+                                    }}
+                                    placeholder="Pilih satuan..."
+                                    searchPlaceholder="Cari satuan..."
+                                    emptyMessage="Satuan tidak ditemukan."
+                                    createLabel="+ Buat Satuan Baru"
+                                    onCreate={handleCreateUnit}
+                                    isLoading={unitsLoading}
+                                />
                             </div>
                         </NBSection>
 

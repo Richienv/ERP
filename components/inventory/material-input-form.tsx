@@ -93,7 +93,6 @@ export function MaterialInputForm() {
                 name,
                 code: "",
                 description: notes,
-                categoryId: "",
                 productType: CATEGORY_TO_PRODUCT_TYPE[codeCat] as any || "RAW_MATERIAL",
                 codeCategory: codeCat as any,
                 codeType: effectiveType,
