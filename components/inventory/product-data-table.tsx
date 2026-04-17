@@ -58,7 +58,7 @@ import { toast } from "sonner"
 // Also override Decimal types to number for client usage
 export type ProductWithStock = Omit<ProductWithRelations, 'costPrice' | 'sellingPrice' | 'manualBurnRate'> & {
   costPrice: number
-  sellingPrice: number
+  sellingPrice: number | null
   manualBurnRate: number
   currentStock: number
   status?: string // Added server status field
@@ -162,12 +162,18 @@ export const columns: ColumnDef<ProductWithStock>[] = [
   {
     accessorKey: "sellingPrice",
     header: "Harga Jual",
-    cell: ({ row }) => (
-      <CurrencyDisplay
-        amount={row.getValue("sellingPrice")}
-        className="text-right block font-mono text-sm font-bold"
-      />
-    ),
+    cell: ({ row }) => {
+      const value = row.getValue("sellingPrice") as number | null | undefined
+      if (value === null || value === undefined) {
+        return <span className="text-right block font-mono text-sm font-bold text-zinc-400">—</span>
+      }
+      return (
+        <CurrencyDisplay
+          amount={value}
+          className="text-right block font-mono text-sm font-bold"
+        />
+      )
+    },
   },
   {
     id: "stock",

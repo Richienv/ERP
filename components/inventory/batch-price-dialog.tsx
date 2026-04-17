@@ -31,7 +31,7 @@ interface Product {
     code: string
     name: string
     costPrice: number | string
-    sellingPrice: number | string
+    sellingPrice: number | string | null
     category?: { name: string } | null
     unit?: string | { name: string } | null
 }
@@ -92,7 +92,7 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
         })
     }, [filtered])
 
-    const getNum = (v: number | string) => Number(v) || 0
+    const getNum = (v: number | string | null | undefined) => (v === null || v === undefined ? 0 : Number(v) || 0)
 
     const setProductPrice = useCallback(
         (productId: string, field: "newCostPrice" | "newSellingPrice", value: string) => {

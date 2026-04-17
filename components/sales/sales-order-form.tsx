@@ -36,7 +36,7 @@ interface ProductOption {
   code: string
   name: string
   unit: string
-  sellingPrice: number
+  sellingPrice: number | null
 }
 
 interface QuotationOption {
@@ -272,6 +272,16 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
   const onProductChange = (index: number, productId: string) => {
     const product = products.find((item) => item.id === productId)
     if (!product) return
+
+    if (product.sellingPrice === null || product.sellingPrice === undefined) {
+      toast.error(`${product.name} belum memiliki harga jual. Silakan atur harga di halaman produk terlebih dahulu.`, {
+        action: {
+          label: "Atur Harga",
+          onClick: () => router.push(`/inventory/products/${product.id}`),
+        },
+      })
+      return
+    }
 
     updateItem(index, {
       productId,

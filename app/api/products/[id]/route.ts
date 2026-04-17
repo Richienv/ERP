@@ -139,7 +139,7 @@ export async function PUT(
         ...(body.description !== undefined && { description: body.description }),
         ...(body.unit && { unit: body.unit }),
         ...(body.costPrice !== undefined && { costPrice: parseFloat(body.costPrice) }),
-        ...(body.sellingPrice !== undefined && { sellingPrice: parseFloat(body.sellingPrice) }),
+        ...(body.sellingPrice !== undefined && { sellingPrice: body.sellingPrice === null || body.sellingPrice === "" ? null : parseFloat(body.sellingPrice) }),
         ...(body.minStock !== undefined && { minStock: parseInt(body.minStock) }),
         ...(body.maxStock !== undefined && { maxStock: parseInt(body.maxStock) }),
         ...(body.reorderLevel !== undefined && { reorderLevel: parseInt(body.reorderLevel) }),

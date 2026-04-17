@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
         productType: body.productType || undefined,
         unit,
         costPrice: parseFloat(costPrice || 0),
-        sellingPrice: parseFloat(sellingPrice || 0),
+        sellingPrice: sellingPrice === null || sellingPrice === undefined || sellingPrice === "" ? null : parseFloat(sellingPrice),
         minStock: parseInt(minStock || 0),
         maxStock: parseInt(maxStock || 0),
         reorderLevel: parseInt(reorderLevel || 0),

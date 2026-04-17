@@ -54,7 +54,7 @@ function exportProducts(products: any[], format: "csv" | "xlsx") {
         Kategori: p.category?.name || "",
         Unit: p.unit?.name || p.unit || "",
         "Harga Beli": p.costPrice ?? 0,
-        "Harga Jual": p.sellingPrice ?? 0,
+        "Harga Jual": p.sellingPrice ?? "",
         Stok: p.currentStock ?? 0,
         "Stok Minimum": p.minStock ?? 0,
     }))

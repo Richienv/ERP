@@ -584,7 +584,7 @@ export async function getPriceListById(id: string) {
                     productDescription: pi.product.description,
                     category: pi.product.category?.name || '-',
                     unit: pi.product.unit,
-                    basePrice: Number(pi.product.sellingPrice),
+                    basePrice: pi.product.sellingPrice === null || pi.product.sellingPrice === undefined ? 0 : Number(pi.product.sellingPrice),
                     listPrice: Number(pi.price),
                     minQty: pi.minQty,
                     validFrom: pi.validFrom?.toISOString() || null,
@@ -732,7 +732,7 @@ export async function getProductsForPriceList() {
                 code: p.code,
                 name: p.name,
                 unit: p.unit,
-                sellingPrice: Number(p.sellingPrice),
+                sellingPrice: p.sellingPrice === null || p.sellingPrice === undefined ? null : Number(p.sellingPrice),
                 category: p.category?.name || '-',
             }))
         })

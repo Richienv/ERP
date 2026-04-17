@@ -121,7 +121,7 @@ async function fetchDirectFallbacks() {
         for (const sl of stockData) {
             if (!sl.product.isActive || !sl.warehouse.isActive) continue
             const cp = Number(sl.product.costPrice)
-            const sp = Number(sl.product.sellingPrice)
+            const sp = sl.product.sellingPrice !== null ? Number(sl.product.sellingPrice) : 0
             const price = cp > 0 ? cp : sp
             invValue += sl.quantity * price
             invItemCount += sl.quantity

@@ -59,7 +59,7 @@ interface ProductData {
     categoryId: string | null
     categoryName: string | null
     costPrice: number
-    sellingPrice: number
+    sellingPrice: number | null
     minStock: number
     maxStock: number
     reorderLevel: number
@@ -221,7 +221,7 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                 description: editForm.description || undefined,
                 unit: editForm.unit,
                 costPrice: editForm.costPrice,
-                sellingPrice: editForm.sellingPrice,
+                sellingPrice: editForm.sellingPrice ?? null,
                 minStock: editForm.minStock,
                 maxStock: editForm.maxStock,
                 reorderLevel: editForm.reorderLevel,
@@ -488,11 +488,20 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Harga Jual (Rp)</label>
+                                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Harga Jual (Rp, opsional)</label>
                                                         <Input
                                                             type="number"
-                                                            value={editForm.sellingPrice || 0}
-                                                            onChange={e => setEditForm(f => ({ ...f, sellingPrice: parseFloat(e.target.value) || 0 }))}
+                                                            placeholder="Kosongkan jika belum ditentukan"
+                                                            value={editForm.sellingPrice ?? ""}
+                                                            onChange={e => {
+                                                                const raw = e.target.value
+                                                                if (raw === "") {
+                                                                    setEditForm(f => ({ ...f, sellingPrice: null }))
+                                                                } else {
+                                                                    const parsed = parseFloat(raw)
+                                                                    setEditForm(f => ({ ...f, sellingPrice: Number.isNaN(parsed) ? null : parsed }))
+                                                                }
+                                                            }}
                                                             className="mt-1 border-2 border-black font-mono font-bold h-9"
                                                         />
                                                     </div>
@@ -550,7 +559,7 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                                                 {[
                                                     { label: "Deskripsi", value: product.description || "-" },
                                                     { label: "HPP", value: `Rp ${(product.costPrice || 0).toLocaleString('id-ID')}` },
-                                                    { label: "Harga Jual", value: `Rp ${(product.sellingPrice || 0).toLocaleString('id-ID')}` },
+                                                    { label: "Harga Jual", value: product.sellingPrice === null || product.sellingPrice === undefined ? "— (belum ditentukan)" : `Rp ${product.sellingPrice.toLocaleString('id-ID')}` },
                                                     { label: "Min / Max / Reorder", value: `${product.minStock} / ${product.maxStock} / ${product.reorderLevel}` },
                                                     { label: "Barcode", value: product.barcode || "-" },
                                                 ].map(({ label, value }) => (

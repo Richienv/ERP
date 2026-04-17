@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import {
@@ -34,7 +35,7 @@ interface ProductOption {
     code: string
     name: string
     unit: string
-    sellingPrice: number
+    sellingPrice: number | null
 }
 
 interface OrderLine {
@@ -61,6 +62,7 @@ export function QuickOrderDialog({
     customerName,
     customerCode,
 }: QuickOrderDialogProps) {
+    const router = useRouter()
     const queryClient = useQueryClient()
     const [loading, setLoading] = useState(true)
     const [submitting, setSubmitting] = useState(false)
@@ -116,6 +118,18 @@ export function QuickOrderDialog({
     const onProductChange = (index: number, productId: string) => {
         const product = products.find((p) => p.id === productId)
         if (!product) return
+        if (product.sellingPrice === null || product.sellingPrice === undefined) {
+            toast.error(`${product.name} belum memiliki harga jual. Silakan atur harga di halaman produk terlebih dahulu.`, {
+                action: {
+                    label: "Atur Harga",
+                    onClick: () => {
+                        onOpenChange(false)
+                        router.push(`/inventory/products/${product.id}`)
+                    },
+                },
+            })
+            return
+        }
         updateItem(index, {
             productId,
             description: product.name,

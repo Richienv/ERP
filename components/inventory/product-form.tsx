@@ -66,7 +66,7 @@ export function ProductForm({
       description: initialData?.description || "",
       unit: initialData?.unit || "pcs",
       costPrice: initialData?.costPrice || 0,
-      sellingPrice: initialData?.sellingPrice || 0,
+      sellingPrice: initialData?.sellingPrice ?? null,
       minStock: initialData?.minStock || 0,
       maxStock: initialData?.maxStock || 0,
       reorderLevel: initialData?.reorderLevel || 0,
@@ -355,17 +355,28 @@ export function ProductForm({
                   name="sellingPrice"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Harga Jual</FormLabel>
+                      <FormLabel>Harga Jual <span className="text-zinc-400 font-normal">(opsional)</span></FormLabel>
                       <FormControl>
                         <Input
                           type="number"
-                          placeholder="0"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                          placeholder="Kosongkan jika belum ditentukan"
+                          value={field.value ?? ""}
+                          onChange={(e) => {
+                            const raw = e.target.value
+                            if (raw === "") {
+                              field.onChange(null)
+                            } else {
+                              const parsed = parseFloat(raw)
+                              field.onChange(Number.isNaN(parsed) ? null : parsed)
+                            }
+                          }}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
                         />
                       </FormControl>
                       <FormDescription>
-                        Harga penjualan per satuan (Rp)
+                        Harga penjualan per satuan (Rp). Kosongkan jika belum ditentukan — produk tidak dapat dijual sampai harga diatur.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

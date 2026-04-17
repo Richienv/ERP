@@ -208,7 +208,7 @@ export async function GET() {
                 unit: p.unit,
                 categoryId: p.categoryId,
                 costPrice: Number(p.costPrice),
-                sellingPrice: Number(p.sellingPrice),
+                sellingPrice: p.sellingPrice === null || p.sellingPrice === undefined ? null : Number(p.sellingPrice),
                 minStock: p.minStock,
                 maxStock: p.maxStock,
                 reorderLevel: p.reorderLevel,

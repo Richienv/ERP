@@ -54,7 +54,7 @@ export interface ProductOption {
     code: string
     name: string
     unit: string
-    sellingPrice: number
+    sellingPrice: number | null
     category: string
 }
 

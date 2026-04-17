@@ -15,7 +15,7 @@ export const createProductSchemaBase = z.object({
   codeColor: z.string().min(3).max(3).optional().default('NAT'),
   unit: z.string().min(1, 'Satuan wajib diisi').max(20, 'Satuan maksimal 20 karakter'),
   costPrice: z.number().min(0, 'Harga beli tidak boleh negatif').optional().default(0),
-  sellingPrice: z.number().min(0, 'Harga jual tidak boleh negatif').optional().default(0),
+  sellingPrice: z.number().min(0, 'Harga jual tidak boleh negatif').nullable().optional(),
   minStock: z.number().int().min(0, 'Stok minimum tidak boleh negatif').optional().default(0),
   maxStock: z.number().int().min(0, 'Stok maksimum tidak boleh negatif').optional().default(0),
   reorderLevel: z.number().int().min(0, 'Level reorder tidak boleh negatif').optional().default(0),
@@ -30,12 +30,6 @@ export const createProductSchema = createProductSchemaBase.refine(
   {
     message: 'Stok maksimum harus lebih besar atau sama dengan stok minimum',
     path: ['maxStock'],
-  }
-).refine(
-  (data) => !data.sellingPrice || !data.costPrice || data.sellingPrice >= data.costPrice,
-  {
-    message: 'Harga jual harus lebih besar atau sama dengan harga beli',
-    path: ['sellingPrice'],
   }
 )
 

@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
       code: product.code,
       name: product.name,
       unit: product.unit,
-      sellingPrice: toNumber(product.sellingPrice),
+      sellingPrice: product.sellingPrice === null || product.sellingPrice === undefined ? null : toNumber(product.sellingPrice),
       costPrice: toNumber(product.costPrice),
       stock: product.stockLevels.reduce((sum, level) => sum + level.quantity, 0),
     }))

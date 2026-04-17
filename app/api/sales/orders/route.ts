@@ -264,7 +264,10 @@ export async function POST(request: NextRequest) {
       }
 
       const quantity = Math.max(0.001, toNumber(item.quantity, 1))
-      const unitPrice = toNumber(item.unitPrice, toNumber(product.sellingPrice))
+      if ((item.unitPrice === undefined || item.unitPrice === null) && (product.sellingPrice === null || product.sellingPrice === undefined)) {
+        throw new Error(`${product.name} belum memiliki harga jual. Silakan atur harga di halaman produk terlebih dahulu.`)
+      }
+      const unitPrice = toNumber(item.unitPrice, product.sellingPrice !== null && product.sellingPrice !== undefined ? toNumber(product.sellingPrice) : 0)
       const discount = Math.max(0, Math.min(100, toNumber(item.discount, 0)))
       const taxRate = Math.max(0, Math.min(100, toNumber(item.taxRate, 11)))
 

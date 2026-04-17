@@ -194,7 +194,8 @@ export default function ProductDetailPage() {
   const totalReserved = stockLevels.reduce((sum, sl) => sum + sl.reservedQty, 0)
   const totalAvailable = stockLevels.reduce((sum, sl) => sum + sl.availableQty, 0)
   const costPrice = Number(product.costPrice ?? 0)
-  const sellingPrice = Number(product.sellingPrice ?? 0)
+  const sellingPriceRaw = product.sellingPrice
+  const sellingPrice: number | null = sellingPriceRaw === null || sellingPriceRaw === undefined ? null : Number(sellingPriceRaw)
   const totalValue = totalStock * costPrice
 
   // Stock status based on real thresholds
@@ -208,7 +209,7 @@ export default function ProductDetailPage() {
   const stockStatus = getStockStatus()
 
   // Margin calculation (avoid division by zero)
-  const margin = sellingPrice > 0
+  const margin = sellingPrice !== null && sellingPrice > 0
     ? ((sellingPrice - costPrice) / sellingPrice * 100).toFixed(1)
     : "0.0"
 
@@ -218,7 +219,7 @@ export default function ProductDetailPage() {
       description: product.description ?? "",
       unit: product.unit ?? "",
       costPrice: String(costPrice),
-      sellingPrice: String(sellingPrice),
+      sellingPrice: sellingPrice === null ? "" : String(sellingPrice),
       minStock: String(product.minStock ?? 0),
       maxStock: String(product.maxStock ?? 0),
       reorderLevel: String(product.reorderLevel ?? 0),
@@ -241,7 +242,7 @@ export default function ProductDetailPage() {
           description: editForm.description || null,
           unit: editForm.unit,
           costPrice: editForm.costPrice,
-          sellingPrice: editForm.sellingPrice,
+          sellingPrice: editForm.sellingPrice === "" ? null : editForm.sellingPrice,
           minStock: editForm.minStock,
           maxStock: editForm.maxStock,
           reorderLevel: editForm.reorderLevel,
@@ -467,7 +468,13 @@ export default function ProductDetailPage() {
               <Separator />
               <div>
                 <div className="text-sm text-muted-foreground">Harga Jual</div>
-                <div className="font-medium">{formatCurrency(sellingPrice)}</div>
+                <div className="font-medium">
+                  {sellingPrice === null ? (
+                    <span className="text-zinc-400">— (belum ditentukan)</span>
+                  ) : (
+                    formatCurrency(sellingPrice)
+                  )}
+                </div>
               </div>
               <Separator />
               <div>
@@ -581,14 +588,15 @@ export default function ProductDetailPage() {
               </div>
               <Separator />
               <div>
-                <label className="text-sm text-muted-foreground mb-1 block">Harga Jual</label>
+                <label className="text-sm text-muted-foreground mb-1 block">Harga Jual <span className="text-zinc-400 font-normal">(opsional)</span></label>
                 <Input
                   type="number"
                   className="border-2 border-black rounded-none font-bold"
                   value={editForm.sellingPrice}
                   onChange={(e) => setEditForm((f) => ({ ...f, sellingPrice: e.target.value }))}
-                  placeholder="0"
+                  placeholder="Kosongkan jika belum ditentukan"
                 />
+                <p className="text-xs text-zinc-500 mt-1">Produk tidak dapat dijual di sales/POS/quotation sampai harga diatur.</p>
               </div>
               <Separator />
               <div className="grid grid-cols-3 gap-4">

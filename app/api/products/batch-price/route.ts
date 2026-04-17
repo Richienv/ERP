@@ -69,8 +69,8 @@ export async function POST(request: NextRequest) {
             productName: string
             oldCostPrice: number
             newCostPrice: number
-            oldSellingPrice: number
-            newSellingPrice: number
+            oldSellingPrice: number | null
+            newSellingPrice: number | null
             changedBy: string
             changedAt: string
         }> = []
@@ -93,8 +93,8 @@ export async function POST(request: NextRequest) {
                     productName: existing.name,
                     oldCostPrice: Number(existing.costPrice),
                     newCostPrice: update.newCostPrice ?? Number(existing.costPrice),
-                    oldSellingPrice: Number(existing.sellingPrice),
-                    newSellingPrice: update.newSellingPrice ?? Number(existing.sellingPrice),
+                    oldSellingPrice: existing.sellingPrice !== null ? Number(existing.sellingPrice) : null,
+                    newSellingPrice: update.newSellingPrice ?? (existing.sellingPrice !== null ? Number(existing.sellingPrice) : null),
                     changedBy: user.email ?? user.id,
                     changedAt: new Date().toISOString(),
                 })

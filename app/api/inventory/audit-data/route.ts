@@ -77,7 +77,7 @@ export async function GET() {
             return JSON.parse(JSON.stringify({
                 ...p,
                 costPrice: Number(p.costPrice),
-                sellingPrice: Number(p.sellingPrice),
+                sellingPrice: p.sellingPrice === null || p.sellingPrice === undefined ? null : Number(p.sellingPrice),
                 category: p.category,
                 totalStock,
                 currentStock: totalStock,

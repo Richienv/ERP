@@ -122,7 +122,7 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
             codeType: "OTR",
             codeBrand: "XX",
             codeColor: "NAT",
-            unit: "pcs", costPrice: 0, sellingPrice: 0,
+            unit: "pcs", costPrice: 0, sellingPrice: null,
             minStock: 0, maxStock: 0, reorderLevel: 0, barcode: "",
         },
     })
@@ -507,15 +507,24 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                                 </div>
                                 <div>
                                     <NBCurrencyInput
-                                        label="Harga Jual"
-                                        value={String(watchSell || "")}
+                                        label="Harga Jual (opsional)"
+                                        value={watchSell === null || watchSell === undefined ? "" : String(watchSell || "")}
                                         onChange={v => {
-                                            form.setValue("sellingPrice", Number(v) || 0)
+                                            const raw = String(v ?? "").trim()
+                                            if (raw === "") {
+                                                form.setValue("sellingPrice", null)
+                                            } else {
+                                                const parsed = Number(raw)
+                                                form.setValue("sellingPrice", Number.isNaN(parsed) ? null : parsed)
+                                            }
                                             manuallySet.current.sellPrice = true
                                             setMarginPreset(null)
                                             setAutoTags(prev => ({ ...prev, sellPrice: false }))
                                         }}
                                     />
+                                    <p className="text-[9px] text-zinc-400 mt-0.5">
+                                        Kosongkan jika belum ditentukan — produk tidak bisa dijual sampai harga diatur.
+                                    </p>
                                     {autoTags.sellPrice && marginPreset !== null && (
                                         <p className="flex items-center gap-1 text-[9px] text-orange-400 font-bold mt-0.5">
                                             <span className="border border-orange-200 bg-orange-50 px-1 py-px text-[8px] uppercase tracking-widest">otomatis</span>

@@ -218,7 +218,7 @@ model Product {
   unit         String // pcs, kg, liter, etc
   costPrice      Decimal       @default(0) @db.Decimal(20, 2)
   costingMethod  CostingMethod @default(AVERAGE)
-  sellingPrice   Decimal       @default(0) @db.Decimal(20, 2)
+  sellingPrice   Decimal?      @db.Decimal(20, 2)
   minStock     Int         @default(0)
   maxStock     Int         @default(0)
   reorderLevel Int         @default(0)

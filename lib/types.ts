@@ -62,7 +62,7 @@ export interface CreateProductData {
   categoryId?: string
   unit: string
   costPrice: number
-  sellingPrice: number
+  sellingPrice: number | null
   minStock: number
   maxStock: number
   reorderLevel: number

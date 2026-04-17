@@ -100,7 +100,7 @@ export function MaterialInputForm() {
                 codeColor,
                 unit: unit || "pcs",
                 costPrice: Number(costPrice) || 0,
-                sellingPrice: 0,
+                sellingPrice: null,
                 minStock: Number(minStock) || 10,
                 maxStock: 0,
                 reorderLevel: Number(minStock) || 10,

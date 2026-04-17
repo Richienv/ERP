@@ -188,7 +188,7 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated }: CreateBOMDial
                     unit: newProductUnit,
                     productType: newProductType,
                     costPrice: newProductCost,
-                    sellingPrice: 0,
+                    sellingPrice: null,
                 }),
             })
             const result = await res.json()
@@ -228,7 +228,7 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated }: CreateBOMDial
                     unit: newMatUnit,
                     productType: "RAW_MATERIAL",
                     costPrice: newMatCost,
-                    sellingPrice: 0,
+                    sellingPrice: null,
                 }),
             })
             const result = await res.json()

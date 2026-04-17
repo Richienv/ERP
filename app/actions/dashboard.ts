@@ -736,7 +736,7 @@ async function fetchTotalInventoryValue(prisma: PrismaClient) {
 
         // Use costPrice if set, otherwise fall back to sellingPrice
         const costPrice = Number(sl.product.costPrice)
-        const sellingPrice = Number(sl.product.sellingPrice)
+        const sellingPrice = sl.product.sellingPrice === null || sl.product.sellingPrice === undefined ? 0 : Number(sl.product.sellingPrice)
         const unitPrice = costPrice > 0 ? costPrice : sellingPrice
 
         const lineValue = sl.quantity * unitPrice

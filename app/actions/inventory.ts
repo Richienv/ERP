@@ -115,7 +115,7 @@ export async function getProductsByCategory(categoryId: string) {
         code: p.code,
         name: p.name,
         unit: p.unit,
-        sellingPrice: Number(p.sellingPrice),
+        sellingPrice: p.sellingPrice !== null ? Number(p.sellingPrice) : null,
         totalStock: p.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0),
     }))
 }
@@ -740,7 +740,7 @@ export async function getProductsForKanban() {
         return JSON.parse(JSON.stringify({
             ...p,
             costPrice: Number(p.costPrice),
-            sellingPrice: Number(p.sellingPrice),
+            sellingPrice: p.sellingPrice !== null ? Number(p.sellingPrice) : null,
             category: p.category,
             totalStock,
             currentStock: totalStock,
@@ -1725,7 +1725,7 @@ export async function createProduct(input: CreateProductInput) {
                     productType: productType as any,
                     unit: data.unit,
                     costPrice: data.costPrice ?? 0,
-                    sellingPrice: data.sellingPrice ?? 0,
+                    sellingPrice: data.sellingPrice ?? null,
                     minStock: data.minStock ?? 0,
                     maxStock: data.maxStock ?? 0,
                     reorderLevel: data.reorderLevel ?? 0,
@@ -1834,7 +1834,7 @@ export async function getProductById(productId: string) {
             categoryId: product.categoryId,
             categoryName: product.category?.name || null,
             costPrice: product.costPrice?.toNumber() || 0,
-            sellingPrice: product.sellingPrice?.toNumber() || 0,
+            sellingPrice: product.sellingPrice !== null ? product.sellingPrice.toNumber() : null,
             minStock: product.minStock,
             maxStock: product.maxStock,
             reorderLevel: product.reorderLevel,
@@ -1860,7 +1860,7 @@ export async function updateProduct(productId: string, data: {
     description?: string
     unit?: string
     costPrice?: number
-    sellingPrice?: number
+    sellingPrice?: number | null
     minStock?: number
     maxStock?: number
     reorderLevel?: number
@@ -2159,7 +2159,7 @@ export async function bulkImportProducts(rows: BulkImportProductRow[]): Promise<
                         productType: 'TRADING',
                         unit,
                         costPrice: row.costPrice ?? 0,
-                        sellingPrice: row.sellingPrice ?? 0,
+                        sellingPrice: row.sellingPrice ?? null,
                         minStock: 0,
                         maxStock: 0,
                         reorderLevel: 0,

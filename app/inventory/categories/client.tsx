@@ -491,7 +491,7 @@ function CreateCategoryDialog({ open, onOpenChange, parents, onSuccess }: Create
 /* ═══════════════════════════════════════════════════════════════ */
 
 function CategoryDetailDialog({ category, open, onOpenChange }: { category: any, open: boolean, onOpenChange: (v: boolean) => void }) {
-    const [products, setProducts] = useState<Array<{ id: string; code: string; name: string; unit: string; sellingPrice: number; totalStock: number }>>([])
+    const [products, setProducts] = useState<Array<{ id: string; code: string; name: string; unit: string; sellingPrice: number | null; totalStock: number }>>([])
     const [loadingProducts, setLoadingProducts] = useState(false)
     const [showAddRow, setShowAddRow] = useState(false)
     const [availableProducts, setAvailableProducts] = useState<Array<{ id: string; code: string; name: string }>>([])
@@ -836,7 +836,7 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
                                                         <span className="text-[10px] font-black uppercase text-zinc-500">{p.unit}</span>
                                                     </td>
                                                     <td className={`${NB.tableCell} text-right`}>
-                                                        <span className="text-xs font-mono font-bold">{formatCurrency(p.sellingPrice)}</span>
+                                                        <span className="text-xs font-mono font-bold">{p.sellingPrice === null ? "—" : formatCurrency(p.sellingPrice)}</span>
                                                     </td>
                                                     <td className={`${NB.tableCell} text-right`}>
                                                         <span className={`text-xs font-black ${p.totalStock <= 0 ? 'text-red-500' : ''}`}>
