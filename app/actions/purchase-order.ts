@@ -3,6 +3,7 @@
 import { withPrismaAuth, prisma } from "@/lib/db"
 import { FALLBACK_PRODUCTS } from "@/lib/db-fallbacks"
 import { createClient } from "@/lib/supabase/server"
+import { computeTaxTotals, type TaxMode } from "@/lib/tax-mode"
 
 // ==========================================
 // GET PRODUCTS FOR PO CREATION
@@ -47,7 +48,7 @@ export async function createPurchaseOrder(data: {
     notes?: string
     paymentTerms?: string
     shippingAddress?: string
-    includeTax?: boolean
+    taxMode?: TaxMode
     items: {
         productId: string
         quantity: number
@@ -69,11 +70,11 @@ export async function createPurchaseOrder(data: {
         const seq = String(count + 1).padStart(4, '0')
         const poNumber = `${prefix}-${seq}`
 
-        // Calculate Totals
-        // Convention: totalAmount = pre-tax subtotal, netAmount = grand total
-        const subtotal = data.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0)
-        const taxAmount = (data.includeTax ?? true) ? Math.round(subtotal * 0.11) : 0
-        const grandTotal = subtotal + taxAmount
+        // Calculate Totals using tax-mode helper.
+        // Convention on DB: totalAmount = pre-tax DPP, taxAmount = PPN, netAmount = DPP + PPN
+        const taxMode: TaxMode = data.taxMode ?? "EXCLUSIVE"
+        const entered = data.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0)
+        const { subtotal, taxAmount, grandTotal } = computeTaxTotals(entered, taxMode)
 
         // Get authenticated user
         const supabase = await createClient()
@@ -87,9 +88,10 @@ export async function createPurchaseOrder(data: {
                     number: poNumber,
                     supplierId: data.supplierId,
                     expectedDate: data.expectedDate || null,
-                    totalAmount: subtotal,    // pre-tax subtotal
-                    taxAmount,                // PPN 11%
-                    netAmount: grandTotal,    // grand total (subtotal + tax)
+                    totalAmount: subtotal,    // pre-tax DPP
+                    taxAmount,                // PPN
+                    netAmount: grandTotal,    // DPP + PPN
+                    taxMode,
                     status: 'PO_DRAFT',
                     createdBy: userId || null,
                     items: {
@@ -183,7 +185,8 @@ export async function getPODetails(poId: string) {
                 })),
                 subtotal: Number(po.totalAmount),
                 taxAmount: Number(po.taxAmount),
-                netAmount: Number(po.netAmount)
+                netAmount: Number(po.netAmount),
+                taxMode: po.taxMode,
             }
         })
     } catch (error) {

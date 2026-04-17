@@ -48,6 +48,7 @@ import { getVendors } from "@/lib/actions/procurement"
 import { createSupplier } from "@/lib/actions/master-data"
 import { Calendar } from "@/components/ui/calendar"
 import { NB } from "@/lib/dialog-styles"
+import { computeTaxTotals, type TaxMode } from "@/lib/tax-mode"
 
 const formSchema = z.object({
     supplierId: z.string().min(1, "Vendor wajib dipilih"),
@@ -55,7 +56,7 @@ const formSchema = z.object({
     paymentTerms: z.string().optional(),
     shippingAddress: z.string().optional(),
     notes: z.string().optional(),
-    includeTax: z.boolean().default(true),
+    taxMode: z.enum(["EXCLUSIVE", "INCLUSIVE", "NON_PPN"]).default("EXCLUSIVE"),
     items: z.array(z.object({
         productId: z.string().min(1, "Produk wajib dipilih"),
         quantity: z.coerce.number().min(1, "Minimal 1"),
@@ -124,7 +125,7 @@ export function NewPurchaseOrderDialog({ vendors: vendorsProp, products: product
             paymentTerms: "NET30",
             shippingAddress: "",
             notes: "",
-            includeTax: true,
+            taxMode: "EXCLUSIVE",
             items: [{ productId: "", quantity: 1, unitPrice: 0 }]
         },
     })
@@ -137,10 +138,9 @@ export function NewPurchaseOrderDialog({ vendors: vendorsProp, products: product
     const { isSubmitting } = form.formState
     const watchedItems = form.watch("items")
 
-    const includeTax = form.watch("includeTax")
-    const subtotal = watchedItems.reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0)
-    const taxAmount = includeTax ? (subtotal * 0.11) : 0
-    const totalAmount = subtotal + taxAmount
+    const taxMode = form.watch("taxMode") as TaxMode
+    const entered = watchedItems.reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0)
+    const { subtotal, taxAmount, grandTotal: totalAmount } = computeTaxTotals(entered, taxMode)
 
     async function onSubmit(values: FormValues) {
         const result = await createPurchaseOrder({
@@ -149,7 +149,7 @@ export function NewPurchaseOrderDialog({ vendors: vendorsProp, products: product
             notes: values.notes,
             paymentTerms: values.paymentTerms,
             shippingAddress: values.shippingAddress,
-            includeTax: values.includeTax,
+            taxMode: values.taxMode,
             items: values.items
         })
 
@@ -382,12 +382,13 @@ export function NewPurchaseOrderDialog({ vendors: vendorsProp, products: product
                                         />
 
                                         <NBSelect
-                                            label="Pajak"
-                                            value={form.watch("includeTax") ? "PPN" : "NON_PPN"}
-                                            onValueChange={(val) => form.setValue("includeTax", val === "PPN")}
+                                            label="Mode Pajak PPN"
+                                            value={form.watch("taxMode")}
+                                            onValueChange={(val) => form.setValue("taxMode", val as TaxMode)}
                                             options={[
-                                                { value: "PPN", label: "PPN 11%" },
-                                                { value: "NON_PPN", label: "Non-PPN" },
+                                                { value: "EXCLUSIVE", label: "Belum termasuk PPN (+11%)" },
+                                                { value: "INCLUSIVE", label: "Sudah termasuk PPN" },
+                                                { value: "NON_PPN", label: "Tanpa PPN (Non-PKP)" },
                                             ]}
                                         />
 
@@ -527,11 +528,16 @@ export function NewPurchaseOrderDialog({ vendors: vendorsProp, products: product
                                 {/* Totals */}
                                 <div className="border-t-2 border-black bg-zinc-50 p-4 space-y-1">
                                     <div className="flex justify-between text-xs">
-                                        <span className={NB.label + " !mb-0"}>Subtotal</span>
+                                        <span className={NB.label + " !mb-0"}>
+                                            {taxMode === "INCLUSIVE" ? "DPP (harga tanpa PPN)" : "Subtotal"}
+                                        </span>
                                         <span className="font-mono font-bold">{formatIDR(subtotal)}</span>
                                     </div>
                                     <div className="flex justify-between text-xs">
-                                        <span className={NB.label + " !mb-0"}>{includeTax ? "PPN 11%" : "Non-PPN"}</span>
+                                        <span className={NB.label + " !mb-0"}>
+                                            {taxMode === "NON_PPN" ? "Tanpa PPN" : "PPN 11%"}
+                                            {taxMode === "INCLUSIVE" && " (dipisah dari harga)"}
+                                        </span>
                                         <span className="font-mono font-bold">{formatIDR(taxAmount)}</span>
                                     </div>
                                     <div className="border-t-2 border-black pt-2 mt-2 flex justify-between items-center">

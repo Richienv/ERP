@@ -891,6 +891,12 @@ enum TaxStatus {
   EXEMPT // Bebas Pajak
 }
 
+enum TaxMode {
+  EXCLUSIVE // Harga belum termasuk PPN — PPN 11% ditambahkan
+  INCLUSIVE // Harga sudah termasuk PPN — PPN dipisah dari harga
+  NON_PPN   // Tanpa PPN — vendor Non-PKP / transaksi bebas PPN
+}
+
 model PaymentTerm {
   id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   code      String   @unique
@@ -1173,9 +1179,10 @@ model PurchaseOrder {
   sentToVendorAt DateTime?
 
   // Financials
-  totalAmount Decimal @default(0) @db.Decimal(20, 2)
-  taxAmount   Decimal @default(0) @db.Decimal(20, 2)
-  netAmount   Decimal @default(0) @db.Decimal(20, 2)
+  totalAmount Decimal @default(0) @db.Decimal(20, 2) // pre-tax subtotal (DPP)
+  taxAmount   Decimal @default(0) @db.Decimal(20, 2) // PPN amount
+  netAmount   Decimal @default(0) @db.Decimal(20, 2) // grand total (DPP + PPN)
+  taxMode     TaxMode @default(EXCLUSIVE)
 
   // Status
   status          ProcurementStatus  @default(PO_DRAFT)

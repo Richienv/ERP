@@ -785,6 +785,12 @@ export async function recordPendingBillFromPO(
                 ? `${billBaseNumber}-${String(duplicateCount + 1).padStart(2, '0')}`
                 : billBaseNumber
 
+            // When PO tax mode is INCLUSIVE, the item prices include PPN. Bill items
+            // must store net (DPP) amounts so GL posting (debit Expense + debit PPN
+            // Masukan + credit AP) stays balanced against bill.subtotal.
+            const isInclusive = po.taxMode === 'INCLUSIVE'
+            const netFactor = isInclusive ? 1 / (1 + TAX_RATES.PPN) : 1
+
             // Create new Bill (Invoice Type IN) — relation connect for Prisma 6
             const bill = await prisma.invoice.create({
                 data: {
@@ -795,16 +801,16 @@ export async function recordPendingBillFromPO(
                     status: 'DRAFT',
                     issueDate: new Date(),
                     dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
-                    subtotal: toNum(po.totalAmount),     // pre-tax subtotal
+                    subtotal: toNum(po.totalAmount),     // pre-tax DPP
                     taxAmount: toNum(po.taxAmount),
-                    totalAmount: toNum(po.netAmount),    // grand total (subtotal + tax)
+                    totalAmount: toNum(po.netAmount),    // DPP + PPN
                     balanceDue: toNum(po.netAmount),     // what's actually owed
                     items: {
                         create: po.items.map((item: any) => ({
                             description: item.product?.name || 'Unknown Item',
                             quantity: item.quantity,
-                            unitPrice: item.unitPrice,
-                            amount: item.totalPrice,
+                            unitPrice: Math.round(toNum(item.unitPrice) * netFactor),
+                            amount: Math.round(toNum(item.totalPrice) * netFactor),
                             ...(item.productId ? { product: { connect: { id: item.productId } } } : {}),
                         }))
                     }
