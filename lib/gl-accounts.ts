@@ -92,6 +92,14 @@ export const SYS_ACCOUNTS = {
 
   // --- Accumulated Depreciation ---
   ACC_DEPRECIATION: "1590", // Akumulasi Penyusutan (seed: 1590)
+
+  // --- Fixed Assets (Aset Tetap) — 1500-series ---
+  FA_LAND_BUILDING: "1500", // Tanah & Bangunan
+  FA_VEHICLE:       "1510", // Kendaraan
+  FA_OFFICE_EQUIP:  "1520", // Peralatan Kantor
+  FA_MACHINERY:     "1530", // Mesin & Peralatan
+  FA_COMPUTER:      "1540", // Komputer & IT
+  FA_FURNITURE:     "1550", // Furnitur & Inventaris
 } as const
 
 /**

@@ -1,17 +1,21 @@
 "use client"
 
 import { useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { useFixedAssets, useFixedAssetCategories } from "@/hooks/use-fixed-assets"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 import { CreateAssetDialog } from "@/components/finance/fixed-assets/create-asset-dialog"
 import { AssetMovementDialog } from "@/components/finance/fixed-assets/asset-movement-dialog"
+import { backfillAssetToGL } from "@/lib/actions/finance-fixed-assets"
 import { Button } from "@/components/ui/button"
 import { CheckboxFilter } from "@/components/ui/checkbox-filter"
 import { NB } from "@/lib/dialog-styles"
+import { toast } from "sonner"
 import Link from "next/link"
 import {
-    Building, Plus, Search, ArrowRightLeft,
-    Settings, FolderTree, Calculator, FileBarChart, X,
+    Building, Plus, Search, ArrowRightLeft, BookOpen,
+    Settings, FolderTree, Calculator, FileBarChart, X, Loader2,
 } from "lucide-react"
 import { motion } from "framer-motion"
 
@@ -49,11 +53,31 @@ const fadeX = {
 }
 
 export default function FixedAssetsPage() {
+    const queryClient = useQueryClient()
     const [search, setSearch] = useState("")
     const [statusFilter, setStatusFilter] = useState<string>("")
     const [categoryFilter, setCategoryFilter] = useState<string>("")
     const [createOpen, setCreateOpen] = useState(false)
     const [movementAsset, setMovementAsset] = useState<any>(null)
+    const [syncingId, setSyncingId] = useState<string | null>(null)
+
+    const handleSyncToCOA = async (assetId: string, assetName: string) => {
+        setSyncingId(assetId)
+        try {
+            const result = await backfillAssetToGL(assetId)
+            if (result.success) {
+                toast.success(`${assetName} berhasil disinkron ke COA`)
+                queryClient.invalidateQueries({ queryKey: queryKeys.fixedAssets.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
+            } else {
+                toast.error(result.error || "Gagal menyinkron aset")
+            }
+        } catch {
+            toast.error("Terjadi kesalahan")
+        } finally {
+            setSyncingId(null)
+        }
+    }
 
     const { data, isLoading } = useFixedAssets({
         search: search || undefined,
@@ -203,7 +227,7 @@ export default function FixedAssetsPage() {
                 style={{ minHeight: 400 }}
             >
                 {/* Black header */}
-                <div className="hidden md:grid grid-cols-[100px_1fr_120px_140px_140px_140px_100px_110px_80px] gap-2 px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black">
+                <div className="hidden md:grid grid-cols-[100px_1fr_120px_140px_140px_140px_100px_110px_160px] gap-2 px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black">
                     {["Kode", "Nama Aset", "Kategori", "Harga Perolehan", "Akum. Penyusutan", "Nilai Buku", "Metode", "Status", "Aksi"].map((h) => (
                         <span key={h} className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{h}</span>
                     ))}
@@ -236,7 +260,7 @@ export default function FixedAssetsPage() {
                                         initial="hidden"
                                         animate="show"
                                         transition={{ delay: idx * 0.03 }}
-                                        className={`grid grid-cols-1 md:grid-cols-[100px_1fr_120px_140px_140px_140px_100px_110px_80px] gap-2 px-5 py-3 items-center transition-all hover:bg-orange-50/50 dark:hover:bg-orange-950/10 ${
+                                        className={`grid grid-cols-1 md:grid-cols-[100px_1fr_120px_140px_140px_140px_100px_110px_160px] gap-2 px-5 py-3 items-center transition-all hover:bg-orange-50/50 dark:hover:bg-orange-950/10 ${
                                             idx % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/60 dark:bg-zinc-800/20"
                                         }`}
                                     >
@@ -255,7 +279,24 @@ export default function FixedAssetsPage() {
                                         <span className={`inline-flex items-center w-fit text-[9px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-none ${status.color}`}>
                                             {status.label}
                                         </span>
-                                        <div>
+                                        <div className="flex items-center gap-1">
+                                            {!asset.glPosted && (
+                                                <motion.button
+                                                    whileHover={{ y: -1 }}
+                                                    whileTap={{ scale: 0.92 }}
+                                                    disabled={syncingId === asset.id}
+                                                    onClick={() => handleSyncToCOA(asset.id, asset.name)}
+                                                    title="Posting saldo awal aset ini ke Chart of Accounts"
+                                                    className="h-7 px-2 flex items-center gap-1 text-[9px] font-black uppercase border border-orange-400 text-orange-600 bg-orange-50 hover:bg-orange-100 transition-colors rounded-none disabled:opacity-50"
+                                                >
+                                                    {syncingId === asset.id ? (
+                                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                                    ) : (
+                                                        <BookOpen className="h-3 w-3" />
+                                                    )}
+                                                    Sinkron
+                                                </motion.button>
+                                            )}
                                             {(asset.status === "ACTIVE" || asset.status === "FULLY_DEPRECIATED") && (
                                                 <motion.button
                                                     whileHover={{ y: -1 }}

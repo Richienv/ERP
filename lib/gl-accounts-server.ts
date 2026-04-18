@@ -21,6 +21,12 @@ const SYSTEM_ACCOUNT_DEFS: { code: string; name: string; type: "ASSET" | "LIABIL
   { code: SYS_ACCOUNTS.PPH_PREPAID,      name: "PPh Dibayar Dimuka",            type: "ASSET" },
   { code: SYS_ACCOUNTS.PPN_LEBIH_BAYAR,  name: "PPN Lebih Bayar",              type: "ASSET" },
   { code: SYS_ACCOUNTS.ACC_DEPRECIATION, name: "Akumulasi Penyusutan",          type: "ASSET" },
+  { code: SYS_ACCOUNTS.FA_LAND_BUILDING, name: "Tanah & Bangunan",               type: "ASSET" },
+  { code: SYS_ACCOUNTS.FA_VEHICLE,       name: "Kendaraan",                      type: "ASSET" },
+  { code: SYS_ACCOUNTS.FA_OFFICE_EQUIP,  name: "Peralatan Kantor",               type: "ASSET" },
+  { code: SYS_ACCOUNTS.FA_MACHINERY,     name: "Mesin & Peralatan",              type: "ASSET" },
+  { code: SYS_ACCOUNTS.FA_COMPUTER,      name: "Komputer & IT",                  type: "ASSET" },
+  { code: SYS_ACCOUNTS.FA_FURNITURE,     name: "Furnitur & Inventaris",          type: "ASSET" },
   { code: SYS_ACCOUNTS.AP,               name: "Utang Usaha (AP)",              type: "LIABILITY" },
   { code: SYS_ACCOUNTS.PPN_KELUARAN,     name: "Utang Pajak (PPN/PPh)",         type: "LIABILITY" },
   { code: SYS_ACCOUNTS.PPH_21_PAYABLE,   name: "Utang PPh 21",                 type: "LIABILITY" },
@@ -83,5 +89,37 @@ export async function ensureSystemAccounts(
   } catch (error) {
     console.error("Failed to ensure system accounts:", error)
     // Don't cache failure — retry next time
+  }
+}
+
+const FIXED_ASSET_ACCOUNT_CODES = [
+  SYS_ACCOUNTS.FA_LAND_BUILDING,
+  SYS_ACCOUNTS.FA_VEHICLE,
+  SYS_ACCOUNTS.FA_OFFICE_EQUIP,
+  SYS_ACCOUNTS.FA_MACHINERY,
+  SYS_ACCOUNTS.FA_COMPUTER,
+  SYS_ACCOUNTS.FA_FURNITURE,
+  SYS_ACCOUNTS.ACC_DEPRECIATION,
+  SYS_ACCOUNTS.DEPRECIATION,
+  SYS_ACCOUNTS.OPENING_EQUITY,
+] as const
+
+/**
+ * Ensures the Fixed Asset GL accounts exist in the database (1500-series + 1590 + 6290 + 3900).
+ * Idempotent — safe to call repeatedly. Uses the same SYSTEM_ACCOUNT_DEFS metadata.
+ */
+export async function ensureFixedAssetAccounts(prismaClient?: any): Promise<void> {
+  const db = prismaClient ?? (await import("@/lib/prisma")).prisma
+  const defs = SYSTEM_ACCOUNT_DEFS.filter(d => FIXED_ASSET_ACCOUNT_CODES.includes(d.code as any))
+  try {
+    await Promise.all(defs.map((def) =>
+      db.gLAccount.upsert({
+        where: { code: def.code },
+        create: { code: def.code, name: def.name, type: def.type, balance: 0, isSystem: true },
+        update: {},
+      })
+    ))
+  } catch (error) {
+    console.error("Failed to ensure fixed asset accounts:", error)
   }
 }

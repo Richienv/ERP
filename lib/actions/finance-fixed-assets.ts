@@ -3,8 +3,23 @@
 import { withPrismaAuth } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import { postJournalEntry } from "./finance-gl"
-import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts-server"
+import { SYS_ACCOUNTS, ensureSystemAccounts, ensureFixedAssetAccounts } from "@/lib/gl-accounts-server"
 import type { Prisma } from "@prisma/client"
+
+// Default category code → GL asset account code.
+// Used when auto-seeding or backfilling the default Fixed Asset categories.
+const CATEGORY_ASSET_ACCOUNT: Record<string, string> = {
+    "FA-TAN": SYS_ACCOUNTS.FA_LAND_BUILDING,
+    "FA-BNG": SYS_ACCOUNTS.FA_LAND_BUILDING,
+    "FA-KND": SYS_ACCOUNTS.FA_VEHICLE,
+    "FA-MSN": SYS_ACCOUNTS.FA_MACHINERY,
+    "FA-KMP": SYS_ACCOUNTS.FA_COMPUTER,
+    "FA-FRN": SYS_ACCOUNTS.FA_FURNITURE,
+    "FA-LIN": SYS_ACCOUNTS.FA_OFFICE_EQUIP,
+}
+
+// Tanah doesn't depreciate, so no 1590/6290 link.
+const CATEGORY_SKIP_DEPRECIATION = new Set(["FA-TAN"])
 
 async function getAuthUserId(): Promise<string> {
     const supabase = await createClient()
@@ -29,6 +44,8 @@ type FixedAssetCategoryInput = {
     gainLossAccountId?: string
 }
 
+export type FixedAssetFundingSource = "OPENING_BALANCE" | "BANK" | "CASH" | "CREDIT"
+
 type FixedAssetInput = {
     name: string
     categoryId: string
@@ -46,6 +63,22 @@ type FixedAssetInput = {
     serialNumber?: string
     notes?: string
     assetCode?: string
+    fundingSource?: FixedAssetFundingSource
+}
+
+function resolveOffsetAccount(source: FixedAssetFundingSource, hasSupplier: boolean): { code: string; error?: string } {
+    switch (source) {
+        case "BANK": return { code: SYS_ACCOUNTS.BANK_BCA }
+        case "CASH": return { code: SYS_ACCOUNTS.PETTY_CASH }
+        case "CREDIT":
+            if (!hasSupplier) {
+                return { code: SYS_ACCOUNTS.AP, error: "Sumber dana Kredit Supplier memerlukan pilihan supplier." }
+            }
+            return { code: SYS_ACCOUNTS.AP }
+        case "OPENING_BALANCE":
+        default:
+            return { code: SYS_ACCOUNTS.OPENING_EQUITY }
+    }
 }
 
 type MovementInput = {
@@ -64,37 +97,9 @@ type MovementInput = {
 // FIXED ASSET CATEGORIES
 // ============================================================
 
-let _categoriesSeeded = false
-
 export async function getFixedAssetCategories() {
     try {
         return await withPrismaAuth(async (prisma) => {
-            if (!_categoriesSeeded) {
-                const defaults = [
-                    { code: "FA-TAN", name: "Tanah", defaultUsefulLife: 0, defaultResidualPct: 100 },
-                    { code: "FA-BNG", name: "Bangunan", defaultUsefulLife: 240, defaultResidualPct: 10 },
-                    { code: "FA-KND", name: "Kendaraan", defaultUsefulLife: 96, defaultResidualPct: 10 },
-                    { code: "FA-MSN", name: "Mesin & Peralatan", defaultUsefulLife: 96, defaultResidualPct: 5 },
-                    { code: "FA-KMP", name: "Komputer & IT", defaultUsefulLife: 48, defaultResidualPct: 0 },
-                    { code: "FA-FRN", name: "Furnitur & Inventaris", defaultUsefulLife: 48, defaultResidualPct: 5 },
-                    { code: "FA-LIN", name: "Peralatan Kantor", defaultUsefulLife: 48, defaultResidualPct: 5 },
-                ]
-                for (const d of defaults) {
-                    await prisma.fixedAssetCategory.upsert({
-                        where: { code: d.code },
-                        create: {
-                            code: d.code,
-                            name: d.name,
-                            defaultMethod: "STRAIGHT_LINE",
-                            defaultUsefulLife: d.defaultUsefulLife,
-                            defaultResidualPct: d.defaultResidualPct,
-                        },
-                        update: {},
-                    })
-                }
-                _categoriesSeeded = true
-            }
-
             const categories = await prisma.fixedAssetCategory.findMany({
                 include: {
                     assetAccount: { select: { id: true, code: true, name: true } },
@@ -105,8 +110,13 @@ export async function getFixedAssetCategories() {
                 },
                 orderBy: { code: "asc" },
             })
-            return { success: true, categories }
-        })
+            // Serialize Prisma Decimal → Number for Next.js 16 Server→Client transfer.
+            const serialized = categories.map(c => ({
+                ...c,
+                defaultResidualPct: Number(c.defaultResidualPct),
+            }))
+            return { success: true, categories: serialized }
+        }, { timeout: 30000, maxWait: 20000 })
     } catch (error) {
         console.error("Failed to fetch fixed asset categories:", error)
         return { success: false, categories: [] }
@@ -207,6 +217,33 @@ export async function getFixedAssets(filters?: { status?: string; categoryId?: s
                 orderBy: { createdAt: "desc" },
             })
 
+            // Determine which assets already have an opening-balance or backfill JE posted.
+            // One query, grouped in memory — avoids an N+1.
+            const postedRefs = await prisma.journalEntry.findMany({
+                where: {
+                    reference: {
+                        in: assets.flatMap(a => [`FA-${a.assetCode}-OPENING`, `FA-${a.assetCode}-BACKFILL`]),
+                    },
+                },
+                select: { reference: true },
+            })
+            const postedCodeSet = new Set(
+                postedRefs
+                    .map(r => r.reference)
+                    .filter((r): r is string => Boolean(r))
+                    .map(r => r.replace(/^FA-/, "").replace(/-(OPENING|BACKFILL)$/, ""))
+            )
+            // Serialize Prisma Decimal fields to plain numbers so Next.js 16 can
+            // pass the result from Server → Client Components without erroring.
+            const assetsWithGL = assets.map(a => ({
+                ...a,
+                purchaseCost: Number(a.purchaseCost),
+                residualValue: Number(a.residualValue),
+                accumulatedDepreciation: Number(a.accumulatedDepreciation),
+                netBookValue: Number(a.netBookValue),
+                glPosted: postedCodeSet.has(a.assetCode),
+            }))
+
             // KPI summary
             const allAssets = await prisma.fixedAsset.findMany({
                 select: { status: true, purchaseCost: true, accumulatedDepreciation: true, netBookValue: true },
@@ -218,7 +255,7 @@ export async function getFixedAssets(filters?: { status?: string; categoryId?: s
 
             return {
                 success: true,
-                assets,
+                assets: assetsWithGL,
                 summary: { totalAssets: allAssets.length, activeCount, totalCost, totalAccDep, totalNBV },
             }
         })
@@ -351,12 +388,43 @@ function generateDepreciationSchedule(
 export async function createFixedAsset(data: FixedAssetInput) {
     try {
         const userId = await getAuthUserId()
+        // Ensure FA GL accounts exist OUTSIDE the transaction — idempotent upserts
+        // across the Supabase pooler add ~200ms each and otherwise eat the tx budget.
+        await ensureFixedAssetAccounts()
         return await withPrismaAuth(async (prisma) => {
             const assetCode = data.assetCode || await generateAssetCode(prisma)
 
             // Check for duplicate code
             const existing = await prisma.fixedAsset.findUnique({ where: { assetCode } })
             if (existing) return { success: false, error: `Kode aset ${assetCode} sudah digunakan` }
+
+            const category = await prisma.fixedAssetCategory.findUnique({
+                where: { id: data.categoryId },
+                include: { assetAccount: { select: { id: true, code: true } } },
+            })
+            if (!category) return { success: false, error: "Kategori aset tidak ditemukan" }
+
+            let assetAccountCode = category.assetAccount?.code
+            if (!assetAccountCode) {
+                const fallbackCode = CATEGORY_ASSET_ACCOUNT[category.code] ?? SYS_ACCOUNTS.FA_MACHINERY
+                const fallbackAccount = await prisma.gLAccount.findUnique({
+                    where: { code: fallbackCode },
+                    select: { id: true, code: true },
+                })
+                if (!fallbackAccount) {
+                    return { success: false, error: `Akun COA ${fallbackCode} tidak ditemukan. Hubungkan kategori ke akun COA terlebih dahulu.` }
+                }
+                assetAccountCode = fallbackAccount.code
+                // Backfill the link on the category so future assets use it directly.
+                await prisma.fixedAssetCategory.update({
+                    where: { id: category.id },
+                    data: { assetAccount: { connect: { id: fallbackAccount.id } } },
+                })
+            }
+
+            const fundingSource: FixedAssetFundingSource = data.fundingSource ?? "OPENING_BALANCE"
+            const offset = resolveOffsetAccount(fundingSource, Boolean(data.supplierId))
+            if (offset.error) return { success: false, error: offset.error }
 
             const nbv = data.purchaseCost - 0 // No depreciation yet
             const asset = await prisma.fixedAsset.create({
@@ -381,6 +449,21 @@ export async function createFixedAsset(data: FixedAssetInput) {
                     status: "ACTIVE",
                 },
             })
+
+            // DR asset account, CR offset (opening equity / bank / cash / AP).
+            // Failure throws → the surrounding withPrismaAuth transaction rolls back the asset row.
+            const glResult = await postJournalEntry({
+                description: `Perolehan aset tetap ${asset.name} (${assetCode})`,
+                date: new Date(data.capitalizationDate || data.purchaseDate),
+                reference: `FA-${assetCode}-OPENING`,
+                lines: [
+                    { accountCode: assetAccountCode, debit: data.purchaseCost, credit: 0, description: `Perolehan ${asset.name}` },
+                    { accountCode: offset.code, debit: 0, credit: data.purchaseCost, description: `Pembayaran perolehan ${asset.name}` },
+                ],
+            }, prisma)
+            if (!glResult?.success) {
+                throw new Error(`Jurnal perolehan aset gagal: ${(glResult as any)?.error || "Unknown error"}`)
+            }
 
             // Generate provisional depreciation schedule
             if (data.depreciationMethod !== "UNITS_OF_PRODUCTION") {
@@ -418,10 +501,116 @@ export async function createFixedAsset(data: FixedAssetInput) {
             })
 
             return { success: true, asset }
-        })
-    } catch (error) {
+        }, { timeout: 30000, maxWait: 20000 })
+    } catch (error: any) {
         console.error("Failed to create fixed asset:", error)
-        return { success: false, error: "Gagal membuat aset tetap" }
+        return { success: false, error: error?.message || "Gagal membuat aset tetap" }
+    }
+}
+
+/**
+ * Post an opening-balance journal entry for a pre-existing asset that was created
+ * before GL posting was wired up. Represents the asset at cost with any accumulated
+ * depreciation already in the books:
+ *
+ *   DR 1500-series (asset acct) = purchaseCost
+ *     CR 1590 (Akumulasi Penyusutan) = accumulatedDepreciation (if > 0)
+ *     CR 3900 (Saldo Awal Ekuitas)  = netBookValue
+ *
+ * Idempotent via the `FA-${assetCode}-BACKFILL` reference — running it twice is a no-op.
+ */
+export async function backfillAssetToGL(assetId: string) {
+    try {
+        const userId = await getAuthUserId()
+        // Ensure FA GL accounts exist OUTSIDE the transaction — see note in createFixedAsset.
+        await ensureFixedAssetAccounts()
+        return await withPrismaAuth(async (prisma) => {
+            const asset = await prisma.fixedAsset.findUnique({
+                where: { id: assetId },
+                include: { category: { include: { assetAccount: { select: { id: true, code: true } } } } },
+            })
+            if (!asset) return { success: false, error: "Aset tidak ditemukan" }
+
+            const reference = `FA-${asset.assetCode}-BACKFILL`
+            const existingBackfill = await prisma.journalEntry.findFirst({ where: { reference } })
+            if (existingBackfill) {
+                return { success: false, error: "Aset sudah disinkronkan ke COA sebelumnya" }
+            }
+            const existingOpening = await prisma.journalEntry.findFirst({ where: { reference: `FA-${asset.assetCode}-OPENING` } })
+            if (existingOpening) {
+                return { success: false, error: "Aset sudah memiliki jurnal perolehan" }
+            }
+
+            // Resolve asset GL account (backfill the category link if missing).
+            let assetAccountCode = asset.category.assetAccount?.code
+            if (!assetAccountCode) {
+                const fallbackCode = CATEGORY_ASSET_ACCOUNT[asset.category.code] ?? SYS_ACCOUNTS.FA_MACHINERY
+                const fallbackAccount = await prisma.gLAccount.findUnique({
+                    where: { code: fallbackCode },
+                    select: { id: true, code: true },
+                })
+                if (!fallbackAccount) {
+                    return { success: false, error: `Akun COA ${fallbackCode} tidak ditemukan` }
+                }
+                assetAccountCode = fallbackAccount.code
+                await prisma.fixedAssetCategory.update({
+                    where: { id: asset.category.id },
+                    data: { assetAccount: { connect: { id: fallbackAccount.id } } },
+                })
+            }
+
+            const cost = Number(asset.purchaseCost)
+            const accDep = Number(asset.accumulatedDepreciation)
+            const nbv = cost - accDep
+
+            const lines = [
+                { accountCode: assetAccountCode, debit: cost, credit: 0, description: `Saldo awal aset ${asset.name}` },
+            ] as Array<{ accountCode: string; debit: number; credit: number; description?: string }>
+            if (accDep > 0) {
+                lines.push({
+                    accountCode: SYS_ACCOUNTS.ACC_DEPRECIATION,
+                    debit: 0,
+                    credit: accDep,
+                    description: `Akumulasi penyusutan awal ${asset.name}`,
+                })
+            }
+            lines.push({
+                accountCode: SYS_ACCOUNTS.OPENING_EQUITY,
+                debit: 0,
+                credit: nbv > 0 ? nbv : cost,
+                description: `Saldo ekuitas perolehan ${asset.name}`,
+            })
+            if (nbv <= 0 && accDep > 0) {
+                // Fully depreciated or invalid — adjust so entry balances to zero cost side.
+                // Practically rare; guard with a clear error instead of silently miscounting.
+                return { success: false, error: "Nilai buku bersih aset tidak valid untuk backfill" }
+            }
+
+            const glResult = await postJournalEntry({
+                description: `Saldo awal aset tetap ${asset.name} (${asset.assetCode})`,
+                date: new Date(asset.capitalizationDate),
+                reference,
+                lines,
+            }, prisma)
+            if (!glResult?.success) {
+                throw new Error(`Gagal memposting saldo awal: ${(glResult as any)?.error || "Unknown error"}`)
+            }
+
+            await prisma.auditLog.create({
+                data: {
+                    entityType: "FixedAsset",
+                    entityId: asset.id,
+                    action: "BACKFILL_GL",
+                    userId,
+                    narrative: `Saldo awal aset "${asset.name}" (${asset.assetCode}) disinkron ke COA: cost ${cost}, acc.dep ${accDep}, NBV ${nbv}`,
+                },
+            })
+
+            return { success: true, journalEntryId: (glResult as any).id }
+        }, { timeout: 30000, maxWait: 20000 })
+    } catch (error: any) {
+        console.error("Failed to backfill asset to GL:", error)
+        return { success: false, error: error?.message || "Gagal menyinkronkan aset ke COA" }
     }
 }
 

@@ -35,10 +35,13 @@ async function main() {
         { code: '1340', name: 'PPh Dibayar Dimuka', type: 'ASSET', isSystem: true },
         { code: '1410', name: 'PPN Lebih Bayar', type: 'ASSET', isSystem: true },
 
-        // 1200 - Fixed Assets (Harta Tetap)
-        { code: '1500', name: 'Tanah & Bangunan', type: 'ASSET', isSystem: false },
-        { code: '1510', name: 'Kendaraan', type: 'ASSET', isSystem: false },
-        { code: '1520', name: 'Peralatan Kantor', type: 'ASSET', isSystem: false },
+        // 1500 - Fixed Assets (Harta Tetap / Aset Tetap)
+        { code: '1500', name: 'Tanah & Bangunan', type: 'ASSET', isSystem: true },
+        { code: '1510', name: 'Kendaraan', type: 'ASSET', isSystem: true },
+        { code: '1520', name: 'Peralatan Kantor', type: 'ASSET', isSystem: true },
+        { code: '1530', name: 'Mesin & Peralatan', type: 'ASSET', isSystem: true },
+        { code: '1540', name: 'Komputer & IT', type: 'ASSET', isSystem: true },
+        { code: '1550', name: 'Furnitur & Inventaris', type: 'ASSET', isSystem: true },
         { code: '1590', name: 'Akumulasi Penyusutan', type: 'ASSET', isSystem: true },
 
         // --- LIABILITIES (KEWAJIBAN) ---

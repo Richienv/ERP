@@ -1126,7 +1126,7 @@ export default function AccountTransactionsPage() {
                                             <span className="text-[11px] font-mono font-bold text-right px-3 py-1.5">
                                                 {line.credit > 0 ? (
                                                     <span className="text-zinc-900 dark:text-zinc-100">
-                                                        ({formatIDR(line.credit)})
+                                                        {formatIDR(line.credit)}
                                                     </span>
                                                 ) : (
                                                     <span className="text-zinc-200 dark:text-zinc-700">
