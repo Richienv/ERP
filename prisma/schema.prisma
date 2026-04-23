@@ -1110,6 +1110,10 @@ model Supplier {
   bankAccountNumber String?
   bankAccountName   String?
 
+  // Indonesian Tax ID — required on e-Faktur and PPh 23 bukti potong.
+  // Format: 15 digits (legacy) or 16 digits (new NIK-based 2024+).
+  npwp String?
+
   isActive Boolean @default(true)
 
   purchaseOrders       PurchaseOrder[]

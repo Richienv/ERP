@@ -10,11 +10,30 @@ import { canApproveForDepartment, resolveEmployeeContext } from "@/lib/employee-
 import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
 import { ensureSystemAccounts } from "@/lib/gl-accounts-server"
 import { postJournalEntry } from "@/lib/actions/finance-gl"
+import { postInventoryGLEntry } from "@/lib/actions/inventory-gl"
 import { assertPeriodOpen } from "@/lib/period-helpers"
 import { TAX_RATES } from "@/lib/tax-rates"
 import { getNextDocNumber } from "@/lib/document-numbering"
 import { revalidatePath } from "next/cache"
 
+/*
+ * Procurement Role Matrix (H10):
+ *
+ *                        Create PO   Approve PO   Approve PR   Override Requester
+ *   ROLE_PURCHASING         ✓           ✗            ✓              ✗
+ *   ROLE_MANAGER            ✗           ✓            ✓              ✗
+ *   ROLE_DIRECTOR           ✓           ✓            ✓              ✓
+ *   ROLE_CEO                ✓           ✓            ✓              ✓
+ *   ROLE_ADMIN              ✓           ✓            ✓              ✓
+ *
+ * Asymmetry: ROLE_MANAGER can approve POs/PRs but cannot create POs.
+ * In a small SME where Purchasing staff is absent, a manager-approved PR
+ * cannot be auto-converted to a PO — see approveAndCreatePOFromPR which
+ * surfaces this clearly to the user (H9).
+ *
+ * SoD (Segregation of Duties): the same user cannot both create AND
+ * approve a PO — enforced in approvePurchaseOrder (C8).
+ */
 const PURCHASING_ROLES = ["ROLE_PURCHASING", "ROLE_ADMIN", "ROLE_CEO", "ROLE_DIRECTOR"]
 const APPROVER_ROLES = ["ROLE_CEO", "ROLE_DIRECTOR", "ROLE_ADMIN", "ROLE_MANAGER"]
 const PR_APPROVER_ROLES = ["ROLE_MANAGER", "ROLE_CEO", "ROLE_DIRECTOR", "ROLE_PURCHASING", "ROLE_ADMIN"]
@@ -1539,6 +1558,7 @@ export async function createVendor(data: {
     bankName?: string
     bankAccountNumber?: string
     bankAccountName?: string
+    npwp?: string
 }) {
     try {
         if (!data.code || !data.name) {
@@ -1555,6 +1575,18 @@ export async function createVendor(data: {
                 success: false,
                 error: "Data bank harus diisi lengkap: Nama Bank, Nomor Rekening, dan Nama Pemilik Rekening (atau kosongkan ketiganya).",
             }
+        }
+
+        // NPWP must be 15 (legacy) or 16 (new NIK-based) digits when provided.
+        if (data.npwp && data.npwp.trim().length > 0) {
+            const npwpDigits = data.npwp.replace(/\D/g, '')
+            if (npwpDigits.length !== 15 && npwpDigits.length !== 16) {
+                return {
+                    success: false,
+                    error: "NPWP harus 15 digit (format lama) atau 16 digit (format baru NIK).",
+                }
+            }
+            data.npwp = npwpDigits
         }
 
         return await withPrismaAuth(async (prisma) => {
@@ -1582,6 +1614,7 @@ export async function createVendor(data: {
                     bankName: data.bankName || null,
                     bankAccountNumber: data.bankAccountNumber || null,
                     bankAccountName: data.bankAccountName || null,
+                    npwp: data.npwp || null,
                     rating: 0,
                     onTimeRate: 0,
                     isActive: true,
@@ -2041,9 +2074,21 @@ export async function updateVendor(
         bankName?: string
         bankAccountNumber?: string
         bankAccountName?: string
+        npwp?: string
     }
 ): Promise<{ success: boolean; error?: string }> {
     try {
+        // NPWP validation: 15 (legacy) or 16 (new) digits if provided.
+        if (data.npwp && data.npwp.trim().length > 0) {
+            const npwpDigits = data.npwp.replace(/\D/g, '')
+            if (npwpDigits.length !== 15 && npwpDigits.length !== 16) {
+                return {
+                    success: false,
+                    error: "NPWP harus 15 digit (format lama) atau 16 digit (format baru NIK).",
+                }
+            }
+            data.npwp = npwpDigits
+        }
         const user = await getAuthzUser()
         assertRole(user, PURCHASING_ROLES)
 
@@ -2094,6 +2139,7 @@ export async function updateVendor(
                     bankName: data.bankName ?? undefined,
                     bankAccountNumber: data.bankAccountNumber ?? undefined,
                     bankAccountName: data.bankAccountName ?? undefined,
+                    npwp: data.npwp ?? undefined,
                 },
             })
 
@@ -2365,6 +2411,35 @@ export async function createDirectPurchase(input: DirectPurchaseInput) {
                 }
             })
 
+            // ─── 8. Post GL journal entry — atomic with PO/GRN/Bill creation.
+            // Pass tx client (`prisma`) so it joins the same DB transaction.
+            // Throw on failure → entire $transaction rolls back, no orphan
+            // PO/GRN/Bill/stock without a journal entry.
+            const glResult = await postJournalEntry({
+                description: `Pembelian Langsung ${po.number}`,
+                date: now,
+                reference: po.number,
+                invoiceId: bill.id,
+                sourceDocumentType: 'DIRECT_PURCHASE',
+                lines: [
+                    {
+                        accountCode: SYS_ACCOUNTS.INVENTORY_ASSET,
+                        debit: netAmount,
+                        credit: 0,
+                        description: `Persediaan masuk — ${po.number}`,
+                    },
+                    {
+                        accountCode: SYS_ACCOUNTS.AP,
+                        debit: 0,
+                        credit: netAmount,
+                        description: `Hutang Usaha — ${po.number}`,
+                    },
+                ],
+            }, prisma)
+            if (!glResult?.success) {
+                throw new Error(`GL posting gagal: ${(glResult as any)?.error || 'Unknown'}`)
+            }
+
             return {
                 poId: po.id,
                 poNumber: po.number,
@@ -2375,39 +2450,6 @@ export async function createDirectPurchase(input: DirectPurchaseInput) {
                 totalAmount: netAmount,
             }
         })
-
-        // ─── 8. Post GL journal entry (outside transaction to avoid nested deadlock) ───
-        try {
-            await assertPeriodOpen(new Date())
-            const { postJournalEntry } = await import("./finance-gl")
-            await postJournalEntry({
-                description: `Pembelian Langsung ${result.poNumber}`,
-                date: new Date(),
-                reference: result.poNumber,
-                invoiceId: result.billId,
-                lines: [
-                    {
-                        accountCode: SYS_ACCOUNTS.INVENTORY_ASSET,
-                        debit: result.totalAmount,
-                        credit: 0,
-                        description: `Persediaan masuk — ${result.poNumber}`,
-                    },
-                    {
-                        accountCode: SYS_ACCOUNTS.AP,
-                        debit: 0,
-                        credit: result.totalAmount,
-                        description: `Hutang Usaha — ${result.poNumber}`,
-                    },
-                ]
-            })
-        } catch (glError: any) {
-            console.warn("[createDirectPurchase] GL posting failed (non-blocking):", glError?.message)
-            return {
-                success: true,
-                ...result,
-                glWarning: `Pembelian berhasil dicatat, tetapi jurnal GL gagal: ${glError?.message || 'Akun GL tidak ditemukan'}`,
-            }
-        }
 
         revalidateProcurementPaths()
 
