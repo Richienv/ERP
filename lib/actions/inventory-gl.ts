@@ -43,6 +43,11 @@ export type PostInventoryGLParams = {
     warehouseFrom?: string
     warehouseTo?: string
     reference?: string
+    /** Date the underlying business event occurred (e.g. grn.receivedAt,
+     * session.completedAt, invTx.createdAt). Falls back to `new Date()` if
+     * omitted, but callers SHOULD pass the source date for accrual-basis
+     * period matching. */
+    transactionDate?: Date
 }
 
 // ---- GL Account code constants ----
@@ -134,7 +139,7 @@ export async function postInventoryGLEntry(
     prisma: any,
     params: PostInventoryGLParams,
 ): Promise<void> {
-    const { transactionId, type, productName, totalValue, reference } = params
+    const { transactionId, type, productName, totalValue, reference, transactionDate } = params
 
     // Skip if no monetary value
     if (!totalValue || totalValue <= 0) {
@@ -238,7 +243,7 @@ export async function postInventoryGLEntry(
     // Create JournalEntry + JournalLines
     await prisma.journalEntry.create({
         data: {
-            date: new Date(),
+            date: transactionDate ?? new Date(),
             description,
             reference: entryNumber,
             status: 'POSTED',

@@ -422,6 +422,7 @@ export async function addCutPlanLayer(data: {
                     unitCost,
                     totalValue,
                     reference: `${cutPlan.number} layer #${data.layerNumber}`,
+                    transactionDate: invTx.createdAt,
                 })
             }
 

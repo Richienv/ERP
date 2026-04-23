@@ -31,6 +31,10 @@ export type ReservationResult = {
   reservedQty: number
   shortfall: number
   reservationId: string
+  /** FULL = required fully reserved, PARTIAL = some shortfall, NONE = no
+   * stock available. Callers MUST inspect this — silent partial reservation
+   * was a documented bug (production starting against insufficient material). */
+  status: "FULL" | "PARTIAL" | "NONE"
 }
 
 // ---------------------------------------------------------------------------
@@ -160,6 +164,9 @@ export async function reserveStockForWorkOrder(
         })
       }
 
+      const status: ReservationResult["status"] =
+        reservedQty === 0 ? "NONE" : shortfall === 0 ? "FULL" : "PARTIAL"
+
       results.push({
         materialId: req.materialId,
         materialName: bomItem.material.name,
@@ -167,6 +174,7 @@ export async function reserveStockForWorkOrder(
         reservedQty,
         shortfall,
         reservationId: reservation.id,
+        status,
       })
     }
 
@@ -235,15 +243,19 @@ export async function consumeReservation(
       },
     })
 
-    if (stockLevel) {
-      await tx.stockLevel.update({
-        where: { id: stockLevel.id },
-        data: {
-          quantity: { decrement: qty },
-          reservedQty: { decrement: qty },
-        },
-      })
+    if (!stockLevel) {
+      throw new Error(
+        `StockLevel tidak ditemukan untuk product ${reservation.product.name} di gudang reservasi — konsumsi dibatalkan`
+      )
     }
+
+    await tx.stockLevel.update({
+      where: { id: stockLevel.id },
+      data: {
+        quantity: { decrement: qty },
+        reservedQty: { decrement: qty },
+      },
+    })
 
     // Create inventory transaction for audit trail (with cost data)
     const unitCost = reservation.product.costPrice ? Number(reservation.product.costPrice) : 0
@@ -274,11 +286,14 @@ export async function consumeReservation(
         unitCost,
         totalValue,
         reference: `WO ${reservation.workOrder.number}`,
+        transactionDate: invTx.createdAt,
       })
     }
   })
 
   revalidatePath("/inventory")
+  revalidatePath("/inventory/stock")
+  revalidatePath("/inventory/movements")
   revalidatePath("/manufacturing/orders")
 
   return { success: true, message: `Berhasil mengkonsumsi ${qty} unit material` }
@@ -339,18 +354,24 @@ export async function releaseReservation(
       },
     })
 
-    if (stockLevel) {
-      await tx.stockLevel.update({
-        where: { id: stockLevel.id },
-        data: {
-          availableQty: { increment: remainingQty },
-          reservedQty: { decrement: remainingQty },
-        },
-      })
+    if (!stockLevel) {
+      throw new Error(
+        `StockLevel tidak ditemukan untuk product ${reservation.product.name} di gudang reservasi — release dibatalkan`
+      )
     }
+
+    await tx.stockLevel.update({
+      where: { id: stockLevel.id },
+      data: {
+        availableQty: { increment: remainingQty },
+        reservedQty: { decrement: remainingQty },
+      },
+    })
   })
 
   revalidatePath("/inventory")
+  revalidatePath("/inventory/stock")
+  revalidatePath("/inventory/movements")
   revalidatePath("/manufacturing/orders")
 
   return {

@@ -1315,6 +1315,11 @@ export async function createManualMovement(data: {
         if (data.quantity <= 0) throw new Error("Quantity must be positive")
         if (data.type === 'TRANSFER' && !data.targetWarehouseId) throw new Error("Target warehouse required for transfer")
         if (data.type === 'TRANSFER' && data.warehouseId === data.targetWarehouseId) throw new Error("Cannot transfer to same warehouse")
+        // Audit trail (ISO/SOX): adjustment must have a reason. Form sends
+        // "<reason> - <notes>" so >= 5 chars is the floor.
+        if (!data.notes || data.notes.trim().length < 5) {
+            throw new Error("Alasan penyesuaian wajib diisi (minimal 5 karakter) untuk audit trail")
+        }
 
         // Resolve user from auth context instead of trusting client-provided userId
         const supabase = await createClient()
@@ -1322,7 +1327,7 @@ export async function createManualMovement(data: {
         if (authError || !user) throw new Error("Unauthorized")
         const authenticatedUserId = user.id
 
-        return await withPrismaAuth(async (tx) => {
+        const result = await withPrismaAuth(async (tx) => {
             // Determine DB Type & Sign
             let dbType = 'ADJUSTMENT'
             let qtyChange = 0
@@ -1485,12 +1490,20 @@ export async function createManualMovement(data: {
                     warehouseFrom: data.warehouseId,
                     warehouseTo: data.targetWarehouseId,
                     reference: data.notes,
+                    transactionDate: invTx.createdAt,
                 })
             }
 
             return { success: true }
         })
 
+        revalidatePath("/inventory")
+        revalidatePath("/inventory/stock")
+        revalidatePath("/inventory/movements")
+        revalidatePath("/inventory/adjustments")
+        revalidatePath("/finance")
+
+        return result
     } catch (e: any) {
         console.error("Manual Movement Failed", e)
         return { success: false, error: e.message || "Failed to process movement" }

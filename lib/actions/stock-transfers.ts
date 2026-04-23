@@ -157,7 +157,10 @@ export async function createStockTransfer(data: {
         })
 
         revalidatePath("/inventory")
+        revalidatePath("/inventory/stock")
         revalidatePath("/inventory/movements")
+        revalidatePath("/inventory/transfers")
+        revalidatePath("/procurement")
 
         return { success: true, transferId }
     } catch (error) {
@@ -301,6 +304,8 @@ export async function transitionStockTransfer(
         revalidatePath("/inventory")
         revalidatePath("/inventory/stock")
         revalidatePath("/inventory/movements")
+        revalidatePath("/inventory/transfers")
+        revalidatePath("/finance")
 
         return { success: true }
     } catch (error) {

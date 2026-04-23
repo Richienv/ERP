@@ -141,6 +141,7 @@ export async function POST(request: NextRequest) {
                             unitCost: newCost,
                             totalValue: Math.abs(revaluationDelta),
                             reference: `REVAL-${existing.code}`,
+                            transactionDate: invTx.createdAt,
                         })
                     }
                 }

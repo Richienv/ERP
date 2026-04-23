@@ -60,6 +60,11 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
             return
         }
 
+        if (!reason || reason.trim().length < 5) {
+            toast.error("Alasan wajib diisi (minimal 5 karakter) untuk audit trail")
+            return
+        }
+
         if (type === 'TRANSFER' && !targetWarehouseId) {
             toast.error("Mohon pilih gudang tujuan")
             return
@@ -225,7 +230,7 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
             {/* Reason */}
             <div>
                 <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
-                    Alasan
+                    Alasan <span className="text-red-500">*</span>
                 </label>
                 <Select value={reason} onValueChange={setReason}>
                     <SelectTrigger className="border-2 border-black font-bold h-10 w-full rounded-none">

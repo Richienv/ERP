@@ -215,6 +215,7 @@ export async function finalizeCycleCount(sessionId: string): Promise<{
                     unitCost,
                     totalValue,
                     reference: `CC-${session.id.slice(0, 8)}`,
+                    transactionDate: invTx.createdAt,
                 })
             }
 

@@ -549,6 +549,7 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
                         unitCost,
                         totalValue,
                         reference: grn.number,
+                        transactionDate: grn.receivedAt ?? grn.createdAt,
                     })
                     console.log("[acceptGRN] GL entry posted OK")
                 }
@@ -641,6 +642,9 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
             revalidatePath("/inventory/products")
             revalidatePath("/inventory/stock")
             revalidatePath("/inventory/movements")
+            revalidatePath("/inventory/audit")
+            revalidatePath("/inventory/cycle-counts")
+            revalidatePath("/inventory/adjustments")
             revalidatePath("/procurement")
             revalidatePath("/finance")
         }
