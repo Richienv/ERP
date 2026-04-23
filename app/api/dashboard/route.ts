@@ -123,8 +123,9 @@ async function fetchDirectFallbacks() {
             const cp = Number(sl.product.costPrice)
             const sp = sl.product.sellingPrice !== null ? Number(sl.product.sellingPrice) : 0
             const price = cp > 0 ? cp : sp
-            invValue += sl.quantity * price
-            invItemCount += sl.quantity
+            const slQty = Number(sl.quantity)
+            invValue += slQty * price
+            invItemCount += slQty
         }
 
         const revenue = Number(revenueAgg._sum?.totalAmount ?? 0)

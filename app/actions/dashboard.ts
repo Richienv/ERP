@@ -226,7 +226,7 @@ async function fetchDeadStockValue(prisma: PrismaClient) {
 
     let total = 0
     for (const p of products) {
-        const qty = p.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+        const qty = p.stockLevels.reduce((sum, sl) => sum + Number(sl.quantity), 0)
         if (qty <= 0) continue
 
         const lastTx = p.transactions[0]?.createdAt
@@ -449,7 +449,7 @@ async function fetchMaterialStatus(prisma: PrismaClient) {
 
     const withStock = products.map(p => {
         const activeStockLevels = p.stockLevels.filter(sl => sl.warehouse.isActive)
-        const totalStock = activeStockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+        const totalStock = activeStockLevels.reduce((sum, sl) => sum + Number(sl.quantity), 0)
         // Use minStock if explicitly set (> 0), otherwise use a reasonable threshold:
         // For products that have stock, use 10% of total as threshold; else just 1
         const threshold = p.minStock > 0 ? p.minStock : Math.max(1, Math.ceil(totalStock * 0.1))
@@ -731,7 +731,8 @@ async function fetchTotalInventoryValue(prisma: PrismaClient) {
     const warehouseMap = new Map<string, { name: string; code: string; value: number; itemCount: number; productCount: number }>()
 
     for (const sl of stockLevels) {
-        if (!sl.product.isActive || sl.quantity <= 0) continue
+        const slQty = Number(sl.quantity)
+        if (!sl.product.isActive || slQty <= 0) continue
         if (!sl.warehouse.isActive) continue
 
         // Use costPrice if set, otherwise fall back to sellingPrice
@@ -739,23 +740,23 @@ async function fetchTotalInventoryValue(prisma: PrismaClient) {
         const sellingPrice = sl.product.sellingPrice === null || sl.product.sellingPrice === undefined ? 0 : Number(sl.product.sellingPrice)
         const unitPrice = costPrice > 0 ? costPrice : sellingPrice
 
-        const lineValue = sl.quantity * unitPrice
+        const lineValue = slQty * unitPrice
         value += lineValue
-        itemCount += sl.quantity
+        itemCount += slQty
 
         // Aggregate per warehouse
         const whKey = sl.warehouse.id
         const existing = warehouseMap.get(whKey)
         if (existing) {
             existing.value += lineValue
-            existing.itemCount += sl.quantity
+            existing.itemCount += slQty
             existing.productCount += 1
         } else {
             warehouseMap.set(whKey, {
                 name: sl.warehouse.name,
                 code: sl.warehouse.code,
                 value: lineValue,
-                itemCount: sl.quantity,
+                itemCount: slQty,
                 productCount: 1
             })
         }

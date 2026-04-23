@@ -622,7 +622,7 @@ export async function getManagerDashboardStats(): Promise<ManagerDashboardStats>
         // Filter low stock items
         const lowStockItems = lowStockProducts
             .map((p) => {
-                const totalQty = p.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+                const totalQty = p.stockLevels.reduce((sum, sl) => sum + Number(sl.quantity), 0)
                 return { ...p, currentStock: totalQty }
             })
             .filter((p) => p.currentStock <= p.minStock && p.minStock > 0)

@@ -126,7 +126,7 @@ export async function GET() {
 
         const stockMap = new Map<string, number>()
         for (const sl of stockLevels) {
-            stockMap.set(sl.productId, sl._sum.availableQty ?? 0)
+            stockMap.set(sl.productId, Number(sl._sum.availableQty ?? 0))
         }
 
         // 4. Get on-order quantities from active POs (ORDERED, SHIPPED, PARTIAL_RECEIVED)

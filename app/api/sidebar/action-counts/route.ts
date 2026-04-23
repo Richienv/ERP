@@ -87,12 +87,14 @@ export async function GET() {
             reorderLevel: number
             manualAlert: boolean
             createdAt: Date
-            stockLevels: Array<{ quantity: number }>
+            stockLevels: Array<{ quantity: { toString(): string } | number }>
         }>
 
         let lowStockProducts = 0
         for (const product of productsWithStock) {
-            const totalStock = product.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+            // StockLevel.quantity is now Decimal — coerce via Number() so the
+            // running sum stays numeric (otherwise '0' + Decimal coerces to string).
+            const totalStock = product.stockLevels.reduce((sum, sl) => sum + Number(sl.quantity), 0)
             const status = calculateProductStatus({
                 totalStock,
                 minStock: product.minStock,

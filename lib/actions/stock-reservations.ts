@@ -112,7 +112,7 @@ export async function reserveStockForWorkOrder(
           },
         },
       })
-      const oldReservedQty = existingReservation?.reservedQty ?? 0
+      const oldReservedQty = Number(existingReservation?.reservedQty ?? 0)
 
       // Get current stock level for this product+warehouse
       const stockLevel = await tx.stockLevel.findFirst({
@@ -123,7 +123,7 @@ export async function reserveStockForWorkOrder(
         },
       })
 
-      const availableQty = stockLevel?.availableQty ?? 0
+      const availableQty = Number(stockLevel?.availableQty ?? 0)
       // True free = currently available + amount already reserved by THIS WO
       // (we can re-allocate our own slice without "borrowing" from others).
       const trueFreeQty = availableQty + oldReservedQty

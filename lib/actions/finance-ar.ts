@@ -481,13 +481,13 @@ export async function processGIROClearing(voucherId: string, isCleared: boolean,
                     lines: [
                         {
                             accountCode: SYS_ACCOUNTS.AP, // Hutang Usaha (AP)
-                            debit: voucher.amount,
+                            debit: Number(voucher.amount),
                             credit: 0
                         },
                         {
                             accountCode: SYS_ACCOUNTS.BANK_BCA, // Bank
                             debit: 0,
-                            credit: voucher.amount
+                            credit: Number(voucher.amount)
                         }
                     ]
                 }, prisma)

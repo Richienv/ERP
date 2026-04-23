@@ -218,9 +218,9 @@ export async function transitionStockTransfer(
                     },
                 })
 
-                if (!sourceStock || sourceStock.quantity < transfer.quantity) {
+                if (!sourceStock || Number(sourceStock.quantity) < transfer.quantity) {
                     throw new Error(
-                        `Stok tidak mencukupi di gudang asal. Tersedia: ${sourceStock?.quantity ?? 0}, dibutuhkan: ${transfer.quantity}`
+                        `Stok tidak mencukupi di gudang asal. Tersedia: ${sourceStock ? Number(sourceStock.quantity) : 0}, dibutuhkan: ${transfer.quantity}`
                     )
                 }
 

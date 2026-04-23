@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
 
     // Calculate stock status for each product
     const productsWithStockStatus = products.map((product) => {
-      const totalStock = product.stockLevels.reduce((sum, level) => sum + level.quantity, 0)
+      const totalStock = product.stockLevels.reduce((sum, level) => sum + Number(level.quantity), 0)
 
       let stockStatus = 'normal'
       if (totalStock <= 0) {

@@ -129,7 +129,7 @@ export async function GET(request: NextRequest) {
       unit: product.unit,
       sellingPrice: product.sellingPrice === null || product.sellingPrice === undefined ? null : toNumber(product.sellingPrice),
       costPrice: toNumber(product.costPrice),
-      stock: product.stockLevels.reduce((sum, level) => sum + level.quantity, 0),
+      stock: product.stockLevels.reduce((sum, level) => sum + Number(level.quantity), 0),
     }))
 
     const mappedQuotations = quotations.map((quotation) => ({

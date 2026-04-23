@@ -369,8 +369,8 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    const stockMap = new Map(
-      stockLevels.map((sl) => [sl.productId, sl._sum.availableQty ?? 0])
+    const stockMap = new Map<string, number>(
+      stockLevels.map((sl) => [sl.productId, Number(sl._sum.availableQty ?? 0)])
     )
 
     // Aggregate ordered qty per product (a product may appear in multiple lines)

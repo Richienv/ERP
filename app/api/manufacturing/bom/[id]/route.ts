@@ -74,7 +74,7 @@ export async function GET(
 
         // Enhance with stock availability and costs
         const enhancedItems = bom.items.map(item => {
-            const totalStock = item.material.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+            const totalStock = item.material.stockLevels.reduce((sum, sl) => sum + Number(sl.quantity), 0)
             const qty = Number(item.quantity)
             const cost = resolveMaterialUnitCost(item.material)
             const waste = Number(item.wastePct) / 100

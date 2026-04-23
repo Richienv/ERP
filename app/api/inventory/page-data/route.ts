@@ -147,7 +147,7 @@ export async function GET() {
         const idsToResetAlert: string[] = []
 
         const products = rawProducts.map((p) => {
-            const totalStock = p.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+            const totalStock = p.stockLevels.reduce((sum, sl) => sum + Number(sl.quantity), 0)
             const status = calculateProductStatus({
                 totalStock,
                 minStock: p.minStock,
@@ -234,7 +234,7 @@ export async function GET() {
 
         // Transform warehouses
         const warehouses = rawWarehouses.map((w) => {
-            const totalItems = w.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+            const totalItems = w.stockLevels.reduce((sum, sl) => sum + Number(sl.quantity), 0)
             const capacity = w.capacity || 50000
             const utilization = capacity > 0 ? Math.min(parseFloat(((totalItems / capacity) * 100).toFixed(1)), 100) : 0
             return {
@@ -247,7 +247,7 @@ export async function GET() {
                 utilization,
                 manager: "Unassigned",
                 status: w.isActive ? "Active" : "Inactive",
-                totalValue: Math.round(w.stockLevels.reduce((sum, sl) => sum + sl.quantity * Number(sl.product.costPrice), 0)),
+                totalValue: Math.round(w.stockLevels.reduce((sum, sl) => sum + Number(sl.quantity) * Number(sl.product.costPrice), 0)),
                 activePOs: 0,
                 pendingTasks: 0,
                 items: totalItems,

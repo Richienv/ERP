@@ -190,9 +190,9 @@ export default function ProductDetailPage() {
   }> = product.transactions ?? []
 
   // Calculate totals from real stock levels
-  const totalStock = stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
-  const totalReserved = stockLevels.reduce((sum, sl) => sum + sl.reservedQty, 0)
-  const totalAvailable = stockLevels.reduce((sum, sl) => sum + sl.availableQty, 0)
+  const totalStock = stockLevels.reduce((sum, sl) => sum + Number(sl.quantity), 0)
+  const totalReserved = stockLevels.reduce((sum, sl) => sum + Number(sl.reservedQty), 0)
+  const totalAvailable = stockLevels.reduce((sum, sl) => sum + Number(sl.availableQty), 0)
   const costPrice = Number(product.costPrice ?? 0)
   const sellingPriceRaw = product.sellingPrice
   const sellingPrice: number | null = sellingPriceRaw === null || sellingPriceRaw === undefined ? null : Number(sellingPriceRaw)

@@ -992,7 +992,7 @@ export async function recordPartialShipment(
 
                 // Release from reservation first (SO creation reserved stock),
                 // only decrement availableQty for the unreserved portion
-                const releaseFromReserved = Math.min(qtyShipped, stockLevel.reservedQty)
+                const releaseFromReserved = Math.min(qtyShipped, Number(stockLevel.reservedQty))
                 const releaseFromAvailable = qtyShipped - releaseFromReserved
 
                 const updated = await prisma.stockLevel.updateMany({

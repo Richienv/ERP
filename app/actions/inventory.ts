@@ -116,7 +116,7 @@ export async function getProductsByCategory(categoryId: string) {
         name: p.name,
         unit: p.unit,
         sellingPrice: p.sellingPrice !== null ? Number(p.sellingPrice) : null,
-        totalStock: p.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0),
+        totalStock: p.stockLevels.reduce((sum, sl) => sum + Number(sl.quantity), 0),
     }))
 }
 
@@ -271,7 +271,7 @@ export async function getWarehouses() {
         const managerName = manager ? `${manager.firstName} ${manager.lastName || ''}`.trim() : 'Unassigned'
         const managerPhone = manager?.phone || '-'
 
-        const stockLevelItems = w.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+        const stockLevelItems = w.stockLevels.reduce((sum, sl) => sum + Number(sl.quantity), 0)
         const fabricRollMeters = w.fabricRolls.reduce((sum, fr) => sum + Math.round(Number(fr.lengthMeters)), 0)
         const totalItems = stockLevelItems + fabricRollMeters
         const capacity = w.capacity || 50000
@@ -288,7 +288,7 @@ export async function getWarehouses() {
             utilization: utilization,
             manager: managerName,
             status: w.isActive ? 'Active' : 'Inactive',
-            totalValue: Math.round(w.stockLevels.reduce((sum, sl) => sum + sl.quantity * Number(sl.product.costPrice), 0)),
+            totalValue: Math.round(w.stockLevels.reduce((sum, sl) => sum + Number(sl.quantity) * Number(sl.product.costPrice), 0)),
             activePOs: 0,
             pendingTasks: 0,
             items: totalItems,
@@ -315,7 +315,7 @@ export async function getInventoryKPIs() {
     let totalValue = 0
 
     for (const p of products) {
-        const totalStock = p.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+        const totalStock = p.stockLevels.reduce((sum, sl) => sum + Number(sl.quantity), 0)
 
         // Accumulate inventory value (same formula as /api/inventory/page-data)
         totalValue += totalStock * Number(p.costPrice)
@@ -447,7 +447,7 @@ export async function getMaterialGapAnalysis() {
     const pendingSet = new Set(pendingTasks.map(t => t.relatedId))
 
     return products.map(p => {
-        const currentStock = p.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+        const currentStock = p.stockLevels.reduce((sum, sl) => sum + Number(sl.quantity), 0)
         const pendingRestockQty = p.purchaseRequestItems.reduce((sum, pri) => sum + pri.quantity, 0)
 
         // 1. Calculate Real Demand from Active Work Orders
@@ -652,7 +652,7 @@ export async function getProcurementInsights() {
         // Calculate Gap & Cost
         let totalRestockCost = 0
         const restockItems = lowStockProducts.map(p => {
-            const totalStock = p.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+            const totalStock = p.stockLevels.reduce((sum, sl) => sum + Number(sl.quantity), 0)
             const deficit = p.minStock - totalStock
 
             if (deficit > 0) {
@@ -727,7 +727,7 @@ export async function getProductsForKanban() {
     })
 
     return products.map(p => {
-        const totalStock = p.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+        const totalStock = p.stockLevels.reduce((sum, sl) => sum + Number(sl.quantity), 0)
 
         const status = calculateProductStatus({
             totalStock,
@@ -794,9 +794,10 @@ export async function getWarehouseDetails(id: string) {
 
         const existing = categoryMap.get(catId) || { id: catId, name: catName, itemCount: 0, stockCount: 0, value: 0 }
 
+        const slQty = Number(sl.quantity)
         existing.itemCount += 1
-        existing.stockCount += sl.quantity
-        existing.value += sl.quantity * Number(sl.product.costPrice)
+        existing.stockCount += slQty
+        existing.value += slQty * Number(sl.product.costPrice)
 
         categoryMap.set(catId, existing)
     })
@@ -1352,8 +1353,8 @@ export async function createManualMovement(data: {
                     where: { productId: data.productId, warehouseId: data.warehouseId }
                 })
 
-                if (!strictSource || strictSource.quantity < Math.abs(qtyChange)) {
-                    throw new Error(`Insufficient stock in source warehouse. Available: ${strictSource?.quantity || 0}`)
+                if (!strictSource || Number(strictSource.quantity) < Math.abs(qtyChange)) {
+                    throw new Error(`Insufficient stock in source warehouse. Available: ${strictSource ? Number(strictSource.quantity) : 0}`)
                 }
             }
 
@@ -1550,14 +1551,14 @@ export async function submitSpotAudit(data: {
                 where: { productId, warehouseId, locationId: null }
             });
 
-            const systemQty = existingStock?.quantity || 0;
+            const systemQty = Number(existingStock?.quantity || 0);
             const discrepancy = actualQty - systemQty;
 
             // 2. Update Stock (Only if discrepancy exists)
             if (discrepancy !== 0) {
                 if (existingStock) {
                     // Calculate correct availableQty: newQuantity - reservedQty
-                    const reservedQty = existingStock.reservedQty || 0;
+                    const reservedQty = Number(existingStock.reservedQty || 0);
                     const newAvailableQty = Math.max(0, actualQty - reservedQty);
 
                     await prisma.stockLevel.update({
@@ -1859,7 +1860,7 @@ export async function getProductById(productId: string) {
                 warehouseName: sl.warehouse.name,
                 quantity: sl.quantity,
             })),
-            totalStock: product.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0),
+            totalStock: product.stockLevels.reduce((sum, sl) => sum + Number(sl.quantity), 0),
         }
     } catch (error) {
         console.error("Failed to fetch product by ID:", error)
@@ -1998,7 +1999,7 @@ export async function deleteProduct(productId: string) {
             where: { productId },
             select: { quantity: true }
         })
-        const totalStock = stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+        const totalStock = stockLevels.reduce((sum, sl) => sum + Number(sl.quantity), 0)
         if (totalStock > 0) {
             return { success: false, error: "Tidak dapat menghapus produk yang masih memiliki stok" }
         }

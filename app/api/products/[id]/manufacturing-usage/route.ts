@@ -95,10 +95,10 @@ export async function GET(
     })
 
     const totalStock = stockLevels.reduce(
-      (sum: number, sl: typeof stockLevels[number]) => sum + sl.quantity, 0
+      (sum: number, sl: typeof stockLevels[number]) => sum + Number(sl.quantity), 0
     )
     const totalReserved = stockLevels.reduce(
-      (sum: number, sl: typeof stockLevels[number]) => sum + sl.reservedQty, 0
+      (sum: number, sl: typeof stockLevels[number]) => sum + Number(sl.reservedQty), 0
     )
     const totalAvailable = totalStock - totalReserved
 

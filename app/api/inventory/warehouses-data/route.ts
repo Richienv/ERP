@@ -36,7 +36,7 @@ export async function GET() {
             const manager = managers.find((m) => m.id === w.managerId)
             const managerName = manager ? `${manager.firstName} ${manager.lastName || ""}`.trim() : "Unassigned"
             const managerPhone = manager?.phone || "-"
-            const stockLevelItems = w.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+            const stockLevelItems = w.stockLevels.reduce((sum, sl) => sum + Number(sl.quantity), 0)
             const fabricRollMeters = w.fabricRolls.reduce((sum, fr) => sum + Math.round(Number(fr.lengthMeters)), 0)
             const totalItems = stockLevelItems + fabricRollMeters
             const capacity = w.capacity || 50000
@@ -53,7 +53,7 @@ export async function GET() {
                 utilization,
                 manager: managerName,
                 status: w.isActive ? "Active" : "Inactive",
-                totalValue: Math.round(w.stockLevels.reduce((sum, sl) => sum + sl.quantity * Number(sl.product.costPrice), 0)),
+                totalValue: Math.round(w.stockLevels.reduce((sum, sl) => sum + Number(sl.quantity) * Number(sl.product.costPrice), 0)),
                 activePOs: 0,
                 pendingTasks: 0,
                 items: totalItems,

@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
                         where: { productId: update.productId },
                         _sum: { quantity: true },
                     })
-                    totalStockQty = stockAgg._sum.quantity ?? 0
+                    totalStockQty = Number(stockAgg._sum.quantity ?? 0)
 
                     if (totalStockQty > 0) {
                         revaluationDelta = (newCost - oldCost) * totalStockQty

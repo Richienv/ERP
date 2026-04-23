@@ -57,7 +57,7 @@ export async function GET(
     }
 
     // Calculate current stock
-    const currentStock = product.stockLevels.reduce((sum, level) => sum + level.quantity, 0)
+    const currentStock = product.stockLevels.reduce((sum, level) => sum + Number(level.quantity), 0)
 
     let stockStatus = 'normal'
     if (currentStock <= 0) {

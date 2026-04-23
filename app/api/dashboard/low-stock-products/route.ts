@@ -23,7 +23,7 @@ export async function GET() {
         const lowStockProducts = products
             .map((p) => {
                 const currentStock = p.stockLevels.reduce(
-                    (sum, sl) => sum + sl.quantity,
+                    (sum, sl) => sum + Number(sl.quantity),
                     0
                 )
                 const status = calculateProductStatus({

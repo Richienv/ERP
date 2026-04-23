@@ -172,13 +172,13 @@ async function executeProductionPosting(
             },
         })
 
-        if (!sourceLevel || sourceLevel.quantity < requiredQty) {
-            throw new Error(`Insufficient stock for ${item.material.code}. Need ${requiredQty}, available ${sourceLevel?.quantity || 0}`)
+        if (!sourceLevel || Number(sourceLevel.quantity) < requiredQty) {
+            throw new Error(`Insufficient stock for ${item.material.code}. Need ${requiredQty}, available ${sourceLevel ? Number(sourceLevel.quantity) : 0}`)
         }
 
         // Release from reservation first (WO start reserved stock),
         // only decrement availableQty for the unreserved portion
-        const releaseFromReserved = Math.min(requiredQty, sourceLevel.reservedQty)
+        const releaseFromReserved = Math.min(requiredQty, Number(sourceLevel.reservedQty))
         const releaseFromAvailable = requiredQty - releaseFromReserved
 
         await tx.stockLevel.update({
@@ -413,9 +413,9 @@ async function executeProductionReturn(
         where: { productId: workOrder.productId, warehouseId: params.warehouseId },
     })
 
-    if (!fgLevel || fgLevel.quantity < params.returnQty) {
+    if (!fgLevel || Number(fgLevel.quantity) < params.returnQty) {
         throw new Error(
-            `Stok barang jadi tidak cukup untuk retur. Tersedia: ${fgLevel?.quantity || 0}, dibutuhkan: ${params.returnQty}`
+            `Stok barang jadi tidak cukup untuk retur. Tersedia: ${fgLevel ? Number(fgLevel.quantity) : 0}, dibutuhkan: ${params.returnQty}`
         )
     }
 
@@ -572,7 +572,7 @@ async function reserveStockForWorkOrder(workOrderId: string) {
             where: { productId: item.materialId, warehouseId: defaultWarehouse.id },
         })
 
-        const reserveQty = Math.min(requiredQty, stockLevel?.availableQty ?? 0)
+        const reserveQty = Math.min(requiredQty, Number(stockLevel?.availableQty ?? 0))
         if (reserveQty <= 0) continue
 
         if (stockLevel) {

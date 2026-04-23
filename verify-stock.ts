@@ -17,7 +17,7 @@ async function main() {
         const p = products[0]
         console.log(`Product: ${p.name} (${p.code})`)
         console.log(`Stock Levels:`, p.stockLevels)
-        const total = p.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+        const total = p.stockLevels.reduce((sum, sl) => sum + Number(sl.quantity), 0)
         console.log(`Total Stock Calculated: ${total}`)
     }
 }
