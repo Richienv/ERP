@@ -1081,7 +1081,10 @@ export async function moveInvoiceToSent(invoiceId: string, _message?: string, _m
             }
         }
 
-        const txResult = await withPrismaAuth(async (prisma) => {
+        // Atomic: status update + currency conversion + GL posting + COGS all
+        // happen in one transaction. Any failure rolls back ALL of it — no
+        // orphaned ISSUED invoices without journal entries.
+        const result = await withPrismaAuth(async (prisma) => {
             const now = new Date()
             const existing = await prisma.invoice.findUnique({
                 where: { id: invoiceId },
@@ -1103,12 +1106,32 @@ export async function moveInvoiceToSent(invoiceId: string, _message?: string, _m
             const dueDate = existing.dueDate || fallbackDueDate
             const nextStatus = dueDateUtils.isOverdue(dueDate) ? 'OVERDUE' : 'ISSUED'
 
+            // Multi-currency: convert to IDR if foreign currency
+            const currencyCode = existing.currencyCode || "IDR"
+            const totalAmount = toNum(existing.totalAmount)
+            const subtotal = toNum(existing.subtotal) || totalAmount
+            const taxAmount = toNum(existing.taxAmount)
+            let amountInIDR = totalAmount
+            let taxInIDR = taxAmount
+            let subtotalInIDR = subtotal
+            let exchangeRate: number | null = null
+
+            if (currencyCode !== "IDR") {
+                exchangeRate = await getExchangeRate(currencyCode, now)
+                amountInIDR = convertToIDR(totalAmount, exchangeRate)
+                taxInIDR = convertToIDR(taxAmount, exchangeRate)
+                subtotalInIDR = convertToIDR(subtotal, exchangeRate)
+            }
+
+            // Single update: status + IDR amount + (rate if foreign currency)
             await prisma.invoice.update({
                 where: { id: invoiceId },
                 data: {
                     status: nextStatus,
                     issueDate: now,
                     dueDate,
+                    amountInIDR,
+                    ...(exchangeRate !== null ? { exchangeRate } : {}),
                 }
             })
 
@@ -1124,146 +1147,85 @@ export async function moveInvoiceToSent(invoiceId: string, _message?: string, _m
                 goodsReceivedViaPO = grnCount > 0
             }
 
-            return {
-                number: existing.number,
-                type: existing.type,
-                totalAmount: toNum(existing.totalAmount),
-                subtotal: toNum(existing.subtotal) || toNum(existing.totalAmount),
-                taxAmount: toNum(existing.taxAmount),
-                currencyCode: existing.currencyCode || "IDR",
-                customerName: existing.customer?.name,
-                supplierName: existing.supplier?.name,
-                purchaseOrderId: existing.purchaseOrderId,
-                glAccountCode: existing.glAccountCode,
-                goodsReceivedViaPO,
-                nextStatus,
-                dueDate,
-                issueDate: now,
-            }
-        })
-
-        // Multi-currency: convert to IDR if foreign currency
-        const currencyCode = txResult.currencyCode || "IDR"
-        let amountInIDR = txResult.totalAmount
-        let taxInIDR = txResult.taxAmount
-        let subtotalInIDR = txResult.subtotal
-
-        if (currencyCode !== "IDR") {
-            try {
-                const rate = await getExchangeRate(currencyCode, txResult.issueDate)
-                amountInIDR = convertToIDR(txResult.totalAmount, rate)
-                taxInIDR = convertToIDR(txResult.taxAmount, rate)
-                subtotalInIDR = convertToIDR(txResult.subtotal, rate)
-
-                // Store the rate and IDR amount on the invoice
-                await prisma.invoice.update({
-                    where: { id: invoiceId },
-                    data: { exchangeRate: rate, amountInIDR }
-                })
-            } catch (error: any) {
-                // Revert invoice to DRAFT if rate not available
-                await prisma.invoice.update({
-                    where: { id: invoiceId },
-                    data: { status: 'DRAFT', issueDate: null }
-                }).catch(() => {})
-                return { success: false, error: error.message }
-            }
-        } else {
-            // IDR: amountInIDR = totalAmount
-            await prisma.invoice.update({
-                where: { id: invoiceId },
-                data: { amountInIDR: txResult.totalAmount }
-            }).catch(() => {})
-        }
-
-        // Post GL entry for AR/AP recognition (outside withPrismaAuth to avoid nested transaction)
-        // Idempotency: check if journal entry already exists for this invoice
-        try {
+            // Ensure required GL accounts exist (idempotent, safe inside tx)
             try {
                 await ensureInvoicePostingAccounts({
-                    type: txResult.type,
-                    taxAmount: txResult.taxAmount,
-                    goodsReceivedViaPO: txResult.goodsReceivedViaPO,
+                    type: existing.type,
+                    taxAmount,
+                    goodsReceivedViaPO,
                 })
             } catch (accountEnsureError) {
                 console.warn("[moveInvoiceToSent] Fast invoice account ensure failed, falling back to full ensureSystemAccounts()", accountEnsureError)
                 await ensureSystemAccounts()
             }
+
+            // Idempotency: skip GL post if journal entry already exists
             const existingJE = await prisma.journalEntry.findFirst({
                 where: {
                     OR: [
                         { invoiceId: invoiceId },
-                        { reference: txResult.number },
+                        { reference: existing.number },
                     ]
                 },
                 select: { id: true }
             })
 
             if (!existingJE) {
-                // GL always in IDR — use converted amounts for foreign currency invoices
                 const glCurrencyNote = currencyCode !== "IDR" ? ` [${currencyCode}→IDR]` : ""
                 let glResult: any
 
-                if (txResult.type === 'INV_OUT') {
+                if (existing.type === 'INV_OUT') {
                     // AR Invoice: DR Piutang Usaha, CR Pendapatan + CR PPN Keluaran
-                    // Use user-selected revenue account (glAccountCode) if set, else default 4000
-                    const revenueAccount = txResult.glAccountCode || SYS_ACCOUNTS.REVENUE
+                    const revenueAccount = existing.glAccountCode || SYS_ACCOUNTS.REVENUE
                     const lines: { accountCode: string; debit: number; credit: number; description: string }[] = [
-                        { accountCode: SYS_ACCOUNTS.AR, debit: amountInIDR, credit: 0, description: `Piutang - ${txResult.customerName || 'Customer'}${glCurrencyNote}` },
+                        { accountCode: SYS_ACCOUNTS.AR, debit: amountInIDR, credit: 0, description: `Piutang - ${existing.customer?.name || 'Customer'}${glCurrencyNote}` },
                     ]
                     if (taxInIDR > 0) {
-                        lines.push({ accountCode: revenueAccount, debit: 0, credit: subtotalInIDR, description: `Pendapatan - ${txResult.number}${glCurrencyNote}` })
-                        lines.push({ accountCode: SYS_ACCOUNTS.PPN_KELUARAN, debit: 0, credit: taxInIDR, description: `PPN Keluaran - ${txResult.number}${glCurrencyNote}` })
+                        lines.push({ accountCode: revenueAccount, debit: 0, credit: subtotalInIDR, description: `Pendapatan - ${existing.number}${glCurrencyNote}` })
+                        lines.push({ accountCode: SYS_ACCOUNTS.PPN_KELUARAN, debit: 0, credit: taxInIDR, description: `PPN Keluaran - ${existing.number}${glCurrencyNote}` })
                     } else {
-                        lines.push({ accountCode: revenueAccount, debit: 0, credit: amountInIDR, description: `Pendapatan - ${txResult.number}${glCurrencyNote}` })
+                        lines.push({ accountCode: revenueAccount, debit: 0, credit: amountInIDR, description: `Pendapatan - ${existing.number}${glCurrencyNote}` })
                     }
                     glResult = await postJournalEntry({
-                        description: `Faktur Penjualan ${txResult.number} - ${txResult.customerName || 'Customer'}${glCurrencyNote}`,
-                        date: txResult.issueDate,
-                        reference: txResult.number,
+                        description: `Faktur Penjualan ${existing.number} - ${existing.customer?.name || 'Customer'}${glCurrencyNote}`,
+                        date: now,
+                        reference: existing.number,
                         invoiceId: invoiceId,
                         lines,
-                    })
+                    }, prisma)
                 } else {
-                    // AP Bill: DR [expense account] + DR PPN Masukan, CR Hutang Usaha (AP)
-                    // For PO-linked bills with received goods: DR GR/IR Clearing (2150) instead of Expense
-                    //   → This clears the GR/IR suspense created when GRN was accepted (DR Inventory, CR GR/IR)
-                    //   → Net effect: GR/IR Clearing balance returns to zero after both GRN + bill
-                    // For non-PO bills (direct expense purchase): use user-selected expense account or default 6900
-                    const debitAccount = txResult.goodsReceivedViaPO
+                    // AP Bill: DR [expense or GR/IR] + DR PPN Masukan, CR Hutang Usaha
+                    const debitAccount = goodsReceivedViaPO
                         ? SYS_ACCOUNTS.GR_IR_CLEARING
-                        : (txResult.glAccountCode || SYS_ACCOUNTS.EXPENSE_DEFAULT)
-                    const debitLabel = txResult.goodsReceivedViaPO
-                        ? `GR/IR Clearing - ${txResult.number}`
-                        : `Beban - ${txResult.number}`
+                        : (existing.glAccountCode || SYS_ACCOUNTS.EXPENSE_DEFAULT)
+                    const debitLabel = goodsReceivedViaPO
+                        ? `GR/IR Clearing - ${existing.number}`
+                        : `Beban - ${existing.number}`
 
                     const lines: { accountCode: string; debit: number; credit: number; description: string }[] = []
                     if (taxInIDR > 0) {
                         lines.push({ accountCode: debitAccount, debit: subtotalInIDR, credit: 0, description: `${debitLabel}${glCurrencyNote}` })
-                        lines.push({ accountCode: SYS_ACCOUNTS.PPN_MASUKAN, debit: taxInIDR, credit: 0, description: `PPN Masukan - ${txResult.number}${glCurrencyNote}` })
+                        lines.push({ accountCode: SYS_ACCOUNTS.PPN_MASUKAN, debit: taxInIDR, credit: 0, description: `PPN Masukan - ${existing.number}${glCurrencyNote}` })
                     } else {
                         lines.push({ accountCode: debitAccount, debit: amountInIDR, credit: 0, description: `${debitLabel}${glCurrencyNote}` })
                     }
-                    lines.push({ accountCode: SYS_ACCOUNTS.AP, debit: 0, credit: amountInIDR, description: `Hutang - ${txResult.supplierName || 'Supplier'}${glCurrencyNote}` })
+                    lines.push({ accountCode: SYS_ACCOUNTS.AP, debit: 0, credit: amountInIDR, description: `Hutang - ${existing.supplier?.name || 'Supplier'}${glCurrencyNote}` })
                     glResult = await postJournalEntry({
-                        description: `Tagihan Pembelian ${txResult.number} - ${txResult.supplierName || 'Supplier'}`,
-                        date: txResult.issueDate,
-                        reference: txResult.number,
+                        description: `Tagihan Pembelian ${existing.number} - ${existing.supplier?.name || 'Supplier'}`,
+                        date: now,
+                        reference: existing.number,
                         invoiceId: invoiceId,
                         lines,
-                    })
+                    }, prisma)
                 }
 
-                // CRITICAL: Check GL result — if posting failed, throw to trigger revert
                 if (!glResult?.success) {
                     throw new Error(`GL posting failed: ${glResult?.error || 'Unknown error'}`)
                 }
             }
 
-            // --- COGS Recognition for Sales Invoices with Stock Items ---
-            // BLOCKING: If COGS posting fails, the outer catch reverts invoice to DRAFT.
-            // Revenue and COGS must always be recognized together, or not at all.
-            if (txResult.type === 'INV_OUT') {
+            // COGS Recognition for AR with stock items
+            if (existing.type === 'INV_OUT') {
                 const invoiceItems = await prisma.invoiceItem.findMany({
                     where: { invoiceId },
                     select: {
@@ -1285,9 +1247,9 @@ export async function moveInvoiceToSent(invoiceId: string, _message?: string, _m
 
                 const cogsLines: { accountCode: string; debit: number; credit: number; description: string }[] = []
                 for (const item of invoiceItems) {
-                    if (!item.product) continue // service/text line — skip
+                    if (!item.product) continue
                     const cost = Number(item.product.costPrice || 0)
-                    if (cost <= 0) continue // no cost — skip (services, zero-cost items)
+                    if (cost <= 0) continue
                     const qty = Number(item.quantity || 0)
                     if (qty <= 0) continue
                     const cogsAmount = qty * cost
@@ -1311,34 +1273,23 @@ export async function moveInvoiceToSent(invoiceId: string, _message?: string, _m
 
                 if (cogsLines.length > 0) {
                     const cogsResult = await postJournalEntry({
-                        description: `HPP Penjualan ${txResult.number} - ${txResult.customerName || 'Customer'}`,
-                        date: txResult.issueDate,
-                        reference: `COGS-${txResult.number}`,
+                        description: `HPP Penjualan ${existing.number} - ${existing.customer?.name || 'Customer'}`,
+                        date: now,
+                        reference: `COGS-${existing.number}`,
                         invoiceId: invoiceId,
                         sourceDocumentType: 'COGS_RECOGNITION',
                         lines: cogsLines,
-                    })
+                    }, prisma)
                     if (!cogsResult?.success) {
                         throw new Error(`COGS posting gagal: ${cogsResult?.error || 'Unknown error'}`)
                     }
                 }
             }
-        } catch (glError: any) {
-            console.error("GL posting failed:", glError)
-            // Revert invoice to DRAFT so user knows GL posting failed
-            try {
-                await prisma.invoice.update({
-                    where: { id: invoiceId },
-                    data: { status: 'DRAFT' },
-                })
-            } catch { /* revert best-effort */ }
-            return {
-                success: false,
-                error: `Invoice gagal diposting ke jurnal: ${glError?.message || 'Akun GL tidak ditemukan'}. Status dikembalikan ke DRAFT.`,
-            }
-        }
 
-        return { success: true, dueDate: txResult.dueDate, status: txResult.nextStatus }
+            return { dueDate, status: nextStatus }
+        })
+
+        return { success: true, dueDate: result.dueDate, status: result.status }
     } catch (error: any) {
         console.error("Failed to move invoice to sent:", error)
         return { success: false, error: error?.message || "Failed to update invoice status" }
