@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@/lib/db"
+import { prisma, withPrismaAuth } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { getNextDocNumber } from "@/lib/document-numbering"
@@ -103,31 +103,53 @@ export async function createPRFromWorkOrder(
 ) {
     const user = await requireAuth()
 
+    // H14 — duplicate-prevention. Calling twice for the same WO would create
+    // two PRs with the same materials. Refuse if an open PR already exists.
+    const existingPR = await prisma.purchaseRequest.findFirst({
+        where: {
+            notes: { contains: workOrderId },
+            status: { in: ["PENDING", "APPROVED"] },
+        },
+        select: { id: true, number: true },
+    })
+    if (existingPR) {
+        throw new Error(
+            `PR untuk Work Order ini sudah ada (${existingPR.number}, status PENDING/APPROVED). ` +
+            `Selesaikan atau cancel PR yang lama terlebih dahulu.`
+        )
+    }
+
+    // M11 deferred — WorkOrder model has no createdBy/owner field, so we
+    // fall back to the current user as requester. When WorkOrder.createdBy
+    // is added (TODO), look it up here so auto-PR shows the production lead
+    // not the supervisor who clicked "request shortage".
     const wo = await prisma.workOrder.findUnique({
         where: { id: workOrderId },
         select: { number: true },
     })
+    if (!wo) throw new Error("Work Order tidak ditemukan")
 
-    // Generate PR number atomically (DocumentCounter — race-safe)
-    const now = new Date()
-    const prefix = `PR-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`
-    const prNumber = await getNextDocNumber(prisma, prefix, 4)
-
-    // Find employee record for the user
-    const employee = await prisma.employee.findFirst({
+    const requesterEmployee = await prisma.employee.findFirst({
         where: { email: user.email },
         select: { id: true },
     })
-    if (!employee) throw new Error("Employee record not found")
+    if (!requesterEmployee) throw new Error("Employee record tidak ditemukan")
 
-    const pr = await prisma.$transaction(async (tx) => {
-        const created = await tx.purchaseRequest.create({
+    // H15 — pakai withPrismaAuth bukan raw prisma.$transaction.
+    // withPrismaAuth runs the auth-context check that every other procurement
+    // write enforces.
+    const now = new Date()
+    const prefix = `PR-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`
+
+    const pr = await withPrismaAuth(async (tx) => {
+        const prNumber = await getNextDocNumber(tx, prefix, 4)
+        return await tx.purchaseRequest.create({
             data: {
                 number: prNumber,
                 status: "PENDING",
                 requestDate: now,
-                notes: `Auto-generated from Work Order ${wo?.number ?? workOrderId}`,
-                requesterId: employee.id,
+                notes: `Auto-generated from Work Order ${wo.number ?? workOrderId} [WO:${workOrderId}]`,
+                requesterId: requesterEmployee.id,
                 items: {
                     create: items.map((item) => ({
                         productId: item.materialId,
@@ -137,7 +159,6 @@ export async function createPRFromWorkOrder(
                 },
             },
         })
-        return created
     })
 
     revalidatePath("/procurement/requests")

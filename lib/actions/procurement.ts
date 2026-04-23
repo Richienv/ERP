@@ -1517,6 +1517,18 @@ export async function createVendor(data: {
             return { success: false, error: "Code and Name are required" }
         }
 
+        // Bank fields must be set as a complete triple — partial bank data
+        // (only account number with no bank name) silently breaks payment
+        // voucher generation later.
+        const bankFieldsCount = [data.bankName, data.bankAccountNumber, data.bankAccountName]
+            .filter((v) => v && v.trim().length > 0).length
+        if (bankFieldsCount > 0 && bankFieldsCount < 3) {
+            return {
+                success: false,
+                error: "Data bank harus diisi lengkap: Nama Bank, Nomor Rekening, dan Nama Pemilik Rekening (atau kosongkan ketiganya).",
+            }
+        }
+
         return await withPrismaAuth(async (prisma) => {
             const existing = await prisma.supplier.findUnique({
                 where: { code: data.code }
@@ -1938,10 +1950,30 @@ export async function updateVendor(
         return await withPrismaAuth(async (prisma) => {
             const existing = await prisma.supplier.findUnique({
                 where: { id },
-                select: { id: true },
+                select: {
+                    id: true,
+                    bankName: true,
+                    bankAccountNumber: true,
+                    bankAccountName: true,
+                },
             })
             if (!existing) {
                 return { success: false, error: "Vendor tidak ditemukan" }
+            }
+
+            // Bank fields must end up as a complete triple OR all empty.
+            // Compute the post-update value for each field (undefined = keep
+            // existing) and validate consistency.
+            const finalBankName = data.bankName !== undefined ? data.bankName : existing.bankName
+            const finalBankAccNum = data.bankAccountNumber !== undefined ? data.bankAccountNumber : existing.bankAccountNumber
+            const finalBankAccName = data.bankAccountName !== undefined ? data.bankAccountName : existing.bankAccountName
+            const bankFieldsCount = [finalBankName, finalBankAccNum, finalBankAccName]
+                .filter((v) => v && v.trim().length > 0).length
+            if (bankFieldsCount > 0 && bankFieldsCount < 3) {
+                return {
+                    success: false,
+                    error: "Data bank harus diisi lengkap: Nama Bank, Nomor Rekening, dan Nama Pemilik Rekening (atau kosongkan ketiganya).",
+                }
             }
 
             await prisma.supplier.update({
