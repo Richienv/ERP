@@ -538,7 +538,7 @@ export async function recordVendorPayment(data: {
             if (pphAmount > 0) {
                 const pphAccountCode = data.withholding
                     ? getPPhLiabilityAccount(data.withholding.type)
-                    : SYS_ACCOUNTS.PPH23_PAYABLE
+                    : SYS_ACCOUNTS.PPH_23_PAYABLE
                 const pphDesc = data.withholding
                     ? `PPh ${data.withholding.type === 'PPH_23' ? '23' : '4(2)'} - ${paymentNumber}`
                     : `PPh 23 dipotong (${data.whtRate ? (data.whtRate * 100).toFixed(1) : '?'}%)`

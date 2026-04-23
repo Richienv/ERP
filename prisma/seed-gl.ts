@@ -54,7 +54,6 @@ async function main() {
         { code: '2150', name: 'Barang Diterima / Faktur Belum Diterima', type: 'LIABILITY', isSystem: true },
         { code: '2200', name: 'Utang Gaji', type: 'LIABILITY', isSystem: true },
         { code: '2210', name: 'Overhead Manufaktur Dibebankan', type: 'LIABILITY', isSystem: true },
-        { code: '2220', name: 'Utang PPh 23', type: 'LIABILITY', isSystem: true },
         { code: '2230', name: 'Utang PPh 4(2)', type: 'LIABILITY', isSystem: true },
         { code: '2310', name: 'Utang PPh 21', type: 'LIABILITY', isSystem: true },
         { code: '2315', name: 'Utang PPh 23', type: 'LIABILITY', isSystem: true },

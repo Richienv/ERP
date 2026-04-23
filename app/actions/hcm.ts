@@ -434,7 +434,7 @@ async function resolvePayrollAccounts(): Promise<
         data: {
             expenseCode: SYS_ACCOUNTS.SALARY_EXPENSE,       // 6100 — Beban Gaji
             cashCode: SYS_ACCOUNTS.BANK_BCA,                // 1110 — Bank BCA (default)
-            taxCode: SYS_ACCOUNTS.PPH21_PAYABLE,            // 2310 — Utang PPh 21
+            taxCode: SYS_ACCOUNTS.PPH_21_PAYABLE,           // 2310 — Utang PPh 21
             bpjsTkCode: SYS_ACCOUNTS.BPJS_TK_PAYABLE,      // 2320 — Utang BPJS Ketenagakerjaan
             bpjsKesCode: SYS_ACCOUNTS.BPJS_KES_PAYABLE,    // 2330 — Utang BPJS Kesehatan
             payrollPayableCode: SYS_ACCOUNTS.SALARY_PAYABLE, // 2200 — Utang Gaji

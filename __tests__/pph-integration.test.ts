@@ -18,7 +18,7 @@ describe("PPh GL line construction", () => {
     const totalCredit = lines.reduce((s, l) => s + l.credit, 0)
     expect(totalDebit).toBe(totalCredit)
     expect(totalDebit).toBe(20_000_000)
-    expect(pphAccount).toBe("2220")
+    expect(pphAccount).toBe("2315")
   })
 
   it("AP payment with PPh 4(2) at 10%: balanced", () => {
@@ -71,10 +71,10 @@ describe("PPh GL line construction", () => {
     expect(totalDebit).toBe(totalCredit)
   })
 
-  it("PPh 21 payroll: liability account is 2210", () => {
+  it("PPh 21 payroll: liability account is 2310", () => {
     const pph21Account = getPPhLiabilityAccount("PPH_21")
-    expect(pph21Account).toBe("2210")
-    expect(SYS_ACCOUNTS.PPH_21_PAYABLE).toBe("2210")
+    expect(pph21Account).toBe("2310")
+    expect(SYS_ACCOUNTS.PPH_21_PAYABLE).toBe("2310")
   })
 
   it("no withholding: standard 2-line AP payment, balanced", () => {

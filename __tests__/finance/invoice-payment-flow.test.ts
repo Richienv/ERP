@@ -32,8 +32,8 @@ vi.mock("@/lib/gl-accounts-server", () => ({
         AR: "1200",
         AP: "2000",
         PPH_PREPAID: "1340",
-        PPH_21_PAYABLE: "2210",
-        PPH_23_PAYABLE: "2220",
+        PPH_21_PAYABLE: "2310",
+        PPH_23_PAYABLE: "2315",
         PPH_4_2_PAYABLE: "2230",
     },
     ensureSystemAccounts: vi.fn(),
@@ -43,9 +43,9 @@ vi.mock("@/lib/gl-accounts-server", () => ({
 
 vi.mock("@/lib/pph-helpers", () => ({
     getPPhLiabilityAccount: (type: string) => {
-        if (type === "PPH_21") return "2210"
+        if (type === "PPH_21") return "2310"
         if (type === "PPH_4_2") return "2230"
-        return "2220"
+        return "2315"
     },
 }))
 

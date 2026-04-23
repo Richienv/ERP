@@ -39,8 +39,8 @@ export const SYS_ACCOUNTS = {
 
   // --- Tax Liabilities ---
   PPN_KELUARAN:   "2110",  // Utang Pajak PPN/PPh (seed: 2110)
-  PPH_21_PAYABLE: "2210",  // Utang PPh 21 (employee payroll withholding)
-  PPH_23_PAYABLE: "2220",  // Utang PPh 23 (vendor service withholding)
+  PPH_21_PAYABLE: "2310",  // Utang PPh 21 (employee payroll withholding)
+  PPH_23_PAYABLE: "2315",  // Utang PPh 23 (vendor service withholding)
   PPH_4_2_PAYABLE: "2230", // Utang PPh 4(2) (final tax: rent, construction)
 
   // --- Deferred Revenue ---
@@ -52,8 +52,6 @@ export const SYS_ACCOUNTS = {
   // --- Payroll & Benefit Liabilities ---
   SALARY_PAYABLE:    "2200",  // Utang Gaji
   MFG_OVERHEAD_APPLIED: "2210", // Overhead Manufaktur Dibebankan
-  PPH21_PAYABLE:     "2310",  // Utang PPh 21
-  PPH23_PAYABLE:     "2315",  // Utang PPh 23
   BPJS_TK_PAYABLE:   "2320",  // Utang BPJS Ketenagakerjaan
   BPJS_KES_PAYABLE:  "2330",  // Utang BPJS Kesehatan
 

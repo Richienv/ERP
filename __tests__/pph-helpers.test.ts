@@ -107,11 +107,11 @@ describe("getFilingDeadline", () => {
 })
 
 describe("getPPhLiabilityAccount", () => {
-  it("returns 2210 for PPH_21", () => {
-    expect(getPPhLiabilityAccount("PPH_21")).toBe("2210")
+  it("returns 2310 for PPH_21", () => {
+    expect(getPPhLiabilityAccount("PPH_21")).toBe("2310")
   })
-  it("returns 2220 for PPH_23", () => {
-    expect(getPPhLiabilityAccount("PPH_23")).toBe("2220")
+  it("returns 2315 for PPH_23", () => {
+    expect(getPPhLiabilityAccount("PPH_23")).toBe("2315")
   })
   it("returns 2230 for PPH_4_2", () => {
     expect(getPPhLiabilityAccount("PPH_4_2")).toBe("2230")
