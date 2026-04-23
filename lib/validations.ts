@@ -22,6 +22,18 @@ export const createProductSchemaBase = z.object({
   barcode: z.string().optional(),
   costingMethod: z.enum(['AVERAGE', 'FIFO']).optional().default('AVERAGE'),
   expenseAccountCode: z.string().optional(),
+
+  // Mining edition: spare part / equipment fields (all optional)
+  serialNumber: z.string().max(100).optional().nullable(),
+  equipmentCompatibility: z.string().max(500).optional().nullable(),
+  equipmentType: z.enum([
+    'heavy_equipment',
+    'light_vehicle',
+    'spare_part',
+    'consumable',
+    'tool',
+    'raw_material',
+  ]).optional().nullable(),
 })
 
 // Product validation schema with refinements

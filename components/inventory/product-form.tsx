@@ -551,6 +551,81 @@ export function ProductForm({
             </CardContent>
           </Card>
 
+          {/* Mining-edition: Spare Part / Equipment fields (optional) */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Untuk Spare Part / Alat (Opsional)
+              </CardTitle>
+              <CardDescription>
+                Khusus untuk spare part, alat berat, atau kendaraan yang perlu tracking unit + kompatibilitas
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <FormField
+                control={form.control}
+                name="equipmentType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipe Alat</FormLabel>
+                    <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih tipe..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="heavy_equipment">Alat Berat</SelectItem>
+                        <SelectItem value="light_vehicle">Kendaraan Ringan</SelectItem>
+                        <SelectItem value="spare_part">Spare Part</SelectItem>
+                        <SelectItem value="consumable">Consumable (Oli, Filter)</SelectItem>
+                        <SelectItem value="tool">Peralatan / Tool</SelectItem>
+                        <SelectItem value="raw_material">Bahan Baku</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>Kategori untuk filter laporan</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="serialNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nomor Seri</FormLabel>
+                    <FormControl>
+                      <Input placeholder="SN-12345" {...field} value={field.value ?? ""} />
+                    </FormControl>
+                    <FormDescription>Untuk part trackable / unit kendaraan</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="equipmentCompatibility"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-1">
+                    <FormLabel>Kompatibel Untuk Alat</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Komatsu PC200, CAT 320D"
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormDescription>Pisahkan dengan koma</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+
           {/* Form Actions */}
           <div className="flex items-center justify-end space-x-4">
             {onCancel && (

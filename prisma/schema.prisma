@@ -225,12 +225,24 @@ model Product {
   barcode      String?
   isActive     Boolean     @default(true)
 
-  // Textile-specific fields
+  // Textile-specific fields (legacy — hidden in mining edition UI)
   color       String?
   size        String?
   weight      Decimal? @db.Decimal(10, 2) // kg per unit
   widthCm     Decimal? @db.Decimal(10, 2) // Width in cm (for fabrics)
   composition String? // e.g. "100% Cotton", "65/35 Poly/Cotton"
+
+  // Mining ecosystem fields (spare parts, heavy equipment, vehicles)
+  /// Trackable serial number for individual units (engine SN, BPKB number,
+  /// part SN). Optional — only meaningful for SERIALIZED inventory items.
+  serialNumber String?
+  /// Free-text equipment compatibility tags. Comma-separated.
+  /// E.g. "Komatsu PC200-8, CAT 320D, Hitachi ZX200".
+  /// Sales staff search by this when customer asks "filter for PC200".
+  equipmentCompatibility String?
+  /// Equipment category for filtering / report grouping.
+  /// Values: heavy_equipment, light_vehicle, spare_part, consumable, tool, raw_material.
+  equipmentType String?
 
   // Planning & Procurement (Advanced)
   leadTime       Int     @default(7) // Days

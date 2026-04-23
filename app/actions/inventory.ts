@@ -1745,6 +1745,10 @@ export async function createProduct(input: CreateProductInput) {
                     reorderLevel: data.reorderLevel ?? 0,
                     barcode: finalBarcode,
                     isActive: true,
+                    // Mining-edition fields
+                    serialNumber: data.serialNumber ?? null,
+                    equipmentCompatibility: data.equipmentCompatibility ?? null,
+                    equipmentType: data.equipmentType ?? null,
                 }
             })
         })
@@ -1879,6 +1883,9 @@ export async function updateProduct(productId: string, data: {
     maxStock?: number
     reorderLevel?: number
     barcode?: string
+    serialNumber?: string | null
+    equipmentCompatibility?: string | null
+    equipmentType?: string | null
 }) {
     try {
         const supabase = await createClient()
@@ -1895,6 +1902,10 @@ export async function updateProduct(productId: string, data: {
         if (data.maxStock !== undefined) updateData.maxStock = data.maxStock
         if (data.reorderLevel !== undefined) updateData.reorderLevel = data.reorderLevel
         if (data.barcode !== undefined) updateData.barcode = data.barcode || null
+        // Mining-edition fields
+        if (data.serialNumber !== undefined) updateData.serialNumber = data.serialNumber || null
+        if (data.equipmentCompatibility !== undefined) updateData.equipmentCompatibility = data.equipmentCompatibility || null
+        if (data.equipmentType !== undefined) updateData.equipmentType = data.equipmentType || null
 
         // Fetch old values for audit diff
         const oldProduct = await prisma.product.findUnique({
