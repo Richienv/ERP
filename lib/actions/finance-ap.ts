@@ -315,10 +315,12 @@ export async function approveVendorBill(billId: string) {
                 description: `Hutang - ${bill.supplier?.name}`
             })
 
-            // Post Journal Entry
+            // Post Journal Entry — use bill.issueDate (not today) for accrual
+            // basis: expense must land in the fiscal period of the bill, not the
+            // approval date.
             const glResult = await postJournalEntry({
                 description: `Bill Approval #${bill.number} - ${bill.supplier?.name}`,
-                date: new Date(),
+                date: bill.issueDate,
                 reference: bill.number,
                 lines: glLines
             })

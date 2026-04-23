@@ -476,7 +476,7 @@ export async function updateDraftInvoice(data: {
 
                 const subtotal = invoiceItems.reduce((sum, item) => sum + toNum(item.amount), 0)
                 const taxableAmount = subtotal - discount
-                const taxAmount = data.includeTax ? Math.round(taxableAmount * 0.11) : 0
+                const taxAmount = data.includeTax === true ? Math.round(taxableAmount * TAX_RATES.PPN) : 0
                 const totalAmount = taxableAmount + taxAmount
 
                 const updateData: any = { subtotal, taxAmount, discountAmount: discount, totalAmount, balanceDue: totalAmount }
@@ -514,7 +514,7 @@ export async function updateDraftInvoice(data: {
                     const subtotal = Number(existing?.subtotal || 0)
                     const disc = data.discountAmount ?? Number(existing?.discountAmount || 0)
                     const taxableAmount = subtotal - disc
-                    const taxAmount = (data.includeTax ?? true) ? Math.round(taxableAmount * 0.11) : 0
+                    const taxAmount = data.includeTax === true ? Math.round(taxableAmount * TAX_RATES.PPN) : 0
                     updateData.taxAmount = taxAmount
                     updateData.discountAmount = disc
                     updateData.totalAmount = taxableAmount + taxAmount
@@ -1596,7 +1596,7 @@ export async function createBillFromPR(
 
             const subtotal = invoiceItems.reduce((sum, item) => sum + item.amount, 0)
             const includeTax = options?.includeTax ?? false
-            const taxAmount = includeTax ? Math.round(subtotal * 0.11) : 0
+            const taxAmount = includeTax === true ? Math.round(subtotal * TAX_RATES.PPN) : 0
             const totalAmount = subtotal + taxAmount
 
             // Due date: NET 30

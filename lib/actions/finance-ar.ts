@@ -7,6 +7,7 @@ import { assertPeriodOpen } from "@/lib/period-helpers"
 import { type PPhTypeValue } from "@/lib/pph-helpers"
 import { toNum } from "@/lib/utils"
 import * as dueDateUtils from "@/lib/due-date-utils"
+import { TAX_RATES } from "@/lib/tax-rates"
 
 // ==========================================
 // BAD DEBT WRITE-OFF
@@ -22,6 +23,7 @@ import * as dueDateUtils from "@/lib/due-date-utils"
 export async function provisionBadDebt(data: {
     amount: number
     reason?: string
+    date?: Date
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
@@ -29,9 +31,10 @@ export async function provisionBadDebt(data: {
 
             await ensureSystemAccounts()
 
+            const provisionDate = data.date ?? new Date()
             const glResult = await postJournalEntry({
                 description: `Provisi Piutang Tak Tertagih: ${data.reason || 'Cadangan kerugian piutang'}`,
-                date: new Date(),
+                date: provisionDate,
                 reference: `PROV-BD-${Date.now()}`,
                 sourceDocumentType: 'BAD_DEBT_PROVISION',
                 lines: [
@@ -72,6 +75,7 @@ export async function writeOffBadDebt(data: {
     method: 'DIRECT' | 'ALLOWANCE'
     amount: number
     reason?: string
+    date?: Date
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
@@ -102,9 +106,10 @@ export async function writeOffBadDebt(data: {
                 ? `Hapus Buku Piutang (Langsung) - ${invoice.number}: ${data.reason || 'Piutang tak tertagih'}`
                 : `Hapus Buku Piutang (Cadangan) - ${invoice.number}: ${data.reason || 'Piutang tak tertagih'}`
 
+            const writeOffDate = data.date ?? new Date()
             const glResult = await postJournalEntry({
                 description,
-                date: new Date(),
+                date: writeOffDate,
                 reference: `WO-${invoice.number}`,
                 invoiceId: data.invoiceId,
                 sourceDocumentType: 'BAD_DEBT_WRITEOFF',
@@ -174,12 +179,13 @@ export async function createCreditNote(data: {
 
             // 2. Calculate Credit Amount
             const creditSubtotal = data.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0)
-            const creditTax = creditSubtotal * 0.11
+            const creditTax = creditSubtotal * TAX_RATES.PPN
             const creditTotal = creditSubtotal + creditTax
 
             // 3. Generate Credit Note Number
+            const noteDate = new Date()
             const count = await prisma.invoice.count({ where: { type: 'CREDIT_NOTE' } })
-            const year = new Date().getFullYear()
+            const year = noteDate.getFullYear()
             const number = `CN-${year}-${String(count + 1).padStart(4, '0')}`
 
             // 4. Create Credit Note — relation connect for Prisma 6
@@ -189,8 +195,8 @@ export async function createCreditNote(data: {
                     type: 'INV_OUT', // Credit notes are AR-side (INV_OUT with negative amounts)
                     ...(originalInvoice.customerId ? { customer: { connect: { id: originalInvoice.customerId } } } : {}),
                     status: 'ISSUED',
-                    issueDate: new Date(),
-                    dueDate: new Date(),
+                    issueDate: noteDate,
+                    dueDate: noteDate,
                     subtotal: -creditSubtotal,
                     taxAmount: -creditTax,
                     totalAmount: -creditTotal,
@@ -220,7 +226,7 @@ export async function createCreditNote(data: {
             await ensureSystemAccounts()
             await postJournalEntry({
                 description: `Credit Note for ${originalInvoice.number}: ${data.reason}`,
-                date: new Date(),
+                date: noteDate,
                 reference: creditNote.id,
                 lines: [
                     {

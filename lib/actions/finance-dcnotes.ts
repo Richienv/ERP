@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import type { DCNoteType, DCNoteStatus } from "@prisma/client"
 import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts-server"
 import { assertPeriodOpen } from "@/lib/period-helpers"
+import { TAX_RATES } from "@/lib/tax-rates"
 
 // ==========================================
 // AUTH HELPER (reads don't need withPrismaAuth)
@@ -649,7 +650,7 @@ export async function createDCNote(input: {
             // Calculate item amounts
             const itemsData = input.items.map(item => {
                 const amount = item.quantity * item.unitPrice
-                const ppnAmount = item.includePPN ? Math.round(amount * 0.11) : 0
+                const ppnAmount = item.includePPN ? Math.round(amount * TAX_RATES.PPN) : 0
                 const totalAmount = amount + ppnAmount
                 return {
                     productId: item.productId || null,
@@ -786,9 +787,11 @@ export async function postDCNote(id: string) {
             }
 
             // Create journal entry + update GL balances + update note status
+            // Period matching: use the note's issueDate, not "now" — backdated notes
+            // must land in the correct fiscal period for accurate P&L / balance sheet.
             const journalEntry = await prisma.journalEntry.create({
                 data: {
-                    date: new Date(),
+                    date: note.issueDate,
                     description: `${note.type === 'SALES_CN' ? 'Nota Kredit Penjualan' : note.type === 'SALES_DN' ? 'Nota Debit Penjualan' : note.type === 'PURCHASE_DN' ? 'Nota Debit Pembelian' : 'Nota Kredit Pembelian'} ${note.number}`,
                     reference: note.number,
                     status: 'POSTED',
