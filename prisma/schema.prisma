@@ -169,6 +169,7 @@ model Warehouse {
   transfersTo        StockTransfer[]        @relation("TransferTo")
   costLayers         CostLayer[]
   stockReservations  StockReservation[]
+  vehicles           Vehicle[] // mining edition: armada parked di warehouse ini
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -568,6 +569,7 @@ model Customer {
   salesOrders SalesOrder[]
   debitCreditNotes DebitCreditNote[]
   leads       Lead[]
+  vehicles    Vehicle[]         @relation("CustomerVehicles") // mining edition: customer-owned cars for service
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -3811,6 +3813,7 @@ model FixedAsset {
   depreciationSchedules FixedAssetDeprecSchedule[]
   depreciationEntries   FixedAssetDeprecEntry[]
   movements             FixedAssetMovement[]
+  vehicle               Vehicle? // mining edition: 1:1 link if asset is a vehicle
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3934,4 +3937,97 @@ model DocumentCounter {
 
   @@unique([prefix])
   @@map("document_counters")
+}
+
+// ============================================================================
+// Vehicle / Armada (Mining Edition)
+// ============================================================================
+//
+// Master data untuk armada: rental fleet, alat berat, kendaraan customer
+// (untuk service order). Optional 1:1 ke FixedAsset (untuk depresiasi
+// kendaraan owned). Optional ke Customer (untuk vehicle yang dimiliki
+// customer eksternal — service order saja).
+
+model Vehicle {
+  id           String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+
+  // Identification
+  plateNumber  String  @unique // e.g. "BD 1234 ABC"
+  vin          String?         // Vehicle Identification Number / chassis
+  engineNumber String?
+
+  // Make / model
+  brand   String  // Toyota, Mitsubishi, Komatsu
+  model   String  // Hilux Double Cabin 4x4, PC200-8
+  variant String? // 2.4L V Diesel, etc
+  year    Int
+  color   String?
+
+  // Documents (penting untuk compliance tambang)
+  bpkbNumber             String?
+  stnkNumber             String?
+  stnkExpiry             DateTime? @db.Date
+  kirNumber              String?   // Uji KIR (kendaraan niaga / tambang)
+  kirExpiry              DateTime? @db.Date
+  insurancePolicyNumber  String?
+  insuranceExpiry        DateTime? @db.Date
+  insurer                String?
+
+  // Operational
+  vehicleType     VehicleType   @default(LIGHT_VEHICLE)
+  status          VehicleStatus @default(AVAILABLE)
+  warehouseId     String?       @db.Uuid // Lokasi current
+  warehouse       Warehouse?    @relation(fields: [warehouseId], references: [id])
+  currentLocation String?       // Free-text override (e.g. "Site Tabang")
+
+  // Operational metrics (untuk maintenance scheduling)
+  odometer    Int?     // km — light vehicle
+  engineHours Decimal? @db.Decimal(10, 1) // jam kerja — heavy equipment
+
+  // Rental rates (kalau tersedia untuk disewakan)
+  dailyRate   Decimal? @db.Decimal(20, 2)
+  monthlyRate Decimal? @db.Decimal(20, 2)
+
+  // Linked records
+  /// FixedAsset link — kalau vehicle terdaftar sebagai aset perusahaan
+  /// (untuk depresiasi via FixedAsset module).
+  fixedAssetId String?     @unique @db.Uuid
+  fixedAsset   FixedAsset? @relation(fields: [fixedAssetId], references: [id])
+
+  /// Customer ownership — set kalau vehicle MILIK CUSTOMER (service order
+  /// untuk customer eksternal). NULL = milik perusahaan (rental fleet).
+  ownerCustomerId String?   @db.Uuid
+  ownerCustomer   Customer? @relation("CustomerVehicles", fields: [ownerCustomerId], references: [id])
+
+  // Notes
+  notes    String?
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([vehicleType])
+  @@index([ownerCustomerId])
+  @@index([warehouseId])
+  @@map("vehicles")
+}
+
+enum VehicleType {
+  LIGHT_VEHICLE   // Hilux DC, Triton, Pickup
+  HEAVY_EQUIPMENT // PC200, Bulldozer, Wheel Loader
+  TRUCK           // Dump truck, hauling truck
+  TRAILER         // Trailer, lowbed
+  MOTORCYCLE      // ATV / motor
+  OTHER
+}
+
+enum VehicleStatus {
+  AVAILABLE   // Siap untuk disewakan / digunakan
+  RENTED      // Sedang disewa customer
+  IN_SERVICE  // Sedang di workshop
+  RESERVED    // Booked tapi belum aktif
+  SOLD        // Sudah dijual
+  WRITTEN_OFF // Disposed / scrapped
+  INACTIVE    // Sementara tidak digunakan
 }

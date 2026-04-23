@@ -79,6 +79,8 @@ import {
   IconDatabaseExport,
   IconFileAnalytics,
   IconNotebook,
+  // Mining edition
+  IconPlus,
 } from "@tabler/icons-react"
 import type { Icon } from "@tabler/icons-react"
 
@@ -112,6 +114,17 @@ export const navMain: SidebarNavItem[] = [
     url: "/dashboard",
     icon: IconDashboard,
     moduleKey: "dashboard",
+  },
+  {
+    title: "Armada",
+    url: "/fleet",
+    icon: IconTruckDelivery,
+    accentColor: "bg-amber-700",
+    moduleKey: "fleet",
+    items: [
+      { title: "Daftar Armada", url: "/fleet", icon: IconLayoutDashboard },
+      { title: "Tambah Armada", url: "/fleet/new", icon: IconPlus },
+    ],
   },
   {
     title: "Inventori",

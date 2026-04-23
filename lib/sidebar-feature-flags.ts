@@ -13,6 +13,7 @@
 export const MODULE_FLAGS = {
     // ── CORE 4 + meta (always on for mining edition) ──
     dashboard: true,
+    fleet: true, // mining edition: armada master (kendaraan, alat berat)
     inventory: true,
     procurement: true,
     finance: true,
