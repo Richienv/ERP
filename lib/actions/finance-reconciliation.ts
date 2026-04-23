@@ -1718,6 +1718,14 @@ export async function closeReconciliation(
                 where: { id: reconciliationId },
                 include: { glAccount: { select: { code: true } } },
             })
+
+            // Idempotency guard: if already closed, return success without
+            // re-running auto-GL posting (would double-post bank charges /
+            // interest income on second click).
+            if (rec.status === 'REC_COMPLETED') {
+                return { success: true as const }
+            }
+
             const bankAccountCode = rec.glAccount.code
 
             // Find items classified as BANK_CHARGE or INTEREST_INCOME for auto-GL
