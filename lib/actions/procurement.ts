@@ -848,7 +848,11 @@ export async function convertPRToPO(prId: string, itemIds: string[], _creatorId?
                                 productId: i.productId,
                                 quantity: i.quantity,
                                 unitPrice: i.unitPrice,
-                                totalPrice: i.totalPrice
+                                totalPrice: i.totalPrice,
+                                // C1: traceability FK back to source PR item.
+                                // Partial unique index on this column blocks
+                                // double-conversion at the DB level.
+                                purchaseRequestItemId: i.prItemId,
                             }))
                         },
                         purchaseRequests: { connect: { id: prId } }
@@ -1064,6 +1068,30 @@ export async function cancelPurchaseOrder(id: string, reason: string) {
                     notes: reason ? `[DIBATALKAN] ${reason}` : '[DIBATALKAN]',
                 }
             })
+
+            // C1: when a PO is cancelled, release the PR-item link so the
+            // source PR items can be re-converted to a new PO. The partial
+            // unique index on (purchaseRequestItemId) would otherwise block
+            // future conversions. Read the linked PR item IDs FIRST, then
+            // reset both sides.
+            const cancelledPOItems = await prisma.purchaseOrderItem.findMany({
+                where: { purchaseOrderId: id, purchaseRequestItemId: { not: null } },
+                select: { purchaseRequestItemId: true },
+            })
+            const releasedPrItemIds = cancelledPOItems
+                .map((it) => it.purchaseRequestItemId)
+                .filter((v): v is string => Boolean(v))
+
+            if (releasedPrItemIds.length > 0) {
+                await prisma.purchaseOrderItem.updateMany({
+                    where: { purchaseOrderId: id, purchaseRequestItemId: { not: null } },
+                    data: { purchaseRequestItemId: null },
+                })
+                await prisma.purchaseRequestItem.updateMany({
+                    where: { id: { in: releasedPrItemIds }, status: 'PO_CREATED' },
+                    data: { status: 'PENDING' },
+                })
+            }
 
             await createPurchaseOrderEvent(prisma as any, {
                 purchaseOrderId: id,
@@ -1772,23 +1800,95 @@ export async function createPOFromTemplate(
  */
 export async function saveLandedCost(
     poId: string,
-    landedCostTotal: number
-): Promise<{ success: boolean; error?: string }> {
+    landedCostTotal: number,
+    allocations?: { poItemId: string; allocated: number; landedUnitCost: number }[],
+): Promise<{ success: boolean; error?: string; revaluationDelta?: number }> {
     if (landedCostTotal < 0) {
         return { success: false, error: 'Landed cost tidak boleh negatif' }
     }
 
     try {
-        await withPrismaAuth(async (prisma: PrismaClient) => {
+        // Post inventory revaluation for received stock so Inventory Asset
+        // tracks the true landed cost. Without per-item allocation we can
+        // only update the PO total (no revaluation possible — flag below).
+        const result = await withPrismaAuth(async (prisma: PrismaClient) => {
+            const po = await prisma.purchaseOrder.findUnique({
+                where: { id: poId },
+                select: { id: true, number: true, supplier: { select: { name: true } } },
+            })
+            if (!po) throw new Error('Purchase order tidak ditemukan')
+
             await prisma.purchaseOrder.update({
                 where: { id: poId },
                 data: { landedCostTotal },
             })
+
+            let totalRevaluationDelta = 0
+
+            if (allocations && allocations.length > 0) {
+                for (const alloc of allocations) {
+                    const poItem = await prisma.purchaseOrderItem.findUnique({
+                        where: { id: alloc.poItemId },
+                        include: { product: { select: { id: true, name: true } } },
+                    })
+                    if (!poItem) continue
+
+                    const oldUnitCost = Number(poItem.unitPrice)
+                    const newUnitCost = alloc.landedUnitCost
+                    const receivedQty = poItem.receivedQty ?? 0
+
+                    // Update PO item to reflect landed unit cost (qty stays, total recomputed)
+                    await prisma.purchaseOrderItem.update({
+                        where: { id: alloc.poItemId },
+                        data: {
+                            unitPrice: newUnitCost,
+                            totalPrice: newUnitCost * poItem.quantity,
+                        },
+                    })
+
+                    // Revaluation: only the portion already received affects
+                    // Inventory Asset on the books. Items not yet received will
+                    // be valued at landed cost when they're received later.
+                    if (receivedQty > 0 && newUnitCost !== oldUnitCost) {
+                        const delta = (newUnitCost - oldUnitCost) * receivedQty
+                        totalRevaluationDelta += delta
+
+                        const invTx = await prisma.inventoryTransaction.create({
+                            data: {
+                                productId: poItem.productId,
+                                warehouseId: (await prisma.stockLevel.findFirst({
+                                    where: { productId: poItem.productId, quantity: { gt: 0 } },
+                                    select: { warehouseId: true },
+                                }))?.warehouseId ?? "",
+                                type: "ADJUSTMENT",
+                                quantity: 0,
+                                unitCost: newUnitCost,
+                                totalValue: Math.abs(delta),
+                                purchaseOrderId: poId,
+                                notes: `Landed cost ${po.number}: ${oldUnitCost} → ${newUnitCost} × ${receivedQty} unit = ${delta >= 0 ? '+' : ''}${delta}`,
+                            },
+                        })
+
+                        await postInventoryGLEntry(prisma, {
+                            transactionId: invTx.id,
+                            type: delta > 0 ? "ADJUSTMENT_IN" : "ADJUSTMENT_OUT",
+                            productName: poItem.product?.name ?? poItem.productId,
+                            quantity: receivedQty,
+                            unitCost: newUnitCost,
+                            totalValue: Math.abs(delta),
+                            reference: `LANDED-${po.number}`,
+                            transactionDate: invTx.createdAt,
+                        })
+                    }
+                }
+            }
+
+            return { totalRevaluationDelta }
         })
 
         revalidateProcurementPaths()
 
-        return { success: true }
+        return { success: true, revaluationDelta: result.totalRevaluationDelta }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal menyimpan landed cost'
         console.error("[saveLandedCost] Error:", error)

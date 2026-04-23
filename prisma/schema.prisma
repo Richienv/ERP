@@ -1247,9 +1247,13 @@ model PurchaseOrderEvent {
 }
 
 model PurchaseOrderItem {
-  id              String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  purchaseOrderId String @db.Uuid
-  productId       String @db.Uuid
+  id              String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  purchaseOrderId String  @db.Uuid
+  productId       String  @db.Uuid
+  /// FK to the PR item this PO item satisfies. Enables tracing
+  /// "what PO served PR-00045 item #3?" and prevents double-conversion
+  /// via a partial unique index (migration 20260423120000_add_pr_item_fk).
+  purchaseRequestItemId String? @db.Uuid
 
   quantity    Int
   receivedQty Int     @default(0)
@@ -1257,14 +1261,16 @@ model PurchaseOrderItem {
   unitPrice   Decimal @db.Decimal(20, 2)
   totalPrice  Decimal @db.Decimal(20, 2)
 
-  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
-  product       Product       @relation(fields: [productId], references: [id])
-  grnItems      GRNItem[]
+  purchaseOrder       PurchaseOrder        @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product             Product              @relation(fields: [productId], references: [id])
+  purchaseRequestItem PurchaseRequestItem? @relation("PRItemToPOItems", fields: [purchaseRequestItemId], references: [id])
+  grnItems            GRNItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([productId])
+  @@index([purchaseRequestItemId])
   @@map("purchase_order_items")
 }
 
@@ -1282,6 +1288,10 @@ model PurchaseRequestItem {
   purchaseRequest   PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
   product           Product         @relation(fields: [productId], references: [id])
   preferredSupplier Supplier?       @relation("PRItemPreferredSupplier", fields: [preferredSupplierId], references: [id])
+  /// PO items that fulfill this PR item. Normally 0..1 (a PR item maps to
+  /// a single PO item); 0+ allowed for legacy data, but a partial unique
+  /// index in the migration enforces "at most 1 active mapping".
+  purchaseOrderItems PurchaseOrderItem[] @relation("PRItemToPOItems")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

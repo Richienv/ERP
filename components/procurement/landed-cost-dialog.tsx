@@ -34,7 +34,11 @@ interface LandedCostDialogProps {
     poNumber: string
     items: POItemForLandedCost[]
     currentLandedCost: number
-    onSave: (poId: string, landedCostTotal: number) => Promise<{ success: boolean; error?: string }>
+    onSave: (
+        poId: string,
+        landedCostTotal: number,
+        allocations: { poItemId: string; allocated: number; landedUnitCost: number }[],
+    ) => Promise<{ success: boolean; error?: string; revaluationDelta?: number }>
 }
 
 type AllocationMethod = 'BY_VALUE' | 'BY_QUANTITY' | 'BY_WEIGHT' | 'EQUAL'
@@ -174,11 +178,20 @@ export function LandedCostDialog({
             return
         }
         setLoading(true)
-        const result = await onSave(poId, totalLandedCost)
+        const allocations = allocation.map((a) => ({
+            poItemId: a.itemId,
+            allocated: a.allocated,
+            landedUnitCost: a.landedUnitCost,
+        }))
+        const result = await onSave(poId, totalLandedCost, allocations)
         setLoading(false)
 
         if (result.success) {
-            toast.success("Biaya landed berhasil disimpan")
+            const reval = result.revaluationDelta
+            const msg = reval && reval !== 0
+                ? `Biaya landed disimpan. Revaluasi inventory: ${reval > 0 ? '+' : ''}${reval.toLocaleString('id-ID')}`
+                : "Biaya landed berhasil disimpan"
+            toast.success(msg)
             setOpen(false)
         } else {
             toast.error(result.error || "Gagal menyimpan biaya landed")
