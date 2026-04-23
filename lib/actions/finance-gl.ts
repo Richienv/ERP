@@ -1593,6 +1593,30 @@ export async function postClosingJournal(fiscalYear: number): Promise<{
                 })
             }
 
+            // M7 — close all 12 fiscal periods of the year. After this, any
+            // back-dated transaction to this year throws via assertPeriodOpen.
+            // Adjustments require explicit re-open (separate admin action).
+            for (let month = 1; month <= 12; month++) {
+                const startDate = new Date(fiscalYear, month - 1, 1)
+                const endDate = new Date(fiscalYear, month, 0)
+                await prisma.fiscalPeriod.upsert({
+                    where: { year_month: { year: fiscalYear, month } },
+                    create: {
+                        year: fiscalYear,
+                        month,
+                        name: `${monthName(month)} ${fiscalYear}`,
+                        startDate,
+                        endDate,
+                        isClosed: true,
+                        closedAt: new Date(),
+                    },
+                    update: {
+                        isClosed: true,
+                        closedAt: new Date(),
+                    },
+                })
+            }
+
             return entry.id
         })
 
@@ -1600,6 +1624,43 @@ export async function postClosingJournal(fiscalYear: number): Promise<{
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal memposting jurnal penutup'
         console.error("[postClosingJournal] Error:", error)
+        return { success: false, error: msg }
+    }
+}
+
+/** Indonesian month names for FiscalPeriod.name display. */
+function monthName(month: number): string {
+    const names = [
+        "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+        "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+    ]
+    return names[month - 1] ?? String(month)
+}
+
+/**
+ * Re-open a fiscal year for prior-period adjustments. Admin-only action.
+ * Reverts all 12 months to isClosed=false. Note: the closing journal entry
+ * itself is NOT reversed — caller must explicitly reverse it via
+ * reverseJournalEntry() if they want to fully unwind the close.
+ */
+export async function reopenFiscalYear(fiscalYear: number): Promise<{
+    success: boolean
+    affectedPeriods?: number
+    error?: string
+}> {
+    try {
+        const result = await withPrismaAuth(async (prisma) => {
+            const updated = await prisma.fiscalPeriod.updateMany({
+                where: { year: fiscalYear, isClosed: true },
+                data: { isClosed: false, closedAt: null },
+            })
+            return updated.count
+        })
+
+        return { success: true, affectedPeriods: result }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal membuka tahun fiskal'
+        console.error("[reopenFiscalYear] Error:", error)
         return { success: false, error: msg }
     }
 }
