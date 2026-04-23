@@ -458,31 +458,38 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
             }
             console.log("[acceptGRN] GRN status → ACCEPTED")
 
-            // 3. Update PO item received quantities (with over-receive guard)
+            // 3. Update PO item received quantities — atomic over-receive guard.
+            // updateMany with WHERE constraint ensures two concurrent GRN
+            // acceptances cannot BOTH pass the check (prior fresh-read +
+            // in-memory + update pattern was racy).
             for (const grnItem of grn.items) {
-                // Fresh read inside TX to prevent race condition with concurrent GRN acceptances
-                const currentPoItem = await prisma.purchaseOrderItem.findUnique({
-                    where: { id: grnItem.poItemId }
-                })
-                if (currentPoItem) {
-                    const newTotal = currentPoItem.receivedQty + grnItem.quantityAccepted
-                    console.log("[acceptGRN] PO item", currentPoItem.id, "receivedQty=", currentPoItem.receivedQty, "+", grnItem.quantityAccepted, "= ", newTotal, "/ max=", currentPoItem.quantity)
-                    if (newTotal > currentPoItem.quantity) {
-                        throw new Error(
-                            `Jumlah penerimaan melebihi jumlah pesanan pada PO item ${currentPoItem.id}. ` +
-                            `Sudah diterima: ${currentPoItem.receivedQty}, akan ditambah: ${grnItem.quantityAccepted}, maks: ${currentPoItem.quantity}.`
-                        )
-                    }
-                }
-
-                await prisma.purchaseOrderItem.update({
+                const poItem = await prisma.purchaseOrderItem.findUnique({
                     where: { id: grnItem.poItemId },
-                    data: {
-                        receivedQty: {
-                            increment: grnItem.quantityAccepted
-                        }
-                    }
+                    select: { quantity: true, receivedQty: true },
                 })
+                if (!poItem) continue
+
+                const maxAdditional = poItem.quantity - poItem.receivedQty
+                const updated = await prisma.purchaseOrderItem.updateMany({
+                    where: {
+                        id: grnItem.poItemId,
+                        // Re-check at write time using the SAME ceiling: only
+                        // succeeds if no other tx has incremented in between.
+                        receivedQty: { lte: poItem.quantity - grnItem.quantityAccepted },
+                    },
+                    data: {
+                        receivedQty: { increment: grnItem.quantityAccepted },
+                    },
+                })
+
+                if (updated.count === 0) {
+                    throw new Error(
+                        `Jumlah penerimaan melebihi pesanan pada PO item ${grnItem.poItemId}. ` +
+                        `Maks bisa ditambah: ${maxAdditional}, mau ditambah: ${grnItem.quantityAccepted}. ` +
+                        `Mungkin GRN lain barusan diterima — refresh lalu coba lagi.`
+                    )
+                }
+                console.log("[acceptGRN] PO item", grnItem.poItemId, "+=", grnItem.quantityAccepted)
 
                 // 4. Create inventory transaction for each accepted item
                 if (grnItem.quantityAccepted > 0) {

@@ -101,14 +101,15 @@ export async function getReorderSuggestions(): Promise<ReorderSummary> {
             by: ['productId'],
             where: {
                 purchaseOrder: {
+                    // Only count POs actually committed to the supplier as
+                    // "in-transit" — PO_DRAFT / PENDING_APPROVAL / APPROVED
+                    // may never be sent and shouldn't suppress reorder.
                     status: {
                         in: [
-                            'PO_DRAFT',
-                            'PENDING_APPROVAL',
-                            'APPROVED',
                             'ORDERED',
                             'VENDOR_CONFIRMED',
                             'SHIPPED',
+                            'PARTIAL_RECEIVED',
                         ] as ProcurementStatus[],
                     },
                 },

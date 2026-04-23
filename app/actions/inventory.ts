@@ -2003,6 +2003,37 @@ export async function deleteProduct(productId: string) {
             return { success: false, error: "Tidak dapat menghapus produk yang masih memiliki stok" }
         }
 
+        // Check active StockReservation — material masih dipesan oleh WO
+        const activeReservation = await prisma.stockReservation.findFirst({
+            where: {
+                productId,
+                status: "ACTIVE",
+                reservedQty: { gt: 0 },
+            },
+            include: { workOrder: { select: { number: true } } },
+        })
+        if (activeReservation) {
+            return {
+                success: false,
+                error: `Tidak dapat menghapus produk: masih ada reservasi aktif untuk WO ${activeReservation.workOrder.number}`,
+            }
+        }
+
+        // Check active FabricRoll — fabric stok yang masih trackable
+        const activeRoll = await prisma.fabricRoll.findFirst({
+            where: {
+                productId,
+                status: { in: ["AVAILABLE", "RESERVED", "IN_USE"] },
+            },
+            select: { rollNumber: true },
+        })
+        if (activeRoll) {
+            return {
+                success: false,
+                error: `Tidak dapat menghapus produk: masih ada fabric roll aktif (${activeRoll.rollNumber})`,
+            }
+        }
+
         await prisma.product.update({
             where: { id: productId },
             data: { isActive: false },

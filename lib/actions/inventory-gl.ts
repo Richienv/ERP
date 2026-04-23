@@ -111,15 +111,14 @@ async function findGLAccount(
     return prisma.gLAccount.findFirst({ where })
 }
 
-/** Generate entry number: JV-INV-YYYYMMDD-XXXXXX (timestamp-based, collision-resistant) */
-function generateEntryNumber(): string {
+/** Generate entry number via atomic DocumentCounter — no collision under
+ * concurrent batch GRN acceptance (the old timestamp+random pattern could
+ * collide within the same millisecond). */
+async function generateEntryNumber(prismaTx: any): Promise<string> {
+    const { getNextDocNumber } = await import("@/lib/document-numbering")
     const now = new Date()
-    const y = now.getFullYear()
-    const m = String(now.getMonth() + 1).padStart(2, '0')
-    const d = String(now.getDate()).padStart(2, '0')
-    // Use millisecond timestamp + small random suffix for uniqueness
-    const ms = String(now.getTime() % 1000000).padStart(6, '0')
-    return `JV-INV-${y}${m}${d}-${ms}`
+    const yyyymmdd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
+    return getNextDocNumber(prismaTx, `JV-INV-${yyyymmdd}`, 6)
 }
 
 // ---- Main function ----
@@ -238,7 +237,7 @@ export async function postInventoryGLEntry(
     }
 
     const description = glDescription(type, productName, reference)
-    const entryNumber = generateEntryNumber()
+    const entryNumber = await generateEntryNumber(prisma)
 
     // Create JournalEntry + JournalLines
     await prisma.journalEntry.create({
