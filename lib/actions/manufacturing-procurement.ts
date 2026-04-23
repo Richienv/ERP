@@ -99,7 +99,11 @@ export async function detectWorkOrderShortages(workOrderId: string) {
 
 export async function createPRFromWorkOrder(
     workOrderId: string,
-    items: Array<{ materialId: string; qty: number; supplierId?: string }>
+    items: Array<{ materialId: string; qty: number; supplierId?: string }>,
+    /** M11: explicit requester override. If omitted, falls back to current
+     * authenticated user. Pass the WO's production-lead employee ID when the
+     * supervisor triggers "request shortage" on someone else's behalf. */
+    requesterEmployeeId?: string,
 ) {
     const user = await requireAuth()
 
@@ -119,21 +123,31 @@ export async function createPRFromWorkOrder(
         )
     }
 
-    // M11 deferred — WorkOrder model has no createdBy/owner field, so we
-    // fall back to the current user as requester. When WorkOrder.createdBy
-    // is added (TODO), look it up here so auto-PR shows the production lead
-    // not the supervisor who clicked "request shortage".
     const wo = await prisma.workOrder.findUnique({
         where: { id: workOrderId },
         select: { number: true },
     })
     if (!wo) throw new Error("Work Order tidak ditemukan")
 
-    const requesterEmployee = await prisma.employee.findFirst({
-        where: { email: user.email },
-        select: { id: true },
-    })
-    if (!requesterEmployee) throw new Error("Employee record tidak ditemukan")
+    // M11 — prefer caller-provided requesterEmployeeId (e.g. WO production
+    // lead) over the current user. Fall back to current user only if no
+    // override and the user has an employee record.
+    let requesterId: string
+    if (requesterEmployeeId) {
+        const explicit = await prisma.employee.findUnique({
+            where: { id: requesterEmployeeId },
+            select: { id: true },
+        })
+        if (!explicit) throw new Error(`Employee ${requesterEmployeeId} tidak ditemukan`)
+        requesterId = explicit.id
+    } else {
+        const fallback = await prisma.employee.findFirst({
+            where: { email: user.email },
+            select: { id: true },
+        })
+        if (!fallback) throw new Error("Employee record tidak ditemukan")
+        requesterId = fallback.id
+    }
 
     // H15 — pakai withPrismaAuth bukan raw prisma.$transaction.
     // withPrismaAuth runs the auth-context check that every other procurement
@@ -149,7 +163,7 @@ export async function createPRFromWorkOrder(
                 status: "PENDING",
                 requestDate: now,
                 notes: `Auto-generated from Work Order ${wo.number ?? workOrderId} [WO:${workOrderId}]`,
-                requesterId: requesterEmployee.id,
+                requesterId,
                 items: {
                     create: items.map((item) => ({
                         productId: item.materialId,
