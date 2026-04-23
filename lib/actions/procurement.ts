@@ -8,6 +8,8 @@ import { assertRole, getAuthzUser } from "@/lib/authz"
 import { assertPOTransition } from "@/lib/po-state-machine"
 import { canApproveForDepartment, resolveEmployeeContext } from "@/lib/employee-context"
 import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
+import { ensureSystemAccounts } from "@/lib/gl-accounts-server"
+import { postJournalEntry } from "@/lib/actions/finance-gl"
 import { assertPeriodOpen } from "@/lib/period-helpers"
 import { TAX_RATES } from "@/lib/tax-rates"
 import { getNextDocNumber } from "@/lib/document-numbering"
@@ -2410,15 +2412,25 @@ export async function createPurchaseReturn(input: CreatePurchaseReturnInput) {
                 }
             })
 
-            // Update stock level
-            const stockLevel = await (tx as any).stockLevel.findFirst({
-                where: { productId: item.productId, warehouseId }
+            // Update stock level — atomic guard prevents negative stock and
+            // requires the row to exist (silent no-op was an audit finding).
+            const stockUpdated = await (tx as any).stockLevel.updateMany({
+                where: {
+                    productId: item.productId,
+                    warehouseId,
+                    locationId: null,
+                    quantity: { gte: item.quantity },
+                },
+                data: {
+                    quantity: { decrement: item.quantity },
+                    availableQty: { decrement: item.quantity },
+                },
             })
-            if (stockLevel) {
-                await (tx as any).stockLevel.update({
-                    where: { id: stockLevel.id },
-                    data: { quantity: { decrement: item.quantity } }
-                })
+            if (stockUpdated.count === 0) {
+                throw new Error(
+                    `Stok tidak mencukupi untuk retur ${item.quantity} unit ` +
+                    `produk ${item.productId} di gudang ${warehouseId}.`
+                )
             }
 
             // Update PO item returnedQty
@@ -2428,57 +2440,41 @@ export async function createPurchaseReturn(input: CreatePurchaseReturnInput) {
             })
         }
 
-        // 3. Create GL journal entry: DR Accounts Payable, CR Inventory
-        const apAccount = await (tx as any).gLAccount.findFirst({
-            where: { code: SYS_ACCOUNTS.AP } // Accounts Payable
-        })
-        const inventoryAccount = await (tx as any).gLAccount.findFirst({
-            where: { code: SYS_ACCOUNTS.INVENTORY_ASSET } // Inventory
-        })
-
-        if (apAccount && inventoryAccount) {
-            const journalEntry = await (tx as any).journalEntry.create({
-                data: {
-                    date: new Date(),
-                    description: `Retur pembelian — ${po.number} → ${po.supplier?.name}`,
-                    reference: noteNumber,
-                    status: 'POSTED' as any,
-                    purchaseOrderId,
-                    lines: {
-                        create: [
-                            {
-                                accountId: apAccount.id,
-                                description: `Retur barang ke supplier — ${po.number}`,
-                                debit: totalAmount,
-                                credit: 0,
-                            },
-                            {
-                                accountId: inventoryAccount.id,
-                                description: `Pengurangan stok — retur ${po.number}`,
-                                debit: 0,
-                                credit: totalAmount,
-                            }
-                        ]
-                    }
-                }
-            })
-
-            // Link journal entry to DC note
-            await (tx as any).debitCreditNote.update({
-                where: { id: dcNote.id },
-                data: { journalEntryId: journalEntry.id }
-            })
-
-            // Update GL balances
-            await (tx as any).gLAccount.update({
-                where: { id: apAccount.id },
-                data: { balance: { decrement: totalAmount } }
-            })
-            await (tx as any).gLAccount.update({
-                where: { id: inventoryAccount.id },
-                data: { balance: { decrement: totalAmount } }
-            })
+        // 3. Post GL journal entry via canonical helper.
+        // Correct accounting (mirror of original purchase):
+        //   DR Hutang Usaha (AP)            totalAmount   ← release liability
+        //   CR Persediaan (Inventory)        subtotal      ← reduce stock asset
+        //   CR PPN Masukan (1330)            ppnAmount     ← reverse input VAT
+        // (Previously: credited Inventory by totalAmount and never reversed
+        //  PPN Masukan — over-credited Inventory and over-claimed VAT to tax
+        //  authority. Also silently skipped if accounts missing → orphan stock.)
+        await ensureSystemAccounts()
+        const returnDate = new Date()
+        const glLines: { accountCode: string; debit: number; credit: number; description?: string }[] = [
+            { accountCode: SYS_ACCOUNTS.AP, debit: totalAmount, credit: 0, description: `Retur barang ke ${po.supplier?.name} — ${po.number}` },
+            { accountCode: SYS_ACCOUNTS.INVENTORY_ASSET, debit: 0, credit: subtotal, description: `Pengurangan persediaan — retur ${po.number}` },
+        ]
+        if (ppnAmount > 0) {
+            glLines.push({ accountCode: SYS_ACCOUNTS.PPN_MASUKAN, debit: 0, credit: ppnAmount, description: `Pembalikan PPN Masukan — retur ${po.number}` })
         }
+
+        const glResult = await postJournalEntry({
+            description: `Retur pembelian — ${po.number} → ${po.supplier?.name}`,
+            date: returnDate,
+            reference: noteNumber,
+            sourceDocumentType: 'PURCHASE_RETURN',
+            lines: glLines,
+        }, tx)
+
+        if (!glResult?.success) {
+            throw new Error(`Jurnal retur gagal: ${(glResult as any)?.error || 'Unknown'}`)
+        }
+
+        // Link journal entry to DC note
+        await (tx as any).debitCreditNote.update({
+            where: { id: dcNote.id },
+            data: { journalEntryId: (glResult as any).id ?? null }
+        })
 
         // 4. Update invoice balance if linked
         if (po.invoices?.[0]) {
