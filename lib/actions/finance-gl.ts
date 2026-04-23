@@ -233,6 +233,7 @@ async function postJournalEntryInner(prisma: any, data: {
     reference: string
     invoiceId?: string
     paymentId?: string
+    inventoryTransactionId?: string
     sourceDocumentType?: string
     lines: { accountCode: string; debit: number; credit: number; description?: string }[]
 }) {
@@ -264,6 +265,7 @@ async function postJournalEntryInner(prisma: any, data: {
             status: 'POSTED',
             ...(data.invoiceId ? { invoice: { connect: { id: data.invoiceId } } } : {}),
             ...(data.paymentId ? { payment: { connect: { id: data.paymentId } } } : {}),
+            ...(data.inventoryTransactionId ? { inventoryTransaction: { connect: { id: data.inventoryTransactionId } } } : {}),
             lines: {
                 create: data.lines.map((line: any) => {
                     const account = accountMap.get(line.accountCode)
@@ -310,6 +312,7 @@ export async function postJournalEntry(data: {
     reference: string
     invoiceId?: string
     paymentId?: string
+    inventoryTransactionId?: string
     sourceDocumentType?: string // e.g. 'MANUAL', 'INVOICE', 'PAYMENT', 'GRN', 'COGS_RECOGNITION', etc.
     lines: {
         accountCode: string
