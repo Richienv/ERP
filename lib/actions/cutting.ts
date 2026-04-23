@@ -384,6 +384,32 @@ export async function addCutPlanLayer(data: {
                 },
             })
 
+            // Decrement StockLevel so the inventory invariant holds:
+            //   SUM(InventoryTransaction.quantity) === StockLevel.quantity
+            // Without this, the stock page over-reports by the cut meters.
+            // TODO(H10): StockLevel.quantity is Int while metersUsed is Decimal —
+            // round here as an interim until StockLevel is migrated to Decimal.
+            const cutInt = Math.round(data.metersUsed)
+            if (cutInt > 0) {
+                const stockUpdated = await prisma.stockLevel.updateMany({
+                    where: {
+                        productId: roll.product.id,
+                        warehouseId: roll.warehouseId,
+                        locationId: null,
+                        quantity: { gte: cutInt },
+                    },
+                    data: {
+                        quantity: { decrement: cutInt },
+                        availableQty: { decrement: cutInt },
+                    },
+                })
+                if (stockUpdated.count === 0) {
+                    throw new Error(
+                        `Stok kain tidak mencukupi untuk dipotong ${cutInt}m (rolls hanya ditemukan tanpa cukup saldo).`
+                    )
+                }
+            }
+
             // Post GL entry: DR WIP, CR Raw Materials
             // BLOCKING: GL failure rolls back the entire cut plan layer transaction
             if (totalValue > 0) {

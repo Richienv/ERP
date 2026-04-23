@@ -536,23 +536,21 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
                     }
 
                     // 6. Post GL entry: DR Inventory Asset (1300) / CR GR/IR Clearing (2150)
+                    // BLOCKING: if GL posting fails, the surrounding $transaction
+                    // rolls back the GRN status update + stock writes too. Better
+                    // to fail loudly than to leave Inventory Asset out of sync
+                    // with stock on the books.
                     const productName = grnItem.product?.name || grnItem.productId.slice(0, 8)
-                    try {
-                        await postInventoryGLEntry(prisma, {
-                            transactionId: invTx.id,
-                            type: 'PO_RECEIVE',
-                            productName,
-                            quantity: grnItem.quantityAccepted,
-                            unitCost,
-                            totalValue,
-                            reference: grn.number,
-                        })
-                        console.log("[acceptGRN] GL entry posted OK")
-                    } catch (glErr: any) {
-                        console.error("[acceptGRN] GL entry FAILED (non-blocking):", glErr.message)
-                        // Don't let missing GL accounts block GRN acceptance.
-                        // Stock update is already done; GL can be reconciled later.
-                    }
+                    await postInventoryGLEntry(prisma, {
+                        transactionId: invTx.id,
+                        type: 'PO_RECEIVE',
+                        productName,
+                        quantity: grnItem.quantityAccepted,
+                        unitCost,
+                        totalValue,
+                        reference: grn.number,
+                    })
+                    console.log("[acceptGRN] GL entry posted OK")
                 }
             }
 

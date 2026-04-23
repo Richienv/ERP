@@ -4,10 +4,7 @@ import { prisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { postInventoryGLEntry } from "@/lib/actions/inventory-gl"
-import {
-  calculateBOMRequirements,
-  calculateReservationDelta,
-} from "@/lib/reservation-helpers"
+import { calculateBOMRequirements } from "@/lib/reservation-helpers"
 
 // ---------------------------------------------------------------------------
 // Auth helper (read-only pattern — no withPrismaAuth needed for queries)
@@ -99,6 +96,20 @@ export async function reserveStockForWorkOrder(
       // Find the BOM item to get material name
       const bomItem = bomItems.find((bi) => bi.materialId === req.materialId)!
 
+      // Read existing reservation for this (WO, product, warehouse) so we can
+      // compute the *delta* — re-reserving must not double-decrement
+      // availableQty.
+      const existingReservation = await tx.stockReservation.findUnique({
+        where: {
+          workOrderId_productId_warehouseId: {
+            workOrderId,
+            productId: req.materialId,
+            warehouseId,
+          },
+        },
+      })
+      const oldReservedQty = existingReservation?.reservedQty ?? 0
+
       // Get current stock level for this product+warehouse
       const stockLevel = await tx.stockLevel.findFirst({
         where: {
@@ -109,8 +120,12 @@ export async function reserveStockForWorkOrder(
       })
 
       const availableQty = stockLevel?.availableQty ?? 0
-      const reservedQty = Math.min(req.requiredQty, availableQty)
+      // True free = currently available + amount already reserved by THIS WO
+      // (we can re-allocate our own slice without "borrowing" from others).
+      const trueFreeQty = availableQty + oldReservedQty
+      const reservedQty = Math.min(req.requiredQty, trueFreeQty)
       const shortfall = Math.max(0, req.requiredQty - reservedQty)
+      const delta = reservedQty - oldReservedQty
 
       // Upsert reservation (unique on workOrderId+productId+warehouseId)
       const reservation = await tx.stockReservation.upsert({
@@ -129,19 +144,18 @@ export async function reserveStockForWorkOrder(
           status: "ACTIVE",
         },
         update: {
-          // If re-reserving, add difference. For simplicity, reset to new amount.
           reservedQty,
           status: "ACTIVE",
         },
       })
 
-      // Decrement available qty in stock level
-      if (reservedQty > 0 && stockLevel) {
+      // Apply only the delta — positive = reserve more, negative = release some.
+      if (delta !== 0 && stockLevel) {
         await tx.stockLevel.update({
           where: { id: stockLevel.id },
           data: {
-            availableQty: { decrement: reservedQty },
-            reservedQty: { increment: reservedQty },
+            availableQty: { decrement: delta },
+            reservedQty: { increment: delta },
           },
         })
       }

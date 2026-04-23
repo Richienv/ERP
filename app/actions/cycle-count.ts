@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
+import { postInventoryGLEntry } from "@/lib/actions/inventory-gl"
 
 async function requireAuth() {
     const supabase = await createClient()
@@ -172,6 +173,9 @@ export async function finalizeCycleCount(sessionId: string): Promise<{
 
                 adjustmentCount++
 
+                // Pure delta update — concurrent-safe. If stock moved between
+                // the count and finalization, we still apply only the variance
+                // we measured rather than overwriting absolute quantity.
                 await tx.stockLevel.updateMany({
                     where: {
                         productId: item.productId,
@@ -179,12 +183,15 @@ export async function finalizeCycleCount(sessionId: string): Promise<{
                         locationId: null,
                     },
                     data: {
-                        quantity: item.actualQty!,
+                        quantity: { increment: variance },
                         availableQty: { increment: variance },
                     },
                 })
 
-                await tx.inventoryTransaction.create({
+                const unitCost = Number(item.product.costPrice ?? 0)
+                const totalValue = Math.abs(variance) * unitCost
+
+                const invTx = await tx.inventoryTransaction.create({
                     data: {
                         productId: item.productId,
                         warehouseId: session.warehouseId,
@@ -195,6 +202,19 @@ export async function finalizeCycleCount(sessionId: string): Promise<{
                         performedBy: user.id,
                         notes: `Stok Opname: selisih ${variance > 0 ? "+" : ""}${variance}`,
                     },
+                })
+
+                // GL: variance > 0 → DR Inventory Asset, CR Penyesuaian (gain)
+                //     variance < 0 → DR Penyesuaian (loss), CR Inventory Asset
+                // Skip if costPrice = 0 (postInventoryGLEntry no-ops on totalValue ≤ 0)
+                await postInventoryGLEntry(tx, {
+                    transactionId: invTx.id,
+                    type: variance > 0 ? "ADJUSTMENT_IN" : "ADJUSTMENT_OUT",
+                    productName: `Stok Opname ${session.id.slice(0, 8)}`,
+                    quantity: Math.abs(variance),
+                    unitCost,
+                    totalValue,
+                    reference: `CC-${session.id.slice(0, 8)}`,
                 })
             }
 
