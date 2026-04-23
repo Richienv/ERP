@@ -817,7 +817,7 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
                 assets: assets.totalAssets,
                 liabilitiesAndEquity: totalLiabilitiesAndEquity,
                 difference: Math.round((assets.totalAssets - totalLiabilitiesAndEquity) * 100) / 100,
-                isBalanced: Math.abs(assets.totalAssets - totalLiabilitiesAndEquity) < 1
+                isBalanced: Math.abs(assets.totalAssets - totalLiabilitiesAndEquity) < 0.01
             },
             asOfDate: date.toISOString()
         }
@@ -1074,7 +1074,7 @@ export async function getCashFlowStatement(startDate?: Date | string, endDate?: 
         const netChange = netCashFromOperating + netCashFromInvesting + netCashFromFinancing
         const calculatedClosing = openingCash + netChange
         const difference = Math.abs(calculatedClosing - closingCash)
-        const isBalanced = difference < 1  // Rp 1 tolerance for rounding
+        const isBalanced = difference < 0.01  // Rp 0.01 tolerance — match trial-balance and balance-sheet checks
 
         return {
             operatingActivities: {
