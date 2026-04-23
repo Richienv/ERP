@@ -456,6 +456,7 @@ export async function createFixedAsset(data: FixedAssetInput) {
                 description: `Perolehan aset tetap ${asset.name} (${assetCode})`,
                 date: new Date(data.capitalizationDate || data.purchaseDate),
                 reference: `FA-${assetCode}-OPENING`,
+                sourceDocumentType: 'FIXED_ASSET_ACQUISITION',
                 lines: [
                     { accountCode: assetAccountCode, debit: data.purchaseCost, credit: 0, description: `Perolehan ${asset.name}` },
                     { accountCode: offset.code, debit: 0, credit: data.purchaseCost, description: `Pembayaran perolehan ${asset.name}` },
@@ -590,6 +591,7 @@ export async function backfillAssetToGL(assetId: string) {
                 description: `Saldo awal aset tetap ${asset.name} (${asset.assetCode})`,
                 date: new Date(asset.capitalizationDate),
                 reference,
+                sourceDocumentType: 'FIXED_ASSET_OPENING',
                 lines,
             }, prisma)
             if (!glResult?.success) {
@@ -887,6 +889,7 @@ export async function postDepreciationRun(periodStart: string, periodEnd: string
                             description: `Penyusutan ${assetInfo.name} (${assetInfo.assetCode}) - ${periodStart} s/d ${periodEnd}`,
                             date: end,
                             reference: `DEP-${run.id.substring(0, 8)}`,
+                            sourceDocumentType: 'FIXED_ASSET_DEPRECIATION',
                             lines: [
                                 { accountCode: depExpAccount.code, debit: entry.depreciationAmount, credit: 0, description: `Beban penyusutan - ${assetInfo.name}` },
                                 { accountCode: accDepAccount.code, debit: 0, credit: entry.depreciationAmount, description: `Akumulasi penyusutan - ${assetInfo.name}` },
@@ -1211,6 +1214,7 @@ export async function createAssetMovement(data: MovementInput) {
                             description: `${data.type === "SALE" ? "Penjualan" : data.type === "WRITE_OFF" ? "Hapus buku" : "Penghapusan"} aset ${asset.name} (${asset.assetCode})`,
                             date: movementDate,
                             reference: `FA-${data.type}-${asset.assetCode}`,
+                            sourceDocumentType: 'FIXED_ASSET_DISPOSAL',
                             lines: glLines,
                         })
                         if (glResult?.success && (glResult as any).id) {

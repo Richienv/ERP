@@ -84,44 +84,49 @@ export async function topUpPettyCash(data: {
     const currentBalance = latest ? Number(latest.balanceAfter) : 0
     const newBalance = currentBalance + data.amount
 
-    // Post GL first: DR Petty Cash, CR Bank — if this fails, no transaction is created
+    // Atomic: GL posting + petty cash record creation in one DB transaction.
+    // If the transaction create fails after the journal posts, the entire
+    // operation rolls back — no orphan JournalEntry without a matching
+    // PettyCashTransaction.
     const now = new Date()
-    const tempRef = `PETTY-TOPUP-${Date.now()}`
-    const journalResult = await postJournalEntry({
-        description: `Top Up Peti Kas — ${data.description}`,
-        date: now,
-        reference: tempRef,
-        lines: [
-            { accountCode: SYS_ACCOUNTS.PETTY_CASH, debit: data.amount, credit: 0, description: "Top up peti kas" },
-            { accountCode: data.bankAccountCode, debit: 0, credit: data.amount, description: "Transfer ke peti kas" },
-        ],
+    await basePrisma.$transaction(async (tx) => {
+        const tempRef = `PETTY-TOPUP-${Date.now()}`
+        const journalResult = await postJournalEntry({
+            description: `Top Up Peti Kas — ${data.description}`,
+            date: now,
+            reference: tempRef,
+            sourceDocumentType: 'PETTY_CASH',
+            lines: [
+                { accountCode: SYS_ACCOUNTS.PETTY_CASH, debit: data.amount, credit: 0, description: "Top up peti kas" },
+                { accountCode: data.bankAccountCode, debit: 0, credit: data.amount, description: "Transfer ke peti kas" },
+            ],
+        }, tx)
+
+        if (!journalResult?.success) {
+            const errMsg = 'error' in (journalResult ?? {}) ? (journalResult as any).error : "Gagal posting jurnal untuk top up peti kas"
+            throw new Error(errMsg)
+        }
+
+        const journalId = 'id' in journalResult ? journalResult.id : undefined
+
+        const pcTx = await tx.pettyCashTransaction.create({
+            data: {
+                type: "TOPUP",
+                amount: data.amount,
+                description: data.description || "Top up dari bank",
+                bankAccountId: bankAccount.id,
+                balanceAfter: newBalance,
+                journalEntryId: journalId ?? undefined,
+            },
+        })
+
+        if (journalId) {
+            await tx.journalEntry.update({
+                where: { id: journalId },
+                data: { reference: `PETTY-${pcTx.id.slice(0, 8).toUpperCase()}` },
+            })
+        }
     })
-
-    if (!journalResult?.success) {
-        const errMsg = 'error' in (journalResult ?? {}) ? (journalResult as any).error : "Gagal posting jurnal untuk top up peti kas"
-        throw new Error(errMsg)
-    }
-
-    const journalId = 'id' in journalResult ? journalResult.id : undefined
-
-    const tx = await basePrisma.pettyCashTransaction.create({
-        data: {
-            type: "TOPUP",
-            amount: data.amount,
-            description: data.description || "Top up dari bank",
-            bankAccountId: bankAccount.id,
-            balanceAfter: newBalance,
-            journalEntryId: journalId ?? undefined,
-        },
-    })
-
-    // Update reference to include actual tx ID
-    if (journalId) {
-        await basePrisma.journalEntry.update({
-            where: { id: journalId },
-            data: { reference: `PETTY-${tx.id.slice(0, 8).toUpperCase()}` },
-        }).catch(() => {})
-    }
 
     return { success: true as const }
 }
@@ -149,44 +154,53 @@ export async function disbursePettyCash(data: {
 
     const newBalance = currentBalance - data.amount
 
-    // Post GL first: DR Expense, CR Petty Cash — if this fails, no transaction is created
+    // Atomic: GL posting + petty cash record creation in one DB transaction.
+    // If the transaction create fails after the journal posts, the entire
+    // operation rolls back — no orphan JournalEntry without a matching
+    // PettyCashTransaction.
     const now = new Date()
-    const tempRef = `PETTY-DISB-${Date.now()}`
-    const journalResult = await postJournalEntry({
-        description: `Pengeluaran Peti Kas — ${data.recipientName}: ${data.description}`,
-        date: now,
-        reference: tempRef,
-        lines: [
-            { accountCode: data.expenseAccountCode, debit: data.amount, credit: 0, description: `${data.recipientName}: ${data.description}` },
-            { accountCode: SYS_ACCOUNTS.PETTY_CASH, debit: 0, credit: data.amount, description: "Pengeluaran peti kas" },
-        ],
-    })
+    try {
+        await basePrisma.$transaction(async (tx) => {
+            const tempRef = `PETTY-DISB-${Date.now()}`
+            const journalResult = await postJournalEntry({
+                description: `Pengeluaran Peti Kas — ${data.recipientName}: ${data.description}`,
+                date: now,
+                reference: tempRef,
+                sourceDocumentType: 'PETTY_CASH',
+                lines: [
+                    { accountCode: data.expenseAccountCode, debit: data.amount, credit: 0, description: `${data.recipientName}: ${data.description}` },
+                    { accountCode: SYS_ACCOUNTS.PETTY_CASH, debit: 0, credit: data.amount, description: "Pengeluaran peti kas" },
+                ],
+            }, tx)
 
-    if (!journalResult?.success) {
-        const errMsg = 'error' in (journalResult ?? {}) ? (journalResult as any).error : "Gagal posting jurnal untuk pengeluaran peti kas"
-        return { success: false as const, error: errMsg }
-    }
+            if (!journalResult?.success) {
+                const errMsg = 'error' in (journalResult ?? {}) ? (journalResult as any).error : "Gagal posting jurnal untuk pengeluaran peti kas"
+                throw new Error(errMsg)
+            }
 
-    const journalId = 'id' in journalResult ? journalResult.id : undefined
+            const journalId = 'id' in journalResult ? journalResult.id : undefined
 
-    const tx = await basePrisma.pettyCashTransaction.create({
-        data: {
-            type: "DISBURSEMENT",
-            amount: data.amount,
-            recipientName: data.recipientName,
-            description: data.description,
-            expenseAccountId: expenseAccount.id,
-            balanceAfter: newBalance,
-            journalEntryId: journalId ?? undefined,
-        },
-    })
+            const pcTx = await tx.pettyCashTransaction.create({
+                data: {
+                    type: "DISBURSEMENT",
+                    amount: data.amount,
+                    recipientName: data.recipientName,
+                    description: data.description,
+                    expenseAccountId: expenseAccount.id,
+                    balanceAfter: newBalance,
+                    journalEntryId: journalId ?? undefined,
+                },
+            })
 
-    // Update reference to include actual tx ID
-    if (journalId) {
-        await basePrisma.journalEntry.update({
-            where: { id: journalId },
-            data: { reference: `PETTY-${tx.id.slice(0, 8).toUpperCase()}` },
-        }).catch(() => {})
+            if (journalId) {
+                await tx.journalEntry.update({
+                    where: { id: journalId },
+                    data: { reference: `PETTY-${pcTx.id.slice(0, 8).toUpperCase()}` },
+                })
+            }
+        })
+    } catch (error: any) {
+        return { success: false as const, error: error?.message || "Gagal mencatat pengeluaran peti kas" }
     }
 
     return { success: true as const }

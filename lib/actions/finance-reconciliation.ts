@@ -1358,20 +1358,19 @@ export async function bulkConfirmCocokItems(
                 .map(i => i.systemTransactionId)
                 .filter((id): id is string => id !== null)
 
+            // Atomic with item updateMany above — if stamp fails, the whole
+            // tx rolls back so we never end up with CONFIRMED items whose
+            // JEs report as "unreconciled".
             if (journalIds.length > 0) {
-                try {
-                    await prisma.journalEntry.updateMany({
-                        where: { id: { in: journalIds } },
-                        data: {
-                            isReconciled: true,
-                            reconciledAt: now,
-                            reconciledBy: user?.id ?? null,
-                            reconciliationId,
-                        },
-                    })
-                } catch (stampErr) {
-                    console.warn("[bulkConfirmCocokItems] Journal stamp write failed (non-blocking):", stampErr)
-                }
+                await prisma.journalEntry.updateMany({
+                    where: { id: { in: journalIds } },
+                    data: {
+                        isReconciled: true,
+                        reconciledAt: now,
+                        reconciledBy: user?.id ?? null,
+                        reconciliationId,
+                    },
+                })
             }
 
             return { confirmed: cocokItems.length }

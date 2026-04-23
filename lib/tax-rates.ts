@@ -21,6 +21,12 @@ export const TAX_RATES = {
 
   /** PPh 23 (Withholding Tax on services) — 2% standard */
   PPH23: 0.02,
+
+  /** PPh 4(2) Final — Construction services — 2.5% */
+  PPH_4_2_CONSTRUCTION: 0.025,
+
+  /** PPh 4(2) Final — Rent of land/building — 10% */
+  PPH_4_2_RENT: 0.10,
 } as const
 
 /**
@@ -32,4 +38,6 @@ export const TAX_PERCENT = {
   CORPORATE: 22,
   PPH21_BASE: 5,
   PPH23: 2,
+  PPH_4_2_CONSTRUCTION: 2.5,
+  PPH_4_2_RENT: 10,
 } as const

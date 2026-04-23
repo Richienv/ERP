@@ -25,7 +25,18 @@ export async function assertPeriodOpen(date: Date): Promise<void> {
     } catch (error: any) {
         // Re-throw if the period is genuinely closed (our own error)
         if (error?.message?.includes("Periode fiskal")) throw error
-        // Gracefully skip if table doesn't exist (no migration yet) or DB error
-        console.warn("[assertPeriodOpen] Skipping fiscal period check:", error?.message)
+
+        // Only swallow Prisma "table/record missing" errors — these mean the
+        // FiscalPeriod feature hasn't been migrated/used yet, so we treat the
+        // period as open. Any other error (connection failure, timeout,
+        // permission) MUST propagate so callers don't silently allow
+        // back-dated transactions during an infra outage.
+        const code = error?.code
+        if (code === "P2021" || code === "P2025") {
+            console.warn("[assertPeriodOpen] FiscalPeriod table/record missing — treating period as open:", error?.message)
+            return
+        }
+
+        throw error
     }
 }
