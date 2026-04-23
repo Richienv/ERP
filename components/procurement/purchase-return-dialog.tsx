@@ -16,6 +16,7 @@ import { toast } from "sonner"
 import { getReturnablePurchaseOrders, createPurchaseReturn } from "@/lib/actions/procurement"
 import { NB } from "@/lib/dialog-styles"
 import { queryKeys } from "@/lib/query-keys"
+import { TAX_RATES, TAX_PERCENT } from "@/lib/tax-rates"
 import { formatIDR } from "@/lib/utils"
 import {
     NBDialog,
@@ -338,7 +339,7 @@ export function PurchaseReturnDialog({ warehouses }: Props) {
                                                 {formatIDR(totalReturn)}
                                             </div>
                                             <div className="text-[10px] text-zinc-400 font-medium">
-                                                + PPN 11% = {formatIDR(Math.round(totalReturn * 1.11))}
+                                                + PPN {TAX_PERCENT.PPN}% = {formatIDR(Math.round(totalReturn * (1 + TAX_RATES.PPN)))}
                                             </div>
                                         </div>
                                     </div>

@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
+import { getNextDocNumber } from "@/lib/document-numbering"
 
 async function requireAuth() {
     const supabase = await createClient()
@@ -41,12 +42,14 @@ export async function detectWorkOrderShortages(workOrderId: string) {
     })
     const stockMap = new Map(stockLevels.map((s) => [s.productId, s._sum.availableQty ?? 0]))
 
-    // Get on-order quantities from active POs
+    // Get on-order quantities — only count POs actually committed to vendor
+    // (DRAFT/PENDING_APPROVAL/APPROVED may never be sent and shouldn't suppress
+    // genuine material shortages).
     const poItems = await prisma.purchaseOrderItem.findMany({
         where: {
             productId: { in: materialIds },
             purchaseOrder: {
-                status: { in: ["ORDERED", "VENDOR_CONFIRMED", "SHIPPED", "PARTIAL_RECEIVED", "APPROVED", "PENDING_APPROVAL"] },
+                status: { in: ["ORDERED", "VENDOR_CONFIRMED", "SHIPPED", "PARTIAL_RECEIVED"] },
             },
         },
         select: { productId: true, quantity: true, receivedQty: true },
@@ -105,15 +108,10 @@ export async function createPRFromWorkOrder(
         select: { number: true },
     })
 
-    // Generate PR number
+    // Generate PR number atomically (DocumentCounter — race-safe)
     const now = new Date()
     const prefix = `PR-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`
-    const lastPR = await prisma.purchaseRequest.findFirst({
-        where: { number: { startsWith: prefix } },
-        orderBy: { number: "desc" },
-    })
-    const seq = lastPR ? parseInt(lastPR.number.slice(-4)) + 1 : 1
-    const prNumber = `${prefix}-${String(seq).padStart(4, "0")}`
+    const prNumber = await getNextDocNumber(prisma, prefix, 4)
 
     // Find employee record for the user
     const employee = await prisma.employee.findFirst({

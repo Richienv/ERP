@@ -3,6 +3,7 @@
 import { prisma, withPrismaAuth } from "@/lib/db"
 import { PrismaClient, ProcurementStatus } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
+import { getNextDocNumber } from "@/lib/document-numbering"
 // Pure functions moved to helper file for "use server" compatibility
 import {
     calculateDaysOfStock,
@@ -290,11 +291,11 @@ export async function createAutoReorderPR(
                 openPOMap.set(item.productId, item._sum.quantity || 0)
             }
 
-            // Generate PR number
+            // Generate PR number atomically (was: prCount over ALL PRs without
+            // prefix filter — would conflict the moment year/month rolls).
             const now = new Date()
             const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`
-            const prCount = await prisma.purchaseRequest.count()
-            const prNumber = `PR-${yearMonth}-${String(prCount + 1).padStart(4, '0')}`
+            const prNumber = await getNextDocNumber(prisma, `PR-${yearMonth}`, 4)
 
             // Calculate quantities and create PR
             const prItems = products.map((p) => {

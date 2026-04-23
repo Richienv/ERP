@@ -71,6 +71,10 @@ describe("createPurchaseRequest", () => {
         count: vi.fn().mockResolvedValue(0),
         create: vi.fn().mockResolvedValue({ id: "pr-1" }),
       },
+      // DocumentCounter — used by getNextDocNumber for atomic numbering
+      documentCounter: {
+        upsert: vi.fn().mockResolvedValue({ value: 1 }),
+      },
     }
 
     withPrismaAuthMock.mockImplementation(async (operation: (prisma: any) => Promise<any>) => {
@@ -93,7 +97,8 @@ describe("createPurchaseRequest", () => {
     })
 
     expect(result).toEqual({ success: true, prId: "pr-1" })
-    expect(txLikeClient.purchaseRequest.count).toHaveBeenCalledOnce()
+    // count() no longer called — replaced by atomic DocumentCounter upsert
+    expect(txLikeClient.documentCounter.upsert).toHaveBeenCalledOnce()
     expect(txLikeClient.purchaseRequest.create).toHaveBeenCalledOnce()
     expect("$transaction" in txLikeClient).toBe(false)
   })

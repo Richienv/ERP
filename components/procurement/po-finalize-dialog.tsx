@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/nb-dialog"
 import { getPODetails } from "@/app/actions/purchase-order"
 import { updatePurchaseOrderVendor, submitPOForApproval } from "@/lib/actions/procurement"
+import { TAX_RATES } from "@/lib/tax-rates"
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
 
@@ -114,7 +115,7 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors, initialOrder 
     const displayApprover = poData?.approver || (initialOrder as any)?.approver || '-'
 
     const subtotal = poData?.subtotal ?? poData?.items?.reduce((acc: number, item: any) => acc + item.totalPrice, 0) ?? 0
-    const tax = poData?.taxAmount ?? Math.round(subtotal * 0.11)
+    const tax = poData?.taxAmount ?? Math.round(subtotal * TAX_RATES.PPN)
     const total = poData?.netAmount ?? (subtotal + tax)
 
     const hasHeaderData = !!poData || !!initialOrder

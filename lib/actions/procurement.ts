@@ -9,11 +9,27 @@ import { assertPOTransition } from "@/lib/po-state-machine"
 import { canApproveForDepartment, resolveEmployeeContext } from "@/lib/employee-context"
 import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
 import { assertPeriodOpen } from "@/lib/period-helpers"
+import { TAX_RATES } from "@/lib/tax-rates"
+import { getNextDocNumber } from "@/lib/document-numbering"
+import { revalidatePath } from "next/cache"
 
 const PURCHASING_ROLES = ["ROLE_PURCHASING", "ROLE_ADMIN", "ROLE_CEO", "ROLE_DIRECTOR"]
 const APPROVER_ROLES = ["ROLE_CEO", "ROLE_DIRECTOR", "ROLE_ADMIN", "ROLE_MANAGER"]
 const PR_APPROVER_ROLES = ["ROLE_MANAGER", "ROLE_CEO", "ROLE_DIRECTOR", "ROLE_PURCHASING", "ROLE_ADMIN"]
 const REQUESTER_OVERRIDE_ROLES = ["ROLE_ADMIN", "ROLE_CEO", "ROLE_DIRECTOR"]
+
+/** Invalidate every page that displays procurement, inventory, or finance
+ * state derived from a PO/PR mutation. Call after any write action. */
+function revalidateProcurementPaths() {
+    revalidatePath("/procurement")
+    revalidatePath("/procurement/orders")
+    revalidatePath("/procurement/requests")
+    revalidatePath("/procurement/receiving")
+    revalidatePath("/inventory")
+    revalidatePath("/inventory/stock")
+    revalidatePath("/finance")
+    revalidatePath("/dashboard")
+}
 
 type ProcurementRegistryQueryInput = {
     status?: string | null
@@ -506,10 +522,7 @@ export async function createPurchaseRequest(data: {
             const year = now.getFullYear()
             const month = String(now.getMonth() + 1).padStart(2, "0")
             const prefix = `PR-${year}${month}`
-            const count = await prisma.purchaseRequest.count({
-                where: { number: { startsWith: prefix } }
-            })
-            const number = `${prefix}-${String(count + 1).padStart(4, "0")}`
+            const number = await getNextDocNumber(prisma, prefix, 4)
 
             const pr = await prisma.purchaseRequest.create({
                 data: {
@@ -535,6 +548,8 @@ export async function createPurchaseRequest(data: {
 
             return pr
         })
+
+        revalidateProcurementPaths()
 
         return { success: true, prId: created.id }
     } catch (e: any) {
@@ -591,6 +606,8 @@ export async function approvePurchaseRequest(id: string, _approverId?: string) {
                 }
             })
         })
+        revalidateProcurementPaths()
+
         return { success: true }
     } catch (error) {
         console.error("Error approving PR:", error)
@@ -710,6 +727,8 @@ export async function rejectPurchaseRequest(id: string, reason: string) {
                 }
             })
         })
+        revalidateProcurementPaths()
+
         return { success: true }
     } catch (error) {
         console.error("Error rejecting PR:", error)
@@ -797,18 +816,14 @@ export async function convertPRToPO(prId: string, itemIds: string[], _creatorId?
             const poYear = poNow.getFullYear()
             const poMonth = String(poNow.getMonth() + 1).padStart(2, '0')
             const poPrefix = `PO-${poYear}${poMonth}`
-            let poCount = await prisma.purchaseOrder.count({
-                where: { number: { startsWith: poPrefix } }
-            })
 
             const createdPOIds: string[] = []
 
             for (const [supplierId, groupData] of poMap.entries()) {
-                poCount++
-                const poNumber = `${poPrefix}-${String(poCount).padStart(4, '0')}`
+                const poNumber = await getNextDocNumber(prisma, poPrefix, 4)
 
                 const subtotal = groupData.items.reduce((sum: number, i: any) => sum + i.totalPrice, 0)
-                const taxAmount = Math.round(subtotal * 0.11)
+                const taxAmount = Math.round(subtotal * TAX_RATES.PPN)
                 const netAmount = subtotal + taxAmount
 
                 const po = await prisma.purchaseOrder.create({
@@ -900,6 +915,8 @@ export async function submitPOForApproval(poId: string) {
             })
         })
 
+        revalidateProcurementPaths()
+
         return { success: true }
     } catch (error) {
         return { success: false, error: (error as any)?.message || "Submit failed" }
@@ -942,6 +959,8 @@ export async function approvePurchaseOrder(poId: string, _approverId?: string) {
         // TRIGGER FINANCE (Bill Creation)
         await recordPendingBillFromPO(po)
 
+        revalidateProcurementPaths()
+
         return { success: true }
     } catch (error) {
         console.error("Approval Error:", error)
@@ -979,6 +998,8 @@ export async function rejectPurchaseOrder(poId: string, reason: string) {
                 metadata: { source: "MANUAL_ENTRY" },
             })
         })
+
+        revalidateProcurementPaths()
 
         return { success: true }
     } catch (error) {
@@ -1078,6 +1099,8 @@ export async function markAsOrdered(poId: string) {
             })
         })
 
+        revalidateProcurementPaths()
+
         return { success: true }
     } catch (error) {
         return { success: false, error: (error as any)?.message || "Update failed" }
@@ -1114,6 +1137,8 @@ export async function markAsVendorConfirmed(poId: string, notes?: string) {
             })
         })
 
+        revalidateProcurementPaths()
+
         return { success: true }
     } catch (error) {
         return { success: false, error: (error as any)?.message || "Update failed" }
@@ -1148,6 +1173,8 @@ export async function markAsShipped(poId: string, trackingNumber?: string) {
                 metadata: { source: "MANUAL_ENTRY", trackingNumber },
             })
         })
+
+        revalidateProcurementPaths()
 
         return { success: true }
     } catch (error) {
@@ -1202,6 +1229,8 @@ export async function confirmPurchaseOrder(id: string) {
         } catch (billError) {
             console.warn("[Auto-AP] Bill check failed (PO still completed):", billError)
         }
+
+        revalidateProcurementPaths()
 
         return { success: true }
 
@@ -1292,6 +1321,8 @@ export async function updatePurchaseOrderVendor(poId: string, supplierId: string
             })
         })
 
+        revalidateProcurementPaths()
+
         return { success: true }
     } catch (error) {
         console.error("Error updating PO Vendor:", error)
@@ -1319,7 +1350,7 @@ export async function updatePurchaseOrderTaxMode(poId: string, taxMode: "PPN" | 
             if (po.status !== "PO_DRAFT") throw new Error("Tax can only be changed while PO is draft")
 
             const subtotal = po.items.reduce((sum, item) => sum + Number(item.totalPrice || 0), 0)
-            const taxAmount = taxMode === "PPN" ? Math.round(subtotal * 0.11) : 0
+            const taxAmount = taxMode === "PPN" ? Math.round(subtotal * TAX_RATES.PPN) : 0
             const netAmount = subtotal + taxAmount
 
             await prisma.purchaseOrder.update({
@@ -1344,6 +1375,8 @@ export async function updatePurchaseOrderTaxMode(poId: string, taxMode: "PPN" | 
                 },
             })
         })
+
+        revalidateProcurementPaths()
 
         return { success: true }
     } catch (error) {
@@ -1528,6 +1561,8 @@ export async function savePOAsTemplate(
             })
         })
 
+        revalidateProcurementPaths()
+
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal menyimpan template'
@@ -1625,17 +1660,14 @@ export async function createPOFromTemplate(
             const { data: { user } } = await supabase.auth.getUser()
             if (!user) throw new Error('Tidak terautentikasi')
 
-            // Generate PO number
+            // Generate PO number atomically
             const date = new Date()
             const year = date.getFullYear()
             const month = String(date.getMonth() + 1).padStart(2, '0')
-            const poCount = await prisma.purchaseOrder.count({
-                where: { number: { startsWith: `PO-${year}${month}` } }
-            })
-            const poNumber = `PO-${year}${month}-${String(poCount + 1).padStart(4, '0')}`
+            const poNumber = await getNextDocNumber(prisma, `PO-${year}${month}`, 4)
 
             const subtotal = template.items.reduce((s: number, i: { totalPrice: unknown }) => s + Number(i.totalPrice), 0)
-            const taxAmount = Math.round(subtotal * 0.11)
+            const taxAmount = Math.round(subtotal * TAX_RATES.PPN)
             const netAmount = subtotal + taxAmount
 
             const po = await prisma.purchaseOrder.create({
@@ -1670,6 +1702,8 @@ export async function createPOFromTemplate(
             return po.id
         })
 
+        revalidateProcurementPaths()
+
         return { success: true, poId }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal membuat PO dari template'
@@ -1700,6 +1734,8 @@ export async function saveLandedCost(
                 data: { landedCostTotal },
             })
         })
+
+        revalidateProcurementPaths()
 
         return { success: true }
     } catch (error) {
@@ -2001,12 +2037,9 @@ export async function createDirectPurchase(input: DirectPurchaseInput) {
             const year = now.getFullYear()
             const month = String(now.getMonth() + 1).padStart(2, '0')
 
-            // ─── 1. Generate PO number ───
+            // ─── 1. Generate PO number atomically ───
             const poPrefix = `PO-${year}${month}`
-            const poCount = await prisma.purchaseOrder.count({
-                where: { number: { startsWith: poPrefix } }
-            })
-            const poNumber = `${poPrefix}-${String(poCount + 1).padStart(4, '0')}`
+            const poNumber = await getNextDocNumber(prisma, poPrefix, 4)
 
             // ─── 2. Calculate totals ───
             const poItems = input.items.map(item => ({
@@ -2016,7 +2049,7 @@ export async function createDirectPurchase(input: DirectPurchaseInput) {
                 totalPrice: item.quantity * item.unitPrice,
             }))
             const subtotal = poItems.reduce((sum, i) => sum + i.totalPrice, 0)
-            const taxAmount = Math.round(subtotal * 0.11)
+            const taxAmount = Math.round(subtotal * TAX_RATES.PPN)
             const netAmount = subtotal + taxAmount
 
             // ─── 3. Create PO (COMPLETED) ───
@@ -2056,12 +2089,9 @@ export async function createDirectPurchase(input: DirectPurchaseInput) {
                 }
             })
 
-            // ─── 5. Generate GRN number & create GRN (ACCEPTED) ───
+            // ─── 5. Generate GRN number atomically & create GRN (ACCEPTED) ───
             const grnPrefix = `SJM-${year}${month}`
-            const grnCount = await pAny.goodsReceivedNote.count({
-                where: { number: { startsWith: grnPrefix } }
-            })
-            const grnNumber = `${grnPrefix}-${String(grnCount + 1).padStart(4, '0')}`
+            const grnNumber = await getNextDocNumber(pAny, grnPrefix, 4)
 
             const grn = await pAny.goodsReceivedNote.create({
                 data: {
@@ -2134,12 +2164,9 @@ export async function createDirectPurchase(input: DirectPurchaseInput) {
                 }
             }
 
-            // ─── 7. Create vendor bill (INV_IN, DRAFT) ───
+            // ─── 7. Create vendor bill (INV_IN, DRAFT) atomically ───
             const billPrefix = `BILL-${year}`
-            const billCount = await prisma.invoice.count({
-                where: { type: 'INV_IN', number: { startsWith: billPrefix } }
-            })
-            const billNumber = `${billPrefix}-${String(billCount + 1).padStart(4, '0')}`
+            const billNumber = await getNextDocNumber(prisma, billPrefix, 4)
 
             const bill = await prisma.invoice.create({
                 data: {
@@ -2210,6 +2237,8 @@ export async function createDirectPurchase(input: DirectPurchaseInput) {
                 glWarning: `Pembelian berhasil dicatat, tetapi jurnal GL gagal: ${glError?.message || 'Akun GL tidak ditemukan'}`,
             }
         }
+
+        revalidateProcurementPaths()
 
         return { success: true, ...result }
     } catch (error: any) {
@@ -2327,12 +2356,11 @@ export async function createPurchaseReturn(input: CreatePurchaseReturnInput) {
             subtotal += item.quantity * item.unitPrice
         }
 
-        const ppnAmount = Math.round(subtotal * 0.11)
+        const ppnAmount = Math.round(subtotal * TAX_RATES.PPN)
         const totalAmount = subtotal + ppnAmount
 
-        // 1. Create DebitCreditNote (PURCHASE_DN — buyer issues debit note to reduce AP)
-        const noteCount = await (tx as any).debitCreditNote.count()
-        const noteNumber = `DN-${String(noteCount + 1).padStart(5, "0")}`
+        // 1. Create DebitCreditNote (PURCHASE_DN — buyer issues debit note to reduce AP) atomically
+        const noteNumber = await getNextDocNumber(tx, "DN", 5)
 
         const dcNote = await (tx as any).debitCreditNote.create({
             data: {
@@ -2358,8 +2386,8 @@ export async function createPurchaseReturn(input: CreatePurchaseReturnInput) {
                         quantity: item.quantity,
                         unitPrice: item.unitPrice,
                         amount: item.quantity * item.unitPrice,
-                        ppnAmount: Math.round(item.quantity * item.unitPrice * 0.11),
-                        totalAmount: Math.round(item.quantity * item.unitPrice * 1.11),
+                        ppnAmount: Math.round(item.quantity * item.unitPrice * TAX_RATES.PPN),
+                        totalAmount: Math.round(item.quantity * item.unitPrice * (1 + TAX_RATES.PPN)),
                     }))
                 }
             }

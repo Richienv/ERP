@@ -16,6 +16,7 @@ import { toast } from "sonner"
 import { NB } from "@/lib/dialog-styles"
 import { queryKeys } from "@/lib/query-keys"
 import { createDirectPurchase } from "@/lib/actions/procurement"
+import { TAX_RATES } from "@/lib/tax-rates"
 import { formatIDR } from "@/lib/utils"
 import {
     NBDialog,
@@ -111,7 +112,7 @@ export function DirectPurchaseDialog({ vendors, products, warehouses, trigger }:
     }
 
     const subtotal = items.reduce((sum, i) => sum + (i.quantity * i.unitPrice), 0)
-    const taxAmount = Math.round(subtotal * 0.11)
+    const taxAmount = Math.round(subtotal * TAX_RATES.PPN)
     const total = subtotal + taxAmount
 
     const handleSubmit = async () => {
