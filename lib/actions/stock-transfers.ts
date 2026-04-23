@@ -135,9 +135,10 @@ export async function createStockTransfer(data: {
         }
 
         const transferId = await withPrismaAuth(async (tx: PrismaClient) => {
-            // Generate transfer number
-            const count = await tx.stockTransfer.count()
-            const number = `TRF-${String(count + 1).padStart(5, '0')}`
+            // Generate transfer number via atomic DocumentCounter upsert —
+            // races between concurrent createTransfer calls are impossible.
+            const { getNextDocNumber } = await import("@/lib/document-numbering")
+            const number = await getNextDocNumber(tx, "TRF")
 
             const transfer = await tx.stockTransfer.create({
                 data: {

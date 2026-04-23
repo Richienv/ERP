@@ -271,15 +271,15 @@ export async function createGRN(data: CreateGRNInput) {
         const grn = await withPrismaAuth(async (prisma) => {
             const prismaAny = prisma as any
 
-            // Generate GRN number INSIDE transaction to prevent race conditions
+            // Generate GRN number INSIDE transaction. Uses DocumentCounter
+            // upsert so two concurrent acceptGRNs cannot collide on the same
+            // sequence value (the old count+1 pattern would race).
+            const { getNextDocNumber } = await import("@/lib/document-numbering")
             const now = new Date()
             const year = now.getFullYear()
             const month = String(now.getMonth() + 1).padStart(2, '0')
             const prefix = `SJM-${year}${month}`
-            const count = await prismaAny.goodsReceivedNote.count({
-                where: { number: { startsWith: prefix } }
-            })
-            const number = `${prefix}-${String(count + 1).padStart(4, '0')}`
+            const number = await getNextDocNumber(prismaAny, prefix, 4)
 
             const po = await prismaAny.purchaseOrder.findUnique({
                 where: { id: data.purchaseOrderId },

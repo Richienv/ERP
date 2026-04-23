@@ -3872,3 +3872,21 @@ model FixedAssetMovement {
   @@index([type])
   @@map("fixed_asset_movements")
 }
+
+// ============================================================================
+// Document Numbering
+// ============================================================================
+
+/// Atomic per-prefix counter for generating sequential document numbers
+/// (GRN, Stock Transfer, Invoice, etc.) without count()+1 race conditions.
+/// Use via lib/document-numbering.ts → getNextDocNumber(tx, prefix).
+model DocumentCounter {
+  id     String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  prefix String
+  value  Int    @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([prefix])
+  @@map("document_counters")
+}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { createClient } from "@/lib/supabase/server"
+import { postInventoryGLEntry } from "@/lib/actions/inventory-gl"
 
 interface PriceUpdate {
     productId: string
@@ -62,7 +63,11 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // Perform all updates in a single transaction
+        // Perform all updates + inventory revaluation in a single interactive
+        // transaction. For every product whose costPrice changes AND has stock
+        // on hand, post a GL entry so Inventory Asset on the balance sheet
+        // tracks the new valuation. Without this, costPrice silently mutates
+        // while the ledger keeps the old value — Inventory Asset drifts.
         const changeLog: Array<{
             productId: string
             productCode: string
@@ -71,14 +76,19 @@ export async function POST(request: NextRequest) {
             newCostPrice: number
             oldSellingPrice: number | null
             newSellingPrice: number | null
+            totalStockQty: number
+            revaluationDelta: number
             changedBy: string
             changedAt: string
         }> = []
 
-        await prisma.$transaction(
-            validUpdates.map((update) => {
+        await prisma.$transaction(async (tx) => {
+            for (const update of validUpdates) {
                 const existing = existingMap.get(update.productId)!
                 const data: Record<string, number> = {}
+
+                const oldCost = Number(existing.costPrice)
+                const newCost = update.newCostPrice ?? oldCost
 
                 if (update.newCostPrice !== null && update.newCostPrice !== undefined) {
                     data.costPrice = update.newCostPrice
@@ -87,24 +97,69 @@ export async function POST(request: NextRequest) {
                     data.sellingPrice = update.newSellingPrice
                 }
 
+                await tx.product.update({
+                    where: { id: update.productId },
+                    data,
+                })
+
+                // Compute revaluation only when costPrice actually changes
+                let totalStockQty = 0
+                let revaluationDelta = 0
+                if (newCost !== oldCost) {
+                    const stockAgg = await tx.stockLevel.aggregate({
+                        where: { productId: update.productId },
+                        _sum: { quantity: true },
+                    })
+                    totalStockQty = stockAgg._sum.quantity ?? 0
+
+                    if (totalStockQty > 0) {
+                        revaluationDelta = (newCost - oldCost) * totalStockQty
+
+                        // Audit trail: record revaluation as an InventoryTransaction
+                        // (qty: 0, totalValue: |delta|) so it shows in movements.
+                        const invTx = await tx.inventoryTransaction.create({
+                            data: {
+                                productId: update.productId,
+                                warehouseId: (await tx.stockLevel.findFirst({
+                                    where: { productId: update.productId, quantity: { gt: 0 } },
+                                    select: { warehouseId: true },
+                                }))?.warehouseId ?? "",
+                                type: "ADJUSTMENT",
+                                quantity: 0,
+                                unitCost: newCost,
+                                totalValue: Math.abs(revaluationDelta),
+                                performedBy: user.id,
+                                notes: `Revaluasi harga: ${oldCost} → ${newCost} × ${totalStockQty} unit = ${revaluationDelta >= 0 ? '+' : ''}${revaluationDelta}`,
+                            },
+                        })
+
+                        await postInventoryGLEntry(tx, {
+                            transactionId: invTx.id,
+                            type: revaluationDelta > 0 ? "ADJUSTMENT_IN" : "ADJUSTMENT_OUT",
+                            productName: existing.name,
+                            quantity: totalStockQty,
+                            unitCost: newCost,
+                            totalValue: Math.abs(revaluationDelta),
+                            reference: `REVAL-${existing.code}`,
+                        })
+                    }
+                }
+
                 changeLog.push({
                     productId: update.productId,
                     productCode: existing.code,
                     productName: existing.name,
-                    oldCostPrice: Number(existing.costPrice),
-                    newCostPrice: update.newCostPrice ?? Number(existing.costPrice),
+                    oldCostPrice: oldCost,
+                    newCostPrice: newCost,
                     oldSellingPrice: existing.sellingPrice !== null ? Number(existing.sellingPrice) : null,
                     newSellingPrice: update.newSellingPrice ?? (existing.sellingPrice !== null ? Number(existing.sellingPrice) : null),
+                    totalStockQty,
+                    revaluationDelta,
                     changedBy: user.email ?? user.id,
                     changedAt: new Date().toISOString(),
                 })
-
-                return prisma.product.update({
-                    where: { id: update.productId },
-                    data,
-                })
-            })
-        )
+            }
+        })
 
         return NextResponse.json({
             success: true,
