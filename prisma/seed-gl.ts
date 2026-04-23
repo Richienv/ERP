@@ -60,7 +60,6 @@ async function main() {
         { code: '2315', name: 'Utang PPh 23', type: 'LIABILITY', isSystem: true },
         { code: '2320', name: 'Utang BPJS Ketenagakerjaan', type: 'LIABILITY', isSystem: true },
         { code: '2330', name: 'Utang BPJS Kesehatan', type: 'LIABILITY', isSystem: true },
-        { code: '2400', name: 'Pendapatan Diterima Dimuka', type: 'LIABILITY', isSystem: true },
 
         // 2500 - Long Term Liabilities
         { code: '2500', name: 'Utang Bank Jangka Panjang', type: 'LIABILITY', isSystem: false },

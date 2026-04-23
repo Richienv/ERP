@@ -40,7 +40,6 @@ const SYSTEM_ACCOUNT_DEFS: { code: string; name: string; type: "ASSET" | "LIABIL
   { code: SYS_ACCOUNTS.PPH23_PAYABLE,    name: "Utang PPh 23",                 type: "LIABILITY" },
   { code: SYS_ACCOUNTS.BPJS_TK_PAYABLE,  name: "Utang BPJS Ketenagakerjaan",   type: "LIABILITY" },
   { code: SYS_ACCOUNTS.BPJS_KES_PAYABLE, name: "Utang BPJS Kesehatan",         type: "LIABILITY" },
-  { code: SYS_ACCOUNTS.UNEARNED_REVENUE, name: "Pendapatan Diterima Dimuka",    type: "LIABILITY" },
   { code: SYS_ACCOUNTS.RETAINED_EARNINGS, name: "Laba Ditahan",                  type: "EQUITY" },
   { code: SYS_ACCOUNTS.OPENING_EQUITY,    name: "Saldo Awal Ekuitas",             type: "EQUITY" },
   { code: SYS_ACCOUNTS.REVENUE,          name: "Pendapatan Penjualan",          type: "REVENUE" },

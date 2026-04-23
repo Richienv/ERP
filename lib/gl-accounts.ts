@@ -57,9 +57,6 @@ export const SYS_ACCOUNTS = {
   BPJS_TK_PAYABLE:   "2320",  // Utang BPJS Ketenagakerjaan
   BPJS_KES_PAYABLE:  "2330",  // Utang BPJS Kesehatan
 
-  // --- Unearned Revenue ---
-  UNEARNED_REVENUE:  "2400",  // Pendapatan Diterima Dimuka
-
   // --- Equity ---
   RETAINED_EARNINGS: "3100", // Laba Ditahan (for opening balances)
   OPENING_EQUITY:    "3900", // Saldo Awal Ekuitas (Opening Balance Equity)
