@@ -82,6 +82,8 @@ import {
 } from "@tabler/icons-react"
 import type { Icon } from "@tabler/icons-react"
 
+import type { ModuleKey } from "@/lib/sidebar-feature-flags"
+
 export type SidebarSubItem = {
   title: string
   url: string
@@ -90,6 +92,7 @@ export type SidebarSubItem = {
   badge?: number
   group?: string
   badgeSeverity?: "info" | "warning" | "critical"
+  moduleKey?: ModuleKey
 }
 
 export type SidebarNavItem = {
@@ -100,6 +103,7 @@ export type SidebarNavItem = {
   badge?: number
   accentColor?: string
   items?: SidebarSubItem[]
+  moduleKey?: ModuleKey
 }
 
 export const navMain: SidebarNavItem[] = [
@@ -107,12 +111,14 @@ export const navMain: SidebarNavItem[] = [
     title: "Dasbor",
     url: "/dashboard",
     icon: IconDashboard,
+    moduleKey: "dashboard",
   },
   {
     title: "Inventori",
     url: "/inventory",
     icon: IconDatabase,
     accentColor: "bg-blue-500",
+    moduleKey: "inventory",
     items: [
       { title: "Dashboard Inventori", url: "/inventory", icon: IconLayoutDashboard },
       { title: "Kelola Produk", url: "/inventory/products", icon: IconPackage },
@@ -120,7 +126,7 @@ export const navMain: SidebarNavItem[] = [
       { title: "Pergerakan Stok", url: "/inventory/movements", icon: IconArrowsExchange },
       { title: "Transfer Stok", url: "/inventory/transfers", icon: IconTransfer },
       { title: "Gudang & Lokasi", url: "/inventory/warehouses", icon: IconBuildingWarehouse },
-      { title: "Fabric Rolls", url: "/inventory/fabric-rolls", icon: IconRulerMeasure },
+      { title: "Fabric Rolls", url: "/inventory/fabric-rolls", icon: IconRulerMeasure, moduleKey: "inventoryFabricRolls" },
       { title: "Stok Opname", url: "/inventory/audit", icon: IconClipboardCheck, group: "Kontrol" },
       { title: "Opname Batch", url: "/inventory/cycle-counts", icon: IconRefresh },
       { title: "Peringatan Stok", url: "/inventory/alerts", icon: IconAlertTriangle },
@@ -134,6 +140,7 @@ export const navMain: SidebarNavItem[] = [
     url: "/sales",
     icon: IconUsers,
     accentColor: "bg-green-500",
+    moduleKey: "sales",
     items: [
       { title: "Dashboard Sales", url: "/sales", icon: IconLayoutDashboard },
       { title: "Kelola Pelanggan", url: "/sales/customers", icon: IconAddressBook },
@@ -141,7 +148,7 @@ export const navMain: SidebarNavItem[] = [
       { title: "Pesanan Penjualan", url: "/sales/orders", icon: IconShoppingBag },
       { title: "Penjualan", url: "/sales/sales", icon: IconReceipt },
       { title: "Lead & Pipeline", url: "/sales/leads", icon: IconTargetArrow },
-      { title: "Point of Sale (POS)", url: "/dashboard/pos", icon: IconDeviceDesktop, locked: true },
+      { title: "Point of Sale (POS)", url: "/dashboard/pos", icon: IconDeviceDesktop, locked: true, moduleKey: "pos" },
       { title: "Daftar Harga", url: "/sales/pricelists", icon: IconTag, group: "Harga & Komisi" },
       { title: "Skema Diskon", url: "/sales/discounts", icon: IconDiscount2 },
       { title: "Salesperson & Komisi", url: "/sales/salespersons", icon: IconUserStar },
@@ -152,6 +159,7 @@ export const navMain: SidebarNavItem[] = [
     url: "/procurement",
     icon: IconShoppingCart,
     accentColor: "bg-orange-500",
+    moduleKey: "procurement",
     items: [
       { title: "Dashboard Pengadaan", url: "/procurement", icon: IconLayoutDashboard },
       { title: "Pemasok (Vendor)", url: "/procurement/vendors", icon: IconTruckDelivery },
@@ -165,6 +173,7 @@ export const navMain: SidebarNavItem[] = [
     url: "/finance",
     icon: IconCurrencyDollar,
     accentColor: "bg-purple-500",
+    moduleKey: "finance",
     items: [
       { title: "Invoicing", url: "/finance/invoices", icon: IconFileInvoice, group: "Transaksi" },
       { title: "Piutang Usaha (AR)", url: "/finance/receivables", icon: IconArrowUpRight },
@@ -189,6 +198,7 @@ export const navMain: SidebarNavItem[] = [
     url: "/manufacturing",
     icon: IconTool,
     accentColor: "bg-slate-500",
+    moduleKey: "manufacturing",
     items: [
       { title: "Dashboard Manufaktur", url: "/manufacturing", icon: IconLayoutDashboard },
       { title: "Bill of Materials (BoM)", url: "/manufacturing/bom", icon: IconPuzzle, group: "Perencanaan" },
@@ -212,12 +222,13 @@ export const navMain: SidebarNavItem[] = [
     url: "/hcm",
     icon: IconId,
     accentColor: "bg-amber-700",
+    moduleKey: "hcm",
     items: [
       { title: "Data Karyawan", url: "/hcm/employee-master", icon: IconUserCheck },
       { title: "Penggajian", url: "/hcm/payroll", icon: IconCash },
       { title: "Absensi", url: "/hcm/attendance", icon: IconFingerprint },
-      { title: "Jadwal Shift", url: "/hcm/shifts", icon: IconClock },
-      { title: "Onboarding", url: "/hcm/onboarding", icon: IconRocket },
+      { title: "Jadwal Shift", url: "/hcm/shifts", icon: IconClock, moduleKey: "hcmShifts" },
+      { title: "Onboarding", url: "/hcm/onboarding", icon: IconRocket, moduleKey: "hcmOnboarding" },
     ],
   },
   {
@@ -225,6 +236,7 @@ export const navMain: SidebarNavItem[] = [
     url: "/documents",
     icon: IconFileDescription,
     accentColor: "bg-zinc-400",
+    moduleKey: "documents",
     items: [
       { title: "Data Master", url: "/documents/master", icon: IconDatabaseExport },
       { title: "Laporan Sistem", url: "/documents/reports", icon: IconFileAnalytics },
@@ -233,14 +245,31 @@ export const navMain: SidebarNavItem[] = [
   },
 ]
 
-export const navSecondary = [
-  { title: "Pengaturan Sistem", url: "/settings", icon: IconSettings },
-  { title: "Manajemen Pengguna", url: "/settings/users", icon: IconUsers },
-  { title: "Matriks Izin", url: "/settings/permissions", icon: IconSettings },
-  { title: "Penomoran Dokumen", url: "/settings/numbering", icon: IconFileDescription },
-  { title: "Bantuan & Dukungan", url: "/help", icon: IconHelp },
-  { title: "Pencarian", url: "/search", icon: IconSearch },
+export const navSecondary: SidebarNavItem[] = [
+  { title: "Pengaturan Sistem", url: "/settings", icon: IconSettings, moduleKey: "settings" },
+  { title: "Manajemen Pengguna", url: "/settings/users", icon: IconUsers, moduleKey: "settings" },
+  { title: "Matriks Izin", url: "/settings/permissions", icon: IconSettings, moduleKey: "permissionMatrix" },
+  { title: "Penomoran Dokumen", url: "/settings/numbering", icon: IconFileDescription, moduleKey: "documentNumbering" },
+  { title: "Bantuan & Dukungan", url: "/help", icon: IconHelp, moduleKey: "help" },
+  { title: "Pencarian", url: "/search", icon: IconSearch, moduleKey: "search" },
 ]
+
+// ─────────────────────────────────────────────────────────────────────────
+// Feature-flag aware filtering — applies MODULE_FLAGS visibility rules to
+// nav items + their subitems. Use this in app-sidebar.tsx instead of raw
+// navMain/navSecondary.
+// ─────────────────────────────────────────────────────────────────────────
+
+import { isModuleEnabled } from "@/lib/sidebar-feature-flags"
+
+export function filterNavByFeatureFlags(items: SidebarNavItem[]): SidebarNavItem[] {
+  return items
+    .filter((item) => isModuleEnabled(item.moduleKey))
+    .map((item) => ({
+      ...item,
+      items: item.items?.filter((sub) => isModuleEnabled(sub.moduleKey)),
+    }))
+}
 
 export function getStaffNav(): SidebarNavItem[] {
   return [{ title: "Portal Staf", url: "/staff", icon: IconDashboard }]
