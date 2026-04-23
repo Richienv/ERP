@@ -630,8 +630,22 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
                     }
                 }
             } catch (poErr: any) {
-                // PO transition failure should NOT roll back the GRN acceptance
+                // PO transition failure should NOT roll back the GRN acceptance,
+                // but it MUST be surfaced — write a dedicated event so the UI
+                // and audit log can flag the PO as out-of-sync.
                 console.error("[acceptGRN] PO transition failed (non-blocking):", poErr.message)
+                try {
+                    await createPurchaseOrderEvent(prisma as any, {
+                        purchaseOrderId: grn.purchaseOrderId,
+                        status: 'RECEIVED' as any,
+                        changedBy: user.id,
+                        action: 'PO_TRANSITION_FAILED',
+                        notes: poErr.message,
+                        metadata: { source: 'GRN_ACCEPT', grnId, error: poErr.message },
+                    })
+                } catch (logErr) {
+                    console.error("[acceptGRN] Could not even log PO_TRANSITION_FAILED:", logErr)
+                }
             }
 
             console.log("[acceptGRN] SUCCESS — returning { success: true }")

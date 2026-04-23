@@ -594,18 +594,21 @@ export async function approvePurchaseRequest(id: string, _approverId?: string) {
                 throw new Error("Anda hanya dapat meng-approve PR untuk departemen Anda.")
             }
 
-            await prisma.purchaseRequest.update({
-                where: { id },
+            // Atomic guard: only one approval succeeds even under concurrent
+            // clicks (avoid duplicate audit events / downstream triggers).
+            const updateRes = await prisma.purchaseRequest.updateMany({
+                where: { id, status: 'PENDING' },
                 data: {
                     status: 'APPROVED',
                     approverId: actor.id,
-                    items: {
-                        updateMany: {
-                            where: { status: 'PENDING' },
-                            data: { status: 'APPROVED' }
-                        }
-                    }
-                }
+                },
+            })
+            if (updateRes.count === 0) {
+                throw new Error('PR sudah diproses oleh pengguna lain. Refresh halaman.')
+            }
+            await prisma.purchaseRequestItem.updateMany({
+                where: { purchaseRequestId: id, status: 'PENDING' },
+                data: { status: 'APPROVED' },
             })
         })
         revalidateProcurementPaths()
@@ -626,11 +629,14 @@ export async function approveAndCreatePOFromPR(id: string, _approverId?: string)
 
         const user = await getAuthzUser()
         if (!PURCHASING_ROLES.includes(user.role)) {
+            // PR approved by manager but they lack purchasing role — surface
+            // this clearly so a Purchasing staff member knows to create the PO
+            // (otherwise the PR sits in "approved but unfulfilled" limbo).
             return {
                 success: true,
                 poCreated: false,
                 poIds: [] as string[],
-                message: "PR approved. PO generation requires Purchasing role.",
+                message: "PR berhasil disetujui — staf Purchasing harus membuat PO sekarang. PR menunggu konversi ke PO.",
             }
         }
 
@@ -857,10 +863,23 @@ export async function convertPRToPO(prId: string, itemIds: string[], _creatorId?
                     metadata: { source: "SYSTEM" },
                 })
 
-                await prisma.purchaseRequestItem.updateMany({
-                    where: { id: { in: groupData.items.map((i: any) => i.prItemId) } },
+                // Atomic dedupe — only flip items that aren't already PO_CREATED.
+                // Two concurrent convertPRToPO calls would both create POs but
+                // only one updateMany succeeds for each item; the other races
+                // to update 0 rows and we detect it.
+                const itemUpdated = await prisma.purchaseRequestItem.updateMany({
+                    where: {
+                        id: { in: groupData.items.map((i: any) => i.prItemId) },
+                        status: { not: 'PO_CREATED' },
+                    },
                     data: { status: 'PO_CREATED' }
                 })
+                if (itemUpdated.count !== groupData.items.length) {
+                    throw new Error(
+                        'Konversi PR→PO race detected — beberapa item PR sudah dikonversi oleh user lain. ' +
+                        'Refresh halaman lalu coba lagi.'
+                    )
+                }
 
                 createdPOIds.push(po.id)
             }
@@ -935,15 +954,30 @@ export async function approvePurchaseOrder(poId: string, _approverId?: string) {
             const current = await prisma.purchaseOrder.findUnique({ where: { id: poId } })
             if (!current) throw new Error("Purchase Order not found")
 
+            // SoD (Segregation of Duties): same user can't both create AND
+            // approve a PO. Mirrors the GRN's pattern (override w/ reason
+            // can be added later if a small SME workflow needs it).
+            if ((current as any).createdBy && (current as any).createdBy === user.id) {
+                throw new Error('SoD: Anda yang membuat PO ini. Minta persetujuan dari pengguna lain.')
+            }
+
             assertPOTransition(current.status as any, "APPROVED")
 
-            const updated = await prisma.purchaseOrder.update({
-                where: { id: poId },
+            // Atomic status guard — updateMany with WHERE status = current
+            // ensures two concurrent approvers can't both succeed.
+            const updateRes = await prisma.purchaseOrder.updateMany({
+                where: { id: poId, status: current.status },
                 data: {
                     previousStatus: current.status as any,
                     status: 'APPROVED',
                     approvedBy: user.id,
                 },
+            })
+            if (updateRes.count === 0) {
+                throw new Error('PO sudah diproses oleh pengguna lain. Refresh halaman.')
+            }
+            const updated = await prisma.purchaseOrder.findUniqueOrThrow({
+                where: { id: poId },
                 include: { supplier: true, items: { include: { product: true } } }
             })
 
@@ -1083,14 +1117,15 @@ export async function markAsOrdered(poId: string) {
 
             assertPOTransition(current.status as any, "ORDERED")
 
-            await prisma.purchaseOrder.update({
-                where: { id: poId },
+            const updateRes = await prisma.purchaseOrder.updateMany({
+                where: { id: poId, status: current.status },
                 data: {
                     previousStatus: current.status as any,
                     status: 'ORDERED',
                     sentToVendorAt: new Date()
                 }
             })
+            if (updateRes.count === 0) throw new Error('PO sudah diproses oleh pengguna lain. Refresh halaman.')
 
             await createPurchaseOrderEvent(prisma as any, {
                 purchaseOrderId: poId,
@@ -1121,13 +1156,14 @@ export async function markAsVendorConfirmed(poId: string, notes?: string) {
 
             assertPOTransition(current.status as any, "VENDOR_CONFIRMED")
 
-            await prisma.purchaseOrder.update({
-                where: { id: poId },
+            const updateRes = await prisma.purchaseOrder.updateMany({
+                where: { id: poId, status: current.status },
                 data: {
                     previousStatus: current.status as any,
                     status: "VENDOR_CONFIRMED",
                 }
             })
+            if (updateRes.count === 0) throw new Error('PO sudah diproses oleh pengguna lain. Refresh halaman.')
 
             await createPurchaseOrderEvent(prisma as any, {
                 purchaseOrderId: poId,
@@ -1159,13 +1195,14 @@ export async function markAsShipped(poId: string, trackingNumber?: string) {
 
             assertPOTransition(current.status as any, "SHIPPED")
 
-            await prisma.purchaseOrder.update({
-                where: { id: poId },
+            const updateRes = await prisma.purchaseOrder.updateMany({
+                where: { id: poId, status: current.status },
                 data: {
                     previousStatus: current.status as any,
                     status: "SHIPPED",
                 }
             })
+            if (updateRes.count === 0) throw new Error('PO sudah diproses oleh pengguna lain. Refresh halaman.')
 
             await createPurchaseOrderEvent(prisma as any, {
                 purchaseOrderId: poId,
