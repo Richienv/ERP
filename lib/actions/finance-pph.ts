@@ -51,7 +51,18 @@ export async function getWithholdingTaxes(filters?: {
       orderBy: { createdAt: "desc" },
     })
 
-    return { success: true, data: records }
+    // Serialize Decimal fields to numbers — Prisma Decimal becomes a string
+    // after JSON transport, which forces every consumer to remember to wrap
+    // with Number(). Doing it once here eliminates the historical "amount
+    // resets to 0" bug pattern.
+    const serialized = records.map((r) => ({
+      ...r,
+      rate: toNum(r.rate),
+      baseAmount: toNum(r.baseAmount),
+      amount: toNum(r.amount),
+    }))
+
+    return { success: true, data: serialized }
   } catch (error: any) {
     return { success: false, error: error.message }
   }

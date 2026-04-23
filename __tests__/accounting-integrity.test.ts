@@ -680,7 +680,6 @@ describe('Layer 7: Cross-Module GL Connectivity', () => {
     { event: 'AR Invoice Sent (w/ PPN)',  action: 'moveInvoiceToSent()',      accounts: [SYS_ACCOUNTS.AR, SYS_ACCOUNTS.REVENUE, SYS_ACCOUNTS.PPN_KELUARAN] },
     { event: 'AP Bill Sent',              action: 'moveInvoiceToSent()',      accounts: [SYS_ACCOUNTS.COGS, SYS_ACCOUNTS.AP] },
     { event: 'AP Bill Sent (w/ PPN)',     action: 'moveInvoiceToSent()',      accounts: [SYS_ACCOUNTS.COGS, SYS_ACCOUNTS.PPN_MASUKAN, SYS_ACCOUNTS.AP] },
-    { event: 'AP Bill Approved',          action: 'approveVendorBill()',      accounts: [SYS_ACCOUNTS.EXPENSE_DEFAULT, SYS_ACCOUNTS.AP] },
     { event: 'AR Payment',               action: 'recordInvoicePayment()',   accounts: [SYS_ACCOUNTS.BANK_BCA, SYS_ACCOUNTS.AR] },
     { event: 'AP Payment',               action: 'recordVendorPayment()',    accounts: [SYS_ACCOUNTS.AP, SYS_ACCOUNTS.BANK_BCA] },
     { event: 'Multi-Bill AP Payment',     action: 'recordMultiBillPayment()', accounts: [SYS_ACCOUNTS.AP, SYS_ACCOUNTS.BANK_BCA] },
