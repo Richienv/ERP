@@ -349,6 +349,16 @@ export async function addCutPlanLayer(data: {
                 )
             }
 
+            // Inspection gate (audit H6/M7): block consumption of failed rolls.
+            // Rolls that haven't been inspected yet are still allowed (legacy
+            // behavior) — production teams can inspect at receive OR cut time.
+            if ((roll as any).inspectionStatus === 'FAILED') {
+                throw new Error(
+                    `Roll ${roll.rollNumber} gagal inspeksi — tidak boleh dipotong. ` +
+                    `Buang/retur roll ini terlebih dahulu.`
+                )
+            }
+
             // Create the cut plan layer
             await prisma.cutPlanLayer.create({
                 data: {

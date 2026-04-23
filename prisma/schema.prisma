@@ -1435,9 +1435,10 @@ model GRNItem {
   inspectionNotes String?
 
   // Relations
-  grn     GoodsReceivedNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
-  poItem  PurchaseOrderItem @relation(fields: [poItemId], references: [id])
-  product Product           @relation(fields: [productId], references: [id])
+  grn         GoodsReceivedNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
+  poItem      PurchaseOrderItem @relation(fields: [poItemId], references: [id])
+  product     Product           @relation(fields: [productId], references: [id])
+  fabricRolls FabricRoll[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2408,6 +2409,13 @@ enum FabricRollStatus {
   DEPLETED // Habis
 }
 
+enum FabricRollInspectionStatus {
+  NOT_INSPECTED // Belum diinspeksi
+  PASSED        // Lulus inspeksi — boleh dipotong
+  FAILED        // Gagal inspeksi — TIDAK boleh dipotong
+  CONDITIONAL   // Lulus dengan catatan (perlu approval lanjut)
+}
+
 enum TransferStatus {
   DRAFT
   PENDING_APPROVAL
@@ -2565,6 +2573,9 @@ model FabricRoll {
   id         String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   productId  String @db.Uuid
   rollNumber String @unique
+  /// Source GRN item this roll came from. Enables tracing a defective batch
+  /// back to the vendor receipt + inspection record (audit H6).
+  grnItemId  String? @db.Uuid
 
   lengthMeters Decimal   @db.Decimal(10, 2)
   widthCm      Decimal?  @db.Decimal(10, 2)
@@ -2572,6 +2583,9 @@ model FabricRoll {
   dyeLot       String?
   greigeDate   DateTime? @db.Date
   grade        String? // A, B, C
+  /// Inspection result. AVAILABLE rolls with FAILED_INSPECTION must NOT
+  /// be consumed by cutting plans (audit H6 / M7).
+  inspectionStatus FabricRollInspectionStatus @default(NOT_INSPECTED)
 
   warehouseId String           @db.Uuid
   locationBin String?
@@ -2579,6 +2593,7 @@ model FabricRoll {
 
   product       Product                 @relation(fields: [productId], references: [id])
   warehouse     Warehouse               @relation(fields: [warehouseId], references: [id])
+  grnItem       GRNItem?                @relation(fields: [grnItemId], references: [id])
   transactions  FabricRollTransaction[]
   cutPlanLayers CutPlanLayer[]
 
