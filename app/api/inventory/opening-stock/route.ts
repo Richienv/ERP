@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { createClient } from "@/lib/supabase/server"
 import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts-server"
+import { postJournalEntry } from "@/lib/actions/finance-gl"
 
 /**
  * GET /api/inventory/opening-stock
@@ -106,21 +107,13 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // Ensure system GL accounts exist before posting
+        // Ensure system GL accounts exist before posting (idempotent upsert).
         await ensureSystemAccounts()
 
-        // Find GL accounts for journal entry
-        // DR: Inventory Asset, CR: Retained Earnings (opening balance equity)
-        const [inventoryAssetAccount, openingBalanceEquityAccount] = await Promise.all([
-            prisma.gLAccount.findFirst({
-                where: { code: SYS_ACCOUNTS.INVENTORY_ASSET, type: "ASSET" },
-            }),
-            prisma.gLAccount.findFirst({
-                where: { code: SYS_ACCOUNTS.RETAINED_EARNINGS, type: "EQUITY" },
-            }),
-        ])
-
-        // Process all items in a transaction
+        // Process all items atomically: stock + GL together. Fail closed —
+        // throw on any GL error so we never end up with stock incremented
+        // without an opening-balance journal entry (M12 audit fix).
+        const now = new Date()
         const results = await prisma.$transaction(async (tx) => {
             const created = []
 
@@ -141,7 +134,9 @@ export async function POST(req: NextRequest) {
                     },
                 })
 
-                // 2. Upsert StockLevel
+                // 2. Upsert StockLevel (relies on the partial unique index
+                //    from migration 20260423140000_stock_level_partial_unique
+                //    to be race-safe on locationId=NULL).
                 const existing = await tx.stockLevel.findFirst({
                     where: {
                         productId: item.productId,
@@ -170,43 +165,25 @@ export async function POST(req: NextRequest) {
                     })
                 }
 
-                // 3. Create GL Journal Entry (only if both accounts exist and totalValue > 0)
-                if (inventoryAssetAccount && openingBalanceEquityAccount && totalValue > 0) {
-                    await tx.journalEntry.create({
-                        data: {
-                            date: new Date(),
-                            description: `Saldo awal stok — ${item.productId.slice(0, 8)}`,
-                            reference: `INIT-${invTx.id.slice(0, 8).toUpperCase()}`,
-                            status: "POSTED",
-                            inventoryTransactionId: invTx.id,
-                            lines: {
-                                create: [
-                                    {
-                                        accountId: inventoryAssetAccount.id,
-                                        description: "Persediaan — saldo awal",
-                                        debit: totalValue,
-                                        credit: 0,
-                                    },
-                                    {
-                                        accountId: openingBalanceEquityAccount.id,
-                                        description: "Ekuitas saldo awal",
-                                        debit: 0,
-                                        credit: totalValue,
-                                    },
-                                ],
-                            },
-                        },
-                    })
-
-                    // Update GL Account balances
-                    await tx.gLAccount.update({
-                        where: { id: inventoryAssetAccount.id },
-                        data: { balance: { increment: totalValue } },
-                    })
-                    await tx.gLAccount.update({
-                        where: { id: openingBalanceEquityAccount.id },
-                        data: { balance: { increment: totalValue } },
-                    })
+                // 3. GL Journal: DR Persediaan, CR Saldo Awal Ekuitas.
+                //    Use OPENING_EQUITY (3900) — semantically correct for
+                //    opening balances. RETAINED_EARNINGS (3100) is for accumulated
+                //    P&L from prior years, NOT initial setup.
+                if (totalValue > 0) {
+                    const glResult = await postJournalEntry({
+                        description: `Saldo awal stok — ${item.productId.slice(0, 8)}`,
+                        date: now,
+                        reference: `INIT-${invTx.id.slice(0, 8).toUpperCase()}`,
+                        inventoryTransactionId: invTx.id,
+                        sourceDocumentType: 'OPENING_STOCK',
+                        lines: [
+                            { accountCode: SYS_ACCOUNTS.INVENTORY_ASSET, debit: totalValue, credit: 0, description: "Persediaan — saldo awal" },
+                            { accountCode: SYS_ACCOUNTS.OPENING_EQUITY, debit: 0, credit: totalValue, description: "Ekuitas saldo awal" },
+                        ],
+                    }, tx)
+                    if (!glResult?.success) {
+                        throw new Error(`Gagal posting jurnal saldo awal: ${(glResult as any)?.error || 'Unknown'}`)
+                    }
                 }
 
                 created.push(invTx)
@@ -219,7 +196,6 @@ export async function POST(req: NextRequest) {
             success: true,
             count: results.length,
             message: `${results.length} saldo awal stok berhasil disimpan`,
-            hasJournal: !!(inventoryAssetAccount && openingBalanceEquityAccount),
         })
     } catch (error) {
         console.error("Error creating opening stock:", error)
