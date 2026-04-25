@@ -3,6 +3,7 @@ import { use } from "react"
 import { usePurchaseOrderDetail } from "@/hooks/use-purchase-order-detail"
 import { DetailPage } from "@/components/integra/detail-page"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
+import { HeaderTab } from "./_tabs/header-tab"
 
 export default function PoDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
@@ -44,11 +45,7 @@ export default function PoDetailPage({ params }: { params: Promise<{ id: string 
                 {
                     key: "header",
                     label: "Header",
-                    content: (
-                        <div className="text-[12.5px] text-[var(--integra-muted)]">
-                            Header tab content — Phase C2
-                        </div>
-                    ),
+                    content: <HeaderTab data={data} />,
                 },
                 {
                     key: "item",
