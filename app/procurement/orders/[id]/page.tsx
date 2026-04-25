@@ -1,7 +1,9 @@
 "use client"
 import { use } from "react"
+import { IconPrinter } from "@tabler/icons-react"
 import { usePurchaseOrderDetail } from "@/hooks/use-purchase-order-detail"
 import { DetailPage } from "@/components/integra/detail-page"
+import { TypstPdfButton } from "@/components/integra/typst-pdf-button"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 import { HeaderTab } from "./_tabs/header-tab"
 import { ItemTab } from "./_tabs/item-tab"
@@ -46,6 +48,14 @@ export default function PoDetailPage({ params }: { params: Promise<{ id: string 
             ]}
             title={data.number}
             subtitle={`${supplierName} · ${itemCount} item · Total Rp ${totalJt} jt`}
+            actions={
+                <TypstPdfButton
+                    endpoint={`/api/procurement/orders/${data.id}/pdf`}
+                    filename={`${data.number}.pdf`}
+                    label="Print PDF"
+                    icon={<IconPrinter className="size-3.5" />}
+                />
+            }
             tabs={[
                 {
                     key: "header",
