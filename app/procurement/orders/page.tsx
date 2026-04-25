@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import { useState } from "react"
 import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import {
@@ -10,8 +11,8 @@ import {
     IconSearch,
     IconChevronLeft,
     IconChevronRight,
-    IconX,
 } from "@tabler/icons-react"
+import { X } from "lucide-react"
 import { toast } from "sonner"
 
 import { usePurchaseOrders } from "@/hooks/use-purchase-orders"
@@ -29,6 +30,9 @@ import {
     type ColumnDef,
     type KPIData,
 } from "@/components/integra"
+import { FilterPanel, type FilterValues } from "@/components/integra/filter-panel"
+import { SavedFiltersDropdown } from "@/components/integra/saved-filters-dropdown"
+import type { POFilter } from "@/lib/types/procurement-filters"
 import { INT, fmtIDRJt, fmtDateTime } from "@/lib/integra-tokens"
 
 type Period = "1H" | "7H" | "30H" | "TTD" | "12B"
@@ -209,16 +213,170 @@ function ageLabel(h: number): string {
 
 const PAGE_SIZE = 10
 
+// ──────────────────────────────────────────────────────────────────
+// URL <-> POFilter helpers
+// ──────────────────────────────────────────────────────────────────
+
+function readFilterFromUrl(sp: URLSearchParams): POFilter {
+    const f: POFilter = {}
+    const status = sp.get("status")
+    if (status) f.status = status.split(",").filter(Boolean)
+    const vendorIds = sp.get("vendorIds")
+    if (vendorIds) f.vendorIds = vendorIds.split(",").filter(Boolean)
+    const dateStart = sp.get("dateStart")
+    if (dateStart) f.dateStart = dateStart
+    const dateEnd = sp.get("dateEnd")
+    if (dateEnd) f.dateEnd = dateEnd
+    const amountMin = sp.get("amountMin")
+    if (amountMin) {
+        const n = Number(amountMin)
+        if (!isNaN(n)) f.amountMin = n
+    }
+    const amountMax = sp.get("amountMax")
+    if (amountMax) {
+        const n = Number(amountMax)
+        if (!isNaN(n)) f.amountMax = n
+    }
+    const paymentTerms = sp.get("paymentTerms")
+    if (paymentTerms) f.paymentTerms = paymentTerms.split(",").filter(Boolean)
+    const search = sp.get("q")
+    if (search) f.search = search
+    return f
+}
+
+function writeFilterToParams(f: POFilter, base: URLSearchParams): URLSearchParams {
+    const next = new URLSearchParams(base.toString())
+    // Clear existing filter keys (preserve `page` and any other unrelated params).
+    next.delete("status")
+    next.delete("vendorIds")
+    next.delete("dateStart")
+    next.delete("dateEnd")
+    next.delete("amountMin")
+    next.delete("amountMax")
+    next.delete("paymentTerms")
+    next.delete("q")
+    if (f.status?.length) next.set("status", f.status.join(","))
+    if (f.vendorIds?.length) next.set("vendorIds", f.vendorIds.join(","))
+    if (f.dateStart) next.set("dateStart", f.dateStart)
+    if (f.dateEnd) next.set("dateEnd", f.dateEnd)
+    if (f.amountMin != null) next.set("amountMin", String(f.amountMin))
+    if (f.amountMax != null) next.set("amountMax", String(f.amountMax))
+    if (f.paymentTerms?.length) next.set("paymentTerms", f.paymentTerms.join(","))
+    if (f.search) next.set("q", f.search)
+    return next
+}
+
+// Map applied POFilter -> FilterPanel `values` shape (with composite keys).
+function poFilterToPanelValues(f: POFilter): FilterValues {
+    const v: FilterValues = {}
+    if (f.status?.length) v.status = f.status
+    if (f.vendorIds?.length) v.vendorIds = f.vendorIds
+    if (f.dateStart || f.dateEnd) {
+        v.createdAt = { start: f.dateStart, end: f.dateEnd }
+    }
+    if (f.amountMin != null || f.amountMax != null) {
+        v.totalAmount = { min: f.amountMin, max: f.amountMax }
+    }
+    if (f.paymentTerms?.length) v.paymentTerms = f.paymentTerms
+    return v
+}
+
+// Map FilterPanel values -> POFilter, preserving search separately.
+function panelValuesToPoFilter(v: FilterValues, search?: string): POFilter {
+    const next: POFilter = {}
+    const status = v.status
+    if (Array.isArray(status) && status.length) next.status = status as string[]
+    const vendorIds = v.vendorIds
+    if (Array.isArray(vendorIds) && vendorIds.length) next.vendorIds = vendorIds as string[]
+    const createdAt = v.createdAt as { start?: string; end?: string } | undefined
+    if (createdAt?.start) next.dateStart = createdAt.start
+    if (createdAt?.end) next.dateEnd = createdAt.end
+    const totalAmount = v.totalAmount as { min?: number; max?: number } | undefined
+    if (totalAmount?.min != null) next.amountMin = totalAmount.min
+    if (totalAmount?.max != null) next.amountMax = totalAmount.max
+    const paymentTerms = v.paymentTerms
+    if (Array.isArray(paymentTerms) && paymentTerms.length) next.paymentTerms = paymentTerms as string[]
+    if (search) next.search = search
+    return next
+}
+
+const STATUS_OPTIONS = [
+    { value: "DRAFT", label: "Draft" },
+    { value: "PENDING_APPROVAL", label: "Menunggu Approval" },
+    { value: "APPROVED", label: "Disetujui" },
+    { value: "ORDERED", label: "Dipesan" },
+    { value: "SHIPPED", label: "Dikirim" },
+    { value: "RECEIVED", label: "Diterima" },
+    { value: "COMPLETED", label: "Selesai" },
+    { value: "CANCELLED", label: "Dibatalkan" },
+    { value: "REJECTED", label: "Ditolak" },
+]
+
+const PAYMENT_TERM_OPTIONS = [
+    { value: "CASH", label: "Lunas" },
+    { value: "NET_14", label: "NET 14" },
+    { value: "NET_30", label: "NET 30" },
+    { value: "NET_45", label: "NET 45" },
+    { value: "NET_60", label: "NET 60" },
+]
+
+const STATUS_LABEL_LOOKUP: Record<string, string> = STATUS_OPTIONS.reduce(
+    (acc, o) => ({ ...acc, [o.value]: o.label }),
+    {} as Record<string, string>,
+)
+const PAYMENT_TERM_LABEL_LOOKUP: Record<string, string> = PAYMENT_TERM_OPTIONS.reduce(
+    (acc, o) => ({ ...acc, [o.value]: o.label }),
+    {} as Record<string, string>,
+)
+
+const CHIP_CLASS =
+    "inline-flex items-center gap-1 px-2 py-1 border border-[var(--integra-hairline-strong)] rounded-[2px] text-[11px] text-[var(--integra-ink-soft)] bg-[var(--integra-canvas-pure)] hover:border-[var(--integra-ink)] cursor-pointer"
+
 export default function PurchaseOrdersPage() {
     const searchParams = useSearchParams()
     const router = useRouter()
     const pathname = usePathname()
-    const { data, isLoading } = usePurchaseOrders()
+
+    // ── Initialise applied filter from URL (one-shot)
+    const initialFilterRef = React.useRef<POFilter | null>(null)
+    if (initialFilterRef.current === null) {
+        initialFilterRef.current = readFilterFromUrl(searchParams)
+    }
+    const [filter, setFilter] = React.useState<POFilter>(initialFilterRef.current)
+    const [filterPanelOpen, setFilterPanelOpen] = React.useState(false)
+    const [pendingPanelValues, setPendingPanelValues] = React.useState<FilterValues>({})
+
+    const { data, isLoading } = usePurchaseOrders(filter)
 
     const [period, setPeriod] = useState<Period>("30H")
     const [statusTab, setStatusTab] = useState<StatusTab>("ALL")
-    const [search, setSearch] = useState("")
-    const [vendorFilter, setVendorFilter] = useState<string | null>(null)
+    const [searchInput, setSearchInput] = useState<string>(filter.search ?? "")
+
+    // Debounce search input -> filter.search
+    React.useEffect(() => {
+        const t = setTimeout(() => {
+            setFilter((f) => {
+                const trimmed = searchInput.trim()
+                const nextSearch = trimmed || undefined
+                if (f.search === nextSearch) return f
+                return { ...f, search: nextSearch }
+            })
+        }, 300)
+        return () => clearTimeout(t)
+    }, [searchInput])
+
+    // Persist applied filter to URL whenever it changes (preserving `page`).
+    React.useEffect(() => {
+        const next = writeFilterToParams(filter, searchParams)
+        const qs = next.toString()
+        const target = qs ? `${pathname}?${qs}` : pathname
+        const current =
+            (pathname ?? "") +
+            (searchParams.toString() ? `?${searchParams.toString()}` : "")
+        if (target !== current) {
+            router.replace(target, { scroll: false })
+        }
+    }, [filter, pathname, router, searchParams])
 
     const pageParam = parseInt(searchParams.get("page") ?? "1", 10)
     const page = isNaN(pageParam) || pageParam < 1 ? 1 : pageParam
@@ -231,11 +389,23 @@ export default function PurchaseOrdersPage() {
         router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
     }
 
+    const activeFilterCount = React.useMemo(() => {
+        let n = 0
+        if (filter.status?.length) n++
+        if (filter.vendorIds?.length) n++
+        if (filter.dateStart || filter.dateEnd) n++
+        if (filter.amountMin != null || filter.amountMax != null) n++
+        if (filter.paymentTerms?.length) n++
+        return n
+    }, [filter])
+
     if (isLoading || !data) {
         return <TablePageSkeleton accentColor="bg-blue-400" />
     }
 
     const orders = (data.orders ?? []) as PORow[]
+    const vendors = (data.vendors ?? []) as Array<{ id: string; name: string }>
+    const vendorNameById = new Map(vendors.map((v) => [v.id, v.name]))
 
     // ── Counts per bucket
     const counts = orders.reduce(
@@ -248,15 +418,10 @@ export default function PurchaseOrdersPage() {
         { ALL: 0, ACTIVE: 0, APPROVED: 0, DONE: 0, CANCELLED: 0 } as Record<StatusTab, number>,
     )
 
-    // ── Filtered rows
-    const lcQuery = search.trim().toLowerCase()
+    // ── Filtered rows (server already filtered via POFilter; only the bucket
+    //    tab is local)
     const filtered = orders.filter((po) => {
         if (statusTab !== "ALL" && bucket(po.status) !== statusTab) return false
-        if (vendorFilter && po.vendor !== vendorFilter) return false
-        if (lcQuery) {
-            const hay = `${po.id} ${po.vendor} ${po.requester ?? ""}`.toLowerCase()
-            if (!hay.includes(lcQuery)) return false
-        }
         return true
     })
 
@@ -346,9 +511,6 @@ export default function PurchaseOrdersPage() {
         }))
         .sort((a, b) => (b.priority === "HIGH" ? 1 : 0) - (a.priority === "HIGH" ? 1 : 0))
     const highPriority = approvalQueue.filter((q) => q.priority === "HIGH").length
-
-    // ── Vendors list (for filter chip — currently single-select stub)
-    const allVendors = Array.from(new Set(orders.map((o) => o.vendor))).sort()
 
     // ── PO action button label
     const actionLabel = (po: PORow): string => {
@@ -516,9 +678,12 @@ export default function PurchaseOrdersPage() {
                     <IntegraButton
                         variant="secondary"
                         icon={<IconFilter className="w-3.5 h-3.5" />}
-                        onClick={() => toast.info("Panel filter sedang dibangun")}
+                        onClick={() => {
+                            setPendingPanelValues(poFilterToPanelValues(filter))
+                            setFilterPanelOpen(true)
+                        }}
                     >
-                        Filter
+                        {`Filter${activeFilterCount > 0 ? ` · ${activeFilterCount}` : ""}`}
                     </IntegraButton>
                     <IntegraButton
                         variant="secondary"
@@ -584,9 +749,9 @@ export default function PurchaseOrdersPage() {
                         <div className="relative" style={{ flex: "0 0 320px" }}>
                             <IconSearch className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--integra-muted)]" />
                             <input
-                                value={search}
+                                value={searchInput}
                                 onChange={(e) => {
-                                    setSearch(e.target.value)
+                                    setSearchInput(e.target.value)
                                     setPage(1)
                                 }}
                                 placeholder="Cari No. PO, vendor, atau SKU…"
@@ -634,53 +799,129 @@ export default function PurchaseOrdersPage() {
                             })}
                         </div>
 
-                        {/* Vendor filter chip — dismissible */}
-                        {vendorFilter && (
-                            <span
-                                className="inline-flex items-center gap-1.5 text-[11.5px] px-2 py-1 border border-[var(--integra-hairline-strong)] rounded-[3px] bg-[var(--integra-canvas-pure)] text-[var(--integra-ink-soft)]"
-                            >
-                                Vendor: <span className="font-medium text-[var(--integra-ink)]">{vendorFilter}</span>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setVendorFilter(null)
-                                        setPage(1)
-                                    }}
-                                    className="hover:text-[var(--integra-red)]"
-                                    aria-label="Hapus filter vendor"
-                                >
-                                    <IconX className="w-3 h-3" />
-                                </button>
-                            </span>
-                        )}
-
-                        {/* + Filter ghost (vendor stub) */}
-                        <button
-                            type="button"
-                            onClick={() => {
-                                if (allVendors.length > 0) {
-                                    setVendorFilter(allVendors[0])
-                                    setPage(1)
-                                } else {
-                                    toast.info("Belum ada vendor untuk difilter")
-                                }
-                            }}
-                            className={INT.btnGhost}
-                        >
-                            + Filter
-                        </button>
-
                         <span className="ml-auto font-mono text-[11.5px] text-[var(--integra-muted)]">
                             Σ {totalFiltered} PO · Rp {fmtIDRJt(filtered.reduce((s, po) => s + (po.total || 0), 0))}
                         </span>
                     </div>
+
+                    {/* Active filter chips */}
+                    {activeFilterCount > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5 px-3.5 py-2 border-b border-[var(--integra-hairline)] bg-[var(--integra-canvas)]">
+                            {filter.status?.length ? (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setFilter({ ...filter, status: undefined })
+                                        setPage(1)
+                                    }}
+                                    className={CHIP_CLASS}
+                                    aria-label="Hapus filter status"
+                                >
+                                    Status:{" "}
+                                    {filter.status.length === 1
+                                        ? STATUS_LABEL_LOOKUP[filter.status[0]] ?? filter.status[0]
+                                        : `${filter.status.length} dipilih`}
+                                    <X className="size-3" />
+                                </button>
+                            ) : null}
+                            {filter.vendorIds?.length ? (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setFilter({ ...filter, vendorIds: undefined })
+                                        setPage(1)
+                                    }}
+                                    className={CHIP_CLASS}
+                                    aria-label="Hapus filter vendor"
+                                >
+                                    Vendor:{" "}
+                                    {filter.vendorIds.length === 1
+                                        ? vendorNameById.get(filter.vendorIds[0]) ?? filter.vendorIds[0]
+                                        : `${filter.vendorIds.length} dipilih`}
+                                    <X className="size-3" />
+                                </button>
+                            ) : null}
+                            {(filter.dateStart || filter.dateEnd) && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setFilter({
+                                            ...filter,
+                                            dateStart: undefined,
+                                            dateEnd: undefined,
+                                        })
+                                        setPage(1)
+                                    }}
+                                    className={CHIP_CLASS}
+                                    aria-label="Hapus filter tanggal"
+                                >
+                                    Tanggal: {filter.dateStart ?? "…"} – {filter.dateEnd ?? "…"}
+                                    <X className="size-3" />
+                                </button>
+                            )}
+                            {(filter.amountMin != null || filter.amountMax != null) && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setFilter({
+                                            ...filter,
+                                            amountMin: undefined,
+                                            amountMax: undefined,
+                                        })
+                                        setPage(1)
+                                    }}
+                                    className={CHIP_CLASS}
+                                    aria-label="Hapus filter nilai"
+                                >
+                                    Nilai: Rp{" "}
+                                    {filter.amountMin != null
+                                        ? filter.amountMin.toLocaleString("id-ID")
+                                        : "…"}
+                                    {" – "}
+                                    Rp{" "}
+                                    {filter.amountMax != null
+                                        ? filter.amountMax.toLocaleString("id-ID")
+                                        : "…"}
+                                    <X className="size-3" />
+                                </button>
+                            )}
+                            {filter.paymentTerms?.length ? (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setFilter({ ...filter, paymentTerms: undefined })
+                                        setPage(1)
+                                    }}
+                                    className={CHIP_CLASS}
+                                    aria-label="Hapus filter pembayaran"
+                                >
+                                    Pembayaran:{" "}
+                                    {filter.paymentTerms.length === 1
+                                        ? PAYMENT_TERM_LABEL_LOOKUP[filter.paymentTerms[0]] ??
+                                          filter.paymentTerms[0]
+                                        : `${filter.paymentTerms.length} dipilih`}
+                                    <X className="size-3" />
+                                </button>
+                            ) : null}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setFilter({ search: filter.search })
+                                    setPage(1)
+                                }}
+                                className="text-[11px] text-[var(--integra-muted)] hover:text-[var(--integra-ink)] ml-1"
+                            >
+                                Kosongkan
+                            </button>
+                        </div>
+                    )}
 
                     {/* Table */}
                     {pageRows.length === 0 ? (
                         <EmptyState
                             title="Tidak ada PO"
                             description={
-                                lcQuery || statusTab !== "ALL" || vendorFilter
+                                statusTab !== "ALL" || activeFilterCount > 0 || filter.search
                                     ? "Coba ubah filter atau kata kunci pencarian."
                                     : "Belum ada Pesanan Pembelian yang dibuat."
                             }
@@ -799,6 +1040,69 @@ export default function PurchaseOrdersPage() {
                     </Panel>
                 </div>
             </div>
+
+            {/* Slide-out Filter Panel */}
+            <FilterPanel
+                open={filterPanelOpen}
+                onClose={() => setFilterPanelOpen(false)}
+                dimensions={[
+                    {
+                        type: "multi-select",
+                        key: "status",
+                        label: "Status",
+                        options: STATUS_OPTIONS,
+                    },
+                    {
+                        type: "multi-select",
+                        key: "vendorIds",
+                        label: "Vendor",
+                        options: vendors.map((v) => ({ value: v.id, label: v.name })),
+                        searchable: true,
+                    },
+                    {
+                        type: "date-range",
+                        key: "createdAt",
+                        label: "Tgl Buat",
+                    },
+                    {
+                        type: "amount-range",
+                        key: "totalAmount",
+                        label: "Nilai (Rp)",
+                        min: 0,
+                        max: 1_000_000_000,
+                    },
+                    {
+                        type: "checkbox-group",
+                        key: "paymentTerms",
+                        label: "Pembayaran",
+                        options: PAYMENT_TERM_OPTIONS,
+                    },
+                ]}
+                values={pendingPanelValues}
+                onChange={setPendingPanelValues}
+                onApply={() => {
+                    const next = panelValuesToPoFilter(pendingPanelValues, filter.search)
+                    setFilter(next)
+                    setPage(1)
+                    setFilterPanelOpen(false)
+                }}
+                onReset={() => {
+                    setPendingPanelValues({})
+                }}
+                savedFiltersSlot={
+                    <SavedFiltersDropdown<POFilter>
+                        module="purchase-orders"
+                        currentFilter={filter}
+                        onLoadFilter={(values) => {
+                            const loaded: POFilter = { ...values, search: filter.search }
+                            setFilter(loaded)
+                            setPendingPanelValues(poFilterToPanelValues(loaded))
+                            setPage(1)
+                            setFilterPanelOpen(false)
+                        }}
+                    />
+                }
+            />
         </>
     )
 }
