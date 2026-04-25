@@ -2744,3 +2744,170 @@ export async function createPurchaseReturn(input: CreatePurchaseReturnInput) {
         }
     })
 }
+
+// ──────────────────────────────────────────────────────────────────
+// Bulk actions — per-id transaction (partial success aware)
+// ──────────────────────────────────────────────────────────────────
+
+export type BulkPOResult = {
+    succeeded: string[]
+    failed: { id: string; reason: string }[]
+}
+
+/**
+ * Bulk approve POs. Each id runs in its own transaction so partial
+ * success works — failures are collected per-id rather than aborting
+ * the whole batch. Mirrors approvePurchaseOrder() semantics (SoD,
+ * status guard, event log, finance trigger).
+ */
+export async function bulkApprovePurchaseOrders(ids: string[]): Promise<BulkPOResult> {
+    const result: BulkPOResult = { succeeded: [], failed: [] }
+    if (!Array.isArray(ids) || ids.length === 0) return result
+
+    let user: Awaited<ReturnType<typeof getAuthzUser>>
+    try {
+        user = await getAuthzUser()
+        assertRole(user, APPROVER_ROLES)
+    } catch (e) {
+        const reason = e instanceof Error ? e.message : "Unauthorized"
+        for (const id of ids) result.failed.push({ id, reason })
+        return result
+    }
+
+    for (const id of ids) {
+        try {
+            const po = await withPrismaAuth(async (prismaClient) => {
+                await requireActiveProcurementActor(prismaClient, user)
+                const current = await prismaClient.purchaseOrder.findUnique({ where: { id } })
+                if (!current) throw new Error("PO tidak ditemukan")
+
+                if ((current as any).createdBy && (current as any).createdBy === user.id) {
+                    throw new Error("SoD: Anda yang membuat PO ini. Minta persetujuan dari pengguna lain.")
+                }
+
+                if (current.status !== ProcurementStatus.PENDING_APPROVAL) {
+                    throw new Error(`PO sudah ${current.status} — tidak bisa di-approve`)
+                }
+
+                assertPOTransition(current.status as any, "APPROVED")
+
+                const updateRes = await prismaClient.purchaseOrder.updateMany({
+                    where: { id, status: current.status },
+                    data: {
+                        previousStatus: current.status as any,
+                        status: "APPROVED",
+                        approvedBy: user.id,
+                    },
+                })
+                if (updateRes.count === 0) {
+                    throw new Error("PO sudah diproses oleh pengguna lain. Refresh halaman.")
+                }
+                const updated = await prismaClient.purchaseOrder.findUniqueOrThrow({
+                    where: { id },
+                    include: { supplier: true, items: { include: { product: true } } },
+                })
+
+                await createPurchaseOrderEvent(prismaClient as any, {
+                    purchaseOrderId: id,
+                    status: "APPROVED",
+                    changedBy: user.id,
+                    action: "APPROVE",
+                    metadata: { source: "BULK_ACTION" },
+                })
+
+                return updated
+            })
+
+            // Trigger finance bill creation outside the transaction (mirrors single approve)
+            try {
+                await recordPendingBillFromPO(po)
+            } catch (financeErr) {
+                // Non-fatal: PO approved but bill creation failed; log.
+                console.error("bulkApprove finance trigger failed for", id, financeErr)
+            }
+
+            result.succeeded.push(id)
+        } catch (e: unknown) {
+            const reason = e instanceof Error ? e.message : "Unknown error"
+            result.failed.push({ id, reason })
+        }
+    }
+
+    if (result.succeeded.length > 0) {
+        revalidateProcurementPaths()
+    }
+
+    return result
+}
+
+/**
+ * Bulk reject POs. Per-id transaction — same partial-success semantics
+ * as bulkApprovePurchaseOrders. Mirrors rejectPurchaseOrder().
+ */
+export async function bulkRejectPurchaseOrders(
+    ids: string[],
+    reason?: string,
+): Promise<BulkPOResult> {
+    const result: BulkPOResult = { succeeded: [], failed: [] }
+    if (!Array.isArray(ids) || ids.length === 0) return result
+
+    const rejectionReason = reason?.trim() || "Ditolak via bulk action"
+
+    let user: Awaited<ReturnType<typeof getAuthzUser>>
+    try {
+        user = await getAuthzUser()
+        assertRole(user, APPROVER_ROLES)
+    } catch (e) {
+        const failReason = e instanceof Error ? e.message : "Unauthorized"
+        for (const id of ids) result.failed.push({ id, reason: failReason })
+        return result
+    }
+
+    for (const id of ids) {
+        try {
+            await withPrismaAuth(async (prismaClient) => {
+                await requireActiveProcurementActor(prismaClient, user)
+                const current = await prismaClient.purchaseOrder.findUnique({ where: { id } })
+                if (!current) throw new Error("PO tidak ditemukan")
+
+                if (current.status !== ProcurementStatus.PENDING_APPROVAL) {
+                    throw new Error(`PO sudah ${current.status} — tidak bisa ditolak`)
+                }
+
+                assertPOTransition(current.status as any, "REJECTED")
+
+                const updateRes = await prismaClient.purchaseOrder.updateMany({
+                    where: { id, status: current.status },
+                    data: {
+                        previousStatus: current.status as any,
+                        status: "REJECTED",
+                        rejectionReason: rejectionReason,
+                    },
+                })
+                if (updateRes.count === 0) {
+                    throw new Error("PO sudah diproses oleh pengguna lain. Refresh halaman.")
+                }
+
+                await createPurchaseOrderEvent(prismaClient as any, {
+                    purchaseOrderId: id,
+                    status: "REJECTED",
+                    changedBy: user.id,
+                    action: "REJECT",
+                    notes: rejectionReason,
+                    metadata: { source: "BULK_ACTION" },
+                })
+            })
+
+            result.succeeded.push(id)
+        } catch (e: unknown) {
+            const failReason = e instanceof Error ? e.message : "Unknown error"
+            result.failed.push({ id, reason: failReason })
+        }
+    }
+
+    if (result.succeeded.length > 0) {
+        revalidateProcurementPaths()
+    }
+
+    return result
+}

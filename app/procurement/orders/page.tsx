@@ -12,8 +12,9 @@ import {
     IconChevronLeft,
     IconChevronRight,
 } from "@tabler/icons-react"
-import { X } from "lucide-react"
+import { X, Check, Download, Printer } from "lucide-react"
 import { toast } from "sonner"
+import { useQueryClient } from "@tanstack/react-query"
 
 import { usePurchaseOrders } from "@/hooks/use-purchase-orders"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
@@ -30,9 +31,11 @@ import {
     type ColumnDef,
     type KPIData,
 } from "@/components/integra"
+import { BulkActionToolbar } from "@/components/integra/bulk-action-toolbar"
 import { FilterPanel, type FilterValues } from "@/components/integra/filter-panel"
 import { SavedFiltersDropdown } from "@/components/integra/saved-filters-dropdown"
 import type { POFilter } from "@/lib/types/procurement-filters"
+import { queryKeys } from "@/lib/query-keys"
 import { INT, fmtIDRJt, fmtDateTime } from "@/lib/integra-tokens"
 
 type Period = "1H" | "7H" | "30H" | "TTD" | "12B"
@@ -347,10 +350,12 @@ export default function PurchaseOrdersPage() {
     const [pendingPanelValues, setPendingPanelValues] = React.useState<FilterValues>({})
 
     const { data, isLoading } = usePurchaseOrders(filter)
+    const queryClient = useQueryClient()
 
     const [period, setPeriod] = useState<Period>("30H")
     const [statusTab, setStatusTab] = useState<StatusTab>("ALL")
     const [searchInput, setSearchInput] = useState<string>(filter.search ?? "")
+    const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set())
 
     // Debounce search input -> filter.search
     React.useEffect(() => {
@@ -431,6 +436,62 @@ export default function PurchaseOrdersPage() {
     const start = (safePage - 1) * PAGE_SIZE
     const end = start + PAGE_SIZE
     const pageRows = filtered.slice(start, end)
+
+    // ── Bulk-select helpers (operate on the current page rows)
+    const toggleRow = (id: string) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev)
+            if (next.has(id)) next.delete(id)
+            else next.add(id)
+            return next
+        })
+    }
+    const selectAllOnPage = () => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev)
+            for (const r of pageRows) next.add(r.dbId)
+            return next
+        })
+    }
+    const clearSelection = () => setSelectedIds(new Set())
+    const allOnPageSelected =
+        pageRows.length > 0 && pageRows.every((r) => selectedIds.has(r.dbId))
+
+    const runBulkAction = async (action: "approve" | "reject") => {
+        const ids = Array.from(selectedIds)
+        if (ids.length === 0) return
+        try {
+            const res = await fetch("/api/procurement/orders/bulk", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ids, action }),
+            })
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}))
+                toast.error(err?.error ?? `Gagal bulk ${action}`)
+                return
+            }
+            const result = (await res.json()) as {
+                succeeded: string[]
+                failed: { id: string; reason: string }[]
+            }
+            const succeededN = result.succeeded?.length ?? 0
+            const failedN = result.failed?.length ?? 0
+            const verb = action === "approve" ? "disetujui" : "ditolak"
+            if (failedN > 0 && succeededN > 0) {
+                toast.warning(`${succeededN} ${verb}, ${failedN} gagal`)
+            } else if (failedN > 0) {
+                toast.error(`Semua ${failedN} PO gagal ${action === "approve" ? "disetujui" : "ditolak"}: ${result.failed[0]?.reason ?? ""}`)
+            } else {
+                toast.success(`${succeededN} PO ${verb}`)
+            }
+            clearSelection()
+            queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : "Unknown error"
+            toast.error(`Gagal bulk ${action}: ${msg}`)
+        }
+    }
 
     // ── Aggregates
     const sumAll = orders.reduce((s, po) => s + (po.total || 0), 0)
@@ -523,8 +584,28 @@ export default function PurchaseOrdersPage() {
     const cols: ColumnDef<PORow>[] = [
         {
             key: "check",
-            header: <input type="checkbox" className="cursor-pointer" />,
-            render: () => <input type="checkbox" className="cursor-pointer" onClick={(e) => e.stopPropagation()} />,
+            header: (
+                <input
+                    type="checkbox"
+                    aria-label="Pilih semua di halaman ini"
+                    checked={allOnPageSelected}
+                    onChange={(e) => (e.target.checked ? selectAllOnPage() : clearSelection())}
+                    className="cursor-pointer"
+                />
+            ),
+            render: (r) => (
+                <input
+                    type="checkbox"
+                    aria-label={`Pilih ${r.id}`}
+                    checked={selectedIds.has(r.dbId)}
+                    onChange={(e) => {
+                        e.stopPropagation()
+                        toggleRow(r.dbId)
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="cursor-pointer"
+                />
+            ),
             width: "32px",
         },
         {
@@ -654,6 +735,40 @@ export default function PurchaseOrdersPage() {
 
     return (
         <>
+            {/* Sticky bulk-action toolbar (only visible when rows are selected) */}
+            <BulkActionToolbar
+                selectedCount={selectedIds.size}
+                totalCount={pageRows.length}
+                onSelectAll={selectAllOnPage}
+                onClearSelection={clearSelection}
+                actions={[
+                    {
+                        label: "Setujui",
+                        icon: <Check className="size-3.5" />,
+                        variant: "primary",
+                        confirm: `Setujui ${selectedIds.size} PO?`,
+                        onClick: () => runBulkAction("approve"),
+                    },
+                    {
+                        label: "Tolak",
+                        icon: <X className="size-3.5" />,
+                        variant: "danger",
+                        confirm: `Tolak ${selectedIds.size} PO?`,
+                        onClick: () => runBulkAction("reject"),
+                    },
+                    {
+                        label: "Ekspor terpilih",
+                        icon: <Download className="size-3.5" />,
+                        onClick: () => toast.info("Ekspor terpilih akan diimplement di B4"),
+                    },
+                    {
+                        label: "Print PDF",
+                        icon: <Printer className="size-3.5" />,
+                        onClick: () => toast.info("Print PDF batch akan diimplement di B4"),
+                    },
+                ]}
+            />
+
             {/* Topbar */}
             <div className={INT.topbar}>
                 <div className={INT.breadcrumb}>
