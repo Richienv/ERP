@@ -92,3 +92,6 @@ scripts/ralph/runs/
 # External repos accidentally placed in project root
 codex/
 .vercel
+
+# Removed Apr 25 — was 1GB unrelated app
+liloapp/
