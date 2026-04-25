@@ -43,9 +43,31 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
             return NextResponse.json({ error: "PO tidak ditemukan" }, { status: 404 })
         }
 
+        // Resolve audit-event actor names (changedBy is a Supabase Auth UUID).
+        // Batch lookup avoids N+1; missing IDs render as "Sistem" downstream.
+        const actorIds = Array.from(
+            new Set(
+                (po.events ?? [])
+                    .map((e) => e.changedBy)
+                    .filter((id): id is string => Boolean(id)),
+            ),
+        )
+        const users = actorIds.length
+            ? await prisma.user.findMany({
+                where: { id: { in: actorIds } },
+                select: { id: true, name: true, email: true, role: true },
+            })
+            : []
+        const userMap = new Map(users.map((u) => [u.id, u]))
+        const enrichedEvents = (po.events ?? []).map((e) => ({
+            ...e,
+            actor: e.changedBy ? userMap.get(e.changedBy) ?? null : null,
+        }))
+
         // Decimal-safe: convert all Decimal fields to number for JSON serialization
         const safe = {
             ...po,
+            events: enrichedEvents,
             totalAmount: Number(po.totalAmount ?? 0),
             netAmount: Number(po.netAmount ?? 0),
             taxAmount: Number(po.taxAmount ?? 0),

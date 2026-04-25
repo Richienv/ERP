@@ -73,26 +73,34 @@ type RawEvent = {
     notes?: string | null
     metadata?: Record<string, unknown> | null
     changedBy?: string | null
+    actor?: {
+        id: string
+        name?: string | null
+        email?: string | null
+        role?: string | null
+    } | null
 }
 
 export function HistoryTab({ data }: { data: { events?: RawEvent[] } }) {
-    const events: AuditEvent[] = (data.events ?? []).map((e) => ({
-        id: e.id,
-        timestamp: new Date(e.createdAt),
-        actor: {
-            // changedBy is a Supabase Auth UUID — no name lookup yet.
-            // Show "Sistem" for seed/system events, short user ID for real users.
-            name: e.metadata?.source === "SEED"
-                ? "Sistem"
-                : e.changedBy
-                    ? `User ${String(e.changedBy).slice(0, 8)}`
-                    : "Sistem",
-            role: undefined,
-        },
-        action: deriveAction(e),
-        description: deriveDescription(e),
-        meta: e.metadata ?? undefined,
-    }))
+    const events: AuditEvent[] = (data.events ?? []).map((e) => {
+        // Prefer enriched actor from API (joined User table). Fall back to email
+        // prefix or "Sistem" for seed/system events.
+        const isSeed = e.metadata?.source === "SEED"
+        const actorName = isSeed
+            ? "Sistem"
+            : e.actor?.name ?? e.actor?.email?.split("@")[0] ?? "Sistem"
+        return {
+            id: e.id,
+            timestamp: new Date(e.createdAt),
+            actor: {
+                name: actorName,
+                role: e.actor?.role ?? undefined,
+            },
+            action: deriveAction(e),
+            description: deriveDescription(e),
+            meta: e.metadata ?? undefined,
+        }
+    })
 
     return <AuditTrailTimeline events={events} />
 }
