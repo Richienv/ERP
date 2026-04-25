@@ -292,7 +292,15 @@ function ArAgingTable({ data }: { data: AgingBucket[] }) {
     }
 
     return (
-        <Panel title="Umur Piutang (AR)" bodyClassName="p-0">
+        <Panel
+            title="Umur Piutang (AR)"
+            actions={
+                <Link href="/finance/receivables" className="text-[11.5px] text-[var(--integra-muted)] hover:text-[var(--integra-ink)]">
+                    Lihat semua →
+                </Link>
+            }
+            bodyClassName="p-0"
+        >
             <table className={INT.table}>
                 <thead>
                     <tr>
