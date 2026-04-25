@@ -21,6 +21,7 @@ import {
     IconArrowsExchange,
     IconBuildingWarehouse,
     IconAlertTriangle,
+    IconChartBar,
     IconCash,
     IconArrowUpRight,
     IconArrowDownLeft,
@@ -85,6 +86,7 @@ const ALL_SECTIONS: IntegraNavSection[] = [
             { title: "Pergerakan Stok", url: "/inventory/movements", icon: IconArrowsExchange, moduleKey: "inventory" },
             { title: "Gudang", url: "/inventory/warehouses", icon: IconBuildingWarehouse, moduleKey: "inventory" },
             { title: "Peringatan Stok", url: "/inventory/alerts", icon: IconAlertTriangle, moduleKey: "inventory" },
+            { title: "Material Gap", url: "/inventory/material-gap", icon: IconChartBar, moduleKey: "inventory" },
         ],
     },
     {
