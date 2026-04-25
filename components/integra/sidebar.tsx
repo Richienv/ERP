@@ -3,23 +3,56 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { IconSearch, IconChevronDown } from "@tabler/icons-react"
+import {
+    IconSearch,
+    IconChevronDown,
+    IconMoon,
+    IconSun,
+    IconUser,
+    IconSettings,
+    IconLogout,
+    IconLock,
+} from "@tabler/icons-react"
+import { useTheme } from "next-themes"
 import { useAuth } from "@/lib/auth-context"
 import { cn } from "@/lib/utils"
 import { getIntegraNav, type IntegraNavItem } from "@/lib/integra-nav-data"
 import { useNavPrefetch } from "@/hooks/use-nav-prefetch"
+import { NotificationCenter } from "@/components/notification-center"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 const sections = getIntegraNav()
+
+// Pre-computed flat list of all nav URLs, used for longest-prefix active match.
+const ALL_NAV_URLS = sections.flatMap((s) => s.items.map((i) => i.url))
+
+function findActiveUrl(pathname: string): string | null {
+    let best: string | null = null
+    for (const url of ALL_NAV_URLS) {
+        if (pathname === url || (url !== "/" && pathname.startsWith(url + "/"))) {
+            if (!best || url.length > best.length) best = url
+        }
+    }
+    return best
+}
 
 export function IntegraSidebar() {
     const pathname = usePathname()
     const router = useRouter()
-    const { user } = useAuth()
+    const { user, logout } = useAuth()
     const { prefetchRoute } = useNavPrefetch()
     const [search, setSearch] = React.useState("")
 
-    const isActive = (url: string) =>
-        pathname === url || (url !== "/" && pathname.startsWith(url + "/"))
+    // Longest-prefix wins — prevents parent + child both lighting up
+    // (e.g. /inventory and /inventory/products simultaneously).
+    const activeUrl = React.useMemo(() => findActiveUrl(pathname), [pathname])
 
     // ⌘K → focus search
     const inputRef = React.useRef<HTMLInputElement | null>(null)
@@ -51,9 +84,7 @@ export function IntegraSidebar() {
         .map((s) => s[0]?.toUpperCase() ?? "")
         .join("") || "?"
     const userName = user?.name ?? user?.email?.split("@")[0] ?? "Pengguna"
-    const userRole = user?.role
-        ? prettyRole(user.role)
-        : "PT Integra"
+    const userRole = user?.role ? prettyRole(user.role) : "PT Integra"
 
     return (
         <aside
@@ -66,7 +97,7 @@ export function IntegraSidebar() {
             )}
         >
             {/* Brand row */}
-            <div className="h-[52px] flex items-center gap-2.5 px-[18px] border-b border-[var(--integra-hairline)] shrink-0">
+            <div className="h-[52px] flex items-center gap-2 px-4 border-b border-[var(--integra-hairline)] shrink-0">
                 <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0">
                     <span
                         className="w-[22px] h-[22px] rounded-[4px] bg-[var(--integra-ink)] text-[var(--integra-canvas)] grid place-items-center font-display font-semibold text-[12px]"
@@ -81,12 +112,10 @@ export function IntegraSidebar() {
                         Integra
                     </span>
                 </Link>
-                <span
-                    className="ml-auto font-mono text-[10.5px] text-[var(--integra-muted)] border border-[var(--integra-hairline-strong)] px-[5px] py-[1px] rounded-[2px] uppercase"
-                    style={{ letterSpacing: "0.08em" }}
-                >
-                    PRD
-                </span>
+                <div className="ml-auto flex items-center gap-0.5">
+                    <NotificationCenter />
+                    <ThemeToggleButton />
+                </div>
             </div>
 
             {/* Search row */}
@@ -124,7 +153,7 @@ export function IntegraSidebar() {
                             <SidebarNavItem
                                 key={item.url}
                                 item={item}
-                                active={isActive(item.url)}
+                                active={item.url === activeUrl}
                                 onHover={() => prefetchRoute(item.url)}
                             />
                         ))}
@@ -137,29 +166,69 @@ export function IntegraSidebar() {
                 )}
             </nav>
 
-            {/* Footer: user */}
-            <button
-                type="button"
-                onClick={() => router.push("/settings")}
-                className={cn(
-                    "mt-auto border-t border-[var(--integra-hairline)] shrink-0",
-                    "px-3.5 py-2.5 flex items-center gap-2.5 text-[12px]",
-                    "hover:bg-[#F1EFE8] transition-colors text-left w-full",
-                )}
-            >
-                <span className="w-6 h-6 rounded-full bg-[var(--integra-ink)] text-[var(--integra-canvas)] grid place-items-center font-display font-semibold text-[11px] shrink-0">
-                    {userInitials}
-                </span>
-                <span className="flex-1 min-w-0">
-                    <span className="block font-medium text-[var(--integra-ink)] truncate">
-                        {userName}
-                    </span>
-                    <span className="block text-[var(--integra-muted)] text-[11px] truncate">
-                        {userRole}
-                    </span>
-                </span>
-                <IconChevronDown className="size-3.5 text-[var(--integra-muted)] shrink-0" stroke={1.4} />
-            </button>
+            {/* Footer: user dropdown */}
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <button
+                        type="button"
+                        className={cn(
+                            "mt-auto border-t border-[var(--integra-hairline)] shrink-0",
+                            "px-3.5 py-2.5 flex items-center gap-2.5 text-[12px]",
+                            "hover:bg-[#F1EFE8] transition-colors text-left w-full",
+                            "outline-none",
+                        )}
+                    >
+                        <span className="w-6 h-6 rounded-full bg-[var(--integra-ink)] text-[var(--integra-canvas)] grid place-items-center font-display font-semibold text-[11px] shrink-0">
+                            {userInitials}
+                        </span>
+                        <span className="flex-1 min-w-0">
+                            <span className="block font-medium text-[var(--integra-ink)] truncate">
+                                {userName}
+                            </span>
+                            <span className="block text-[var(--integra-muted)] text-[11px] truncate">
+                                {userRole}
+                            </span>
+                        </span>
+                        <IconChevronDown className="size-3.5 text-[var(--integra-muted)] shrink-0" stroke={1.4} />
+                    </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                    side="right"
+                    align="end"
+                    sideOffset={8}
+                    className="w-56"
+                >
+                    <DropdownMenuLabel className="font-normal">
+                        <div className="flex flex-col space-y-0.5">
+                            <span className="text-[12px] font-medium text-[var(--integra-ink)]">{userName}</span>
+                            <span className="text-[11px] text-[var(--integra-muted)] truncate">
+                                {user?.email ?? userRole}
+                            </span>
+                        </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => router.push("/settings")}>
+                        <IconUser className="mr-2 size-4" stroke={1.4} />
+                        <span>Profil</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push("/settings")}>
+                        <IconSettings className="mr-2 size-4" stroke={1.4} />
+                        <span>Pengaturan</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push("/settings")}>
+                        <IconLock className="mr-2 size-4" stroke={1.4} />
+                        <span>Ubah Kata Sandi</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                        onClick={logout}
+                        className="text-[var(--integra-red)] focus:text-[var(--integra-red)]"
+                    >
+                        <IconLogout className="mr-2 size-4" stroke={1.4} />
+                        <span>Keluar</span>
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
         </aside>
     )
 }
@@ -213,11 +282,34 @@ function SidebarNavItem({
     )
 }
 
+function ThemeToggleButton() {
+    const { theme, setTheme } = useTheme()
+    const isDark = theme === "dark"
+    return (
+        <button
+            type="button"
+            onClick={() => setTheme(isDark ? "light" : "dark")}
+            aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            className={cn(
+                "w-7 h-7 grid place-items-center rounded-[3px]",
+                "text-[var(--integra-muted)] hover:text-[var(--integra-ink)] hover:bg-[#F1EFE8]",
+                "transition-colors",
+            )}
+        >
+            {isDark ? (
+                <IconSun className="size-3.5" stroke={1.4} />
+            ) : (
+                <IconMoon className="size-3.5" stroke={1.4} />
+            )}
+        </button>
+    )
+}
+
 function prettyRole(role: string): string {
     const map: Record<string, string> = {
         ROLE_ADMIN: "Admin",
-        ROLE_CEO: "CEO",
-        ROLE_MANAGER: "Manager",
+        ROLE_CEO: "Pemilik & CEO",
+        ROLE_MANAGER: "Manajer Operasional",
         ROLE_ACCOUNTANT: "Akuntan",
         ROLE_STAFF: "Staf",
     }

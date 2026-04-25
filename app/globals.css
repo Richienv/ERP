@@ -10,6 +10,9 @@
   --font-heading: var(--font-display);
   --font-mono: var(--font-mono);
   --font-serif: var(--font-display);
+  /* Direct Integra-named font tokens — registers font-body / font-display utilities */
+  --font-body: var(--font-body);
+  --font-display: var(--font-display);
 
   /* ─── Integra design system tokens ─── */
   --color-canvas: var(--integra-canvas);
