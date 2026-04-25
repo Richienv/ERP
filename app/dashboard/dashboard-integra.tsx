@@ -539,53 +539,138 @@ function RecentOrdersTable({ invoices }: { invoices: any[] }) {
     }
 
     const cols: ColumnDef<any>[] = [
-        { key: "no", header: "No. Pesanan", render: (r) => <span className="font-mono text-[12px]">{r.number ?? r.invoiceNumber}</span>, type: "code" },
-        { key: "customer", header: "Pelanggan", render: (r) => r.customer ?? r.customerName ?? "—", type: "primary" },
-        { key: "tglBuat", header: "Tgl. Buat", render: (r) => r.createdAt ? fmtTime(r.createdAt) : "—", type: "code" },
-        { key: "tglKirim", header: "Tgl. Kirim", render: (r) => r.dueDate ? fmtDateShort(new Date(r.dueDate)) : "—", type: "code" },
-        { key: "qty", header: "Qty", render: (r) => r.qty ?? "—", type: "num" },
-        { key: "nilai", header: "Nilai (Rp)", render: (r) => fmtIDR(r.totalAmount ?? r.amount ?? 0), type: "num" },
         {
-            key: "status", header: "Status", render: (r) => {
-                const status = r.status ?? "DRAFT"
-                const map: Record<string, "ok" | "warn" | "err" | "info" | "neutral"> = {
-                    PAID: "ok", LUNAS: "ok", SELESAI: "ok", DELIVERED: "ok",
-                    PARTIAL: "warn", PENDING: "warn",
-                    OVERDUE: "err", DRAFT: "neutral",
-                    ISSUED: "info", DIPROSES: "info",
-                }
-                return <StatusPill kind={map[status] ?? "neutral"}>{statusLabel(status)}</StatusPill>
-            }
+            key: "no",
+            header: "No. Pesanan",
+            render: (r) => <span className="font-mono text-[11.5px] text-[var(--integra-muted)]">{r.number ?? r.invoiceNumber}</span>,
+            type: "text",
+        },
+        {
+            key: "customer",
+            header: "Pelanggan",
+            render: (r) => r.customer ?? r.customerName ?? "—",
+            type: "primary",
+        },
+        {
+            key: "tglBuat",
+            header: "Tgl. Buat",
+            render: (r) => r.createdAt
+                ? <span className="font-mono text-[11.5px] text-[var(--integra-muted)]">{fmtCreatedAt(r.createdAt)}</span>
+                : "—",
+            type: "text",
+        },
+        {
+            key: "tglKirim",
+            header: "Tgl. Kirim",
+            render: (r) => r.dueDate
+                ? <span className="font-mono text-[11.5px] text-[var(--integra-muted)]">{fmtDateShort(new Date(r.dueDate))}</span>
+                : "—",
+            type: "text",
+        },
+        {
+            key: "qty",
+            header: "Qty",
+            render: (r) => r.qty != null ? r.qty.toLocaleString("id-ID") : "—",
+            type: "num",
+        },
+        {
+            key: "nilai",
+            header: "Nilai (Rp)",
+            render: (r) => fmtIDR(r.totalAmount ?? r.amount ?? 0),
+            type: "num",
+        },
+        {
+            key: "status",
+            header: "Status",
+            render: (r) => <OrderStatusPill status={r.status ?? "DRAFT"} />,
+        },
+        {
+            key: "pembayaran",
+            header: "Pembayaran",
+            render: (r) => <PaymentPill payment={r.paymentStatus ?? r.payment ?? derivePayment(r)} />,
+        },
+        {
+            key: "saluran",
+            header: "Saluran",
+            render: (r) => <span>{r.channel ?? r.salesChannel ?? "Direct"}</span>,
         },
     ]
+
+    const total = invoices.reduce((s, r) => s + (r.totalAmount ?? r.amount ?? 0), 0)
 
     return (
         <Panel
             title="Pesanan Terbaru"
             meta={`${invoices.length} terbuka · menampilkan ${Math.min(8, invoices.length)}`}
             actions={
-                <div className="flex items-center gap-3 text-[11px]">
-                    <button className="text-[var(--integra-liren-blue)] font-semibold">Semua</button>
-                    <button className="text-[var(--integra-muted)]">Baru</button>
-                    <button className="text-[var(--integra-muted)]">Diproses</button>
-                    <button className="text-[var(--integra-muted)]">Dikirim</button>
-                    <button className="text-[var(--integra-muted)]">Selesai</button>
-                    <Link href="/finance/invoices" className="text-[var(--integra-liren-blue)]">Lihat semua →</Link>
+                <div className="flex items-center gap-1">
+                    <button className="px-2 py-1 text-[11.5px] bg-[var(--integra-liren-blue-soft)] text-[var(--integra-liren-blue)] font-medium rounded-[2px]">Semua</button>
+                    <button className="px-2 py-1 text-[11.5px] text-[var(--integra-muted)] hover:text-[var(--integra-ink)]">Baru</button>
+                    <button className="px-2 py-1 text-[11.5px] text-[var(--integra-muted)] hover:text-[var(--integra-ink)]">Diproses</button>
+                    <button className="px-2 py-1 text-[11.5px] text-[var(--integra-muted)] hover:text-[var(--integra-ink)]">Dikirim</button>
+                    <button className="px-2 py-1 text-[11.5px] text-[var(--integra-muted)] hover:text-[var(--integra-ink)]">Selesai</button>
+                    <span className="w-px h-4 bg-[var(--integra-hairline)] mx-1" />
+                    <Link href="/finance/invoices" className="text-[11.5px] text-[var(--integra-muted)] hover:text-[var(--integra-ink)]">Lihat semua →</Link>
                 </div>
             }
             bodyClassName="p-0"
         >
-            <DataTable columns={cols} rows={invoices} rowKey={(r) => r.id ?? r.number ?? Math.random()} />
+            <DataTable columns={cols} rows={invoices.slice(0, 8)} rowKey={(r) => r.id ?? r.number ?? Math.random()} />
+            <div className="flex items-center gap-3 px-3.5 py-2 border-t border-[var(--integra-hairline)] font-mono text-[11.5px] text-[var(--integra-muted)]">
+                <span>1–{Math.min(8, invoices.length)} dari {invoices.length}</span>
+                <span>Σ {fmtIDRJt(total)}</span>
+                <span className="ml-auto">← Sebelumnya · Berikutnya →</span>
+            </div>
         </Panel>
     )
 }
 
-function statusLabel(s: string): string {
-    const map: Record<string, string> = {
-        PAID: "Lunas", ISSUED: "Diproses", PARTIAL: "Parsial", OVERDUE: "Lewat",
-        DRAFT: "Draf", DELIVERED: "Dikirim", PENDING: "Menunggu",
+function OrderStatusPill({ status }: { status: string }) {
+    const map: Record<string, { kind: "ok" | "warn" | "err" | "info" | "neutral"; label: string }> = {
+        PAID: { kind: "ok", label: "Lunas" },
+        DELIVERED: { kind: "ok", label: "Dikirim" },
+        SELESAI: { kind: "ok", label: "Selesai" },
+        SIAP_KIRIM: { kind: "ok", label: "Siap Kirim" },
+        PARTIAL: { kind: "warn", label: "Parsial" },
+        MENUNGGU_QC: { kind: "warn", label: "Menunggu QC" },
+        STOK_KURANG: { kind: "err", label: "Stok kurang" },
+        OVERDUE: { kind: "err", label: "Lewat" },
+        DRAFT: { kind: "neutral", label: "Draf" },
+        ISSUED: { kind: "info", label: "Diproses" },
+        DIPROSES: { kind: "info", label: "Diproses" },
     }
-    return map[s] ?? s
+    const entry = map[status] ?? { kind: "neutral" as const, label: status }
+    return <StatusPill kind={entry.kind}>{entry.label}</StatusPill>
+}
+
+function PaymentPill({ payment }: { payment: string }) {
+    const map: Record<string, { kind: "ok" | "warn" | "neutral"; label: string }> = {
+        PAID: { kind: "ok", label: "Lunas" },
+        LUNAS: { kind: "ok", label: "Lunas" },
+        DP_30: { kind: "warn", label: "DP 30%" },
+        DP_50: { kind: "warn", label: "DP 50%" },
+        NET_15: { kind: "neutral", label: "NET 15" },
+        NET_30: { kind: "neutral", label: "NET 30" },
+        NET_45: { kind: "neutral", label: "NET 45" },
+        NET_60: { kind: "neutral", label: "NET 60" },
+    }
+    const entry = map[payment] ?? { kind: "neutral" as const, label: payment }
+    return <StatusPill kind={entry.kind}>{entry.label}</StatusPill>
+}
+
+function derivePayment(r: any): string {
+    const balance = r.balanceDue ?? 0
+    const total = r.totalAmount ?? r.amount ?? 0
+    if (balance === 0) return "PAID"
+    if (balance < total) return "DP_30"
+    return "NET_30"
+}
+
+function fmtCreatedAt(iso: string): string {
+    const d = new Date(iso)
+    const date = new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "2-digit" }).format(d)
+    const time = new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false }).format(d)
+    return `${date} ${time}`
 }
 
 function MonthlyTarget({ sales }: { sales: any }) {
