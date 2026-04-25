@@ -70,6 +70,7 @@ const ALL_SECTIONS: IntegraNavSection[] = [
     {
         title: "Pengadaan",
         items: [
+            { title: "Dashboard Pengadaan", url: "/procurement", icon: IconLayoutDashboard, moduleKey: "procurement" },
             { title: "Pesanan Pembelian", url: "/procurement/orders", icon: IconShoppingCart, moduleKey: "procurement" },
             { title: "Permintaan (PR)", url: "/procurement/requests", icon: IconClipboardList, moduleKey: "procurement" },
             { title: "Pemasok", url: "/procurement/vendors", icon: IconTruckDelivery, moduleKey: "procurement" },
