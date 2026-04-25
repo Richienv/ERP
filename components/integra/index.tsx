@@ -194,6 +194,7 @@ export function DataTable<T>({
     rows,
     rowKey,
     onRowClick,
+    rowClassName,
     totals,
     emptyMessage = "Tidak ada data",
 }: {
@@ -201,6 +202,7 @@ export function DataTable<T>({
     rows: T[]
     rowKey: (row: T) => string | number
     onRowClick?: (row: T) => void
+    rowClassName?: (row: T, index: number) => string | undefined
     totals?: T  // optional totals row at bottom
     emptyMessage?: string
 }) {
@@ -228,10 +230,14 @@ export function DataTable<T>({
                     </tr>
                 </thead>
                 <tbody>
-                    {rows.map((r) => (
+                    {rows.map((r, idx) => (
                         <tr
                             key={rowKey(r)}
-                            className={cn(INT.rowHover, onRowClick && "cursor-pointer")}
+                            className={cn(
+                                INT.rowHover,
+                                onRowClick && "cursor-pointer",
+                                rowClassName?.(r, idx),
+                            )}
                             onClick={onRowClick ? () => onRowClick(r) : undefined}
                         >
                             {columns.map((c) => (

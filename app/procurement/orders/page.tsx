@@ -362,6 +362,99 @@ export default function PurchaseOrdersPage() {
         body: React.ReactNode
     } | null>(null)
 
+    // ── Keyboard shortcuts (D3)
+    const searchInputRef = React.useRef<HTMLInputElement | null>(null)
+    const [highlightedIndex, setHighlightedIndex] = React.useState<number>(-1)
+    const [showShortcuts, setShowShortcuts] = React.useState<boolean>(false)
+    // Refs that the global keydown handler reads — avoids rebinding the
+    // listener on every data tick.
+    const pageRowsRef = React.useRef<PORow[]>([])
+    const highlightedIndexRef = React.useRef<number>(-1)
+    const showShortcutsRef = React.useRef<boolean>(false)
+    React.useEffect(() => {
+        highlightedIndexRef.current = highlightedIndex
+    }, [highlightedIndex])
+    React.useEffect(() => {
+        showShortcutsRef.current = showShortcuts
+    }, [showShortcuts])
+
+    React.useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            const target = e.target as HTMLElement | null
+            const isTyping =
+                target instanceof HTMLInputElement ||
+                target instanceof HTMLTextAreaElement ||
+                target instanceof HTMLSelectElement ||
+                (target?.isContentEditable ?? false)
+            if (isTyping) {
+                if (e.key === "Escape") (target as HTMLElement).blur()
+                return
+            }
+            const rows = pageRowsRef.current
+            switch (e.key) {
+                case "/": {
+                    e.preventDefault()
+                    searchInputRef.current?.focus()
+                    searchInputRef.current?.select()
+                    break
+                }
+                case "j":
+                case "J": {
+                    if (rows.length === 0) return
+                    e.preventDefault()
+                    setHighlightedIndex((prev) =>
+                        Math.min((prev < 0 ? -1 : prev) + 1, rows.length - 1),
+                    )
+                    break
+                }
+                case "k":
+                case "K": {
+                    if (rows.length === 0) return
+                    e.preventDefault()
+                    setHighlightedIndex((prev) => Math.max(prev - 1, 0))
+                    break
+                }
+                case "Enter": {
+                    const idx = highlightedIndexRef.current
+                    if (idx >= 0 && rows[idx]) {
+                        e.preventDefault()
+                        router.push(`/procurement/orders/${rows[idx].dbId}`)
+                    }
+                    break
+                }
+                case "f":
+                case "F": {
+                    e.preventDefault()
+                    setPendingPanelValues(poFilterToPanelValues(filterRef.current))
+                    setFilterPanelOpen(true)
+                    break
+                }
+                case "?": {
+                    e.preventDefault()
+                    setShowShortcuts(true)
+                    break
+                }
+                case "Escape": {
+                    if (showShortcutsRef.current) {
+                        setShowShortcuts(false)
+                    } else if (highlightedIndexRef.current >= 0) {
+                        setHighlightedIndex(-1)
+                    }
+                    break
+                }
+            }
+        }
+        window.addEventListener("keydown", onKey)
+        return () => window.removeEventListener("keydown", onKey)
+    }, [router])
+
+    // Mirror filter into a ref so the keydown handler always sees the current
+    // applied filter without re-binding.
+    const filterRef = React.useRef<POFilter>(filter)
+    React.useEffect(() => {
+        filterRef.current = filter
+    }, [filter])
+
     // Debounce search input -> filter.search
     React.useEffect(() => {
         const t = setTimeout(() => {
@@ -465,6 +558,9 @@ export default function PurchaseOrdersPage() {
     const start = (safePage - 1) * PAGE_SIZE
     const end = start + PAGE_SIZE
     const pageRows = filtered.slice(start, end)
+    // Sync the latest pageRows into the ref so the global keydown handler
+    // (j/k/Enter) always operates on the visible page.
+    pageRowsRef.current = pageRows
 
     // ── Map a PORow into the shape expected by the XLSX exporter, with status
     //    translated to Bahasa for human-readable output.
@@ -963,12 +1059,13 @@ export default function PurchaseOrdersPage() {
                         <div className="relative" style={{ flex: "0 0 320px" }}>
                             <IconSearch className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--integra-muted)]" />
                             <input
+                                ref={searchInputRef}
                                 value={searchInput}
                                 onChange={(e) => {
                                     setSearchInput(e.target.value)
                                     setPage(1)
                                 }}
-                                placeholder="Cari No. PO, vendor, atau SKU…"
+                                placeholder="Cari No. PO, vendor, atau SKU… (tekan / untuk fokus)"
                                 className="w-full h-8 pl-8 pr-2 text-[12.5px] border border-[var(--integra-hairline)] rounded-[3px] bg-[var(--integra-canvas-pure)] outline-none focus:border-[var(--integra-liren-blue)] focus:ring-2 focus:ring-[var(--integra-liren-blue)]/30 placeholder:text-[var(--integra-muted)]"
                             />
                         </div>
@@ -1175,6 +1272,11 @@ export default function PurchaseOrdersPage() {
                             rows={pageRows}
                             rowKey={(r) => r.dbId}
                             onRowClick={(r) => router.push(`/procurement/orders/${r.dbId}`)}
+                            rowClassName={(_r, idx) =>
+                                idx === highlightedIndex
+                                    ? "bg-[var(--integra-liren-blue)]/10 outline outline-2 outline-[var(--integra-liren-blue)]/40 outline-offset-[-2px]"
+                                    : undefined
+                            }
                         />
                     )}
 
@@ -1186,6 +1288,15 @@ export default function PurchaseOrdersPage() {
                             </span>
                             <span className="font-mono">Σ Rp {fmtIDRJt(sumPage)}</span>
                             <span className="font-mono">Σ Total Rp {fmtIDRJt(sumAll)}</span>
+                            <button
+                                type="button"
+                                onClick={() => setShowShortcuts(true)}
+                                className="text-[10.5px] text-[var(--integra-muted)] hover:text-[var(--integra-ink)] underline decoration-dotted underline-offset-2"
+                                title="Pintasan keyboard"
+                                aria-label="Tampilkan pintasan keyboard"
+                            >
+                                Pintasan ?
+                            </button>
                             <span className="ml-auto flex items-center gap-2 font-mono">
                                 Hal {safePage} / {totalPages}
                                 <button
@@ -1431,6 +1542,85 @@ export default function PurchaseOrdersPage() {
                             <button
                                 type="button"
                                 onClick={() => setStubModal(null)}
+                                className="h-7 px-3 bg-[var(--integra-ink)] text-[var(--integra-canvas)] text-[12px] rounded-[3px] hover:opacity-90"
+                            >
+                                Tutup
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Keyboard shortcuts cheatsheet overlay (D3) */}
+            {showShortcuts && (
+                <div
+                    className="fixed inset-0 bg-black/40 z-50 grid place-items-center"
+                    onClick={() => setShowShortcuts(false)}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="shortcuts-title"
+                >
+                    <div
+                        className="bg-[var(--integra-canvas-pure)] border border-[var(--integra-hairline)] rounded-[3px] max-w-md w-full mx-4 p-5 shadow-lg"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h2
+                            id="shortcuts-title"
+                            className="font-display font-medium text-[14px] text-[var(--integra-ink)] mb-3"
+                        >
+                            Pintasan Keyboard
+                        </h2>
+                        <p className="text-[11.5px] text-[var(--integra-muted)] mb-3">
+                            Gunakan pintasan ini saat fokus tidak berada di kolom input.
+                        </p>
+                        <dl className="grid grid-cols-[80px_1fr] gap-y-2 text-[12.5px] text-[var(--integra-ink-soft)]">
+                            <dt>
+                                <kbd className="font-mono px-1.5 py-0.5 border border-[var(--integra-hairline-strong)] rounded-[2px] text-[11px] bg-[var(--integra-canvas)]">
+                                    /
+                                </kbd>
+                            </dt>
+                            <dd>Fokus pencarian</dd>
+                            <dt>
+                                <kbd className="font-mono px-1.5 py-0.5 border border-[var(--integra-hairline-strong)] rounded-[2px] text-[11px] bg-[var(--integra-canvas)]">
+                                    j
+                                </kbd>
+                            </dt>
+                            <dd>Baris berikutnya</dd>
+                            <dt>
+                                <kbd className="font-mono px-1.5 py-0.5 border border-[var(--integra-hairline-strong)] rounded-[2px] text-[11px] bg-[var(--integra-canvas)]">
+                                    k
+                                </kbd>
+                            </dt>
+                            <dd>Baris sebelumnya</dd>
+                            <dt>
+                                <kbd className="font-mono px-1.5 py-0.5 border border-[var(--integra-hairline-strong)] rounded-[2px] text-[11px] bg-[var(--integra-canvas)]">
+                                    Enter
+                                </kbd>
+                            </dt>
+                            <dd>Buka detail PO baris terpilih</dd>
+                            <dt>
+                                <kbd className="font-mono px-1.5 py-0.5 border border-[var(--integra-hairline-strong)] rounded-[2px] text-[11px] bg-[var(--integra-canvas)]">
+                                    f
+                                </kbd>
+                            </dt>
+                            <dd>Buka panel filter</dd>
+                            <dt>
+                                <kbd className="font-mono px-1.5 py-0.5 border border-[var(--integra-hairline-strong)] rounded-[2px] text-[11px] bg-[var(--integra-canvas)]">
+                                    ?
+                                </kbd>
+                            </dt>
+                            <dd>Tampilkan pintasan ini</dd>
+                            <dt>
+                                <kbd className="font-mono px-1.5 py-0.5 border border-[var(--integra-hairline-strong)] rounded-[2px] text-[11px] bg-[var(--integra-canvas)]">
+                                    Esc
+                                </kbd>
+                            </dt>
+                            <dd>Tutup overlay · hapus highlight · keluar dari input</dd>
+                        </dl>
+                        <div className="flex justify-end mt-4">
+                            <button
+                                type="button"
+                                onClick={() => setShowShortcuts(false)}
                                 className="h-7 px-3 bg-[var(--integra-ink)] text-[var(--integra-canvas)] text-[12px] rounded-[3px] hover:opacity-90"
                             >
                                 Tutup
