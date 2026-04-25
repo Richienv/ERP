@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import { useExecutiveDashboard } from "@/hooks/use-executive-dashboard"
 import {
     Panel, KPIRail, StatusPill, DeltaPill, IntegraButton,
@@ -439,53 +439,88 @@ function AlertsList({ alerts }: { alerts: any[] }) {
     if (alerts.length === 0) {
         return <Panel title="Peringatan Operasional" meta="0 aktif"><EmptyState title="Tidak ada peringatan" /></Panel>
     }
-    const critical = alerts.filter((a) => a.severity === "critical" || a.kind === "err").length
+    const critical = alerts.filter((a) => a.severity === "critical" || a.kind === "err" || a.kind === "stok" || a.kind === "piutang").length
 
     return (
         <Panel
             title="Peringatan Operasional"
             meta={`${alerts.length} aktif · ${critical} kritikal`}
             actions={
-                <div className="flex items-center gap-1 text-[11px]">
-                    <button className={INT.tabActive + " px-2 py-0.5 rounded-[2px]"}>Semua</button>
-                    <button className="px-2 py-0.5 text-[var(--integra-muted)]">Kritikal</button>
+                <div className="flex items-center gap-1">
+                    <button className="px-2 py-1 text-[11.5px] bg-[var(--integra-liren-blue-soft)] text-[var(--integra-liren-blue)] font-medium rounded-[2px]">Semua</button>
+                    <button className="px-2 py-1 text-[11.5px] text-[var(--integra-muted)] hover:text-[var(--integra-ink)]">Kritikal</button>
                 </div>
             }
             bodyClassName="p-0"
         >
-            <div className="divide-y divide-[var(--integra-hairline)]">
+            <ul className="m-0 p-0 list-none">
                 {alerts.map((a, i) => (
-                    <div key={i} className="px-3.5 py-2 hover:bg-[#FBFAF5] flex items-start gap-2.5">
-                        <span className="font-mono text-[10.5px] text-[var(--integra-muted)] w-10 pt-0.5">
-                            {fmtTime(a.timestamp ?? new Date())}
+                    <li key={i} className="grid grid-cols-[56px_1fr_auto] items-baseline gap-2.5 px-3.5 py-2 border-b border-[var(--integra-hairline)] last:border-b-0 text-[12.5px]">
+                        <span className="font-mono text-[11px] text-[var(--integra-muted)]">{fmtAlertTime(a.timestamp ?? a.ts ?? new Date())}</span>
+                        <span className="text-[var(--integra-ink-soft)]">
+                            <AlertKindPill kind={normalizeAlertKind(a.kind ?? "info")} />
+                            <span className="ml-2">{renderAlertMessage(a.message ?? a.title ?? "—")}</span>
                         </span>
-                        <span className={alertKindPill(a.kind ?? "info")}>
-                            {(a.kind ?? "info").toString().toUpperCase()}
-                        </span>
-                        <div className="flex-1 text-[12.5px] text-[var(--integra-ink)]">
-                            {a.message ?? a.title ?? "—"}
-                            {a.meta && <span className="text-[11px] text-[var(--integra-muted)] ml-2 font-mono">{a.meta}</span>}
-                        </div>
-                    </div>
+                        <span className="font-mono text-[11px] text-[var(--integra-muted)]">{a.meta ?? ""}</span>
+                    </li>
                 ))}
-            </div>
+            </ul>
         </Panel>
     )
 }
 
-function alertKindPill(kind: string): string {
-    const base = "inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded-[2px] tracking-wider"
-    switch (kind) {
-        case "err":
-        case "stok": return base + " bg-[var(--integra-red-bg)] text-[var(--integra-red)]"
-        case "piutang": return base + " bg-[var(--integra-red-bg)] text-[var(--integra-red)]"
-        case "qa":
-        case "warn": return base + " bg-[var(--integra-amber-bg)] text-[var(--integra-amber)]"
-        case "po":
-        case "ok": return base + " bg-[var(--integra-green-ok-bg)] text-[var(--integra-green-ok)]"
-        case "info":
-        default: return base + " bg-[var(--integra-liren-blue-soft)] text-[var(--integra-liren-blue)]"
+function AlertKindPill({ kind }: { kind: "STOK" | "PIUTANG" | "QA" | "PO" | "INFO" | "HR" | "FX" }) {
+    const map: Record<string, "ok" | "warn" | "err" | "info" | "neutral"> = {
+        STOK: "err",
+        PIUTANG: "err",
+        QA: "warn",
+        PO: "warn",
+        INFO: "info",
+        HR: "neutral",
+        FX: "warn",
     }
+    return <StatusPill kind={map[kind] ?? "neutral"}>{kind}</StatusPill>
+}
+
+function normalizeAlertKind(k: string): "STOK" | "PIUTANG" | "QA" | "PO" | "INFO" | "HR" | "FX" {
+    const u = k.toUpperCase()
+    if (["STOK", "PIUTANG", "QA", "PO", "INFO", "HR", "FX"].includes(u)) return u as any
+    if (k === "stok" || k === "err") return "STOK"
+    if (k === "piutang") return "PIUTANG"
+    if (k === "qa" || k === "warn") return "QA"
+    if (k === "po") return "PO"
+    if (k === "hr") return "HR"
+    return "INFO"
+}
+
+/** Render alert message: wrap any token matching /[A-Z]{2,4}-[\d/-]+/ in `.doc` style. */
+function renderAlertMessage(msg: string): ReactNode {
+    const docPattern = /([A-Z]{2,4}-[\d/-]+(?:-[A-Z\d]+)?)/g
+    const parts = msg.split(docPattern)
+    return parts.map((p, i) =>
+        docPattern.test(p) ? (
+            <span
+                key={i}
+                className="text-[var(--integra-liren-blue)]"
+                style={{ textDecoration: "underline", textDecorationColor: "var(--integra-hairline-strong)", textUnderlineOffset: 2 }}
+            >
+                {p}
+            </span>
+        ) : (
+            <span key={i}>{p}</span>
+        )
+    )
+}
+
+function fmtAlertTime(d: any): string {
+    try {
+        const date = new Date(d)
+        const isToday = date.toDateString() === new Date().toDateString()
+        if (isToday) {
+            return new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false }).format(date)
+        }
+        return new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "2-digit" }).format(date)
+    } catch { return "—" }
 }
 
 function fmtTime(d: any): string {
