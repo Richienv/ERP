@@ -185,57 +185,81 @@ export function DashboardIntegra() {
 // ─────────────────────────────────────────────────────────────────
 
 function RevenueChart({ data }: { data: any }) {
-    // Placeholder chart — twin bars (plan vs actual)
-    // Use real data if available, else mock 30-day series
-    const series = data?.charts?.revenueByDay ?? Array.from({ length: 30 }, (_, i) => ({
-        day: i + 1,
-        actual: 150 + Math.random() * 80,
-        plan: 145 + Math.random() * 60,
-    }))
-    const max = Math.max(...series.map((d: any) => Math.max(d.actual, d.plan)))
-    const total = series.reduce((s: number, d: any) => s + d.actual, 0)
-    const totalPlan = series.reduce((s: number, d: any) => s + d.plan, 0)
-    const vsPlanPct = ((total - totalPlan) / totalPlan) * 100
+    const series: Array<{ day: number; actual: number; plan: number }> =
+        data?.charts?.revenueByDay ??
+        Array.from({ length: 30 }, (_, i) => ({
+            day: i + 1,
+            actual: 150 + Math.sin(i / 3) * 30 + Math.random() * 30,
+            plan: 175 + Math.cos(i / 4) * 15,
+        }))
+
+    const max = 240  // fixed scale matching reference
+    const total = series.reduce((s, d) => s + d.actual, 0)
+    const totalPlan = series.reduce((s, d) => s + d.plan, 0)
+    const vsPlanPct = (total / totalPlan - 1) * 100
+
+    const yLabels = [240, 180, 120, 60, 0]
+    const xLabels = [1, 5, 10, 15, 20, 25, 30]
 
     return (
         <Panel
             title="Pendapatan vs Rencana"
-            meta="30 hari terakhir"
+            meta="dalam Rp juta · 30 hari"
             actions={
-                <div className="flex items-center gap-3 text-[11px] text-[var(--integra-muted)]">
-                    <span className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 bg-[var(--integra-ink)]" /> Aktual
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 bg-[#D4D1C7]" /> Rencana
-                    </span>
+                <div className="flex items-center gap-1">
+                    <button className="px-2 py-1 text-[11.5px] bg-[var(--integra-liren-blue-soft)] text-[var(--integra-liren-blue)] font-medium rounded-[2px]">Harian</button>
+                    <button className="px-2 py-1 text-[11.5px] text-[var(--integra-muted)] hover:text-[var(--integra-ink)]">Mingguan</button>
+                    <button className="px-2 py-1 text-[11.5px] text-[var(--integra-muted)] hover:text-[var(--integra-ink)]">Kumulatif</button>
                 </div>
             }
+            bodyClassName="p-0"
         >
-            <div className="relative h-[240px]">
-                <svg width="100%" height="100%" viewBox={`0 0 ${series.length * 18} 240`} preserveAspectRatio="none">
-                    {/* gridlines */}
-                    {[0, 60, 120, 180, 240].map((y) => (
-                        <line key={y} x1="0" x2={series.length * 18} y1={240 - (y / 240) * 240} y2={240 - (y / 240) * 240}
-                            stroke="#E5E3DC" strokeWidth="0.5" strokeDasharray="2 3" />
+            <div className="px-3.5 pt-3.5">
+                {/* Chart with axis labels */}
+                <div className="relative h-[200px]">
+                    {/* Y-axis labels + gridlines */}
+                    {yLabels.map((y, i) => (
+                        <div
+                            key={y}
+                            className="absolute left-0 right-2 flex items-center"
+                            style={{ top: `${(i / (yLabels.length - 1)) * 100}%`, transform: "translateY(-50%)" }}
+                        >
+                            <span className="font-mono text-[10px] text-[var(--integra-muted)] w-7 -translate-y-px">{y}</span>
+                            <span className="flex-1 border-t border-dashed border-[var(--integra-hairline)]" style={{ borderTopWidth: 0.5 }} />
+                        </div>
                     ))}
-                    {series.map((d: any, i: number) => (
-                        <g key={i} transform={`translate(${i * 18}, 0)`}>
-                            <rect x="3" y={240 - (d.plan / max) * 220} width="6" height={(d.plan / max) * 220} fill="#D4D1C7" />
-                            <rect x="9" y={240 - (d.actual / max) * 220} width="6" height={(d.actual / max) * 220} fill="#141413" />
-                        </g>
+                    {/* Bars */}
+                    <div className="absolute left-7 right-2 top-0 bottom-0 grid grid-flow-col auto-cols-fr items-end gap-1.5">
+                        {series.map((d, i) => (
+                            <div key={i} className="flex items-end justify-center gap-0.5 h-full">
+                                <div className="w-2 bg-[#D4D1C7]" style={{ height: `${(d.plan / max) * 100}%` }} />
+                                <div className="w-2 bg-[var(--integra-ink)]" style={{ height: `${(d.actual / max) * 100}%` }} />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                {/* X-axis */}
+                <div className="grid grid-flow-col auto-cols-fr pl-7 pr-2 pt-2 font-mono text-[10.5px] text-[var(--integra-muted)] text-center">
+                    {Array.from({ length: 30 }, (_, i) => (
+                        <span key={i}>{xLabels.includes(i + 1) ? String(i + 1).padStart(2, "0") : ""}</span>
                     ))}
-                </svg>
-            </div>
-            <div className="flex items-center justify-between mt-2 text-[11px] text-[var(--integra-muted)] font-mono">
-                <span>1 — {series.length}</span>
-                <span>
-                    Σ <span className="text-[var(--integra-ink)] font-medium">{fmtIDRJt(total * 1_000_000)}</span>
-                    {" · "}
-                    <span className={vsPlanPct >= 0 ? "text-[var(--integra-green-ok)]" : "text-[var(--integra-red)]"}>
-                        {vsPlanPct >= 0 ? "+" : ""}{vsPlanPct.toFixed(1)}% vs plan
+                </div>
+                {/* Legend + total */}
+                <div className="flex items-center gap-4 px-0 py-3 text-[11.5px] text-[var(--integra-muted)]">
+                    <span className="inline-flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 bg-[var(--integra-ink)]" /> Aktual
                     </span>
-                </span>
+                    <span className="inline-flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 bg-[#D4D1C7]" /> Rencana
+                    </span>
+                    <span className="ml-auto font-mono">
+                        Σ <span className="text-[var(--integra-ink)]">{fmtIDRJt(total * 1_000_000)}</span>
+                        {" · "}
+                        <span className={vsPlanPct >= 0 ? "text-[var(--integra-green-ok)]" : "text-[var(--integra-red)]"}>
+                            {vsPlanPct.toFixed(1).replace(".", ",")}% vs plan
+                        </span>
+                    </span>
+                </div>
             </div>
         </Panel>
     )
