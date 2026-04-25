@@ -7,7 +7,7 @@ import {
     PageHead, LiveDot, SegmentedButtons, DataTable, EmptyState,
     type ColumnDef, type KPIData,
 } from "@/components/integra"
-import { INT, fmtIDRJt, fmtPct, fmtIDR, fmtDateShort, fmtDateTime } from "@/lib/integra-tokens"
+import { INT, fmtIDRJt, fmtIDR, fmtDateShort, fmtDateTime } from "@/lib/integra-tokens"
 import { IconFilter, IconDownload, IconPlus } from "@tabler/icons-react"
 import Link from "next/link"
 
@@ -85,7 +85,6 @@ export function DashboardIntegra() {
         },
     ]
 
-    const overdueInvoices = financials?.overdueInvoices ?? []
     const recentInvoices = financials?.recentInvoices ?? []
     const executiveAlerts = activity?.executiveAlerts ?? []
 
@@ -185,13 +184,16 @@ export function DashboardIntegra() {
 // ─────────────────────────────────────────────────────────────────
 
 function RevenueChart({ data }: { data: any }) {
+    const raw: Array<{ day: number; actual: number; plan: number }> | undefined =
+        data?.charts?.revenueByDay
     const series: Array<{ day: number; actual: number; plan: number }> =
-        data?.charts?.revenueByDay ??
-        Array.from({ length: 30 }, (_, i) => ({
-            day: i + 1,
-            actual: 150 + Math.sin(i / 3) * 30 + Math.random() * 30,
-            plan: 175 + Math.cos(i / 4) * 15,
-        }))
+        raw && raw.length > 0
+            ? raw
+            : Array.from({ length: 30 }, (_, i) => ({
+                day: i + 1,
+                actual: 150 + Math.sin(i / 3) * 30 + Math.random() * 30,
+                plan: 175 + Math.cos(i / 4) * 15,
+            }))
 
     const max = 240  // fixed scale matching reference
     const total = series.reduce((s, d) => s + d.actual, 0)
@@ -338,12 +340,14 @@ function ArAgingTable({ data }: { data: AgingBucket[] }) {
 }
 
 function CashflowChart({ data }: { data: any }) {
+    const raw: Array<{ date: string; net: number }> | undefined = data?.charts?.dataCash7d
     const series: Array<{ date: string; net: number }> =
-        data?.charts?.dataCash7d ??
-        Array.from({ length: 30 }, (_, i) => ({
-            date: new Date(Date.now() - (29 - i) * 86400_000).toISOString(),
-            net: 1_000_000 + i * 60_000 + Math.sin(i / 3) * 200_000,
-        }))
+        raw && raw.length > 0
+            ? raw
+            : Array.from({ length: 30 }, (_, i) => ({
+                date: new Date(Date.now() - (29 - i) * 86400_000).toISOString(),
+                net: 1_000_000 + i * 60_000 + Math.sin(i / 3) * 200_000,
+            }))
 
     const values = series.map((d) => d.net)
     const max = Math.max(...values)
@@ -526,12 +530,6 @@ function fmtAlertTime(d: any): string {
     } catch { return "—" }
 }
 
-function fmtTime(d: any): string {
-    try {
-        const date = new Date(d)
-        return new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false }).format(date)
-    } catch { return "—" }
-}
 
 function RecentOrdersTable({ invoices }: { invoices: any[] }) {
     if (invoices.length === 0) {
