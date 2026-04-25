@@ -6,10 +6,27 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-heading: var(--font-outfit);
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-serif: var(--font-outfit);
+  --font-sans: var(--font-body);
+  --font-heading: var(--font-display);
+  --font-mono: var(--font-mono);
+  --font-serif: var(--font-display);
+
+  /* ─── Integra design system tokens ─── */
+  --color-canvas: var(--integra-canvas);
+  --color-canvas-pure: var(--integra-canvas-pure);
+  --color-ink: var(--integra-ink);
+  --color-ink-soft: var(--integra-ink-soft);
+  --color-muted-integra: var(--integra-muted);
+  --color-hairline: var(--integra-hairline);
+  --color-hairline-strong: var(--integra-hairline-strong);
+  --color-liren-blue: var(--integra-liren-blue);
+  --color-liren-blue-soft: var(--integra-liren-blue-soft);
+  --color-green-ok: var(--integra-green-ok);
+  --color-green-ok-bg: var(--integra-green-ok-bg);
+  --color-amber: var(--integra-amber);
+  --color-amber-bg: var(--integra-amber-bg);
+  --color-red: var(--integra-red);
+  --color-red-bg: var(--integra-red-bg);
 
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -56,7 +73,42 @@
 }
 
 :root {
-  /* Minimalist Zinc - Light Mode */
+  /* ─── Integra Design System (Bloomberg-lite Corporate) ─── */
+  /* Source: design_handoff_integra_erp/colors_and_type.css */
+  --integra-canvas:           #FAF9F5;     /* warm off-white page bg */
+  --integra-canvas-pure:      #FFFFFF;     /* raised panels only */
+  --integra-ink:              #141413;     /* body text, primary buttons */
+  --integra-ink-soft:         #2B2B28;     /* secondary text */
+  --integra-muted:            #6B6B66;     /* captions, labels, metadata */
+  --integra-hairline:         #E5E3DC;     /* dividers (0.5px) */
+  --integra-hairline-strong:  #D4D1C7;     /* button borders, ghost */
+  --integra-liren-blue:       #0047FF;     /* SINGLE accent color */
+  --integra-liren-blue-soft:  #E8EEFF;     /* tab-on bg, info pills */
+  --integra-green-ok:         #4A7A3C;     /* positive delta, OK status */
+  --integra-green-ok-bg:      #E6EFE1;     /* OK pill bg */
+  --integra-amber:            #B47A00;     /* warn status */
+  --integra-amber-bg:         #FFF4DB;     /* warn pill bg */
+  --integra-red:              #B4321C;     /* error, negative delta, critical */
+  --integra-red-bg:           #FDECE5;     /* err pill bg */
+
+  /* Heatmap ramp (warm ochre, corporate-safe) */
+  --integra-heat-1: #F4F2EB;
+  --integra-heat-2: #EFEBDA;
+  --integra-heat-3: #E0D9B6;
+  --integra-heat-4: #C9BD7A;
+  --integra-heat-5: #9B8E3E;
+
+  /* Borders & rings */
+  --integra-border: 0.5px solid var(--integra-hairline);
+  --integra-border-strong: 0.5px solid var(--integra-hairline-strong);
+  --integra-focus-ring: 0 0 0 2px var(--integra-liren-blue);
+
+  /* Densities */
+  --integra-row-h: 30px;       /* table data row */
+  --integra-row-th: 28px;      /* table header row */
+  --integra-kpi-h: 92px;       /* KPI cell min-height */
+
+  /* Minimalist Zinc - Light Mode (legacy NB tokens — keep until full migration) */
   --radius: 0.75rem;
 
   --background: oklch(0.985 0.002 247.839);
@@ -531,5 +583,65 @@ textarea.nb-input:not(:placeholder-shown) {
 
   .mf-panel {
     @apply border border-black/15 bg-zinc-50/40;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Integra design system — applied via .integra-app wrapper
+   so it doesn't break NB pages during incremental migration.
+   ───────────────────────────────────────────────────────────────── */
+.integra-app {
+  background: var(--integra-canvas);
+  color: var(--integra-ink);
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.45;
+  letter-spacing: -0.003em;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "ss01", "cv11", "tnum";
+}
+
+.integra-app .mono,
+.integra-app code,
+.integra-app [data-mono] {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum";
+  letter-spacing: -0.01em;
+}
+
+.integra-app h1,
+.integra-app h2,
+.integra-app h3,
+.integra-app h4 {
+  font-family: var(--font-display);
+  font-weight: 500;
+}
+
+/* Integra page wrapper (replaces .mf-page for migrated pages) */
+.integra-page {
+  background: var(--integra-canvas);
+  color: var(--integra-ink);
+  min-height: 100vh;
+  padding: 24px;
+  font-family: var(--font-body);
+}
+
+@layer utilities {
+  /* Hairline border helpers */
+  .border-hairline { border: var(--integra-border); }
+  .border-hairline-strong { border: var(--integra-border-strong); }
+  .border-b-hairline { border-bottom: var(--integra-border); }
+  .border-r-hairline { border-right: var(--integra-border); }
+  .border-t-hairline { border-top: var(--integra-border); }
+  .border-l-hairline { border-left: var(--integra-border); }
+
+  /* Tabular figures helper */
+  .tnum { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+
+  /* Mono numeric helper */
+  .integra-mono {
+    font-family: var(--font-mono);
+    font-feature-settings: "tnum";
+    letter-spacing: -0.01em;
   }
 }
