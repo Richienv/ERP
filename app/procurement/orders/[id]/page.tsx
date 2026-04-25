@@ -4,6 +4,7 @@ import { usePurchaseOrderDetail } from "@/hooks/use-purchase-order-detail"
 import { DetailPage } from "@/components/integra/detail-page"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 import { HeaderTab } from "./_tabs/header-tab"
+import { ItemTab } from "./_tabs/item-tab"
 
 export default function PoDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
@@ -50,11 +51,7 @@ export default function PoDetailPage({ params }: { params: Promise<{ id: string 
                 {
                     key: "item",
                     label: `Item (${itemCount})`,
-                    content: (
-                        <div className="text-[12.5px] text-[var(--integra-muted)]">
-                            Item tab — Phase C3
-                        </div>
-                    ),
+                    content: <ItemTab data={data} />,
                 },
                 {
                     key: "approval",
