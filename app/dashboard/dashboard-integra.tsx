@@ -33,7 +33,10 @@ export function DashboardIntegra() {
     // Fix 1 — Laba Kotor: read margin directly from API (operations.profitability.marginPct, 0–100)
     const marginPctReal: number = Number(operations?.profitability?.marginPct ?? 0)
     const targetMargin = 0.36 // 36% target — could come from settings later
-    const hasMargin = marginPctReal > 0
+    // Bug 11 — show margin if there was sales activity, even if margin is negative (loss months are real).
+    // Previously hid all negative margins under "Belum ada data".
+    const profitabilityRevenue = Number(operations?.profitability?.revenue ?? 0)
+    const hasMargin = profitabilityRevenue > 0
     const grossMargin = marginPctReal / 100
     const marginPp = marginPctReal - targetMargin * 100  // delta vs target in pp
 
@@ -49,13 +52,18 @@ export function DashboardIntegra() {
     const warehouseCount = warehouseList.length || (operations?.inventorySummary?.warehouseCount ?? 0)
 
     // Fix 5 — Pesanan Terbuka: source dari sales fulfillment (bukan vendor PO)
-    const openOrders = operations?.salesFulfillment?.totalOrders ?? 0
+    // Bug 12 — totalOrders is ALL orders (delivered + open). Compute true open = total - delivered.
+    const totalOrders = operations?.salesFulfillment?.totalOrders ?? 0
     const deliveredOrders = operations?.salesFulfillment?.deliveredOrders ?? 0
+    const openOrders = Math.max(0, totalOrders - deliveredOrders)
 
+    // Bug 9 — keep magnitude suffix (jt / M) so "Rp 5,0" isn't ambiguous.
+    // fmtIDRJt returns e.g. "Rp 5,0 jt" or "Rp 1,2 M"; strip "Rp " prefix and let `unit` show "Rp".
+    const revenueFormatted = fmtIDRJt(totalRevenue).replace(/^Rp\s?/, "")
     const kpis: KPIData[] = [
         {
             label: "Pendapatan (MTD)",
-            value: fmtIDRJt(totalRevenue).replace(" jt", "").replace(" M", ""),
+            value: revenueFormatted,
             unit: "Rp",
             foot: "MTD",
         },
@@ -76,7 +84,7 @@ export function DashboardIntegra() {
         {
             label: "Pesanan Terbuka",
             value: String(openOrders),
-            foot: openOrders > 0 ? `${deliveredOrders}/${openOrders} terkirim` : undefined,
+            foot: totalOrders > 0 ? `${deliveredOrders}/${totalOrders} terkirim` : undefined,
         },
         {
             label: "DSO",
@@ -112,6 +120,17 @@ export function DashboardIntegra() {
                     <span className={INT.breadcrumbCurrent}>Dasbor</span>
                 </div>
                 <div className="ml-auto flex items-center gap-2">
+                    {/*
+                      Bug 16 — period selector is currently cosmetic; setPeriod doesn't refetch.
+                      TODO: pass `period` to useExecutiveDashboard(period) once the API supports
+                      a date-range query param. For now, mark as preview so users aren't misled.
+                    */}
+                    <span
+                        className="text-[10.5px] uppercase tracking-wider text-[var(--integra-muted)] italic"
+                        title="Pemilihan periode belum aktif — backend belum mendukung filter rentang tanggal."
+                    >
+                        periode (preview)
+                    </span>
                     <SegmentedButtons<Period>
                         options={[
                             { value: "1H", label: "1H" },
@@ -197,9 +216,12 @@ export function DashboardIntegra() {
 function RevenueChart({ data }: { data: any }) {
     const raw: Array<{ day: number; actual: number; plan: number }> | undefined =
         data?.charts?.revenueByDay
+    // Bug 15 — keep mock fallback for visual continuity, but flag it as demo data so users
+    // don't mistake fabricated sine-wave numbers for real revenue.
+    const isDemo = !raw || raw.length === 0
     const series: Array<{ day: number; actual: number; plan: number }> =
-        raw && raw.length > 0
-            ? raw
+        !isDemo
+            ? raw!
             : Array.from({ length: 30 }, (_, i) => ({
                 day: i + 1,
                 actual: 150 + Math.sin(i / 3) * 30 + Math.random() * 30,
@@ -219,7 +241,7 @@ function RevenueChart({ data }: { data: any }) {
     return (
         <Panel
             title="Pendapatan vs Rencana"
-            meta="dalam Rp juta · 30 hari"
+            meta={isDemo ? "dalam Rp juta · 30 hari · data demo" : "dalam Rp juta · 30 hari"}
             actions={
                 <div className="flex items-center gap-1">
                     <button className="px-2 py-1 text-[11.5px] bg-[var(--integra-liren-blue-soft)] text-[var(--integra-liren-blue)] font-medium rounded-[2px]">Harian</button>
@@ -267,13 +289,18 @@ function RevenueChart({ data }: { data: any }) {
                     <span className="inline-flex items-center gap-1.5">
                         <span className="w-2.5 h-2.5 bg-[#D4D1C7]" /> Rencana
                     </span>
-                    <span className="ml-auto font-mono">
-                        Σ <span className="text-[var(--integra-ink)]">{fmtIDRJt(total * 1_000_000)}</span>
-                        {" · "}
-                        <span className={vsPlanPct >= 0 ? "text-[var(--integra-green-ok)]" : "text-[var(--integra-red)]"}>
-                            {vsPlanPct.toFixed(1).replace(".", ",")}% vs plan
+                    {/* Bug 15 — only show real totals; mock data → label clearly as preview */}
+                    {isDemo ? (
+                        <span className="ml-auto font-mono italic">preview · belum ada data harian</span>
+                    ) : (
+                        <span className="ml-auto font-mono">
+                            Σ <span className="text-[var(--integra-ink)]">{fmtIDRJt(total * 1_000_000)}</span>
+                            {" · "}
+                            <span className={vsPlanPct >= 0 ? "text-[var(--integra-green-ok)]" : "text-[var(--integra-red)]"}>
+                                {vsPlanPct.toFixed(1).replace(".", ",")}% vs plan
+                            </span>
                         </span>
-                    </span>
+                    )}
                 </div>
             </div>
         </Panel>
@@ -635,7 +662,8 @@ function RecentOrdersTable({ invoices }: { invoices: any[] }) {
             }
             bodyClassName="p-0"
         >
-            <DataTable columns={cols} rows={invoices.slice(0, 8)} rowKey={(r) => r.id ?? r.number ?? Math.random()} />
+            {/* Bug 14 — never use Math.random() as rowKey (causes full remount per render); use stable id/number */}
+            <DataTable columns={cols} rows={invoices.slice(0, 8)} rowKey={(r) => r.id ?? r.number ?? `row-${invoices.indexOf(r)}`} />
             <div className="flex items-center gap-3 px-3.5 py-2 border-t border-[var(--integra-hairline)] font-mono text-[11.5px] text-[var(--integra-muted)]">
                 <span>1–{Math.min(8, invoices.length)} dari {invoices.length}</span>
                 <span>Σ {fmtIDRJt(total)}</span>
@@ -747,7 +775,13 @@ function PendingTasks({ pending }: { pending: any[] }) {
             <ul className="m-0 p-0 list-none">
                 {pending.slice(0, 5).map((t, i) => {
                     const ref = t.ref ?? t.poNumber ?? t.number ?? `Item-${i + 1}`
-                    const supplier = t.supplier ?? t.supplierName ?? "—"
+                    // Bug 8 — supplier is { name } object on pendingApproval payload, not string
+                    const supplier =
+                        (typeof t.supplier === "object" && t.supplier !== null
+                            ? t.supplier.name
+                            : t.supplier) ??
+                        t.supplierName ??
+                        "—"
                     const itemCount = t.itemCount ?? (Array.isArray(t.items) ? t.items.length : null)
                     const meta = itemCount != null
                         ? `${itemCount} item · ${supplier}`
@@ -757,7 +791,8 @@ function PendingTasks({ pending }: { pending: any[] }) {
                             <span className="text-[var(--integra-ink-soft)]">
                                 {t.action ?? "Setujui"}{" "}
                                 <Link
-                                    href={t.url ?? `/procurement/orders/${t.id ?? ""}`}
+                                    // Bug 13 — /procurement/orders/[id] route doesn't exist; link to list page instead
+                                    href={t.url ?? `/procurement/orders?focus=${encodeURIComponent(ref)}`}
                                     className="text-[var(--integra-liren-blue)]"
                                     style={{ textDecoration: "underline", textDecorationColor: "var(--integra-hairline-strong)", textUnderlineOffset: 2 }}
                                 >
