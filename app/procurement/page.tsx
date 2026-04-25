@@ -177,7 +177,7 @@ export default function ProcurementPage() {
             header: "Nilai (Rp jt)",
             type: "num",
             render: (r) => {
-                const v = r.totalAmount ?? r.total ?? 0
+                const v = r.total ?? r.totalAmount ?? 0
                 return v ? fmtIDRJt(v).replace(/\s?(jt|M|rb)$/, "") : "—"
             },
         },
@@ -185,9 +185,12 @@ export default function ProcurementPage() {
             key: "tgl",
             header: "Tanggal",
             type: "muted",
-            render: (r) => r.createdAt
-                ? <span className="font-mono text-[11.5px] text-[var(--integra-muted)]">{fmtDateShort(new Date(r.createdAt))}</span>
-                : "—",
+            render: (r) => {
+                const d = r.date ?? r.createdAt
+                return d
+                    ? <span className="font-mono text-[11.5px] text-[var(--integra-muted)]">{fmtDateShort(new Date(d))}</span>
+                    : "—"
+            },
         },
     ]
 
@@ -219,9 +222,12 @@ export default function ProcurementPage() {
             key: "tgl",
             header: "Tanggal",
             type: "muted",
-            render: (r) => r.createdAt
-                ? <span className="font-mono text-[11.5px] text-[var(--integra-muted)]">{fmtDateShort(new Date(r.createdAt))}</span>
-                : "—",
+            render: (r) => {
+                const d = r.date ?? r.createdAt
+                return d
+                    ? <span className="font-mono text-[11.5px] text-[var(--integra-muted)]">{fmtDateShort(new Date(d))}</span>
+                    : "—"
+            },
         },
     ]
 
@@ -250,7 +256,7 @@ export default function ProcurementPage() {
             header: "Tgl Terima",
             type: "muted",
             render: (r) => {
-                const d = r.receivedAt ?? r.createdAt
+                const d = r.date ?? r.receivedAt ?? r.createdAt
                 return d
                     ? <span className="font-mono text-[11.5px] text-[var(--integra-muted)]">{fmtDateShort(new Date(d))}</span>
                     : "—"
@@ -293,8 +299,8 @@ export default function ProcurementPage() {
                     <IntegraButton variant="secondary" icon={<IconDownload className="w-3.5 h-3.5" />}>
                         Ekspor
                     </IntegraButton>
-                    <IntegraButton variant="primary" icon={<IconPlus className="w-3.5 h-3.5" />} href="/procurement/orders/new">
-                        Buat PO
+                    <IntegraButton variant="primary" icon={<IconPlus className="w-3.5 h-3.5" />} href="/procurement/orders">
+                        Lihat Pesanan Pembelian
                     </IntegraButton>
                 </div>
             </div>
