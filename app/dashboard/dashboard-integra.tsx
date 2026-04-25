@@ -92,7 +92,7 @@ export function DashboardIntegra() {
     const arAging = computeArAging(financials)
 
     return (
-        <div className="integra-app min-h-screen">
+        <>
             {/* Topbar */}
             <div className={INT.topbar}>
                 <div className={INT.breadcrumb}>
@@ -175,7 +175,7 @@ export function DashboardIntegra() {
                     </div>
                 </div>
             </div>
-        </div>
+        </>
     )
 }
 
