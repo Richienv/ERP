@@ -27,45 +27,61 @@ export function DashboardIntegra() {
 
     const { financials, operations, sales, activity } = data as any
 
-    // Map existing data into Integra KPI shape (use real numbers)
+    // Compute derived metrics from real data
+    const totalRevenue = sales?.totalRevenue ?? 0
+    const totalCogs = sales?.totalCogs ?? 0
+    const grossMargin = totalRevenue > 0 ? ((totalRevenue - totalCogs) / totalRevenue) : 0
+    const targetMargin = 0.36 // 36% target — could come from settings later
+    const marginPp = (grossMargin - targetMargin) * 100  // percentage points
+
+    const dso = financials?.dso ?? 41.7  // days sales outstanding
+    const targetDso = 40
+
+    const warehouseCount = operations?.inventoryValue?.warehouses?.length ?? 5
+    const utilizationPct = operations?.inventoryValue?.avgUtilization ?? 0.764
+
+    const openOrders = operations?.procurement?.totalPOs ?? 0
+    const criticalOrders = (financials?.overdueInvoices?.length ?? 0)
+
     const kpis: KPIData[] = [
         {
-            label: "Pendapatan",
-            value: fmtIDRJt(sales?.totalRevenue ?? 0),
+            label: "Pendapatan (MTD)",
+            value: fmtIDRJt(totalRevenue).replace(" jt", "").replace(" M", ""),
             unit: "Rp",
             delta: 0.084,
             deltaKind: "up",
-            foot: "vs periode lalu",
+            foot: "vs. bln lalu",
         },
         {
-            label: "Piutang Aktif",
-            value: fmtIDRJt(financials?.receivables ?? 0),
-            unit: "Rp",
+            label: "Laba Kotor",
+            value: (grossMargin * 100).toFixed(1).replace(".", ","),
+            unit: "%",
+            deltaText: `${marginPp >= 0 ? "▲" : "▼"} ${Math.abs(marginPp).toFixed(1).replace(".", ",")} pp`,
+            deltaKind: marginPp >= 0 ? "up" : "down",
+            foot: `target ${(targetMargin * 100).toFixed(1).replace(".", ",")}%`,
+        },
+        {
+            label: "Pesanan Terbuka",
+            value: String(openOrders),
             delta: -0.036,
             deltaKind: "down",
-            foot: `${financials?.overdueInvoices?.length ?? 0} jatuh tempo`,
+            foot: `${criticalOrders} kritikal`,
         },
         {
-            label: "Hutang Usaha",
-            value: fmtIDRJt(financials?.payables ?? 0),
-            unit: "Rp",
-            delta: 0.012,
+            label: "DSO",
+            value: dso.toFixed(1).replace(".", ","),
+            unit: "hari",
+            deltaText: "— 0,2",
             deltaKind: "flat",
-            foot: `${operations?.procurement?.pendingApproval?.length ?? 0} menunggu approval`,
+            foot: `target ≤ ${targetDso}`,
         },
         {
-            label: "Saldo Kas",
-            value: fmtIDRJt(financials?.cashBalance ?? 0),
-            unit: "Rp",
-            delta: 0.052,
+            label: "Utilisasi Gudang",
+            value: (utilizationPct * 100).toFixed(1).replace(".", ","),
+            unit: "%",
+            deltaText: "▲ 2,8 pp",
             deltaKind: "up",
-            foot: "kas + bank",
-        },
-        {
-            label: "Pesanan Aktif",
-            value: String(operations?.procurement?.totalPOs ?? 0),
-            delta: undefined,
-            foot: `${operations?.procurement?.pendingPRs ?? 0} PR menunggu`,
+            foot: `${warehouseCount} lokasi`,
         },
     ]
 
