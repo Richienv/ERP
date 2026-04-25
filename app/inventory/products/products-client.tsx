@@ -198,7 +198,8 @@ function assignLanes(products: any[], stats: ProductsPageClientProps["stats"]) {
             priority,
         }
 
-        // Critical: stockout or below 50% of safety stock
+        // Bug 5 fix — boundary cases
+        // True stockout: zero stock with a configured min → CRITICAL regardless of min size
         if (stock === 0 && min > 0) {
             critical.push({
                 ...baseCard,
@@ -207,6 +208,24 @@ function assignLanes(products: any[], stats: ProductsPageClientProps["stats"]) {
             })
             continue
         }
+        // No demand configured AND no stock → not classifiable; treat as healthy with note
+        // (No min set means we don't know what "low" means for this product yet)
+        if (stock === 0 && min === 0) {
+            healthy.push({
+                ...baseCard,
+                status: { kind: "info", label: "Min belum diset" },
+            })
+            continue
+        }
+        // No min set but has stock → healthy (cannot trigger low/critical without a threshold)
+        if (min === 0 && stock > 0) {
+            healthy.push({
+                ...baseCard,
+                status: { kind: "info", label: "Min belum diset" },
+            })
+            continue
+        }
+        // Critical: below or equal to 50% of safety stock
         if (min > 0 && stock <= min * 0.5) {
             critical.push({
                 ...baseCard,
@@ -301,12 +320,16 @@ function KanbanLane({
     countLabel,
     children,
     isEmpty,
+    demoLabel,
 }: {
     title: string
     markerColor: string
     countLabel: string
     children: React.ReactNode
     isEmpty: boolean
+    /** When set, shows a small "data demo" badge — used for lanes whose
+     * card data isn't backed by real PR/PO joins yet (Planning, Incoming). */
+    demoLabel?: string
 }) {
     return (
         <div
@@ -327,6 +350,14 @@ function KanbanLane({
                 <span className="font-mono text-[11px] text-[var(--integra-muted)]">
                     {countLabel}
                 </span>
+                {demoLabel && (
+                    <span
+                        title="Data simulasi — backend join PR/PO belum tersedia"
+                        className="inline-flex items-center font-mono text-[9.5px] uppercase tracking-[0.08em] text-[var(--integra-muted)] border border-[var(--integra-hairline)] px-1 py-[1px] rounded-[2px]"
+                    >
+                        {demoLabel}
+                    </span>
+                )}
                 <button
                     type="button"
                     className="ml-auto inline-flex items-center justify-center w-[22px] h-[22px] text-[var(--integra-muted)] hover:text-[var(--integra-ink)] hover:border hover:border-[var(--integra-hairline)] rounded-[3px]"
@@ -701,6 +732,7 @@ export function ProductsPageClient({ products, categories, warehouses, stats }: 
                                 markerColor="#7B5BD8"
                                 countLabel={`PR aktif · ${stats.planning ?? 0}`}
                                 isEmpty={lanes.planning.length === 0}
+                                demoLabel="data demo"
                             >
                                 {lanes.planning.map((c, i) => (
                                     <ReplenishCard key={`pl-${c.id}-${i}`} card={c} variant="planning" />
@@ -712,6 +744,7 @@ export function ProductsPageClient({ products, categories, warehouses, stats }: 
                                 markerColor="var(--integra-liren-blue)"
                                 countLabel={`PO aktif · ${stats.incoming ?? 0}`}
                                 isEmpty={lanes.incoming.length === 0}
+                                demoLabel="data demo"
                             >
                                 {lanes.incoming.map((c, i) => (
                                     <ReplenishCard key={`in-${c.id}-${i}`} card={c} variant="incoming" />
@@ -777,11 +810,29 @@ export function ProductsPageClient({ products, categories, warehouses, stats }: 
                         </div>
                     </>
                 ) : (
-                    <div className="bg-[var(--integra-canvas-pure)] border border-[var(--integra-hairline)] rounded-[3px]">
-                        <EmptyState
-                            title="Tampilan Tabel"
-                            description="Tampilan tabel produk akan tersedia di rilis berikutnya."
-                        />
+                    <div
+                        className="bg-[var(--integra-canvas-pure)] border border-[var(--integra-hairline)] rounded-[3px] px-6 py-10 flex flex-col items-center justify-center text-center gap-2"
+                        style={{ minHeight: "320px" }}
+                    >
+                        <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-[var(--integra-muted)] border border-[var(--integra-hairline)] px-2 py-[2px] rounded-[2px]">
+                            Coming soon
+                        </span>
+                        <div className="font-display text-[15px] tracking-[-0.005em] text-[var(--integra-ink)]">
+                            Tampilan Tabel sedang dikembangkan
+                        </div>
+                        <div className="text-[12.5px] text-[var(--integra-muted)] max-w-md">
+                            Untuk operasional harian, gunakan tampilan{" "}
+                            <span className="font-mono text-[var(--integra-ink)]">Kanban</span>{" "}
+                            yang sudah aktif. Tampilan tabel dengan kolom lengkap (Kode, Nama,
+                            Stok, Min, Status, Vendor) akan tersedia pada rilis berikutnya.
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setView("kanban")}
+                            className="mt-2 inline-flex items-center px-3 py-1.5 text-[12px] font-medium border border-[var(--integra-hairline-strong)] rounded-[3px] hover:bg-[#F1EFE8] text-[var(--integra-ink)]"
+                        >
+                            Kembali ke Kanban
+                        </button>
                     </div>
                 )}
             </div>

@@ -45,11 +45,40 @@ type Warehouse = {
 type MaterialGapRow = {
     id: string
     name: string
-    code: string
-    stockOnHand: number
-    requiredQty: number
-    gapQty: number
-    urgencyDays: number
+    // API may return either `code` (newer) or `sku` (legacy from getMaterialGapAnalysis)
+    code?: string
+    sku?: string
+    // API may return either `stockOnHand` (newer) or `currentStock` (legacy)
+    stockOnHand?: number
+    currentStock?: number
+    // API may return either `requiredQty` (newer) or `reorderPoint` (legacy)
+    requiredQty?: number
+    reorderPoint?: number
+    // API may return either `gapQty` (newer) or `gap` (legacy)
+    gapQty?: number
+    gap?: number
+    // API may return either `urgencyDays` (newer) or `stockEndsInDays` (legacy)
+    urgencyDays?: number
+    stockEndsInDays?: number
+}
+
+// Field-resolver helpers: tolerate both naming conventions from the API
+function getRowCode(r: MaterialGapRow): string {
+    return r.code ?? r.sku ?? "—"
+}
+function getRowStockOnHand(r: MaterialGapRow): number {
+    return Number(r.stockOnHand ?? r.currentStock ?? 0)
+}
+function getRowRequiredQty(r: MaterialGapRow): number {
+    return Number(r.requiredQty ?? r.reorderPoint ?? 0)
+}
+function getRowGapQty(r: MaterialGapRow): number {
+    return Number(r.gapQty ?? r.gap ?? 0)
+}
+function getRowUrgencyDays(r: MaterialGapRow): number | null {
+    const v = r.urgencyDays ?? r.stockEndsInDays
+    if (typeof v !== "number" || !Number.isFinite(v)) return null
+    return v
 }
 
 export default function InventoryPage() {
@@ -62,15 +91,16 @@ export default function InventoryPage() {
 
     const { warehouses = [], kpis, materialGap = [], procurement } = data as {
         warehouses: Warehouse[]
-        kpis: {
+        kpis: Partial<{
             totalValue: number
             totalProducts: number
             lowStock: number
             accuracy: number
+            inventoryAccuracy: number
             pendingMovements: number
             recentMovements: number
             avgTurnover: number
-        }
+        }>
         materialGap: MaterialGapRow[]
         procurement: {
             summary: {
@@ -85,8 +115,25 @@ export default function InventoryPage() {
 
     const liveWarehouses = (warehouses ?? []).slice(0, 3)
 
-    const accuracy = kpis?.accuracy ?? 0
-    const avgTurnover = kpis?.avgTurnover ?? 0
+    // Null-safe KPI values: show "—" when field is undefined OR zero (no real data)
+    // Tolerate both naming conventions: `accuracy` (API fallback) and `inventoryAccuracy` (server action)
+    const rawAccuracy =
+        typeof kpis?.accuracy === "number" ? kpis.accuracy
+            : typeof kpis?.inventoryAccuracy === "number" ? kpis.inventoryAccuracy
+                : null
+    const accuracy = rawAccuracy !== null && rawAccuracy > 0 ? rawAccuracy : null
+
+    const rawTurnover = typeof kpis?.avgTurnover === "number" ? kpis.avgTurnover : null
+    const avgTurnover = rawTurnover !== null && rawTurnover > 0 ? rawTurnover : null
+
+    const rawRecent = typeof kpis?.recentMovements === "number" ? kpis.recentMovements : null
+    const recentMovements = rawRecent !== null && rawRecent > 0 ? rawRecent : null
+
+    const rawPending = typeof kpis?.pendingMovements === "number" ? kpis.pendingMovements : null
+    const pendingMovements = rawPending !== null && rawPending > 0 ? rawPending : null
+
+    const fmtAccuracy = accuracy !== null ? accuracy.toFixed(1).replace(".", ",") : "—"
+    const fmtTurnover = avgTurnover !== null ? avgTurnover.toFixed(1).replace(".", ",") : "—"
 
     const kpiItems: KPIData[] = [
         {
@@ -97,10 +144,10 @@ export default function InventoryPage() {
         },
         {
             label: "Akurasi Stok",
-            value: accuracy.toFixed(1).replace(".", ","),
-            unit: "%",
-            deltaKind: accuracy >= 95 ? "up" : "down",
-            deltaText: accuracy >= 95 ? "▲ on target" : "▼ under target",
+            value: fmtAccuracy,
+            unit: accuracy !== null ? "%" : undefined,
+            deltaKind: accuracy !== null ? (accuracy >= 95 ? "up" : "down") : undefined,
+            deltaText: accuracy !== null ? (accuracy >= 95 ? "▲ on target" : "▼ under target") : undefined,
             foot: "target ≥ 95%",
         },
         {
@@ -110,14 +157,14 @@ export default function InventoryPage() {
         },
         {
             label: "Avg Turnover",
-            value: avgTurnover.toFixed(1).replace(".", ","),
-            unit: "x",
+            value: fmtTurnover,
+            unit: avgTurnover !== null ? "x" : undefined,
             foot: "vs target 6,0x",
         },
         {
             label: "Pergerakan 7H",
-            value: String(kpis?.recentMovements ?? 0),
-            foot: `${kpis?.pendingMovements ?? 0} pending`,
+            value: recentMovements !== null ? String(recentMovements) : "—",
+            foot: pendingMovements !== null ? `${pendingMovements} pending` : "data belum tersedia",
         },
     ]
 
@@ -126,41 +173,49 @@ export default function InventoryPage() {
             key: "code",
             header: "Kode",
             type: "code",
-            render: (r) => r.code,
+            render: (r) => getRowCode(r),
         },
         {
             key: "name",
             header: "Nama",
             type: "primary",
-            render: (r) => r.name,
+            render: (r) => r.name ?? "—",
         },
         {
             key: "stockOnHand",
             header: "Stok On-Hand",
             type: "num",
-            render: (r) => Math.round(r.stockOnHand).toLocaleString("id-ID"),
+            render: (r) => Math.round(getRowStockOnHand(r)).toLocaleString("id-ID"),
         },
         {
             key: "requiredQty",
             header: "Dibutuhkan",
             type: "num",
-            render: (r) => Math.round(r.requiredQty).toLocaleString("id-ID"),
+            render: (r) => Math.round(getRowRequiredQty(r)).toLocaleString("id-ID"),
         },
         {
             key: "gapQty",
             header: "Gap",
             type: "num",
-            render: (r) => (
-                <span className={r.gapQty > 0 ? "text-[var(--integra-red)]" : ""}>
-                    {Math.round(r.gapQty).toLocaleString("id-ID")}
-                </span>
-            ),
+            render: (r) => {
+                const g = getRowGapQty(r)
+                return (
+                    <span className={g > 0 ? "text-[var(--integra-red)]" : ""}>
+                        {Math.round(g).toLocaleString("id-ID")}
+                    </span>
+                )
+            },
         },
         {
             key: "urgencyDays",
             header: "Urgensi",
             type: "muted",
-            render: (r) => `${r.urgencyDays} hari`,
+            render: (r) => {
+                const d = getRowUrgencyDays(r)
+                if (d === null) return "—"
+                if (d >= 365) return "≥ 1 thn"
+                return `${d} hari`
+            },
         },
     ]
 
