@@ -3,8 +3,8 @@ import { use } from "react"
 import { IconPrinter } from "@tabler/icons-react"
 import { usePurchaseOrderDetail } from "@/hooks/use-purchase-order-detail"
 import { DetailPage } from "@/components/integra/detail-page"
+import { DetailPageSkeleton } from "@/components/integra/detail-page-skeleton"
 import { TypstPdfButton } from "@/components/integra/typst-pdf-button"
-import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 import { HeaderTab } from "./_tabs/header-tab"
 import { ItemTab } from "./_tabs/item-tab"
 import { ApprovalTab } from "./_tabs/approval-tab"
@@ -16,7 +16,7 @@ export default function PoDetailPage({ params }: { params: Promise<{ id: string 
     const { id } = use(params)
     const { data, isLoading, error } = usePurchaseOrderDetail(id)
 
-    if (isLoading) return <TablePageSkeleton accentColor="bg-blue-400" />
+    if (isLoading) return <DetailPageSkeleton />
 
     if (error) {
         return (
