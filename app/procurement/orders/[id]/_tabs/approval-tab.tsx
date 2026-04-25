@@ -1,6 +1,5 @@
 "use client"
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { ApprovalWorkflowSteps, CEO_THRESHOLD, type POApprovalStatus } from "@/components/integra/approval-workflow-steps"
 import { Check, X } from "lucide-react"
@@ -9,7 +8,6 @@ import { queryKeys } from "@/lib/query-keys"
 import { fmtIDR } from "@/lib/integra-tokens"
 
 export function ApprovalTab({ data }: { data: any }) {
-    const router = useRouter()
     const queryClient = useQueryClient()
     const [busy, setBusy] = useState(false)
 
@@ -44,7 +42,6 @@ export function ApprovalTab({ data }: { data: any }) {
             toast.success(`PO ${data.number} ${action === "approve" ? "disetujui" : "ditolak"}`)
             queryClient.invalidateQueries({ queryKey: ["purchase-order", data.id] })
             queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
-            router.refresh()
         } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : "Unknown error"
             toast.error(msg)
