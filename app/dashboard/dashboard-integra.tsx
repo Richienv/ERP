@@ -3,19 +3,19 @@
 import { useState, type ReactNode } from "react"
 import { useExecutiveDashboard } from "@/hooks/use-executive-dashboard"
 import {
-    Panel, KPIRail, StatusPill, DeltaPill, IntegraButton,
+    Panel, KPIRail, StatusPill, IntegraButton,
     PageHead, LiveDot, SegmentedButtons, DataTable, EmptyState,
     type ColumnDef, type KPIData,
 } from "@/components/integra"
 import { INT, fmtIDRJt, fmtIDR, fmtDateShort, fmtDateTime } from "@/lib/integra-tokens"
-import { IconFilter, IconDownload, IconPlus } from "@tabler/icons-react"
+import { IconFilter, IconDownload } from "@tabler/icons-react"
 import Link from "next/link"
 
 type Period = "1H" | "7H" | "30H" | "TTD" | "12B"
 
 export function DashboardIntegra() {
     const [period, setPeriod] = useState<Period>("30H")
-    const { data, isLoading } = useExecutiveDashboard()
+    const { data, isLoading, dataUpdatedAt } = useExecutiveDashboard()
 
     if (isLoading || !data) {
         return (
@@ -29,59 +29,70 @@ export function DashboardIntegra() {
 
     // Compute derived metrics from real data
     const totalRevenue = sales?.totalRevenue ?? 0
-    const totalCogs = sales?.totalCogs ?? 0
-    const grossMargin = totalRevenue > 0 ? ((totalRevenue - totalCogs) / totalRevenue) : 0
-    const targetMargin = 0.36 // 36% target — could come from settings later
-    const marginPp = (grossMargin - targetMargin) * 100  // percentage points
 
-    const dso = financials?.dso ?? 41.7  // days sales outstanding
+    // Fix 1 — Laba Kotor: read margin directly from API (operations.profitability.marginPct, 0–100)
+    const marginPctReal: number = Number(operations?.profitability?.marginPct ?? 0)
+    const targetMargin = 0.36 // 36% target — could come from settings later
+    const hasMargin = marginPctReal > 0
+    const grossMargin = marginPctReal / 100
+    const marginPp = marginPctReal - targetMargin * 100  // delta vs target in pp
+
+    // Fix 2 — DSO: null fallback (API tidak set field)
+    const dso: number | null = financials?.dso ?? null
     const targetDso = 40
 
-    const warehouseCount = operations?.inventoryValue?.warehouses?.length ?? 5
-    const utilizationPct = operations?.inventoryValue?.avgUtilization ?? 0.764
+    // Fix 3 — Utilisasi Gudang: null fallback
+    const utilizationPct: number | null = operations?.inventoryValue?.avgUtilization ?? null
 
-    const openOrders = operations?.procurement?.totalPOs ?? 0
-    const criticalOrders = (financials?.overdueInvoices?.length ?? 0)
+    // Fix 4 — warehouseCount: gunakan || (bukan ??) supaya 0 tidak di-coalesce
+    const warehouseList: any[] = operations?.inventoryValue?.warehouses ?? []
+    const warehouseCount = warehouseList.length || (operations?.inventorySummary?.warehouseCount ?? 0)
+
+    // Fix 5 — Pesanan Terbuka: source dari sales fulfillment (bukan vendor PO)
+    const openOrders = operations?.salesFulfillment?.totalOrders ?? 0
+    const deliveredOrders = operations?.salesFulfillment?.deliveredOrders ?? 0
 
     const kpis: KPIData[] = [
         {
             label: "Pendapatan (MTD)",
             value: fmtIDRJt(totalRevenue).replace(" jt", "").replace(" M", ""),
             unit: "Rp",
-            delta: 0.084,
-            deltaKind: "up",
-            foot: "vs. bln lalu",
+            foot: "MTD",
         },
         {
             label: "Laba Kotor",
-            value: (grossMargin * 100).toFixed(1).replace(".", ","),
-            unit: "%",
-            deltaText: `${marginPp >= 0 ? "▲" : "▼"} ${Math.abs(marginPp).toFixed(1).replace(".", ",")} pp`,
-            deltaKind: marginPp >= 0 ? "up" : "down",
-            foot: `target ${(targetMargin * 100).toFixed(1).replace(".", ",")}%`,
+            value: hasMargin
+                ? (grossMargin * 100).toFixed(1).replace(".", ",")
+                : "—",
+            unit: hasMargin ? "%" : undefined,
+            ...(hasMargin
+                ? {
+                    deltaText: `${marginPp >= 0 ? "▲" : "▼"} ${Math.abs(marginPp).toFixed(1).replace(".", ",")} pp`,
+                    deltaKind: (marginPp >= 0 ? "up" : "down") as "up" | "down",
+                    foot: `target ${(targetMargin * 100).toFixed(1).replace(".", ",")}%`,
+                }
+                : { foot: "Belum ada data" }),
         },
         {
             label: "Pesanan Terbuka",
             value: String(openOrders),
-            delta: -0.036,
-            deltaKind: "down",
-            foot: `${criticalOrders} kritikal`,
+            foot: openOrders > 0 ? `${deliveredOrders}/${openOrders} terkirim` : undefined,
         },
         {
             label: "DSO",
-            value: dso.toFixed(1).replace(".", ","),
-            unit: "hari",
-            deltaText: "— 0,2",
-            deltaKind: "flat",
-            foot: `target ≤ ${targetDso}`,
+            value: dso !== null ? dso.toFixed(1).replace(".", ",") : "—",
+            unit: dso !== null ? "hari" : undefined,
+            ...(dso !== null
+                ? { foot: `target ≤ ${targetDso}` }
+                : {}),
         },
         {
             label: "Utilisasi Gudang",
-            value: (utilizationPct * 100).toFixed(1).replace(".", ","),
-            unit: "%",
-            deltaText: "▲ 2,8 pp",
-            deltaKind: "up",
-            foot: `${warehouseCount} lokasi`,
+            value: utilizationPct !== null
+                ? (utilizationPct * 100).toFixed(1).replace(".", ",")
+                : "—",
+            unit: utilizationPct !== null ? "%" : undefined,
+            foot: warehouseCount > 0 ? `${warehouseCount} lokasi` : undefined,
         },
     ]
 
@@ -118,8 +129,8 @@ export function DashboardIntegra() {
                     <IntegraButton variant="secondary" icon={<IconDownload className="w-3.5 h-3.5" />}>
                         Ekspor
                     </IntegraButton>
-                    <IntegraButton variant="primary" icon={<IconPlus className="w-3.5 h-3.5" />} href="/finance/invoices">
-                        Pesanan Baru
+                    <IntegraButton variant="primary" href="/finance/invoices">
+                        Lihat Pesanan
                     </IntegraButton>
                 </div>
             </div>
@@ -137,7 +148,7 @@ export function DashboardIntegra() {
                                 <span className="font-mono text-[11.5px] text-[var(--integra-ink)]">LIVE</span>
                             </span>
                             <span>
-                                Sinkron <span className="font-mono text-[11.5px] text-[var(--integra-ink)]">{fmtDateTime(new Date())}</span>
+                                Sinkron <span className="font-mono text-[11.5px] text-[var(--integra-ink)]">{dataUpdatedAt ? fmtDateTime(new Date(dataUpdatedAt)) : "—"}</span>
                             </span>
                             <span>
                                 Fiskal <span className="font-mono text-[11.5px] text-[var(--integra-ink)]">{fiscalLabel()}</span>
@@ -195,12 +206,14 @@ function RevenueChart({ data }: { data: any }) {
                 plan: 175 + Math.cos(i / 4) * 15,
             }))
 
-    const max = 240  // fixed scale matching reference
+    // Fix 13 — derive max from data with floor 240, round up to clean tick of 60
+    const peak = Math.max(...series.flatMap((d) => [d.actual, d.plan]), 240)
+    const max = Math.ceil(peak / 60) * 60
     const total = series.reduce((s, d) => s + d.actual, 0)
     const totalPlan = series.reduce((s, d) => s + d.plan, 0)
     const vsPlanPct = (total / totalPlan - 1) * 100
 
-    const yLabels = [240, 180, 120, 60, 0]
+    const yLabels = [max, max * 0.75, max * 0.5, max * 0.25, 0]
     const xLabels = [1, 5, 10, 15, 20, 25, 30]
 
     return (
@@ -270,15 +283,40 @@ function RevenueChart({ data }: { data: any }) {
 type AgingBucket = { bucket: string; invoices: number; valueIdr: number; pct: number; kind: "ok" | "neutral" | "warn" | "err" }
 
 function computeArAging(financials: any): AgingBucket[] {
-    // Simplified: distribute receivables into 4 buckets
-    const total = financials?.receivables ?? 0
-    if (total === 0) return []
-    return [
-        { bucket: "0–30", invoices: 84, valueIdr: total * 0.581, pct: 58.1, kind: "ok" },
-        { bucket: "31–60", invoices: 31, valueIdr: total * 0.204, pct: 20.4, kind: "neutral" },
-        { bucket: "61–90", invoices: 18, valueIdr: total * 0.132, pct: 13.2, kind: "warn" },
-        { bucket: "90+", invoices: 7, valueIdr: total * 0.083, pct: 8.3, kind: "err" },
+    // Fix 6 — derive buckets from actual overdue invoices (real days-overdue calc)
+    const overdue: any[] = financials?.overdueInvoices ?? []
+    if (overdue.length === 0) return []
+
+    const now = Date.now()
+    const buckets: Array<{ key: string; bucket: string; min: number; max: number; kind: AgingBucket["kind"]; invoices: number; valueIdr: number }> = [
+        { key: "0-30", bucket: "0–30", min: 0, max: 30, kind: "ok", invoices: 0, valueIdr: 0 },
+        { key: "31-60", bucket: "31–60", min: 31, max: 60, kind: "neutral", invoices: 0, valueIdr: 0 },
+        { key: "61-90", bucket: "61–90", min: 61, max: 90, kind: "warn", invoices: 0, valueIdr: 0 },
+        { key: "90+", bucket: "90+", min: 91, max: Number.POSITIVE_INFINITY, kind: "err", invoices: 0, valueIdr: 0 },
     ]
+
+    let totalValue = 0
+    for (const inv of overdue) {
+        const due = inv.dueDate ? new Date(inv.dueDate).getTime() : null
+        if (!due) continue
+        const daysOverdue = Math.max(0, Math.floor((now - due) / 86_400_000))
+        const amount = Number(inv.balanceDue ?? inv.totalAmount ?? 0)
+        const slot = buckets.find(b => daysOverdue >= b.min && daysOverdue <= b.max)
+        if (!slot) continue
+        slot.invoices += 1
+        slot.valueIdr += amount
+        totalValue += amount
+    }
+
+    if (totalValue === 0) return []
+
+    return buckets.map(b => ({
+        bucket: b.bucket,
+        invoices: b.invoices,
+        valueIdr: b.valueIdr,
+        pct: (b.valueIdr / totalValue) * 100,
+        kind: b.kind,
+    }))
 }
 
 function ArAgingTable({ data }: { data: AgingBucket[] }) {
@@ -340,14 +378,20 @@ function ArAgingTable({ data }: { data: AgingBucket[] }) {
 }
 
 function CashflowChart({ data }: { data: any }) {
-    const raw: Array<{ date: string; net: number }> | undefined = data?.charts?.dataCash7d
-    const series: Array<{ date: string; net: number }> =
-        raw && raw.length > 0
-            ? raw
-            : Array.from({ length: 30 }, (_, i) => ({
-                date: new Date(Date.now() - (29 - i) * 86400_000).toISOString(),
-                net: 1_000_000 + i * 60_000 + Math.sin(i / 3) * 200_000,
-            }))
+    // Fix 8 — API shape: { name: weekday-label, val: number }, NOT { date, net }
+    const rawApi: Array<{ name: string; val: number }> | undefined = data?.charts?.dataCash7d
+    const series: Array<{ label: string; net: number }> | null =
+        rawApi && rawApi.length > 0
+            ? rawApi.map(d => ({ label: d.name, net: Number(d.val) }))
+            : null
+
+    if (!series || series.length === 0) {
+        return (
+            <Panel title="Arus Kas Bersih" meta="7 hari">
+                <EmptyState title="Belum ada data arus kas" />
+            </Panel>
+        )
+    }
 
     const values = series.map((d) => d.net)
     const max = Math.max(...values)
@@ -357,82 +401,76 @@ function CashflowChart({ data }: { data: any }) {
     const w = 400, h = 220
     const path = values
         .map((v, i) => {
-            const x = (i / (values.length - 1)) * w
+            const x = values.length > 1 ? (i / (values.length - 1)) * w : w / 2
             const y = h - ((v - min) / range) * (h - 20) - 10
             return `${i === 0 ? "M" : "L"}${x},${y}`
         })
         .join(" ")
 
-    const totalIn = data?.financials?.cashIn ?? 4_281_600_000
-    const totalOut = data?.financials?.cashOut ?? 3_118_900_000
+    const totalIn = data?.operations?.cashFlow?.kasMasuk ?? 0
+    const totalOut = data?.operations?.cashFlow?.kasKeluar ?? 0
 
-    const startDate = new Date(series[0].date)
-    const endDate = new Date(series[series.length - 1].date)
+    const startLabel = series[0].label
+    const endLabel = series[series.length - 1].label
 
     return (
-        <Panel title="Arus Kas Bersih" meta="30 hari" bodyClassName="p-0">
+        <Panel title="Arus Kas Bersih" meta="7 hari" bodyClassName="p-0">
             <div className="px-3.5 pt-3.5">
                 <svg viewBox={`0 0 ${w} ${h}`} className="w-full" preserveAspectRatio="none" style={{ height: 140 }}>
                     <path d={`${path} L${w},${h} L0,${h} Z`} fill="var(--integra-liren-blue)" fillOpacity="0.06" />
                     <path d={path} stroke="var(--integra-liren-blue)" strokeWidth="1.2" fill="none" />
                 </svg>
                 <div className="flex justify-between font-mono text-[10.5px] text-[var(--integra-muted)] pt-1">
-                    <span>{fmtChartDate(startDate)}</span>
-                    <span>{fmtChartDate(endDate)}</span>
+                    <span>{startLabel}</span>
+                    <span>{endLabel}</span>
                 </div>
             </div>
             <div className="flex items-center justify-between px-3.5 pt-1 pb-3 font-mono text-[11px] text-[var(--integra-muted)]">
                 <span>
                     Saldo masuk{" "}
-                    <span className="text-[var(--integra-green-ok)]">+Rp {fmtIDRJt(Math.abs(totalIn)).replace(/^Rp\s?/, "")}</span>
+                    {totalIn > 0
+                        ? <span className="text-[var(--integra-green-ok)]">+Rp {fmtIDRJt(Math.abs(totalIn)).replace(/^Rp\s?/, "")}</span>
+                        : <span>—</span>}
                 </span>
                 <span>
                     Saldo keluar{" "}
-                    <span className="text-[var(--integra-red)]">−Rp {fmtIDRJt(Math.abs(totalOut)).replace(/^Rp\s?/, "")}</span>
+                    {totalOut > 0
+                        ? <span className="text-[var(--integra-red)]">−Rp {fmtIDRJt(Math.abs(totalOut)).replace(/^Rp\s?/, "")}</span>
+                        : <span>—</span>}
                 </span>
             </div>
         </Panel>
     )
 }
 
-function fmtChartDate(d: Date): string {
-    return new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short" }).format(d)
-}
-
 function TopCustomersTable({ customers }: { customers: any[] }) {
     if (customers.length === 0) {
-        return <Panel title="Pelanggan Teratas" meta="30 hari ▾"><EmptyState title="Belum ada data" /></Panel>
+        return <Panel title="Pelanggan Teratas" meta="invoice terbaru"><EmptyState title="Belum ada data" /></Panel>
     }
+    // Source is recentInvoices: { id, number, customer, date, total, status }
+    // No delta / order-count info available — render only what is real.
     return (
-        <Panel title="Pelanggan Teratas" meta="30 hari ▾" bodyClassName="p-0">
+        <Panel title="Pelanggan Teratas" meta="invoice terbaru" bodyClassName="p-0">
             <table className={INT.table}>
                 <thead>
                     <tr>
                         <th className={INT.th}>Pelanggan</th>
-                        <th className={INT.thNum}>Pesanan</th>
+                        <th className={INT.th}>No. Invoice</th>
                         <th className={INT.thNum}>Nilai (Rp jt)</th>
-                        <th className={INT.thNum}></th>
                     </tr>
                 </thead>
                 <tbody>
-                    {customers.map((c, i) => {
-                        const delta = c.deltaPct ?? (Math.random() * 0.3 - 0.1)
-                        const kind: "up" | "down" | "flat" =
-                            Math.abs(delta) < 0.005 ? "flat" : delta > 0 ? "up" : "down"
-                        const arrow = kind === "up" ? "▲" : kind === "down" ? "▼" : "—"
-                        return (
-                            <tr key={i} className={INT.rowHover}>
-                                <td className={INT.tdPrimary}>{c.customer ?? c.customerName ?? `Customer ${i + 1}`}</td>
-                                <td className={INT.tdNum}>{c.count ?? c.orders ?? Math.floor(Math.random() * 30) + 1}</td>
-                                <td className={INT.tdNum}>
-                                    {((c.totalAmount ?? c.amount ?? c.valueIdr ?? 0) / 1_000_000).toLocaleString("id-ID", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                                </td>
-                                <td className={INT.tdNum}>
-                                    <DeltaPill kind={kind} value={`${arrow} ${(Math.abs(delta) * 100).toFixed(1).replace(".", ",")}%`} />
-                                </td>
-                            </tr>
-                        )
-                    })}
+                    {customers.map((c, i) => (
+                        <tr key={c.id ?? i} className={INT.rowHover}>
+                            <td className={INT.tdPrimary}>{c.customer ?? c.customerName ?? "—"}</td>
+                            <td className={INT.td}>
+                                <span className="font-mono text-[11.5px] text-[var(--integra-muted)]">{c.number ?? "—"}</span>
+                            </td>
+                            <td className={INT.tdNum}>
+                                {((Number(c.total ?? c.totalAmount ?? c.amount ?? 0)) / 1_000_000).toLocaleString("id-ID", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                            </td>
+                        </tr>
+                    ))}
                 </tbody>
             </table>
         </Panel>
@@ -443,12 +481,11 @@ function AlertsList({ alerts }: { alerts: any[] }) {
     if (alerts.length === 0) {
         return <Panel title="Peringatan Operasional" meta="0 aktif"><EmptyState title="Tidak ada peringatan" /></Panel>
     }
-    const critical = alerts.filter((a) => a.severity === "critical" || a.kind === "err" || a.kind === "stok" || a.kind === "piutang").length
 
     return (
         <Panel
             title="Peringatan Operasional"
-            meta={`${alerts.length} aktif · ${critical} kritikal`}
+            meta={`${alerts.length} aktif`}
             actions={
                 <div className="flex items-center gap-1">
                     <button className="px-2 py-1 text-[11.5px] bg-[var(--integra-liren-blue-soft)] text-[var(--integra-liren-blue)] font-medium rounded-[2px]">Semua</button>
@@ -458,42 +495,38 @@ function AlertsList({ alerts }: { alerts: any[] }) {
             bodyClassName="p-0"
         >
             <ul className="m-0 p-0 list-none">
-                {alerts.map((a, i) => (
-                    <li key={i} className="grid grid-cols-[56px_1fr_auto] items-baseline gap-2.5 px-3.5 py-2 border-b border-[var(--integra-hairline)] last:border-b-0 text-[12.5px]">
-                        <span className="font-mono text-[11px] text-[var(--integra-muted)]">{fmtAlertTime(a.timestamp ?? a.ts ?? new Date())}</span>
-                        <span className="text-[var(--integra-ink-soft)]">
-                            <AlertKindPill kind={normalizeAlertKind(a.kind ?? "info")} />
-                            <span className="ml-2">{renderAlertMessage(a.message ?? a.title ?? "—")}</span>
-                        </span>
-                        <span className="font-mono text-[11px] text-[var(--integra-muted)]">{a.meta ?? ""}</span>
-                    </li>
-                ))}
+                {alerts.map((a, i) => {
+                    const kind = deriveAlertKind(a.type)
+                    const machineMeta = a.machine || a.impact || ""
+                    return (
+                        <li key={a.id ?? i} className="grid grid-cols-[1fr_auto] items-baseline gap-2.5 px-3.5 py-2 border-b border-[var(--integra-hairline)] last:border-b-0 text-[12.5px]">
+                            <span className="text-[var(--integra-ink-soft)]">
+                                <AlertKindPill kind={kind} />
+                                <span className="ml-2">{renderAlertMessage(a.title ? `${a.title} — ${a.message ?? ""}` : (a.message ?? "—"))}</span>
+                            </span>
+                            <span className="font-mono text-[11px] text-[var(--integra-muted)]">{machineMeta}</span>
+                        </li>
+                    )
+                })}
             </ul>
         </Panel>
     )
 }
 
-function AlertKindPill({ kind }: { kind: "STOK" | "PIUTANG" | "QA" | "PO" | "INFO" | "HR" | "FX" }) {
+function AlertKindPill({ kind }: { kind: "QA" | "PO" | "INFO" }) {
     const map: Record<string, "ok" | "warn" | "err" | "info" | "neutral"> = {
-        STOK: "err",
-        PIUTANG: "err",
         QA: "warn",
         PO: "warn",
         INFO: "info",
-        HR: "neutral",
-        FX: "warn",
     }
     return <StatusPill kind={map[kind] ?? "neutral"}>{kind}</StatusPill>
 }
 
-function normalizeAlertKind(k: string): "STOK" | "PIUTANG" | "QA" | "PO" | "INFO" | "HR" | "FX" {
-    const u = k.toUpperCase()
-    if (["STOK", "PIUTANG", "QA", "PO", "INFO", "HR", "FX"].includes(u)) return u as any
-    if (k === "stok" || k === "err") return "STOK"
-    if (k === "piutang") return "PIUTANG"
-    if (k === "qa" || k === "warn") return "QA"
-    if (k === "po") return "PO"
-    if (k === "hr") return "HR"
+function deriveAlertKind(type: string | undefined): "QA" | "PO" | "INFO" {
+    if (!type) return "INFO"
+    const t = type.toLowerCase()
+    if (t.includes("quality")) return "QA"
+    if (t.includes("breakdown") || t.includes("machine")) return "PO"
     return "INFO"
 }
 
@@ -519,18 +552,6 @@ function renderAlertMessage(msg: string): ReactNode {
     )
 }
 
-function fmtAlertTime(d: any): string {
-    try {
-        const date = new Date(d)
-        const isToday = date.toDateString() === new Date().toDateString()
-        if (isToday) {
-            return new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false }).format(date)
-        }
-        return new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "2-digit" }).format(date)
-    } catch { return "—" }
-}
-
-
 function RecentOrdersTable({ invoices }: { invoices: any[] }) {
     if (invoices.length === 0) {
         return <Panel title="Pesanan Terbaru"><EmptyState title="Belum ada pesanan" /></Panel>
@@ -540,7 +561,7 @@ function RecentOrdersTable({ invoices }: { invoices: any[] }) {
         {
             key: "no",
             header: "No. Pesanan",
-            render: (r) => <span className="font-mono text-[11.5px] text-[var(--integra-muted)]">{r.number ?? r.invoiceNumber}</span>,
+            render: (r) => <span className="font-mono text-[11.5px] text-[var(--integra-muted)]">{r.number ?? r.invoiceNumber ?? "—"}</span>,
             type: "text",
         },
         {
@@ -552,9 +573,15 @@ function RecentOrdersTable({ invoices }: { invoices: any[] }) {
         {
             key: "tglBuat",
             header: "Tgl. Buat",
-            render: (r) => r.createdAt
-                ? <span className="font-mono text-[11.5px] text-[var(--integra-muted)]">{fmtCreatedAt(r.createdAt)}</span>
-                : "—",
+            // API returns date as preformatted string ('date'); fallback to createdAt if present
+            render: (r) => {
+                const raw = r.date ?? r.createdAt
+                if (!raw) return "—"
+                // If raw looks like ISO/parseable, format it; else render as-is (already formatted)
+                const d = new Date(raw)
+                const display = isNaN(d.getTime()) ? String(raw) : fmtCreatedAt(raw)
+                return <span className="font-mono text-[11.5px] text-[var(--integra-muted)]">{display}</span>
+            },
             type: "text",
         },
         {
@@ -568,13 +595,13 @@ function RecentOrdersTable({ invoices }: { invoices: any[] }) {
         {
             key: "qty",
             header: "Qty",
-            render: (r) => r.qty != null ? r.qty.toLocaleString("id-ID") : "—",
+            render: (r) => r.qty != null ? Number(r.qty).toLocaleString("id-ID") : "—",
             type: "num",
         },
         {
             key: "nilai",
             header: "Nilai (Rp)",
-            render: (r) => fmtIDR(r.totalAmount ?? r.amount ?? 0),
+            render: (r) => fmtIDR(Number(r.total ?? r.totalAmount ?? r.amount ?? 0)),
             type: "num",
         },
         {
@@ -585,16 +612,11 @@ function RecentOrdersTable({ invoices }: { invoices: any[] }) {
         {
             key: "pembayaran",
             header: "Pembayaran",
-            render: (r) => <PaymentPill payment={r.paymentStatus ?? r.payment ?? derivePayment(r)} />,
-        },
-        {
-            key: "saluran",
-            header: "Saluran",
-            render: (r) => <span>{r.channel ?? r.salesChannel ?? "Direct"}</span>,
+            render: (r) => <PaymentPill payment={deriveLunas(r)} />,
         },
     ]
 
-    const total = invoices.reduce((s, r) => s + (r.totalAmount ?? r.amount ?? 0), 0)
+    const total = invoices.reduce((s, r) => s + Number(r.total ?? r.totalAmount ?? r.amount ?? 0), 0)
 
     return (
         <Panel
@@ -641,27 +663,17 @@ function OrderStatusPill({ status }: { status: string }) {
     return <StatusPill kind={entry.kind}>{entry.label}</StatusPill>
 }
 
-function PaymentPill({ payment }: { payment: string }) {
-    const map: Record<string, { kind: "ok" | "warn" | "neutral"; label: string }> = {
-        PAID: { kind: "ok", label: "Lunas" },
-        LUNAS: { kind: "ok", label: "Lunas" },
-        DP_30: { kind: "warn", label: "DP 30%" },
-        DP_50: { kind: "warn", label: "DP 50%" },
-        NET_15: { kind: "neutral", label: "NET 15" },
-        NET_30: { kind: "neutral", label: "NET 30" },
-        NET_45: { kind: "neutral", label: "NET 45" },
-        NET_60: { kind: "neutral", label: "NET 60" },
-    }
-    const entry = map[payment] ?? { kind: "neutral" as const, label: payment }
-    return <StatusPill kind={entry.kind}>{entry.label}</StatusPill>
+function PaymentPill({ payment }: { payment: { kind: "ok" | "warn" | "err" | "neutral"; label: string } }) {
+    return <StatusPill kind={payment.kind}>{payment.label}</StatusPill>
 }
 
-function derivePayment(r: any): string {
-    const balance = r.balanceDue ?? 0
-    const total = r.totalAmount ?? r.amount ?? 0
-    if (balance === 0) return "PAID"
-    if (balance < total) return "DP_30"
-    return "NET_30"
+// Fix 7 — derive payment status from invoice status enum (no fabricated 'PAID' default)
+function deriveLunas(r: any): { kind: "ok" | "warn" | "err" | "neutral"; label: string } {
+    const status = String(r.status ?? "").toUpperCase()
+    if (status === "PAID") return { kind: "ok", label: "Lunas" }
+    if (status === "PARTIAL") return { kind: "warn", label: "Sebagian" }
+    if (status === "OVERDUE") return { kind: "err", label: "Terlambat" }
+    return { kind: "neutral", label: "—" }
 }
 
 function fmtCreatedAt(iso: string): string {
@@ -705,22 +717,25 @@ function MonthlyTarget({ sales }: { sales: any }) {
 function PendingTasks({ pending }: { pending: any[] }) {
     if (pending.length === 0) {
         return (
-            <Panel title="Tugas Menunggu" meta="kamu" bodyClassName="p-0">
+            <Panel title="Tugas Menunggu" meta={`0 pending`} bodyClassName="p-0">
                 <div className="text-[12px] text-[var(--integra-muted)] py-3 text-center">Tidak ada tugas</div>
             </Panel>
         )
     }
+    // Fix 10 — pendingApproval shape: { id, number, supplier, totalAmount, netAmount, itemCount, items }
+    // Drop fake priority by index, drop fake due by index. Show real fields only.
     return (
-        <Panel title="Tugas Menunggu" meta="kamu" bodyClassName="p-0">
+        <Panel title="Tugas Menunggu" meta={`${pending.length} pending`} bodyClassName="p-0">
             <ul className="m-0 p-0 list-none">
                 {pending.slice(0, 5).map((t, i) => {
-                    const priority = t.priority ?? (i < 2 ? "!" : "")  // first 2 = critical
                     const ref = t.ref ?? t.poNumber ?? t.number ?? `Item-${i + 1}`
+                    const supplier = t.supplier ?? t.supplierName ?? "—"
+                    const itemCount = t.itemCount ?? (Array.isArray(t.items) ? t.items.length : null)
+                    const meta = itemCount != null
+                        ? `${itemCount} item · ${supplier}`
+                        : supplier
                     return (
-                        <li key={i} className="grid grid-cols-[16px_1fr_auto] items-baseline gap-2 px-3.5 py-2 border-b border-[var(--integra-hairline)] last:border-b-0 text-[12.5px]">
-                            <span className={`font-mono text-[12px] text-center ${priority === "!" ? "text-[var(--integra-red)] font-bold" : "text-[var(--integra-muted)]"}`}>
-                                {priority}
-                            </span>
+                        <li key={t.id ?? i} className="grid grid-cols-[1fr_auto] items-baseline gap-2 px-3.5 py-2 border-b border-[var(--integra-hairline)] last:border-b-0 text-[12.5px]">
                             <span className="text-[var(--integra-ink-soft)]">
                                 {t.action ?? "Setujui"}{" "}
                                 <Link
@@ -731,18 +746,13 @@ function PendingTasks({ pending }: { pending: any[] }) {
                                     {ref}
                                 </Link>
                             </span>
-                            <span className="font-mono text-[11px] text-[var(--integra-muted)]">{t.due ?? relativeTime(i)}</span>
+                            <span className="font-mono text-[11px] text-[var(--integra-muted)] truncate max-w-[160px]">{meta}</span>
                         </li>
                     )
                 })}
             </ul>
         </Panel>
     )
-}
-
-function relativeTime(idx: number): string {
-    const map = ["2d", "2h", "hari ini", "besok", "Jum"]
-    return map[idx] ?? ""
 }
 
 function fiscalLabel(): string {
