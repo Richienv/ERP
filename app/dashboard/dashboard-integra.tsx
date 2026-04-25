@@ -132,14 +132,18 @@ export function DashboardIntegra() {
                     title="Dasbor Operasional"
                     subtitle="Ringkasan harian untuk Ops Manager · live data"
                     metaRight={
-                        <>
-                            <span className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-5 text-[12px] text-[var(--integra-muted)]">
+                            <span className="flex items-center gap-2">
                                 <LiveDot />
-                                <span>Live</span>
+                                <span className="font-mono text-[11.5px] text-[var(--integra-ink)]">LIVE</span>
                             </span>
-                            <span className="font-mono">Sync {fmtDateTime(new Date())}</span>
-                            <span>· Periode {fiscalPeriodLabel()}</span>
-                        </>
+                            <span>
+                                Sinkron <span className="font-mono text-[11.5px] text-[var(--integra-ink)]">{fmtDateTime(new Date())}</span>
+                            </span>
+                            <span>
+                                Fiskal <span className="font-mono text-[11.5px] text-[var(--integra-ink)]">{fiscalLabel()}</span>
+                            </span>
+                        </div>
                     }
                 />
 
@@ -529,8 +533,11 @@ function PendingTasks({ pending }: { pending: any[] }) {
     )
 }
 
-function fiscalPeriodLabel(): string {
-    const m = new Intl.DateTimeFormat("id-ID", { month: "long" }).format(new Date())
-    const y = new Date().getFullYear()
-    return `${m.slice(0, 3)} ${y}`
+function fiscalLabel(): string {
+    const now = new Date()
+    // Indonesian fiscal year aligns to calendar year. Q1=Jan-Mar, Q2=Apr-Jun, Q3=Jul-Sep, Q4=Oct-Dec.
+    const fy = `FY${String(now.getFullYear()).slice(2)}`
+    const month = now.getMonth()
+    const q = month < 3 ? "Q1" : month < 6 ? "Q2" : month < 9 ? "Q3" : "Q4"
+    return `${fy} ${q}`
 }
