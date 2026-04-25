@@ -37,6 +37,7 @@ import { SavedFiltersDropdown } from "@/components/integra/saved-filters-dropdow
 import type { POFilter } from "@/lib/types/procurement-filters"
 import { queryKeys } from "@/lib/query-keys"
 import { INT, fmtIDRJt, fmtDateTime } from "@/lib/integra-tokens"
+import { exportPOsToXlsx, type POExportRow } from "@/lib/exports/po-xlsx"
 
 type Period = "1H" | "7H" | "30H" | "TTD" | "12B"
 type StatusTab = "ALL" | "ACTIVE" | "APPROVED" | "DONE" | "CANCELLED"
@@ -437,6 +438,20 @@ export default function PurchaseOrdersPage() {
     const end = start + PAGE_SIZE
     const pageRows = filtered.slice(start, end)
 
+    // ── Map a PORow into the shape expected by the XLSX exporter, with status
+    //    translated to Bahasa for human-readable output.
+    const toExportRow = (r: PORow): POExportRow => ({
+        id: r.id,
+        vendor: r.vendor,
+        status: statusLabel(r.status),
+        date: r.date,
+        eta: r.eta,
+        requester: r.requester,
+        approver: r.approver,
+        items: r.items,
+        total: r.total,
+    })
+
     // ── Bulk-select helpers (operate on the current page rows)
     const toggleRow = (id: string) => {
         setSelectedIds((prev) => {
@@ -759,7 +774,16 @@ export default function PurchaseOrdersPage() {
                     {
                         label: "Ekspor terpilih",
                         icon: <Download className="size-3.5" />,
-                        onClick: () => toast.info("Ekspor terpilih akan diimplement di B4"),
+                        onClick: () => {
+                            const selected = filtered.filter((r) => selectedIds.has(r.dbId))
+                            if (selected.length === 0) {
+                                toast.info("Tidak ada PO terpilih untuk diekspor")
+                                return
+                            }
+                            const fname = `pesanan-pembelian-terpilih-${new Date().toISOString().slice(0, 10)}.xlsx`
+                            const n = exportPOsToXlsx(selected.map(toExportRow), fname)
+                            toast.success(`${n} PO terpilih diekspor`)
+                        },
                     },
                     {
                         label: "Print PDF",
@@ -803,7 +827,14 @@ export default function PurchaseOrdersPage() {
                     <IntegraButton
                         variant="secondary"
                         icon={<IconDownload className="w-3.5 h-3.5" />}
-                        onClick={() => toast.info("Ekspor PO sedang dibangun")}
+                        onClick={() => {
+                            if (filtered.length === 0) {
+                                toast.info("Tidak ada data untuk diekspor")
+                                return
+                            }
+                            const n = exportPOsToXlsx(filtered.map(toExportRow))
+                            toast.success(`${n} PO diekspor`)
+                        }}
                     >
                         Ekspor
                     </IntegraButton>
