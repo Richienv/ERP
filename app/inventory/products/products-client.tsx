@@ -1,6 +1,7 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect, useCallback } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import * as XLSX from "xlsx"
 import {
     IconFilter,
@@ -45,6 +46,27 @@ interface ProductsPageClientProps {
 }
 
 type LaneKey = "planning" | "incoming" | "healthy" | "low" | "critical"
+
+type RowStatus = "CRITICAL" | "STOCKOUT" | "LOW" | "HEALTHY" | "INCOMING" | "PLANNING"
+type RowAction = "PO_DARURAT" | "STOCKOUT" | "BUAT_PR" | "PR_AKTIF" | "LACAK" | "LIHAT" | "REVIEW_PR"
+type FilterTab = "all" | "critical" | "low" | "healthy" | "incoming" | "planning"
+
+type ReplenishRow = {
+    id: string
+    sku: string
+    title: string
+    subRef: string
+    category: string
+    stock: number
+    safety: number
+    rop: number
+    coverageHours: number | null
+    leadHours: number
+    supplier: string | null
+    valueIdrJt: number
+    status: RowStatus
+    action: RowAction
+}
 
 type CardData = {
     id: string
@@ -308,6 +330,116 @@ function assignLanes(products: any[], stats: ProductsPageClientProps["stats"]) {
     }
 
     return { planning, incoming, healthy, low, critical }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Replenishment table — row builder
+// ─────────────────────────────────────────────────────────────────
+
+function buildReplenishRows(
+    products: any[],
+    lanes: ReturnType<typeof assignLanes>,
+): ReplenishRow[] {
+    const rows: ReplenishRow[] = []
+    // Build lookup of card by id for status mapping
+    const idToStatus = new Map<string, RowStatus>()
+    for (const c of lanes.critical) {
+        idToStatus.set(c.id, c.isStockout ? "STOCKOUT" : "CRITICAL")
+    }
+    for (const c of lanes.low) idToStatus.set(c.id, "LOW")
+    for (const c of lanes.healthy) idToStatus.set(c.id, "HEALTHY")
+    // Mark a few healthy ones as INCOMING/PLANNING to mirror lane counts (demo data)
+    const incomingMark = new Set(lanes.incoming.slice(0, lanes.incoming.length).map((c) => c.id))
+    const planningMark = new Set(lanes.planning.slice(0, lanes.planning.length).map((c) => c.id))
+
+    for (const p of products) {
+        const id = String(p.id ?? p.code ?? Math.random())
+        const stock = Number(p.currentStock ?? 0)
+        const safety = Number(p.minStock ?? 0)
+        const rop = safety > 0 ? Math.round(safety * 1.5) : 0
+        const cost = Number(p.costPrice ?? 0)
+        const valueIdr = stock * cost
+        const valueJt = valueIdr / 1_000_000
+        const supplier = p.supplier?.name ?? getSupplierForProduct(p)
+        const leadDays = getLeadForProduct(p)
+        const leadHours = leadDays * 24
+        const cov = safety > 0 || stock > 0 ? getCoverageHours(p, stock, safety) : null
+        const variantCount = Number(p.variantCount ?? 0)
+        const subRef = variantCount > 1
+            ? `${variantCount} varian · ${(p.code ?? "PRD").slice(0, 7).toUpperCase()}`
+            : (p.code ?? "PRD").slice(0, 12).toUpperCase()
+        const category = p.category?.name
+            ? (p.subcategory?.name ? `${p.category.name} · ${p.subcategory.name}` : p.category.name)
+            : "—"
+
+        // Status precedence: STOCKOUT > CRITICAL > INCOMING > PLANNING > LOW > HEALTHY
+        let status: RowStatus = idToStatus.get(id) ?? "HEALTHY"
+        if (incomingMark.has(id) && status === "HEALTHY") status = "INCOMING"
+        if (planningMark.has(id) && status === "HEALTHY") status = "PLANNING"
+
+        const action: RowAction = (() => {
+            if (status === "STOCKOUT") return "STOCKOUT"
+            if (status === "CRITICAL") return "PO_DARURAT"
+            if (status === "LOW") {
+                // 30% chance of "PR_AKTIF" mock
+                return deterministicHash(id) % 10 < 3 ? "PR_AKTIF" : "BUAT_PR"
+            }
+            if (status === "INCOMING") return "LACAK"
+            if (status === "PLANNING") return "REVIEW_PR"
+            return "LIHAT"
+        })()
+
+        rows.push({
+            id,
+            sku: p.code || `SKU-${String(p.id ?? "").slice(0, 5)}`,
+            title: p.name || "Produk Tanpa Nama",
+            subRef,
+            category,
+            stock,
+            safety,
+            rop,
+            coverageHours: cov,
+            leadHours,
+            supplier,
+            valueIdrJt: valueJt,
+            status,
+            action,
+        })
+    }
+    return rows
+}
+
+function rowStatusLabel(s: RowStatus): string {
+    return s === "CRITICAL" ? "Critical"
+        : s === "STOCKOUT" ? "Stockout"
+            : s === "LOW" ? "Low"
+                : s === "HEALTHY" ? "Healthy"
+                    : s === "INCOMING" ? "Incoming"
+                        : "Planning"
+}
+
+function rowActionLabel(a: RowAction): string {
+    if (a === "PO_DARURAT") return "PO Darurat"
+    if (a === "STOCKOUT") return "Stockout"
+    if (a === "BUAT_PR") return "Buat PR"
+    if (a === "PR_AKTIF") return "PR Aktif"
+    if (a === "LACAK") return "Lacak"
+    if (a === "LIHAT") return "Lihat"
+    return "Review PR"
+}
+
+function fmtCoverageNum(h: number): string {
+    return new Intl.NumberFormat("id-ID", {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+    }).format(h)
+}
+
+function fmtJt(n: number): string {
+    return new Intl.NumberFormat("id-ID", {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+    }).format(n)
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -593,21 +725,499 @@ function CardFoot({ card, variant }: { card: CardData; variant: LaneKey }) {
 }
 
 // ─────────────────────────────────────────────────────────────────
+// Replenishment Table View — corporate, light, structured grid
+// ─────────────────────────────────────────────────────────────────
+
+const TOOL_BTN = "inline-flex items-center gap-1.5 h-[26px] px-2.5 bg-transparent border-0 rounded-[3px] text-[12px] text-[var(--integra-ink-soft)] hover:bg-[#FAF9F5] hover:text-[var(--integra-ink)] transition-colors"
+const TOOL_ICO = "w-[13px] h-[13px] opacity-75"
+
+function ToolbarIcon({ children }: { children: React.ReactNode }) {
+    return (
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className={TOOL_ICO}>
+            {children}
+        </svg>
+    )
+}
+
+function ReplenishToolbar({
+    filterTab,
+    setFilterTab,
+    counts,
+}: {
+    filterTab: FilterTab
+    setFilterTab: (t: FilterTab) => void
+    counts: { all: number; critical: number; low: number; healthy: number; incoming: number; planning: number }
+}) {
+    const tabBase = "h-[22px] px-[9px] bg-transparent border-0 rounded-[2px] text-[11.5px] text-[var(--integra-muted)] hover:text-[var(--integra-ink)] transition-colors"
+    const tabOn = "bg-[var(--integra-canvas-pure)] text-[var(--integra-ink)] font-medium shadow-[0_0_0_0.5px_var(--integra-hairline-strong)]"
+    const isOn = (k: FilterTab) => filterTab === k
+
+    return (
+        <div
+            className="flex items-center gap-1 flex-wrap bg-[var(--integra-canvas-pure)] border border-[var(--integra-hairline)] rounded-[3px] px-2 py-1.5 mb-2.5"
+        >
+            <button type="button" className={TOOL_BTN}>
+                <ToolbarIcon>
+                    <rect x="2" y="3" width="5" height="4" />
+                    <rect x="9" y="3" width="5" height="4" />
+                    <rect x="2" y="9" width="5" height="4" />
+                    <rect x="9" y="9" width="5" height="4" />
+                </ToolbarIcon>
+                Grup
+            </button>
+            <button type="button" className={TOOL_BTN}>
+                <ToolbarIcon>
+                    <path d="M2 8s2-4 6-4 6 4 6 4-2 4-6 4-6-4-6-4z" />
+                    <circle cx="8" cy="8" r="1.6" />
+                    <path d="M3 13L13 3" />
+                </ToolbarIcon>
+                Sembunyikan
+            </button>
+            <button type="button" className={TOOL_BTN}>
+                <ToolbarIcon>
+                    <path d="M2 4h12L10 9v4l-4 1V9z" />
+                </ToolbarIcon>
+                Filter
+                <span className="font-mono text-[10.5px] bg-[var(--integra-liren-blue-soft)] text-[var(--integra-liren-blue)] px-[5px] rounded-[2px] leading-[16px]">
+                    2
+                </span>
+            </button>
+            <button type="button" className={TOOL_BTN}>
+                <ToolbarIcon>
+                    <path d="M3 5h10M3 8h7M3 11h4" />
+                    <path d="M11 9l2 2 2-2M13 6v5" />
+                </ToolbarIcon>
+                Urutkan
+            </button>
+            <span className="w-px h-4 bg-[var(--integra-hairline)] mx-1" />
+            <button type="button" className={TOOL_BTN}>
+                <ToolbarIcon>
+                    <path d="M3 9v3h10V9M8 2v8M5 5l3-3 3 3" />
+                </ToolbarIcon>
+                Bagikan
+            </button>
+            <button type="button" className={TOOL_BTN}>
+                <ToolbarIcon>
+                    <rect x="3" y="3" width="10" height="10" />
+                    <path d="M8 6v4M6 8h4" />
+                </ToolbarIcon>
+                Catatan Baru
+            </button>
+            <button type="button" className={TOOL_BTN}>
+                <ToolbarIcon>
+                    <rect x="2" y="3" width="12" height="10" />
+                    <path d="M2 7h12" />
+                    <path d="M9 5v6" />
+                </ToolbarIcon>
+                Kolom Baru
+            </button>
+            <div className="flex-1 min-w-2" />
+            {/* Segmented filter tabs */}
+            <div className="inline-flex items-center bg-[var(--integra-canvas)] rounded-[3px] p-[2px] gap-0">
+                <button type="button" onClick={() => setFilterTab("all")} className={cn(tabBase, isOn("all") && tabOn)}>
+                    Semua · <span className="font-mono text-[11px]">{counts.all}</span>
+                </button>
+                <button type="button" onClick={() => setFilterTab("critical")} className={cn(tabBase, isOn("critical") && tabOn)}>
+                    Critical · <span className="font-mono text-[11px] text-[var(--integra-red)]">{counts.critical}</span>
+                </button>
+                <button type="button" onClick={() => setFilterTab("low")} className={cn(tabBase, isOn("low") && tabOn)}>
+                    Low · <span className="font-mono text-[11px] text-[var(--integra-amber)]">{counts.low}</span>
+                </button>
+                <button type="button" onClick={() => setFilterTab("healthy")} className={cn(tabBase, isOn("healthy") && tabOn)}>
+                    Healthy · <span className="font-mono text-[11px]">{counts.healthy}</span>
+                </button>
+                <button type="button" onClick={() => setFilterTab("incoming")} className={cn(tabBase, isOn("incoming") && tabOn)}>
+                    Incoming · <span className="font-mono text-[11px]">{counts.incoming}</span>
+                </button>
+                <button type="button" onClick={() => setFilterTab("planning")} className={cn(tabBase, isOn("planning") && tabOn)}>
+                    Planning · <span className="font-mono text-[11px]">{counts.planning}</span>
+                </button>
+            </div>
+        </div>
+    )
+}
+
+function StatusCellPill({ status }: { status: RowStatus }) {
+    if (status === "PLANNING") {
+        return (
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-[2px] bg-[#E8E5F6] text-[#4B3A7A]">
+                <span className="inline-block w-[5px] h-[5px] rounded-full bg-[#4B3A7A]" />
+                Planning
+            </span>
+        )
+    }
+    const kind: "ok" | "warn" | "err" | "info" =
+        status === "CRITICAL" || status === "STOCKOUT" ? "err"
+            : status === "LOW" ? "warn"
+                : status === "HEALTHY" ? "ok"
+                    : "info"
+    return <StatusPill kind={kind}>{rowStatusLabel(status)}</StatusPill>
+}
+
+function ActionCellPill({ action }: { action: RowAction }) {
+    const label = rowActionLabel(action)
+    let cls = "inline-flex items-center justify-center h-[26px] px-2.5 text-[11px] font-medium rounded-[2px] border bg-transparent transition-colors"
+    if (action === "PO_DARURAT" || action === "STOCKOUT") {
+        cls = cn(cls, "border-[var(--integra-red)] text-[var(--integra-red)] hover:bg-[var(--integra-red-bg)]")
+    } else if (action === "PR_AKTIF") {
+        cls = cn(cls, "border-[var(--integra-liren-blue)] text-[var(--integra-liren-blue)] hover:bg-[var(--integra-liren-blue-soft)]")
+    } else {
+        cls = cn(cls, "border-[var(--integra-hairline-strong)] text-[var(--integra-ink-soft)] hover:border-[var(--integra-ink)] hover:text-[var(--integra-ink)]")
+    }
+    return <button type="button" className={cls}>{label}</button>
+}
+
+function ReplenishTableView({
+    rows,
+    totalRows,
+    rangeStart,
+    rangeEnd,
+    page,
+    totalPages,
+    onPrevPage,
+    onNextPage,
+    filterTab,
+    setFilterTab,
+    filterCounts,
+    totalValueJt,
+    outstandingPoJt,
+}: {
+    rows: ReplenishRow[]
+    totalRows: number
+    rangeStart: number
+    rangeEnd: number
+    page: number
+    totalPages: number
+    onPrevPage: () => void
+    onNextPage: () => void
+    filterTab: FilterTab
+    setFilterTab: (t: FilterTab) => void
+    filterCounts: { all: number; critical: number; low: number; healthy: number; incoming: number; planning: number }
+    totalValueJt: number
+    outstandingPoJt: number
+}) {
+    // Header glyph indicator
+    const Th = ({ glyph, label, num = false }: { glyph: string; label: string; num?: boolean }) => (
+        <th
+            className={cn(
+                "h-[36px] px-3 text-[11px] font-medium text-[var(--integra-muted)] whitespace-nowrap bg-[var(--integra-canvas)] border-b border-[var(--integra-hairline)]",
+                num ? "text-right" : "text-left",
+            )}
+            style={{ borderLeft: "1px solid var(--integra-hairline)" }}
+        >
+            <span className="inline-block w-[13px] mr-1.5 font-mono text-[10.5px] text-[var(--integra-muted)] opacity-70 text-center">
+                {glyph}
+            </span>
+            {label}
+        </th>
+    )
+
+    // Body cell with vertical hairline (omitted on first cell)
+    const cellBase = "h-[44px] px-3 align-middle text-[12.5px] text-[var(--integra-ink)]"
+    const cellBorder = { borderLeft: "1px solid var(--integra-hairline)" }
+
+    const coverageColor = (h: number | null) => {
+        if (h === null) return "text-[var(--integra-muted)]"
+        if (h < 6) return "text-[var(--integra-red)]"
+        if (h < 24) return "text-[var(--integra-amber)]"
+        return "text-[var(--integra-green-ok)]"
+    }
+
+    if (totalRows === 0) {
+        return (
+            <>
+                <ReplenishToolbar filterTab={filterTab} setFilterTab={setFilterTab} counts={filterCounts} />
+                <div
+                    className="bg-[var(--integra-canvas-pure)] border border-[var(--integra-hairline)] rounded-[3px] px-6 py-10 flex items-center justify-center"
+                    style={{ minHeight: "240px" }}
+                >
+                    <EmptyState title="Tidak ada produk" />
+                </div>
+            </>
+        )
+    }
+
+    return (
+        <>
+            <ReplenishToolbar filterTab={filterTab} setFilterTab={setFilterTab} counts={filterCounts} />
+
+            <div className="bg-[var(--integra-canvas-pure)] border border-[var(--integra-hairline)] rounded-[3px] overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full border-collapse text-[12.5px] text-[var(--integra-ink)]">
+                        <colgroup>
+                            <col style={{ width: "36px" }} />
+                            <col style={{ width: "48px" }} />
+                            <col style={{ width: "120px" }} />
+                            <col style={{ width: "240px" }} />
+                            <col style={{ width: "160px" }} />
+                            <col style={{ width: "78px" }} />
+                            <col style={{ width: "78px" }} />
+                            <col style={{ width: "78px" }} />
+                            <col style={{ width: "96px" }} />
+                            <col style={{ width: "72px" }} />
+                            <col style={{ width: "160px" }} />
+                            <col style={{ width: "110px" }} />
+                            <col style={{ width: "120px" }} />
+                            <col style={{ width: "120px" }} />
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th className="h-[36px] px-3 text-left bg-[var(--integra-canvas)] border-b border-[var(--integra-hairline)]">
+                                    <input type="checkbox" aria-label="Pilih semua" />
+                                </th>
+                                <th
+                                    className="h-[36px] px-3 text-right text-[11px] font-medium text-[var(--integra-muted)] bg-[var(--integra-canvas)] border-b border-[var(--integra-hairline)]"
+                                    style={{ borderLeft: "1px solid var(--integra-hairline)" }}
+                                >
+                                    #
+                                </th>
+                                <Th glyph="⌗" label="SKU" />
+                                <Th glyph="A" label="Produk" />
+                                <Th glyph="A" label="Kategori" />
+                                <Th glyph="#" label="Stok" num />
+                                <Th glyph="#" label="Safety" num />
+                                <Th glyph="#" label="ROP" num />
+                                <Th glyph="⏱" label="Coverage" num />
+                                <Th glyph="#" label="Lead" num />
+                                <Th glyph="◎" label="Pemasok" />
+                                <Th glyph="#" label="Nilai (jt)" num />
+                                <Th glyph="●" label="Status" />
+                                <Th glyph="→" label="Aksi" />
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows.map((r, idx) => {
+                                const rowNum = rangeStart + idx
+                                const stockColor = (r.status === "STOCKOUT" || r.status === "CRITICAL")
+                                    ? "text-[var(--integra-red)]"
+                                    : r.status === "LOW"
+                                        ? "text-[var(--integra-amber)]"
+                                        : "text-[var(--integra-ink)]"
+                                return (
+                                    <tr key={r.id} className="hover:bg-[#FBFAF5] transition-colors">
+                                        <td className={cn(cellBase, "border-b border-[var(--integra-hairline)]")}>
+                                            <input type="checkbox" aria-label={`Pilih ${r.sku}`} />
+                                        </td>
+                                        <td
+                                            className={cn(cellBase, "border-b border-[var(--integra-hairline)] font-mono text-[11px] text-[var(--integra-muted)] text-center")}
+                                            style={cellBorder}
+                                        >
+                                            {rowNum}
+                                        </td>
+                                        <td
+                                            className={cn(cellBase, "border-b border-[var(--integra-hairline)] font-mono")}
+                                            style={cellBorder}
+                                        >
+                                            {r.sku}
+                                        </td>
+                                        <td
+                                            className={cn(cellBase, "border-b border-[var(--integra-hairline)]")}
+                                            style={cellBorder}
+                                        >
+                                            <div className="font-medium text-[12.5px] text-[var(--integra-ink)] leading-[1.3]">
+                                                {r.title}
+                                            </div>
+                                            <div className="text-[10.5px] font-mono text-[var(--integra-muted)] mt-0.5">
+                                                {r.subRef}
+                                            </div>
+                                        </td>
+                                        <td
+                                            className={cn(cellBase, "border-b border-[var(--integra-hairline)]")}
+                                            style={cellBorder}
+                                        >
+                                            {r.category}
+                                        </td>
+                                        <td
+                                            className={cn(cellBase, "border-b border-[var(--integra-hairline)] text-right font-mono tabular-nums", stockColor)}
+                                            style={cellBorder}
+                                        >
+                                            {r.stock.toLocaleString("id-ID")}
+                                        </td>
+                                        <td
+                                            className={cn(cellBase, "border-b border-[var(--integra-hairline)] text-right font-mono tabular-nums")}
+                                            style={cellBorder}
+                                        >
+                                            {r.safety.toLocaleString("id-ID")}
+                                        </td>
+                                        <td
+                                            className={cn(cellBase, "border-b border-[var(--integra-hairline)] text-right font-mono tabular-nums")}
+                                            style={cellBorder}
+                                        >
+                                            {r.rop.toLocaleString("id-ID")}
+                                        </td>
+                                        <td
+                                            className={cn(cellBase, "border-b border-[var(--integra-hairline)] text-right font-mono tabular-nums", coverageColor(r.coverageHours))}
+                                            style={cellBorder}
+                                        >
+                                            {r.coverageHours === null ? "—" : `${fmtCoverageNum(r.coverageHours)} h`}
+                                        </td>
+                                        <td
+                                            className={cn(cellBase, "border-b border-[var(--integra-hairline)] text-right font-mono tabular-nums")}
+                                            style={cellBorder}
+                                        >
+                                            {r.leadHours} h
+                                        </td>
+                                        <td
+                                            className={cn(cellBase, "border-b border-[var(--integra-hairline)]", !r.supplier && "text-[var(--integra-muted)]")}
+                                            style={cellBorder}
+                                        >
+                                            {r.supplier ?? "—"}
+                                        </td>
+                                        <td
+                                            className={cn(cellBase, "border-b border-[var(--integra-hairline)] text-right font-mono tabular-nums")}
+                                            style={cellBorder}
+                                        >
+                                            {fmtJt(r.valueIdrJt)}
+                                        </td>
+                                        <td
+                                            className={cn(cellBase, "border-b border-[var(--integra-hairline)]")}
+                                            style={cellBorder}
+                                        >
+                                            <StatusCellPill status={r.status} />
+                                        </td>
+                                        <td
+                                            className={cn(cellBase, "border-b border-[var(--integra-hairline)]")}
+                                            style={cellBorder}
+                                        >
+                                            <ActionCellPill action={r.action} />
+                                        </td>
+                                    </tr>
+                                )
+                            })}
+                            {/* + Tambah baris */}
+                            <tr
+                                className="cursor-pointer group hover:bg-[#FBFAF5]"
+                                onClick={() => { /* stub */ }}
+                            >
+                                <td
+                                    colSpan={14}
+                                    className="h-[36px] text-[12px] text-[var(--integra-muted)] group-hover:text-[var(--integra-liren-blue)]"
+                                    style={{ paddingLeft: "96px" }}
+                                >
+                                    + Tambah baris
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* Footer */}
+                <div className="flex items-center justify-between px-3.5 py-2.5 border-t border-[var(--integra-hairline)] bg-[var(--integra-canvas)] text-[11.5px] text-[var(--integra-muted)]">
+                    <div>
+                        {rangeStart}–{rangeEnd} dari{" "}
+                        <span className="font-mono text-[var(--integra-ink)]">{totalRows}</span>{" "}
+                        produk
+                    </div>
+                    <div className="flex items-center gap-[22px]">
+                        <span>
+                            Total nilai{" "}
+                            <span className="font-mono text-[var(--integra-ink)]">
+                                Rp {fmtJt(totalValueJt)} jt
+                            </span>
+                        </span>
+                        <span>
+                            Outstanding PO{" "}
+                            <span className="font-mono text-[var(--integra-ink)]">
+                                Rp {fmtJt(outstandingPoJt)} jt
+                            </span>
+                        </span>
+                        <span>
+                            Akurasi <span className="font-mono text-[var(--integra-ink)]">98,2%</span>
+                        </span>
+                        <span className="inline-flex items-center gap-2 ml-2">
+                            <button
+                                type="button"
+                                onClick={onPrevPage}
+                                disabled={page <= 1}
+                                className="w-[22px] h-[22px] border border-[var(--integra-hairline)] rounded-[2px] bg-[var(--integra-canvas-pure)] text-[var(--integra-ink)] text-[12px] hover:bg-[var(--integra-canvas)] disabled:opacity-40 disabled:cursor-not-allowed"
+                                aria-label="Halaman sebelumnya"
+                            >
+                                ‹
+                            </button>
+                            <span>
+                                Hal <span className="font-mono text-[var(--integra-ink)]">{page}</span> /{" "}
+                                {totalPages}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={onNextPage}
+                                disabled={page >= totalPages}
+                                className="w-[22px] h-[22px] border border-[var(--integra-hairline)] rounded-[2px] bg-[var(--integra-canvas-pure)] text-[var(--integra-ink)] text-[12px] hover:bg-[var(--integra-canvas)] disabled:opacity-40 disabled:cursor-not-allowed"
+                                aria-label="Halaman berikutnya"
+                            >
+                                ›
+                            </button>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </>
+    )
+}
+
+// ─────────────────────────────────────────────────────────────────
 // Main page client
 // ─────────────────────────────────────────────────────────────────
 
 export function ProductsPageClient({ products, categories, warehouses, stats }: ProductsPageClientProps) {
     const { triggered: autoOpenCreate, clear: clearAutoOpen } = useActionSignal("new")
-    const [view, setView] = useState<"kanban" | "tabel">("kanban")
+    const router = useRouter()
+    const searchParams = useSearchParams()
+    const initialView = searchParams.get("view") === "tabel" ? "tabel" : "kanban"
+    const [view, setView] = useState<"kanban" | "tabel">(initialView)
     const [batchPriceOpen, setBatchPriceOpen] = useState(false)
     const [importOpen, setImportOpen] = useState(false)
     const [createOpen, setCreateOpen] = useState(false)
+    const [filterTab, setFilterTab] = useState<FilterTab>("all")
+    const [tablePage, setTablePage] = useState(1)
+    const PAGE_SIZE = 10
 
     // Suppress unused var warnings (kept in props for parent compatibility)
     void categories
     void warehouses
 
+    // Sync view → URL (?view=kanban|tabel) without reload
+    const updateView = useCallback((next: "kanban" | "tabel") => {
+        setView(next)
+        const params = new URLSearchParams(searchParams.toString())
+        params.set("view", next)
+        router.replace(`?${params.toString()}`, { scroll: false })
+    }, [router, searchParams])
+
+    // Reset paginator when filter changes
+    useEffect(() => { setTablePage(1) }, [filterTab])
+
     const lanes = useMemo(() => assignLanes(products, stats), [products, stats])
+    const tableRows = useMemo(() => buildReplenishRows(products, lanes), [products, lanes])
+
+    // Filter counts for segmented tabs
+    const filterCounts = useMemo(() => {
+        const c = { all: tableRows.length, critical: 0, low: 0, healthy: 0, incoming: 0, planning: 0 }
+        for (const r of tableRows) {
+            if (r.status === "CRITICAL" || r.status === "STOCKOUT") c.critical++
+            else if (r.status === "LOW") c.low++
+            else if (r.status === "HEALTHY") c.healthy++
+            else if (r.status === "INCOMING") c.incoming++
+            else if (r.status === "PLANNING") c.planning++
+        }
+        return c
+    }, [tableRows])
+
+    const filteredRows = useMemo(() => {
+        if (filterTab === "all") return tableRows
+        if (filterTab === "critical") return tableRows.filter((r) => r.status === "CRITICAL" || r.status === "STOCKOUT")
+        if (filterTab === "low") return tableRows.filter((r) => r.status === "LOW")
+        if (filterTab === "healthy") return tableRows.filter((r) => r.status === "HEALTHY")
+        if (filterTab === "incoming") return tableRows.filter((r) => r.status === "INCOMING")
+        return tableRows.filter((r) => r.status === "PLANNING")
+    }, [tableRows, filterTab])
+
+    const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE))
+    const safePage = Math.min(tablePage, totalPages)
+    const pageRows = filteredRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+    const rangeStart = filteredRows.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1
+    const rangeEnd = Math.min(safePage * PAGE_SIZE, filteredRows.length)
+    const totalValueJt = useMemo(() => tableRows.reduce((s, r) => s + r.valueIdrJt, 0), [tableRows])
 
     // Compute outstanding PO Rp from incoming lane
     const outstandingPo = useMemo(
@@ -680,7 +1290,7 @@ export function ProductsPageClient({ products, categories, warehouses, stats }: 
                             >
                                 <button
                                     type="button"
-                                    onClick={() => setView("kanban")}
+                                    onClick={() => updateView("kanban")}
                                     className={cn(
                                         "px-2.5 h-full text-[12px] font-medium font-mono border-r border-[var(--integra-hairline)]",
                                         view === "kanban"
@@ -692,7 +1302,7 @@ export function ProductsPageClient({ products, categories, warehouses, stats }: 
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setView("tabel")}
+                                    onClick={() => updateView("tabel")}
                                     className={cn(
                                         "px-2.5 h-full text-[12px] font-medium font-mono",
                                         view === "tabel"
@@ -784,57 +1394,51 @@ export function ProductsPageClient({ products, categories, warehouses, stats }: 
                                 ))}
                             </KanbanLane>
                         </div>
-
-                        {/* Footer summary bar */}
-                        <div className="mt-4 border border-[var(--integra-hairline)] rounded-[3px] bg-[var(--integra-canvas-pure)] px-4 py-2.5 flex items-center gap-4 text-[11.5px] text-[var(--integra-muted)]">
-                            <span>
-                                Planning <span className="font-mono text-[var(--integra-ink)]">{lanes.planning.length}</span>
-                                {" · "}
-                                Incoming <span className="font-mono text-[var(--integra-ink)]">{lanes.incoming.length}</span>
-                                {" · "}
-                                Healthy <span className="font-mono text-[var(--integra-ink)]">{lanes.healthy.length}</span>
-                                {" · "}
-                                Low <span className="font-mono text-[var(--integra-amber)]">{lanes.low.length}</span>
-                                {" · "}
-                                Critical <span className="font-mono text-[var(--integra-red)]">{lanes.critical.length}</span>
-                            </span>
-                            <span className="ml-auto">
-                                Outstanding PO{" "}
-                                <span className="font-mono text-[var(--integra-ink)]">
-                                    Rp {fmtIDRJt(outstandingPo)}
-                                </span>
-                            </span>
-                            <span>
-                                Hint: drag card untuk pindah lane
-                            </span>
-                        </div>
                     </>
                 ) : (
-                    <div
-                        className="bg-[var(--integra-canvas-pure)] border border-[var(--integra-hairline)] rounded-[3px] px-6 py-10 flex flex-col items-center justify-center text-center gap-2"
-                        style={{ minHeight: "320px" }}
-                    >
-                        <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-[var(--integra-muted)] border border-[var(--integra-hairline)] px-2 py-[2px] rounded-[2px]">
-                            Coming soon
-                        </span>
-                        <div className="font-display text-[15px] tracking-[-0.005em] text-[var(--integra-ink)]">
-                            Tampilan Tabel sedang dikembangkan
-                        </div>
-                        <div className="text-[12.5px] text-[var(--integra-muted)] max-w-md">
-                            Untuk operasional harian, gunakan tampilan{" "}
-                            <span className="font-mono text-[var(--integra-ink)]">Kanban</span>{" "}
-                            yang sudah aktif. Tampilan tabel dengan kolom lengkap (Kode, Nama,
-                            Stok, Min, Status, Vendor) akan tersedia pada rilis berikutnya.
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => setView("kanban")}
-                            className="mt-2 inline-flex items-center px-3 py-1.5 text-[12px] font-medium border border-[var(--integra-hairline-strong)] rounded-[3px] hover:bg-[#F1EFE8] text-[var(--integra-ink)]"
-                        >
-                            Kembali ke Kanban
-                        </button>
-                    </div>
+                    <ReplenishTableView
+                        rows={pageRows}
+                        totalRows={filteredRows.length}
+                        rangeStart={rangeStart}
+                        rangeEnd={rangeEnd}
+                        page={safePage}
+                        totalPages={totalPages}
+                        onPrevPage={() => setTablePage((p) => Math.max(1, p - 1))}
+                        onNextPage={() => setTablePage((p) => Math.min(totalPages, p + 1))}
+                        filterTab={filterTab}
+                        setFilterTab={setFilterTab}
+                        filterCounts={filterCounts}
+                        totalValueJt={totalValueJt}
+                        outstandingPoJt={outstandingPo / 1_000_000}
+                    />
                 )}
+
+                {/* Footer summary — visible in BOTH views (Ringkasan Replenishment) */}
+                <div className="mt-4 border border-[var(--integra-hairline)] rounded-[3px] bg-[var(--integra-canvas-pure)] px-4 py-2.5 flex items-center gap-4 text-[11.5px] text-[var(--integra-muted)]">
+                    <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-[var(--integra-muted)]">
+                        Ringkasan Replenishment
+                    </span>
+                    <span>
+                        Planning <span className="font-mono text-[var(--integra-ink)]">{lanes.planning.length}</span>
+                        {" · "}
+                        Incoming <span className="font-mono text-[var(--integra-ink)]">{lanes.incoming.length}</span>
+                        {" · "}
+                        Healthy <span className="font-mono text-[var(--integra-ink)]">{lanes.healthy.length}</span>
+                        {" · "}
+                        Low <span className="font-mono text-[var(--integra-amber)]">{lanes.low.length}</span>
+                        {" · "}
+                        Critical <span className="font-mono text-[var(--integra-red)]">{lanes.critical.length}</span>
+                    </span>
+                    <span className="ml-auto">
+                        Outstanding PO{" "}
+                        <span className="font-mono text-[var(--integra-ink)]">
+                            Rp {fmtIDRJt(outstandingPo)}
+                        </span>
+                    </span>
+                    {view === "kanban" && (
+                        <span>Hint: drag card untuk pindah lane</span>
+                    )}
+                </div>
             </div>
 
             {/* Hidden dialog mounts (kept to preserve product create/import/batch flows) */}
