@@ -685,9 +685,27 @@ function fmtCreatedAt(iso: string): string {
 
 function MonthlyTarget({ sales }: { sales: any }) {
     const achieved = sales?.totalRevenue ?? 0
-    const target = sales?.monthlyTarget ?? 6_000_000_000
+    const target: number | null = sales?.monthlyTarget ?? null
     const dayOfMonth = new Date().getDate()
     const totalDays = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate()
+
+    // No target set → show empty state instead of pretending against a fake 6M target
+    if (target === null || target <= 0) {
+        return (
+            <Panel title="Target Bulanan" bodyClassName="p-3.5">
+                <div className="font-mono text-[24px] tracking-[-0.02em] leading-none text-[var(--integra-muted)]">
+                    —
+                </div>
+                <div className="text-[11.5px] text-[var(--integra-muted)] mt-1">
+                    Belum ada target bulan ini
+                </div>
+                <div className="text-[10.5px] text-[var(--integra-muted)] mt-2">
+                    Tetapkan target di Pengaturan → Penjualan
+                </div>
+            </Panel>
+        )
+    }
+
     const pct = (achieved / target) * 100
     const expectedPct = (dayOfMonth / totalDays) * 100
     const pacing = pct - expectedPct
