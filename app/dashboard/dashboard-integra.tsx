@@ -338,34 +338,61 @@ function ArAgingTable({ data }: { data: AgingBucket[] }) {
 }
 
 function CashflowChart({ data }: { data: any }) {
-    const series: number[] = data?.charts?.dataCash7d?.map((d: any) => d.net ?? 0) ?? Array.from({ length: 30 }, () => Math.random() * 200 + 100)
-    const max = Math.max(...series, 100)
-    const min = Math.min(...series, 0)
-    const range = max - min || 1
-    const w = 100, h = 80
+    const series: Array<{ date: string; net: number }> =
+        data?.charts?.dataCash7d ??
+        Array.from({ length: 30 }, (_, i) => ({
+            date: new Date(Date.now() - (29 - i) * 86400_000).toISOString(),
+            net: 1_000_000 + i * 60_000 + Math.sin(i / 3) * 200_000,
+        }))
 
-    const path = series
+    const values = series.map((d) => d.net)
+    const max = Math.max(...values)
+    const min = Math.min(...values, 0)
+    const range = max - min || 1
+
+    const w = 400, h = 220
+    const path = values
         .map((v, i) => {
-            const x = (i / (series.length - 1)) * w
-            const y = h - ((v - min) / range) * h
+            const x = (i / (values.length - 1)) * w
+            const y = h - ((v - min) / range) * (h - 20) - 10
             return `${i === 0 ? "M" : "L"}${x},${y}`
         })
         .join(" ")
 
-    const total = series.reduce((s, v) => s + v, 0)
+    const totalIn = data?.financials?.cashIn ?? 4_281_600_000
+    const totalOut = data?.financials?.cashOut ?? 3_118_900_000
+
+    const startDate = new Date(series[0].date)
+    const endDate = new Date(series[series.length - 1].date)
 
     return (
-        <Panel title="Arus Kas Bersih" meta="30 hari">
-            <svg width="100%" viewBox="0 0 100 80" className="overflow-visible">
-                <path d={path} stroke="#0047FF" strokeWidth="1" fill="none" />
-                <path d={`${path} L${w},${h} L0,${h} Z`} fill="#0047FF" fillOpacity="0.06" />
-            </svg>
-            <div className="flex items-center justify-between mt-2 text-[11px] text-[var(--integra-muted)] font-mono">
-                <span>Saldo masuk <span className="text-[var(--integra-green-ok)]">+{fmtIDRJt(Math.abs(total) * 100_000)}</span></span>
-                <span>Saldo keluar <span className="text-[var(--integra-red)]">-{fmtIDRJt(Math.abs(total) * 75_000)}</span></span>
+        <Panel title="Arus Kas Bersih" meta="30 hari" bodyClassName="p-0">
+            <div className="px-3.5 pt-3.5">
+                <svg viewBox={`0 0 ${w} ${h}`} className="w-full" preserveAspectRatio="none" style={{ height: 140 }}>
+                    <path d={`${path} L${w},${h} L0,${h} Z`} fill="var(--integra-liren-blue)" fillOpacity="0.06" />
+                    <path d={path} stroke="var(--integra-liren-blue)" strokeWidth="1.2" fill="none" />
+                </svg>
+                <div className="flex justify-between font-mono text-[10.5px] text-[var(--integra-muted)] pt-1">
+                    <span>{fmtChartDate(startDate)}</span>
+                    <span>{fmtChartDate(endDate)}</span>
+                </div>
+            </div>
+            <div className="flex items-center justify-between px-3.5 pt-1 pb-3 font-mono text-[11px] text-[var(--integra-muted)]">
+                <span>
+                    Saldo masuk{" "}
+                    <span className="text-[var(--integra-green-ok)]">+Rp {fmtIDRJt(Math.abs(totalIn)).replace(/^Rp\s?/, "")}</span>
+                </span>
+                <span>
+                    Saldo keluar{" "}
+                    <span className="text-[var(--integra-red)]">−Rp {fmtIDRJt(Math.abs(totalOut)).replace(/^Rp\s?/, "")}</span>
+                </span>
             </div>
         </Panel>
     )
+}
+
+function fmtChartDate(d: Date): string {
+    return new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short" }).format(d)
 }
 
 function TopCustomersTable({ customers }: { customers: any[] }) {
