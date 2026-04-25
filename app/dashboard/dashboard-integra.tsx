@@ -495,10 +495,13 @@ function normalizeAlertKind(k: string): "STOK" | "PIUTANG" | "QA" | "PO" | "INFO
 
 /** Render alert message: wrap any token matching /[A-Z]{2,4}-[\d/-]+/ in `.doc` style. */
 function renderAlertMessage(msg: string): ReactNode {
+    // String.split with a capture group always places captured matches at odd
+    // indices (1, 3, 5, ...). Use index parity instead of .test() to avoid
+    // the /g flag's stateful lastIndex bug across consecutive .test() calls.
     const docPattern = /([A-Z]{2,4}-[\d/-]+(?:-[A-Z\d]+)?)/g
     const parts = msg.split(docPattern)
     return parts.map((p, i) =>
-        docPattern.test(p) ? (
+        i % 2 === 1 ? (
             <span
                 key={i}
                 className="text-[var(--integra-liren-blue)]"
