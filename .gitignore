@@ -59,6 +59,9 @@ temp/
 # =========================
 coverage/
 .playwright/
+test-results/
+playwright-report/
+playwright/.cache/
 
 # =========================
 # Database / Local Dev
