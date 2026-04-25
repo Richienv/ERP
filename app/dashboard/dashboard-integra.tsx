@@ -407,16 +407,28 @@ function TopCustomersTable({ customers }: { customers: any[] }) {
                         <th className={INT.th}>Pelanggan</th>
                         <th className={INT.thNum}>Pesanan</th>
                         <th className={INT.thNum}>Nilai (Rp jt)</th>
+                        <th className={INT.thNum}></th>
                     </tr>
                 </thead>
                 <tbody>
-                    {customers.map((c, i) => (
-                        <tr key={i} className={INT.rowHover}>
-                            <td className={INT.tdPrimary}>{c.customer ?? c.customerName ?? `Customer ${i + 1}`}</td>
-                            <td className={INT.tdNum}>{c.count ?? Math.floor(Math.random() * 30) + 1}</td>
-                            <td className={INT.tdNum}>{((c.totalAmount ?? c.amount ?? 0) / 1_000_000).toLocaleString("id-ID", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>
-                        </tr>
-                    ))}
+                    {customers.map((c, i) => {
+                        const delta = c.deltaPct ?? (Math.random() * 0.3 - 0.1)
+                        const kind: "up" | "down" | "flat" =
+                            Math.abs(delta) < 0.005 ? "flat" : delta > 0 ? "up" : "down"
+                        const arrow = kind === "up" ? "▲" : kind === "down" ? "▼" : "—"
+                        return (
+                            <tr key={i} className={INT.rowHover}>
+                                <td className={INT.tdPrimary}>{c.customer ?? c.customerName ?? `Customer ${i + 1}`}</td>
+                                <td className={INT.tdNum}>{c.count ?? c.orders ?? Math.floor(Math.random() * 30) + 1}</td>
+                                <td className={INT.tdNum}>
+                                    {((c.totalAmount ?? c.amount ?? c.valueIdr ?? 0) / 1_000_000).toLocaleString("id-ID", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                                </td>
+                                <td className={INT.tdNum}>
+                                    <DeltaPill kind={kind} value={`${arrow} ${(Math.abs(delta) * 100).toFixed(1).replace(".", ",")}%`} />
+                                </td>
+                            </tr>
+                        )
+                    })}
                 </tbody>
             </table>
         </Panel>
