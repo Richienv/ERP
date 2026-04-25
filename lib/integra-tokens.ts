@@ -42,7 +42,7 @@ export const INT = {
     breadcrumb: "text-[13px] text-[var(--integra-muted)] flex items-center gap-1.5",
     breadcrumbCurrent: "text-[var(--integra-ink)]",
     periodSelector: "ml-auto inline-flex items-center border border-[var(--integra-hairline-strong)] rounded-[3px] overflow-hidden",
-    periodBtn: "px-3 py-1.5 text-[12px] font-medium font-display text-[var(--integra-ink-soft)] border-r border-[var(--integra-hairline)] last:border-r-0 hover:bg-[#F1EFE8]",
+    periodBtn: "px-2.5 h-7 text-[12px] font-medium font-mono text-[var(--integra-ink-soft)] border-r border-[var(--integra-hairline)] last:border-r-0 hover:bg-[#F1EFE8]",
     periodBtnActive: "bg-[var(--integra-ink)] text-[var(--integra-canvas)] hover:bg-[var(--integra-ink)]",
 
     // ───────── Page head ─────────
@@ -83,9 +83,9 @@ export const INT = {
     pillOutline: "inline-flex items-center text-[11px] font-medium px-1.5 py-0.5 rounded-[2px] border border-[var(--integra-hairline-strong)] text-[var(--integra-ink-soft)]",
 
     // ───────── Buttons ─────────
-    btnPrimary: "inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-medium font-display bg-[var(--integra-ink)] text-[var(--integra-canvas)] border border-[var(--integra-ink)] rounded-[3px] hover:bg-[#000] transition-colors",
-    btnSecondary: "inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-medium font-display bg-[var(--integra-canvas-pure)] text-[var(--integra-ink)] border border-[var(--integra-hairline-strong)] rounded-[3px] hover:border-[var(--integra-ink)] transition-colors",
-    btnGhost: "inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-medium font-display text-[var(--integra-ink-soft)] border border-transparent rounded-[3px] hover:border-[var(--integra-hairline)] transition-colors",
+    btnPrimary: "inline-flex items-center gap-1.5 px-3 h-7 text-[12px] font-medium font-display bg-[var(--integra-ink)] text-[var(--integra-canvas)] border border-[var(--integra-ink)] rounded-[3px] hover:bg-[#000] transition-colors",
+    btnSecondary: "inline-flex items-center gap-1.5 px-3 h-7 text-[12px] font-medium font-display bg-[var(--integra-canvas-pure)] text-[var(--integra-ink)] border border-[var(--integra-hairline-strong)] rounded-[3px] hover:border-[var(--integra-ink)] transition-colors",
+    btnGhost: "inline-flex items-center gap-1.5 px-3 h-7 text-[12px] font-medium font-display text-[var(--integra-ink-soft)] border border-transparent rounded-[3px] hover:border-[var(--integra-hairline)] transition-colors",
     btnLink: "text-[var(--integra-liren-blue)] hover:underline cursor-pointer",
 
     // ───────── Tabs (above tables) ─────────
