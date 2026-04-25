@@ -5,6 +5,7 @@ import { DetailPage } from "@/components/integra/detail-page"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 import { HeaderTab } from "./_tabs/header-tab"
 import { ItemTab } from "./_tabs/item-tab"
+import { ApprovalTab } from "./_tabs/approval-tab"
 
 export default function PoDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
@@ -56,11 +57,7 @@ export default function PoDetailPage({ params }: { params: Promise<{ id: string 
                 {
                     key: "approval",
                     label: "Approval",
-                    content: (
-                        <div className="text-[12.5px] text-[var(--integra-muted)]">
-                            Approval tab — Phase C4
-                        </div>
-                    ),
+                    content: <ApprovalTab data={data} />,
                 },
                 {
                     key: "history",
