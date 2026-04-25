@@ -357,6 +357,10 @@ export default function PurchaseOrdersPage() {
     const [statusTab, setStatusTab] = useState<StatusTab>("ALL")
     const [searchInput, setSearchInput] = useState<string>(filter.search ?? "")
     const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set())
+    const [stubModal, setStubModal] = React.useState<{
+        title: string
+        body: React.ReactNode
+    } | null>(null)
 
     // Debounce search input -> filter.search
     React.useEffect(() => {
@@ -795,7 +799,17 @@ export default function PurchaseOrdersPage() {
                     {
                         label: "Print PDF",
                         icon: <Printer className="size-3.5" />,
-                        onClick: () => toast.info("Print PDF batch akan diimplement di B4"),
+                        onClick: () =>
+                            setStubModal({
+                                title: "Print PDF Batch",
+                                body: (
+                                    <p>
+                                        Print PDF untuk banyak PO sekaligus akan tersedia setelah endpoint
+                                        PDF tunggal selesai (Phase C). Untuk sekarang, buka tiap PO dari
+                                        baris tabel dan cetak satu per satu.
+                                    </p>
+                                ),
+                            }),
                     },
                 ]}
             />
@@ -848,14 +862,37 @@ export default function PurchaseOrdersPage() {
                     <IntegraButton
                         variant="secondary"
                         icon={<IconArrowBackUp className="w-3.5 h-3.5" />}
-                        onClick={() => toast.info("Retur Pembelian sedang dibangun")}
+                        onClick={() =>
+                            setStubModal({
+                                title: "Retur Pembelian",
+                                body: (
+                                    <p>
+                                        Fitur Retur Pembelian akan tersedia di rilis berikutnya. Untuk
+                                        sekarang, hubungi admin untuk memproses retur secara manual
+                                        (penyesuaian stok dan debit note ke vendor).
+                                    </p>
+                                ),
+                            })
+                        }
                     >
                         Retur Pembelian
                     </IntegraButton>
                     <IntegraButton
                         variant="primary"
                         icon={<IconPlus className="w-3.5 h-3.5" />}
-                        onClick={() => toast.info("Form PO sedang dibangun")}
+                        onClick={() =>
+                            setStubModal({
+                                title: "Buat PO Baru",
+                                body: (
+                                    <p>
+                                        Form pembuatan PO langsung sedang dalam pengembangan. Untuk
+                                        sekarang, buat <strong>Permintaan Pembelian (PR)</strong>{" "}
+                                        dulu di halaman Pengadaan → Permintaan, lalu PR yang disetujui
+                                        akan otomatis dikonversi menjadi PO.
+                                    </p>
+                                ),
+                            })
+                        }
                     >
                         Buat PO
                     </IntegraButton>
@@ -1146,7 +1183,59 @@ export default function PurchaseOrdersPage() {
                             approvalQueue.length > 0 ? (
                                 <button
                                     type="button"
-                                    onClick={() => toast.info("Setujui semua sedang dibangun")}
+                                    onClick={async () => {
+                                        const pendingIds = approvalQueue.map((q) => q.dbId)
+                                        if (pendingIds.length === 0) {
+                                            toast.info("Tidak ada PO menunggu approval")
+                                            return
+                                        }
+                                        if (
+                                            !window.confirm(
+                                                `Setujui ${pendingIds.length} PO yang menunggu approval?`,
+                                            )
+                                        ) {
+                                            return
+                                        }
+                                        try {
+                                            const res = await fetch("/api/procurement/orders/bulk", {
+                                                method: "POST",
+                                                headers: { "Content-Type": "application/json" },
+                                                body: JSON.stringify({
+                                                    ids: pendingIds,
+                                                    action: "approve",
+                                                }),
+                                            })
+                                            if (!res.ok) {
+                                                const err = await res.json().catch(() => ({}))
+                                                toast.error(err?.error ?? "Gagal bulk approve")
+                                                return
+                                            }
+                                            const result = (await res.json()) as {
+                                                succeeded: string[]
+                                                failed: { id: string; reason: string }[]
+                                            }
+                                            const succeededN = result.succeeded?.length ?? 0
+                                            const failedN = result.failed?.length ?? 0
+                                            if (failedN > 0 && succeededN > 0) {
+                                                toast.warning(
+                                                    `${succeededN} disetujui, ${failedN} gagal`,
+                                                )
+                                            } else if (failedN > 0) {
+                                                toast.error(
+                                                    `Semua ${failedN} PO gagal disetujui: ${result.failed[0]?.reason ?? ""}`,
+                                                )
+                                            } else {
+                                                toast.success(`${succeededN} PO disetujui`)
+                                            }
+                                            queryClient.invalidateQueries({
+                                                queryKey: queryKeys.purchaseOrders.all,
+                                            })
+                                        } catch (e) {
+                                            const msg =
+                                                e instanceof Error ? e.message : "Unknown error"
+                                            toast.error(`Gagal bulk approve: ${msg}`)
+                                        }
+                                    }}
                                     className={INT.btnGhost}
                                 >
                                     Setujui semua →
@@ -1256,6 +1345,41 @@ export default function PurchaseOrdersPage() {
                     />
                 }
             />
+
+            {/* Stub feature modal — replaces toast.info() for unbuilt features */}
+            {stubModal && (
+                <div
+                    className="fixed inset-0 bg-black/40 z-50 grid place-items-center"
+                    onClick={() => setStubModal(null)}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="stub-modal-title"
+                >
+                    <div
+                        className="bg-[var(--integra-canvas-pure)] border border-[var(--integra-hairline)] rounded-[3px] max-w-md p-5 mx-4 shadow-lg"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h2
+                            id="stub-modal-title"
+                            className="font-display font-medium text-[14px] text-[var(--integra-ink)] mb-2"
+                        >
+                            {stubModal.title}
+                        </h2>
+                        <div className="text-[12.5px] text-[var(--integra-ink-soft)] mb-4 leading-relaxed">
+                            {stubModal.body}
+                        </div>
+                        <div className="flex justify-end">
+                            <button
+                                type="button"
+                                onClick={() => setStubModal(null)}
+                                className="h-7 px-3 bg-[var(--integra-ink)] text-[var(--integra-canvas)] text-[12px] rounded-[3px] hover:opacity-90"
+                            >
+                                Tutup
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     )
 }
