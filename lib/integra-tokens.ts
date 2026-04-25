@@ -164,13 +164,27 @@ export function fmtDateShort(d: Date): string {
     return new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "2-digit" }).format(d)
 }
 
-/** Date+time: 25 Apr 14:32 WIB (sync time, audit log) */
+/** Date+time: 25 Apr 14:32 WIB (sync time, audit log).
+ *
+ * Suffix WIB/WITA/WIT hanya muncul kalau browser user di zona Indonesia
+ * (UTC+7/+8/+9). Di luar Indonesia (UTC, EU, dll) suffix di-drop supaya
+ * tidak misleading.
+ */
 export function fmtDateTime(d: Date): string {
-    const date = new Intl.DateTimeFormat("id-ID", {
-        day: "2-digit", month: "short", year: undefined,
-    }).format(d)
-    const time = new Intl.DateTimeFormat("id-ID", {
-        hour: "2-digit", minute: "2-digit", hour12: false,
-    }).format(d)
-    return `${date} ${time} WIB`
+    try {
+        const date = new Intl.DateTimeFormat("id-ID", {
+            day: "2-digit", month: "short",
+        }).format(d)
+        const time = new Intl.DateTimeFormat("id-ID", {
+            hour: "2-digit", minute: "2-digit", hour12: false,
+        }).format(d)
+        const offsetHours = -new Date().getTimezoneOffset() / 60
+        const tzLabel =
+            offsetHours === 7 ? "WIB" :
+            offsetHours === 8 ? "WITA" :
+            offsetHours === 9 ? "WIT" : ""
+        return `${date} ${time}${tzLabel ? " " + tzLabel : ""}`
+    } catch {
+        return "—"
+    }
 }

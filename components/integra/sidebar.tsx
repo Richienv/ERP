@@ -54,11 +54,13 @@ export function IntegraSidebar() {
     // (e.g. /inventory and /inventory/products simultaneously).
     const activeUrl = React.useMemo(() => findActiveUrl(pathname), [pathname])
 
-    // ⌘K → focus search
+    // ⌘/ → focus sidebar quick-filter input.
+    // NOTE: ⌘K is reserved for the global CommandPalette (richer search).
+    // Sidebar uses ⌘/ to avoid keyboard-shortcut conflict.
     const inputRef = React.useRef<HTMLInputElement | null>(null)
     React.useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+            if ((e.metaKey || e.ctrlKey) && e.key === "/") {
                 e.preventDefault()
                 inputRef.current?.focus()
             }
@@ -135,7 +137,7 @@ export function IntegraSidebar() {
                     )}
                 />
                 <span className="font-mono text-[10.5px] text-[var(--integra-muted)] border border-[var(--integra-hairline-strong)] px-1 rounded-[2px]">
-                    ⌘K
+                    ⌘/
                 </span>
             </div>
 
