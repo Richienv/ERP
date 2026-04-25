@@ -675,7 +675,7 @@ function fmtCreatedAt(iso: string): string {
 
 function MonthlyTarget({ sales }: { sales: any }) {
     const achieved = sales?.totalRevenue ?? 0
-    const target = (sales?.totalRevenue ?? 0) * 1.4 || 6_000_000_000  // mock if no target
+    const target = sales?.monthlyTarget ?? 6_000_000_000
     const dayOfMonth = new Date().getDate()
     const totalDays = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate()
     const pct = (achieved / target) * 100
@@ -683,20 +683,20 @@ function MonthlyTarget({ sales }: { sales: any }) {
     const pacing = pct - expectedPct
 
     return (
-        <Panel title="Target Bulanan">
-            <div className="flex items-baseline gap-1 mb-1">
-                <span className="font-mono text-[28px] font-medium tracking-[-0.025em]">{pct.toFixed(1).replace(".", ",")}</span>
-                <span className="text-[12px] text-[var(--integra-muted)]">%</span>
+        <Panel title="Target Bulanan" bodyClassName="p-3.5">
+            <div className="font-mono text-[24px] tracking-[-0.02em] leading-none">
+                {pct.toFixed(1).replace(".", ",")}
+                <span className="text-[var(--integra-muted)] text-[12px] ml-1">%</span>
             </div>
-            <div className="text-[11.5px] text-[var(--integra-muted)] font-mono">
+            <div className="text-[11.5px] text-[var(--integra-muted)] mt-1">
                 {fmtIDRJt(achieved)} dari {fmtIDRJt(target)}
             </div>
-            <div className="mt-3 h-1.5 bg-[#F1EFE8] rounded-[2px] overflow-hidden">
+            <div className="mt-2.5 h-2 bg-[#F1EFE8] rounded-[1px] overflow-hidden">
                 <div className="h-full bg-[var(--integra-ink)]" style={{ width: `${Math.min(100, pct)}%` }} />
             </div>
-            <div className="flex items-center justify-between mt-2 text-[11px]">
-                <span className="text-[var(--integra-muted)] font-mono">Hari {dayOfMonth}/{totalDays}</span>
-                <span className={"font-mono " + (pacing >= 0 ? "text-[var(--integra-green-ok)]" : "text-[var(--integra-red)]")}>
+            <div className="flex items-center justify-between font-mono text-[10.5px] text-[var(--integra-muted)] mt-1.5">
+                <span>Hari {dayOfMonth}/{totalDays}</span>
+                <span className={pacing >= 0 ? "text-[var(--integra-green-ok)]" : "text-[var(--integra-red)]"}>
                     Pacing {pacing >= 0 ? "+" : ""}{pacing.toFixed(1).replace(".", ",")}%
                 </span>
             </div>
