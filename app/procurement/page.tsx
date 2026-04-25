@@ -260,10 +260,10 @@ export default function ProcurementPage() {
 
     const poSummary = purchaseOrders?.summary ?? { draft: 0, pendingApproval: 0, approved: 0, inProgress: 0 }
     const pipelineCells: { label: string; value: number }[] = [
-        { label: "Draft", value: poSummary.draft ?? 0 },
-        { label: "Pending Approval", value: poSummary.pendingApproval ?? 0 },
-        { label: "Approved", value: poSummary.approved ?? 0 },
-        { label: "In Progress", value: poSummary.inProgress ?? 0 },
+        { label: "Draf", value: poSummary.draft ?? 0 },
+        { label: "Menunggu Approval", value: poSummary.pendingApproval ?? 0 },
+        { label: "Disetujui", value: poSummary.approved ?? 0 },
+        { label: "Sedang Berjalan", value: poSummary.inProgress ?? 0 },
     ]
 
     return (
