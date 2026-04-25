@@ -706,25 +706,45 @@ function MonthlyTarget({ sales }: { sales: any }) {
 
 function PendingTasks({ pending }: { pending: any[] }) {
     if (pending.length === 0) {
-        return <Panel title="Tugas Menunggu" meta="kamu"><div className="text-[12px] text-[var(--integra-muted)] py-3">Tidak ada</div></Panel>
+        return (
+            <Panel title="Tugas Menunggu" meta="kamu" bodyClassName="p-0">
+                <div className="text-[12px] text-[var(--integra-muted)] py-3 text-center">Tidak ada tugas</div>
+            </Panel>
+        )
     }
     return (
         <Panel title="Tugas Menunggu" meta="kamu" bodyClassName="p-0">
-            <div className="divide-y divide-[var(--integra-hairline)]">
-                {pending.slice(0, 5).map((t, i) => (
-                    <div key={i} className="px-3.5 py-2 flex items-start gap-2.5">
-                        <span className="text-[var(--integra-red)] text-[11px] font-bold mt-0.5">!</span>
-                        <div className="flex-1">
-                            <div className="text-[12px] text-[var(--integra-ink)]">
-                                Setujui <Link href={`/procurement/orders/${t.id}`} className="text-[var(--integra-liren-blue)] hover:underline">{t.poNumber ?? t.number}</Link>
-                            </div>
-                        </div>
-                        <span className="text-[10.5px] text-[var(--integra-muted)] font-mono">2h</span>
-                    </div>
-                ))}
-            </div>
+            <ul className="m-0 p-0 list-none">
+                {pending.slice(0, 5).map((t, i) => {
+                    const priority = t.priority ?? (i < 2 ? "!" : "")  // first 2 = critical
+                    const ref = t.ref ?? t.poNumber ?? t.number ?? `Item-${i + 1}`
+                    return (
+                        <li key={i} className="grid grid-cols-[16px_1fr_auto] items-baseline gap-2 px-3.5 py-2 border-b border-[var(--integra-hairline)] last:border-b-0 text-[12.5px]">
+                            <span className={`font-mono text-[12px] text-center ${priority === "!" ? "text-[var(--integra-red)] font-bold" : "text-[var(--integra-muted)]"}`}>
+                                {priority}
+                            </span>
+                            <span className="text-[var(--integra-ink-soft)]">
+                                {t.action ?? "Setujui"}{" "}
+                                <Link
+                                    href={t.url ?? `/procurement/orders/${t.id ?? ""}`}
+                                    className="text-[var(--integra-liren-blue)]"
+                                    style={{ textDecoration: "underline", textDecorationColor: "var(--integra-hairline-strong)", textUnderlineOffset: 2 }}
+                                >
+                                    {ref}
+                                </Link>
+                            </span>
+                            <span className="font-mono text-[11px] text-[var(--integra-muted)]">{t.due ?? relativeTime(i)}</span>
+                        </li>
+                    )
+                })}
+            </ul>
         </Panel>
     )
+}
+
+function relativeTime(idx: number): string {
+    const map = ["2d", "2h", "hari ini", "besok", "Jum"]
+    return map[idx] ?? ""
 }
 
 function fiscalLabel(): string {
