@@ -350,7 +350,7 @@ export default function PurchaseOrdersPage() {
     const [filterPanelOpen, setFilterPanelOpen] = React.useState(false)
     const [pendingPanelValues, setPendingPanelValues] = React.useState<FilterValues>({})
 
-    const { data, isLoading } = usePurchaseOrders(filter)
+    const { data, isLoading, error, refetch } = usePurchaseOrders(filter)
     const queryClient = useQueryClient()
 
     const [period, setPeriod] = useState<Period>("30H")
@@ -409,7 +409,31 @@ export default function PurchaseOrdersPage() {
         return n
     }, [filter])
 
-    if (isLoading || !data) {
+    if (isLoading) {
+        return <TablePageSkeleton accentColor="bg-blue-400" />
+    }
+
+    if (error) {
+        return (
+            <div className="px-6 py-12">
+                <EmptyState
+                    title="Gagal memuat daftar PO"
+                    description={error instanceof Error ? error.message : "Terjadi kesalahan saat memuat daftar Pesanan Pembelian. Silakan coba lagi."}
+                    action={
+                        <button
+                            type="button"
+                            onClick={() => refetch()}
+                            className="h-8 px-4 bg-[var(--integra-ink)] text-[var(--integra-canvas)] text-[12px] rounded-[3px]"
+                        >
+                            Coba lagi
+                        </button>
+                    }
+                />
+            </div>
+        )
+    }
+
+    if (!data) {
         return <TablePageSkeleton accentColor="bg-blue-400" />
     }
 
@@ -1112,8 +1136,37 @@ export default function PurchaseOrdersPage() {
                             title="Tidak ada PO"
                             description={
                                 statusTab !== "ALL" || activeFilterCount > 0 || filter.search
-                                    ? "Coba ubah filter atau kata kunci pencarian."
-                                    : "Belum ada Pesanan Pembelian yang dibuat."
+                                    ? "Tidak ada PO yang cocok dengan filter saat ini. Coba kosongkan beberapa filter."
+                                    : "Belum ada Pesanan Pembelian di sistem. Buat PO baru untuk memulai."
+                            }
+                            action={
+                                statusTab !== "ALL" || activeFilterCount > 0 || filter.search ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setFilter({})
+                                            setStatusTab("ALL")
+                                            setSearchInput("")
+                                            setPage(1)
+                                        }}
+                                        className="h-8 px-4 bg-[var(--integra-ink)] text-[var(--integra-canvas)] text-[12px] rounded-[3px]"
+                                    >
+                                        Kosongkan filter
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setStubModal({
+                                                title: "Buat PO",
+                                                body: "Form pembuatan PO akan tersedia di rilis berikutnya. Untuk sekarang, buat PO via Purchase Request.",
+                                            })
+                                        }
+                                        className="h-8 px-4 bg-[var(--integra-ink)] text-[var(--integra-canvas)] text-[12px] rounded-[3px]"
+                                    >
+                                        + Buat PO
+                                    </button>
+                                )
                             }
                         />
                     ) : (
@@ -1166,7 +1219,10 @@ export default function PurchaseOrdersPage() {
                         bodyClassName="p-0"
                     >
                         {topSuppliers.length === 0 ? (
-                            <EmptyState title="Belum ada data pemasok" />
+                            <EmptyState
+                                title="Belum ada data pemasok"
+                                description="Belum ada PO yang tercatat untuk periode ini, jadi belum bisa menghitung pemasok teratas."
+                            />
                         ) : (
                             <DataTable
                                 columns={supplierCols}
@@ -1245,7 +1301,10 @@ export default function PurchaseOrdersPage() {
                         bodyClassName="p-0"
                     >
                         {approvalQueue.length === 0 ? (
-                            <EmptyState title="Tidak ada PO menunggu approval" />
+                            <EmptyState
+                                title="Tidak ada PO menunggu approval"
+                                description="Semua PO sudah diproses. Antrian persetujuan kosong."
+                            />
                         ) : (
                             <ul className="m-0 p-0 list-none">
                                 {approvalQueue.slice(0, 8).map((q) => (

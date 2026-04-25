@@ -1,10 +1,12 @@
 "use client"
 import { use } from "react"
+import Link from "next/link"
 import { IconPrinter } from "@tabler/icons-react"
 import { usePurchaseOrderDetail } from "@/hooks/use-purchase-order-detail"
 import { DetailPage } from "@/components/integra/detail-page"
 import { DetailPageSkeleton } from "@/components/integra/detail-page-skeleton"
 import { TypstPdfButton } from "@/components/integra/typst-pdf-button"
+import { EmptyState } from "@/components/integra"
 import { HeaderTab } from "./_tabs/header-tab"
 import { ItemTab } from "./_tabs/item-tab"
 import { ApprovalTab } from "./_tabs/approval-tab"
@@ -14,23 +16,53 @@ import { KomunikasiTab } from "./_tabs/komunikasi-tab"
 
 export default function PoDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
-    const { data, isLoading, error } = usePurchaseOrderDetail(id)
+    const { data, isLoading, error, refetch } = usePurchaseOrderDetail(id)
 
     if (isLoading) return <DetailPageSkeleton />
 
     if (error) {
         return (
-            <div className="px-6 py-12 text-center">
-                <h1 className="font-display text-[20px] text-[var(--integra-red)]">Terjadi kesalahan</h1>
-                <p className="text-[12.5px] text-[var(--integra-muted)] mt-2">{error.message}</p>
+            <div className="px-6 py-12">
+                <EmptyState
+                    title="Gagal memuat detail PO"
+                    description={error.message ?? "Terjadi kesalahan saat memuat detail Pesanan Pembelian. Silakan coba lagi."}
+                    action={
+                        <div className="flex gap-2 justify-center">
+                            <button
+                                type="button"
+                                onClick={() => refetch()}
+                                className="h-8 px-4 bg-[var(--integra-ink)] text-[var(--integra-canvas)] text-[12px] rounded-[3px]"
+                            >
+                                Coba lagi
+                            </button>
+                            <Link
+                                href="/procurement/orders"
+                                className="h-8 px-4 border border-[var(--integra-hairline-strong)] text-[12px] rounded-[3px] flex items-center"
+                            >
+                                Kembali ke daftar
+                            </Link>
+                        </div>
+                    }
+                />
             </div>
         )
     }
 
     if (!data) {
         return (
-            <div className="px-6 py-12 text-center">
-                <h1 className="font-display text-[20px]">PO tidak ditemukan</h1>
+            <div className="px-6 py-12">
+                <EmptyState
+                    title="PO tidak ditemukan"
+                    description="PO yang kamu cari mungkin sudah dihapus atau ID-nya salah."
+                    action={
+                        <Link
+                            href="/procurement/orders"
+                            className="h-8 px-4 bg-[var(--integra-ink)] text-[var(--integra-canvas)] text-[12px] rounded-[3px] inline-flex items-center"
+                        >
+                            Kembali ke daftar PO
+                        </Link>
+                    }
+                />
             </div>
         )
     }

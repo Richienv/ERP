@@ -1,5 +1,6 @@
 "use client"
 import { MessageSquare } from "lucide-react"
+import { EmptyState } from "@/components/integra"
 
 export function KomunikasiTab({ data }: { data: any }) {
     return (
@@ -35,7 +36,10 @@ export function KomunikasiTab({ data }: { data: any }) {
                         )}
                     </div>
                 ) : (
-                    <p className="text-[12.5px] text-[var(--integra-muted)]">Pemasok tidak ditemukan</p>
+                    <EmptyState
+                        title="Pemasok tidak ditemukan"
+                        description="Data kontak pemasok belum tersedia. Tambahkan pemasok di modul Master Pemasok."
+                    />
                 )}
             </section>
 

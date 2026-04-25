@@ -1,6 +1,7 @@
 "use client"
 import { TypstPdfButton } from "@/components/integra/typst-pdf-button"
 import { LinkedDocsPanel } from "@/components/integra/linked-docs-panel"
+import { EmptyState } from "@/components/integra"
 import { Paperclip, FileText, Plus } from "lucide-react"
 import { buildLinkedDocs } from "../_helpers/build-linked-docs"
 
@@ -75,9 +76,10 @@ export function LampiranTab({ data }: { data: any }) {
                 {hasRelated ? (
                     <LinkedDocsPanel trail={trail} />
                 ) : (
-                    <p className="text-[12.5px] text-[var(--integra-muted)]">
-                        Belum ada dokumen terkait (PR asal, GRN, atau Bill).
-                    </p>
+                    <EmptyState
+                        title="Belum ada dokumen terkait"
+                        description="PO ini belum tertaut ke Purchase Request, GRN, atau Bill manapun."
+                    />
                 )}
             </section>
         </div>

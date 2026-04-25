@@ -1,5 +1,5 @@
 "use client"
-import { StatusPill } from "@/components/integra"
+import { EmptyState, StatusPill } from "@/components/integra"
 import { LinkedDocsPanel } from "@/components/integra/linked-docs-panel"
 import { fmtIDR, fmtDateShort } from "@/lib/integra-tokens"
 import { buildLinkedDocs } from "../_helpers/build-linked-docs"
@@ -96,7 +96,10 @@ export function HeaderTab({ data }: { data: any }) {
                         </Row>
                     </dl>
                 ) : (
-                    <p className="text-[12.5px] text-[var(--integra-muted)]">Pemasok tidak ditemukan</p>
+                    <EmptyState
+                        title="Pemasok tidak ditemukan"
+                        description="Data pemasok untuk PO ini belum tersedia atau sudah dihapus."
+                    />
                 )}
             </section>
 
