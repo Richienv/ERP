@@ -7,6 +7,8 @@ import { HeaderTab } from "./_tabs/header-tab"
 import { ItemTab } from "./_tabs/item-tab"
 import { ApprovalTab } from "./_tabs/approval-tab"
 import { HistoryTab } from "./_tabs/history-tab"
+import { LampiranTab } from "./_tabs/lampiran-tab"
+import { KomunikasiTab } from "./_tabs/komunikasi-tab"
 
 export default function PoDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
@@ -68,20 +70,12 @@ export default function PoDetailPage({ params }: { params: Promise<{ id: string 
                 {
                     key: "lampiran",
                     label: "Lampiran",
-                    content: (
-                        <div className="text-[12.5px] text-[var(--integra-muted)]">
-                            Lampiran tab — Phase C6
-                        </div>
-                    ),
+                    content: <LampiranTab data={data} />,
                 },
                 {
                     key: "komunikasi",
                     label: "Komunikasi",
-                    content: (
-                        <div className="text-[12.5px] text-[var(--integra-muted)]">
-                            Komunikasi tab — Phase C6
-                        </div>
-                    ),
+                    content: <KomunikasiTab data={data} />,
                 },
             ]}
             defaultTab="header"
