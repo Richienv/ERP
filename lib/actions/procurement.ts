@@ -1,7 +1,10 @@
 "use server"
 
 import { withPrismaAuth, prisma } from "@/lib/db"
-import { ProcurementStatus, PrismaClient } from "@prisma/client"
+import { ProcurementStatus, PrismaClient, Prisma } from "@prisma/client"
+import type { POFilter } from "@/lib/types/procurement-filters"
+
+export type { POFilter } from "@/lib/types/procurement-filters"
 import { recordPendingBillFromPO } from "@/lib/actions/finance-invoices"
 import { FALLBACK_PURCHASE_ORDERS, FALLBACK_VENDORS } from "@/lib/db-fallbacks"
 import { assertRole, getAuthzUser } from "@/lib/authz"
@@ -1331,11 +1334,47 @@ export async function createPOFromPR(...args: Parameters<typeof convertPRToPO>) 
     return convertPRToPO(...args)
 }
 
-export async function getAllPurchaseOrders() {
+export async function getAllPurchaseOrders(filter?: POFilter) {
     try {
         await getAuthzUser()
 
+        // Build Prisma where clause from filter dimensions. Empty/undefined
+        // filter -> no constraints (returns everything, original behaviour).
+        const where: Prisma.PurchaseOrderWhereInput = {}
+
+        if (filter?.status?.length) {
+            where.status = { in: filter.status as ProcurementStatus[] }
+        }
+        if (filter?.vendorIds?.length) {
+            where.supplierId = { in: filter.vendorIds }
+        }
+        if (filter?.dateStart || filter?.dateEnd) {
+            const orderDate: Prisma.DateTimeFilter = {}
+            if (filter.dateStart) orderDate.gte = new Date(filter.dateStart)
+            if (filter.dateEnd) orderDate.lte = new Date(filter.dateEnd)
+            where.orderDate = orderDate
+        }
+        if (filter?.amountMin != null || filter?.amountMax != null) {
+            const totalAmount: Prisma.DecimalFilter = {}
+            if (filter.amountMin != null) totalAmount.gte = filter.amountMin
+            if (filter.amountMax != null) totalAmount.lte = filter.amountMax
+            where.totalAmount = totalAmount
+        }
+        if (filter?.paymentTerms?.length) {
+            // PurchaseOrder has no paymentTerm column — filter via supplier.
+            where.supplier = {
+                paymentTerm: { in: filter.paymentTerms as any },
+            }
+        }
+        if (filter?.search) {
+            where.OR = [
+                { number: { contains: filter.search, mode: "insensitive" } },
+                { supplier: { name: { contains: filter.search, mode: "insensitive" } } },
+            ]
+        }
+
         const orders = await prisma.purchaseOrder.findMany({
+            where,
             orderBy: { createdAt: 'desc' },
             include: {
                 supplier: {
