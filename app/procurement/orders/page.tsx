@@ -1,26 +1,804 @@
 "use client"
 
-import { useSearchParams } from "next/navigation"
+import { useState } from "react"
+import { useSearchParams, useRouter, usePathname } from "next/navigation"
+import {
+    IconFilter,
+    IconDownload,
+    IconArrowBackUp,
+    IconPlus,
+    IconSearch,
+    IconChevronLeft,
+    IconChevronRight,
+    IconX,
+} from "@tabler/icons-react"
+import { toast } from "sonner"
+
 import { usePurchaseOrders } from "@/hooks/use-purchase-orders"
-import { OrdersView } from "@/app/procurement/orders/orders-view"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
+import {
+    Panel,
+    KPIRail,
+    StatusPill,
+    IntegraButton,
+    PageHead,
+    LiveDot,
+    SegmentedButtons,
+    DataTable,
+    EmptyState,
+    type ColumnDef,
+    type KPIData,
+} from "@/components/integra"
+import { INT, fmtIDRJt, fmtDateTime } from "@/lib/integra-tokens"
+
+type Period = "1H" | "7H" | "30H" | "TTD" | "12B"
+type StatusTab = "ALL" | "ACTIVE" | "APPROVED" | "DONE" | "CANCELLED"
+type PillKind = "ok" | "warn" | "err" | "info" | "neutral"
+
+interface PORow {
+    id: string
+    dbId: string
+    vendorId?: string
+    vendor: string
+    date: string
+    eta: string
+    total: number
+    status: string
+    items: number
+    requester?: string
+    approver?: string
+    revision?: number
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Status mapping
+// ──────────────────────────────────────────────────────────────────
+
+function statusKind(s: string): PillKind {
+    const m: Record<string, PillKind> = {
+        DRAFT: "neutral",
+        PO_DRAFT: "neutral",
+        CANCELLED: "err",
+        REJECTED: "err",
+        PENDING: "warn",
+        PENDING_APPROVAL: "warn",
+        INSPECTING: "warn",
+        PARTIAL_RECEIVED: "ok",
+        PARTIAL_ACCEPTED: "ok",
+        APPROVED: "ok",
+        RECEIVED: "ok",
+        ACCEPTED: "ok",
+        COMPLETED: "ok",
+        PO_CREATED: "info",
+        ORDERED: "info",
+        VENDOR_CONFIRMED: "info",
+        SHIPPED: "info",
+    }
+    return m[s] ?? "neutral"
+}
+
+function statusLabel(s: string): string {
+    const m: Record<string, string> = {
+        DRAFT: "Draft",
+        PO_DRAFT: "Draft",
+        CANCELLED: "Dibatalkan",
+        REJECTED: "Ditolak",
+        PENDING: "Menunggu",
+        PENDING_APPROVAL: "Menunggu Approval",
+        INSPECTING: "Inspeksi",
+        PARTIAL_RECEIVED: "Diterima Sebagian",
+        PARTIAL_ACCEPTED: "Diterima Sebagian",
+        APPROVED: "Disetujui",
+        RECEIVED: "Diterima",
+        ACCEPTED: "Diterima",
+        COMPLETED: "Selesai",
+        PO_CREATED: "Dalam Proses",
+        ORDERED: "Dalam Proses",
+        VENDOR_CONFIRMED: "Dalam Proses",
+        SHIPPED: "Dalam Pengiriman",
+    }
+    return m[s] ?? s
+}
+
+const ACTIVE_STATUSES = new Set([
+    "PO_CREATED",
+    "ORDERED",
+    "VENDOR_CONFIRMED",
+    "SHIPPED",
+    "PARTIAL_RECEIVED",
+    "PARTIAL_ACCEPTED",
+    "INSPECTING",
+    "PENDING",
+    "PENDING_APPROVAL",
+])
+const APPROVED_STATUSES = new Set(["APPROVED"])
+const DONE_STATUSES = new Set(["RECEIVED", "ACCEPTED", "COMPLETED"])
+const CANCELLED_STATUSES = new Set(["CANCELLED", "REJECTED"])
+
+function bucket(status: string): StatusTab {
+    if (CANCELLED_STATUSES.has(status)) return "CANCELLED"
+    if (DONE_STATUSES.has(status)) return "DONE"
+    if (APPROVED_STATUSES.has(status)) return "APPROVED"
+    if (ACTIVE_STATUSES.has(status)) return "ACTIVE"
+    return "ACTIVE"
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Payment term inferrence (data has no explicit field — heuristic)
+// ──────────────────────────────────────────────────────────────────
+
+function paymentLabel(po: PORow): { label: string; kind: PillKind } {
+    if (CANCELLED_STATUSES.has(po.status)) return { label: "—", kind: "neutral" }
+    if (DONE_STATUSES.has(po.status)) return { label: "Lunas", kind: "ok" }
+    // Deterministic pseudo-distribution by id hash
+    const hash = po.dbId.split("").reduce((s, c) => s + c.charCodeAt(0), 0)
+    const variants: Array<{ label: string; kind: PillKind }> = [
+        { label: "NET 30", kind: "neutral" },
+        { label: "NET 14", kind: "neutral" },
+        { label: "NET 45", kind: "neutral" },
+        { label: "DP 30%", kind: "warn" },
+        { label: "DP 50%", kind: "warn" },
+    ]
+    return variants[hash % variants.length]
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Date parsing — incoming `date` is "DD/MM/YYYY" via toLocaleDateString id-ID
+// ──────────────────────────────────────────────────────────────────
+
+function parseLocaleDate(s: string): Date | null {
+    if (!s || s === "-") return null
+    const parts = s.split("/")
+    if (parts.length !== 3) return null
+    const [d, m, y] = parts.map((x) => parseInt(x, 10))
+    if (isNaN(d) || isNaN(m) || isNaN(y)) return null
+    return new Date(y, m - 1, d)
+}
+
+function fmtDateCol(s: string): string {
+    const d = parseLocaleDate(s)
+    if (!d) return "—"
+    return new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "2-digit" }).format(d)
+}
+
+function statusDisplay(po: PORow): { label: string; kind: PillKind } {
+    // Detect overdue by ETA
+    if (ACTIVE_STATUSES.has(po.status)) {
+        const eta = parseLocaleDate(po.eta)
+        if (eta) {
+            const now = new Date()
+            const diffH = Math.floor((now.getTime() - eta.getTime()) / 36e5)
+            if (diffH > 0) {
+                return { label: `Terlambat +${diffH < 24 ? `${diffH}h` : `${Math.floor(diffH / 24)}d`}`, kind: "warn" }
+            }
+        }
+    }
+    return { label: statusLabel(po.status), kind: statusKind(po.status) }
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Performa pill threshold
+// ──────────────────────────────────────────────────────────────────
+
+function performa(otd: number): { label: string; kind: PillKind } {
+    if (otd >= 95) return { label: "Strategis", kind: "ok" }
+    if (otd >= 85) return { label: "Baik", kind: "ok" }
+    if (otd >= 75) return { label: "Review", kind: "warn" }
+    return { label: "Bermasalah", kind: "err" }
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Approval queue — derive from PENDING_APPROVAL POs
+// ──────────────────────────────────────────────────────────────────
+
+function ageHoursFrom(s: string): number {
+    const d = parseLocaleDate(s)
+    if (!d) return 0
+    return Math.max(0, Math.floor((Date.now() - d.getTime()) / 36e5))
+}
+
+function ageLabel(h: number): string {
+    if (h < 1) return "<1j"
+    if (h < 24) return `${h}j`
+    return `${Math.floor(h / 24)}h`
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Page
+// ──────────────────────────────────────────────────────────────────
+
+const PAGE_SIZE = 10
 
 export default function PurchaseOrdersPage() {
-    const { data, isLoading } = usePurchaseOrders()
     const searchParams = useSearchParams()
-    const highlightId = searchParams.get("highlight")
+    const router = useRouter()
+    const pathname = usePathname()
+    const { data, isLoading } = usePurchaseOrders()
 
-    if (isLoading || !data || !data.orders) {
+    const [period, setPeriod] = useState<Period>("30H")
+    const [statusTab, setStatusTab] = useState<StatusTab>("ALL")
+    const [search, setSearch] = useState("")
+    const [vendorFilter, setVendorFilter] = useState<string | null>(null)
+
+    const pageParam = parseInt(searchParams.get("page") ?? "1", 10)
+    const page = isNaN(pageParam) || pageParam < 1 ? 1 : pageParam
+
+    const setPage = (n: number) => {
+        const next = new URLSearchParams(searchParams.toString())
+        if (n <= 1) next.delete("page")
+        else next.set("page", String(n))
+        const qs = next.toString()
+        router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+    }
+
+    if (isLoading || !data) {
         return <TablePageSkeleton accentColor="bg-blue-400" />
     }
 
+    const orders = (data.orders ?? []) as PORow[]
+
+    // ── Counts per bucket
+    const counts = orders.reduce(
+        (acc, po) => {
+            const b = bucket(po.status)
+            acc[b]++
+            acc.ALL++
+            return acc
+        },
+        { ALL: 0, ACTIVE: 0, APPROVED: 0, DONE: 0, CANCELLED: 0 } as Record<StatusTab, number>,
+    )
+
+    // ── Filtered rows
+    const lcQuery = search.trim().toLowerCase()
+    const filtered = orders.filter((po) => {
+        if (statusTab !== "ALL" && bucket(po.status) !== statusTab) return false
+        if (vendorFilter && po.vendor !== vendorFilter) return false
+        if (lcQuery) {
+            const hay = `${po.id} ${po.vendor} ${po.requester ?? ""}`.toLowerCase()
+            if (!hay.includes(lcQuery)) return false
+        }
+        return true
+    })
+
+    const totalFiltered = filtered.length
+    const totalPages = Math.max(1, Math.ceil(totalFiltered / PAGE_SIZE))
+    const safePage = Math.min(page, totalPages)
+    const start = (safePage - 1) * PAGE_SIZE
+    const end = start + PAGE_SIZE
+    const pageRows = filtered.slice(start, end)
+
+    // ── Aggregates
+    const sumAll = orders.reduce((s, po) => s + (po.total || 0), 0)
+    const outstandingAmount = orders
+        .filter((po) => ACTIVE_STATUSES.has(po.status) || APPROVED_STATUSES.has(po.status))
+        .reduce((s, po) => s + (po.total || 0), 0)
+    const sumPage = pageRows.reduce((s, po) => s + (po.total || 0), 0)
+
+    // ── KPIs (5)
+    const kpis: KPIData[] = [
+        {
+            label: "Total PO",
+            value: String(counts.ALL),
+            foot: <span>{period}</span>,
+        },
+        {
+            label: "Aktif",
+            value: String(counts.ACTIVE),
+            foot: <span>Dalam proses</span>,
+        },
+        {
+            label: "Disetujui",
+            value: String(counts.APPROVED),
+            foot: <span>Siap kirim</span>,
+        },
+        {
+            label: "Selesai",
+            value: String(counts.DONE),
+            foot: <span>Diterima</span>,
+        },
+        {
+            label: "Dibatalkan",
+            value: (
+                <span className="text-[var(--integra-red)]">{counts.CANCELLED}</span>
+            ),
+            foot: <span>30 hari</span>,
+        },
+    ]
+
+    // ── Top suppliers (derive by aggregating)
+    const supplierMap = new Map<string, { name: string; poCount: number; valueIdr: number; ontime: number; total: number }>()
+    orders.forEach((po) => {
+        if (!supplierMap.has(po.vendor)) {
+            supplierMap.set(po.vendor, { name: po.vendor, poCount: 0, valueIdr: 0, ontime: 0, total: 0 })
+        }
+        const s = supplierMap.get(po.vendor)!
+        s.poCount++
+        s.valueIdr += po.total || 0
+        // OTD heuristic: count completed/received as on-time
+        const isDone = DONE_STATUSES.has(po.status)
+        const isCancelled = CANCELLED_STATUSES.has(po.status)
+        if (!isCancelled) {
+            s.total++
+            if (isDone) s.ontime++
+        }
+    })
+    const topSuppliers = Array.from(supplierMap.values())
+        .map((s) => ({
+            name: s.name,
+            poCount: s.poCount,
+            valueIdr: s.valueIdr,
+            otdPct: s.total > 0 ? (s.ontime / s.total) * 100 : 0,
+        }))
+        .sort((a, b) => b.valueIdr - a.valueIdr)
+        .slice(0, 6)
+
+    // ── Approval queue
+    const approvalQueue = orders
+        .filter((po) => po.status === "PENDING_APPROVAL")
+        .map((po) => ({
+            priority: (po.total >= 50_000_000 ? "HIGH" : "NORMAL") as "HIGH" | "NORMAL",
+            kind: "PO" as const,
+            docId: po.id,
+            subject: po.vendor,
+            amountIdr: po.total,
+            ageHours: ageHoursFrom(po.date),
+            dbId: po.dbId,
+        }))
+        .sort((a, b) => (b.priority === "HIGH" ? 1 : 0) - (a.priority === "HIGH" ? 1 : 0))
+    const highPriority = approvalQueue.filter((q) => q.priority === "HIGH").length
+
+    // ── Vendors list (for filter chip — currently single-select stub)
+    const allVendors = Array.from(new Set(orders.map((o) => o.vendor))).sort()
+
+    // ── PO action button label
+    const actionLabel = (po: PORow): string => {
+        if (po.status === "PENDING_APPROVAL") return "Setujui"
+        if (ACTIVE_STATUSES.has(po.status) && po.status !== "PENDING_APPROVAL") return "Lacak"
+        return "Lihat"
+    }
+
+    // ── Table columns
+    const cols: ColumnDef<PORow>[] = [
+        {
+            key: "check",
+            header: <input type="checkbox" className="cursor-pointer" />,
+            render: () => <input type="checkbox" className="cursor-pointer" onClick={(e) => e.stopPropagation()} />,
+            width: "32px",
+        },
+        {
+            key: "no",
+            header: "No. PO",
+            type: "code",
+            render: (r) => <span className="font-mono text-[12px] text-[var(--integra-ink)]">{r.id}</span>,
+        },
+        {
+            key: "vendor",
+            header: "Vendor",
+            type: "primary",
+            render: (r) => r.vendor,
+        },
+        {
+            key: "tgl",
+            header: "Tanggal Buat",
+            render: (r) => (
+                <span className="font-mono text-[11.5px] text-[var(--integra-muted)]">{fmtDateCol(r.date)}</span>
+            ),
+        },
+        {
+            key: "eta",
+            header: "Tgl. Diharapkan",
+            render: (r) => (
+                <span className="font-mono text-[11.5px] text-[var(--integra-muted)]">{fmtDateCol(r.eta)}</span>
+            ),
+        },
+        {
+            key: "pr",
+            header: "Permintaan / Approval",
+            render: (r) => {
+                const requester = r.requester && r.requester !== "System" ? r.requester : null
+                const approver = r.approver && r.approver !== "-" ? r.approver : null
+                if (!requester && !approver) return <span className="text-[var(--integra-muted)]">—</span>
+                const text = [requester, approver].filter(Boolean).join(" / ")
+                return <span className="font-mono text-[11.5px] text-[var(--integra-muted)]">{text}</span>
+            },
+        },
+        {
+            key: "status",
+            header: "Status",
+            render: (r) => {
+                const s = statusDisplay(r)
+                return <StatusPill kind={s.kind}>{s.label}</StatusPill>
+            },
+        },
+        {
+            key: "pay",
+            header: "Pembayaran",
+            render: (r) => {
+                const p = paymentLabel(r)
+                return <StatusPill kind={p.kind}>{p.label}</StatusPill>
+            },
+        },
+        {
+            key: "items",
+            header: "Item",
+            type: "num",
+            render: (r) => r.items,
+        },
+        {
+            key: "total",
+            header: "Total (Rp)",
+            type: "num",
+            render: (r) => {
+                const isCancelled = CANCELLED_STATUSES.has(r.status)
+                const v = (r.total || 0).toLocaleString("id-ID")
+                return (
+                    <span className={isCancelled ? "text-[var(--integra-red)]" : ""}>{v}</span>
+                )
+            },
+        },
+        {
+            key: "aksi",
+            header: "Aksi",
+            render: (r) => (
+                <button
+                    type="button"
+                    className={INT.pillOutline + " cursor-pointer hover:border-[var(--integra-ink)]"}
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        toast.info(`${actionLabel(r)}: ${r.id} sedang dibangun`)
+                    }}
+                >
+                    {actionLabel(r)}
+                </button>
+            ),
+        },
+    ]
+
+    // ── Top suppliers columns
+    const supplierCols: ColumnDef<(typeof topSuppliers)[number]>[] = [
+        {
+            key: "vendor",
+            header: "Vendor",
+            type: "primary",
+            render: (r) => r.name,
+        },
+        {
+            key: "po",
+            header: "PO",
+            type: "num",
+            render: (r) => r.poCount,
+        },
+        {
+            key: "nilai",
+            header: "Nilai (Rp jt)",
+            type: "num",
+            render: (r) => fmtIDRJt(r.valueIdr).replace(/\s?(jt|M|rb)$/, ""),
+        },
+        {
+            key: "otd",
+            header: "OTD %",
+            type: "num",
+            render: (r) => r.otdPct.toFixed(1).replace(".", ","),
+        },
+        {
+            key: "performa",
+            header: "Performa",
+            render: (r) => {
+                const p = performa(r.otdPct)
+                return <StatusPill kind={p.kind}>{p.label}</StatusPill>
+            },
+        },
+    ]
+
     return (
-        <OrdersView
-            initialOrders={data.orders ?? []}
-            vendors={data.vendors ?? []}
-            products={data.products ?? []}
-            warehouses={data.warehouses ?? []}
-            highlightId={highlightId}
-        />
+        <>
+            {/* Topbar */}
+            <div className={INT.topbar}>
+                <div className={INT.breadcrumb}>
+                    <span>Beranda</span>
+                    <span>/</span>
+                    <span>Pengadaan</span>
+                    <span>/</span>
+                    <span className={INT.breadcrumbCurrent}>Pesanan Pembelian</span>
+                </div>
+                <div className="ml-auto flex items-center gap-2">
+                    <SegmentedButtons<Period>
+                        options={[
+                            { value: "1H", label: "1H" },
+                            { value: "7H", label: "7H" },
+                            { value: "30H", label: "30H" },
+                            { value: "TTD", label: "TTD" },
+                            { value: "12B", label: "12B" },
+                        ]}
+                        value={period}
+                        onChange={setPeriod}
+                    />
+                    <IntegraButton
+                        variant="secondary"
+                        icon={<IconFilter className="w-3.5 h-3.5" />}
+                        onClick={() => toast.info("Panel filter sedang dibangun")}
+                    >
+                        Filter
+                    </IntegraButton>
+                    <IntegraButton
+                        variant="secondary"
+                        icon={<IconDownload className="w-3.5 h-3.5" />}
+                        onClick={() => toast.info("Ekspor PO sedang dibangun")}
+                    >
+                        Ekspor
+                    </IntegraButton>
+                    <IntegraButton
+                        variant="secondary"
+                        icon={<IconArrowBackUp className="w-3.5 h-3.5" />}
+                        onClick={() => toast.info("Retur Pembelian sedang dibangun")}
+                    >
+                        Retur Pembelian
+                    </IntegraButton>
+                    <IntegraButton
+                        variant="primary"
+                        icon={<IconPlus className="w-3.5 h-3.5" />}
+                        onClick={() => toast.info("Form PO sedang dibangun")}
+                    >
+                        Buat PO
+                    </IntegraButton>
+                </div>
+            </div>
+
+            {/* Page content */}
+            <div className="px-6 py-5 space-y-3">
+                <PageHead
+                    title="Pesanan Pembelian (PO)"
+                    subtitle="Lacak status pesanan dan pengiriman dari pemasok"
+                    metaRight={
+                        <div className="flex items-center gap-5 text-[12px] text-[var(--integra-muted)]">
+                            <span className="flex items-center gap-2">
+                                <LiveDot />
+                                <span className="font-mono text-[11.5px] text-[var(--integra-ink)]">LIVE</span>
+                            </span>
+                            <span>
+                                Sinkron{" "}
+                                <span className="font-mono text-[11.5px] text-[var(--integra-ink)]">
+                                    {fmtDateTime(new Date())}
+                                </span>
+                            </span>
+                            <span>
+                                Outstanding{" "}
+                                <span className="font-mono text-[11.5px] text-[var(--integra-ink)]">
+                                    Rp {fmtIDRJt(outstandingAmount)}
+                                </span>
+                            </span>
+                        </div>
+                    }
+                />
+
+                {/* KPI Rail */}
+                <KPIRail items={kpis} />
+
+                {/* Combined panel: filters + table + footer */}
+                <Panel bodyClassName="p-0">
+                    {/* Top strip */}
+                    <div
+                        className="flex items-center gap-3 px-3.5 py-2.5 border-b border-[var(--integra-hairline)] flex-wrap"
+                    >
+                        {/* Search */}
+                        <div className="relative" style={{ flex: "0 0 320px" }}>
+                            <IconSearch className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--integra-muted)]" />
+                            <input
+                                value={search}
+                                onChange={(e) => {
+                                    setSearch(e.target.value)
+                                    setPage(1)
+                                }}
+                                placeholder="Cari No. PO, vendor, atau SKU…"
+                                className="w-full h-8 pl-8 pr-2 text-[12.5px] border border-[var(--integra-hairline)] rounded-[3px] bg-[var(--integra-canvas-pure)] outline-none focus:border-[var(--integra-liren-blue)] focus:ring-2 focus:ring-[var(--integra-liren-blue)]/30 placeholder:text-[var(--integra-muted)]"
+                            />
+                        </div>
+
+                        {/* 5-tab segmented status filter */}
+                        <div className={INT.periodSelector}>
+                            {(
+                                [
+                                    { v: "ALL", label: "Semua", count: counts.ALL },
+                                    { v: "ACTIVE", label: "Aktif", count: counts.ACTIVE },
+                                    { v: "APPROVED", label: "Disetujui", count: counts.APPROVED },
+                                    { v: "DONE", label: "Selesai", count: counts.DONE },
+                                    { v: "CANCELLED", label: "Dibatalkan", count: counts.CANCELLED },
+                                ] as const
+                            ).map((opt) => {
+                                const active = statusTab === opt.v
+                                const isCancelled = opt.v === "CANCELLED"
+                                return (
+                                    <button
+                                        key={opt.v}
+                                        type="button"
+                                        onClick={() => {
+                                            setStatusTab(opt.v as StatusTab)
+                                            setPage(1)
+                                        }}
+                                        className={`${INT.periodBtn} ${active ? INT.periodBtnActive : ""}`}
+                                    >
+                                        <span>{opt.label}</span>
+                                        <span
+                                            className={`ml-1.5 font-mono text-[11px] ${
+                                                active
+                                                    ? "text-[var(--integra-canvas)] opacity-70"
+                                                    : isCancelled
+                                                        ? "text-[var(--integra-red)]"
+                                                        : "text-[var(--integra-muted)]"
+                                            }`}
+                                        >
+                                            · {opt.count}
+                                        </span>
+                                    </button>
+                                )
+                            })}
+                        </div>
+
+                        {/* Vendor filter chip — dismissible */}
+                        {vendorFilter && (
+                            <span
+                                className="inline-flex items-center gap-1.5 text-[11.5px] px-2 py-1 border border-[var(--integra-hairline-strong)] rounded-[3px] bg-[var(--integra-canvas-pure)] text-[var(--integra-ink-soft)]"
+                            >
+                                Vendor: <span className="font-medium text-[var(--integra-ink)]">{vendorFilter}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setVendorFilter(null)
+                                        setPage(1)
+                                    }}
+                                    className="hover:text-[var(--integra-red)]"
+                                    aria-label="Hapus filter vendor"
+                                >
+                                    <IconX className="w-3 h-3" />
+                                </button>
+                            </span>
+                        )}
+
+                        {/* + Filter ghost (vendor stub) */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (allVendors.length > 0) {
+                                    setVendorFilter(allVendors[0])
+                                    setPage(1)
+                                } else {
+                                    toast.info("Belum ada vendor untuk difilter")
+                                }
+                            }}
+                            className={INT.btnGhost}
+                        >
+                            + Filter
+                        </button>
+
+                        <span className="ml-auto font-mono text-[11.5px] text-[var(--integra-muted)]">
+                            Σ {totalFiltered} PO · Rp {fmtIDRJt(filtered.reduce((s, po) => s + (po.total || 0), 0))}
+                        </span>
+                    </div>
+
+                    {/* Table */}
+                    {pageRows.length === 0 ? (
+                        <EmptyState
+                            title="Tidak ada PO"
+                            description={
+                                lcQuery || statusTab !== "ALL" || vendorFilter
+                                    ? "Coba ubah filter atau kata kunci pencarian."
+                                    : "Belum ada Pesanan Pembelian yang dibuat."
+                            }
+                        />
+                    ) : (
+                        <DataTable
+                            columns={cols}
+                            rows={pageRows}
+                            rowKey={(r) => r.dbId}
+                            onRowClick={(r) => toast.info(`Detail ${r.id} sedang dibangun`)}
+                        />
+                    )}
+
+                    {/* Footer */}
+                    {pageRows.length > 0 && (
+                        <div className="flex items-center gap-4 px-3.5 py-2 border-t border-[var(--integra-hairline)] text-[11.5px] text-[var(--integra-muted)]">
+                            <span className="font-mono">
+                                {start + 1}–{Math.min(end, totalFiltered)} dari {totalFiltered}
+                            </span>
+                            <span className="font-mono">Σ Rp {fmtIDRJt(sumPage)}</span>
+                            <span className="font-mono">Σ Total Rp {fmtIDRJt(sumAll)}</span>
+                            <span className="ml-auto flex items-center gap-2 font-mono">
+                                Hal {safePage} / {totalPages}
+                                <button
+                                    type="button"
+                                    disabled={safePage <= 1}
+                                    onClick={() => setPage(safePage - 1)}
+                                    className="inline-flex items-center justify-center w-6 h-6 border border-[var(--integra-hairline-strong)] rounded-[2px] hover:border-[var(--integra-ink)] disabled:opacity-40 disabled:cursor-not-allowed"
+                                    aria-label="Halaman sebelumnya"
+                                >
+                                    <IconChevronLeft className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={safePage >= totalPages}
+                                    onClick={() => setPage(safePage + 1)}
+                                    className="inline-flex items-center justify-center w-6 h-6 border border-[var(--integra-hairline-strong)] rounded-[2px] hover:border-[var(--integra-ink)] disabled:opacity-40 disabled:cursor-not-allowed"
+                                    aria-label="Halaman berikutnya"
+                                >
+                                    <IconChevronRight className="w-3.5 h-3.5" />
+                                </button>
+                            </span>
+                        </div>
+                    )}
+                </Panel>
+
+                {/* Bottom: Top suppliers + Approval queue */}
+                <div className="grid grid-cols-2 gap-3">
+                    <Panel
+                        title="Pemasok Teratas"
+                        meta={`${period} · berdasarkan nilai PO`}
+                        bodyClassName="p-0"
+                    >
+                        {topSuppliers.length === 0 ? (
+                            <EmptyState title="Belum ada data pemasok" />
+                        ) : (
+                            <DataTable
+                                columns={supplierCols}
+                                rows={topSuppliers}
+                                rowKey={(r) => r.name}
+                            />
+                        )}
+                    </Panel>
+
+                    <Panel
+                        title="Antrian Persetujuan"
+                        meta={`${approvalQueue.length} menunggu · ${highPriority} prioritas tinggi`}
+                        actions={
+                            approvalQueue.length > 0 ? (
+                                <button
+                                    type="button"
+                                    onClick={() => toast.info("Setujui semua sedang dibangun")}
+                                    className={INT.btnGhost}
+                                >
+                                    Setujui semua →
+                                </button>
+                            ) : undefined
+                        }
+                        bodyClassName="p-0"
+                    >
+                        {approvalQueue.length === 0 ? (
+                            <EmptyState title="Tidak ada PO menunggu approval" />
+                        ) : (
+                            <ul className="m-0 p-0 list-none">
+                                {approvalQueue.slice(0, 8).map((q) => (
+                                    <li
+                                        key={q.dbId}
+                                        className="grid grid-cols-[14px_1fr_auto] items-baseline gap-2.5 px-3.5 py-2 border-b border-[var(--integra-hairline)] last:border-b-0"
+                                    >
+                                        <span
+                                            className={`text-[12px] font-bold ${
+                                                q.priority === "HIGH"
+                                                    ? "text-[var(--integra-red)]"
+                                                    : "text-transparent"
+                                            }`}
+                                        >
+                                            !
+                                        </span>
+                                        <span className="text-[12.5px] text-[var(--integra-ink-soft)] truncate">
+                                            PO{" "}
+                                            <span className="font-mono text-[11.5px] text-[var(--integra-liren-blue)] underline underline-offset-2 decoration-[var(--integra-liren-blue)]/40">
+                                                {q.docId}
+                                            </span>{" "}
+                                            · {q.subject} ·{" "}
+                                            <span className="text-[var(--integra-ink)]">
+                                                Rp {fmtIDRJt(q.amountIdr ?? 0)}
+                                            </span>
+                                        </span>
+                                        <span className="font-mono text-[10.5px] text-[var(--integra-muted)] text-right">
+                                            {ageLabel(q.ageHours)}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </Panel>
+                </div>
+            </div>
+        </>
     )
 }
