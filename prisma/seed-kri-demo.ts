@@ -10,7 +10,7 @@
 // IMPORTANT: assumes seed-gl.ts has been run (or system accounts exist).
 // We call ensureSystemAccounts() defensively to guarantee SYS_ACCOUNTS exist.
 
-import { PrismaClient, Prisma } from '@prisma/client'
+import { PrismaClient, Prisma, type ProcurementStatus } from '@prisma/client'
 import { SYS_ACCOUNTS } from '../lib/gl-accounts'
 
 const prisma = new PrismaClient()
@@ -635,6 +635,98 @@ async function main() {
         })
     }
 
+    // ---------- 10b. Purchase Order Events (audit trail) ----------
+    console.log('  [10b/14] Seeding PO audit trail events...')
+    // Lifecycle progression — events are inserted in order so the timeline
+    // reads top-to-bottom: CREATE → SUBMIT → APPROVE → ORDER → SHIP → RECEIVE → COMPLETE.
+    // We use seeded employee UUIDs as `changedBy` placeholders (Supabase Auth IDs
+    // aren't seeded here). Idempotent via per-PO event-count check.
+    const STATUS_PROGRESSION: Array<{ status: string; action: string; offsetDays: number; actor: 'requester' | 'approver'; note: (poNumber: string) => string }> = [
+        { status: 'PO_DRAFT', action: 'CREATE', offsetDays: 0, actor: 'requester', note: (n) => `PO ${n} dibuat sebagai draft` },
+        { status: 'PENDING_APPROVAL', action: 'SUBMIT_APPROVAL', offsetDays: 0.05, actor: 'requester', note: () => 'Diajukan untuk persetujuan' },
+        { status: 'APPROVED', action: 'APPROVE', offsetDays: 0.5, actor: 'approver', note: () => 'Disetujui untuk dipesan' },
+        { status: 'ORDERED', action: 'ORDER', offsetDays: 1, actor: 'requester', note: () => 'Pesanan dikirim ke vendor' },
+        { status: 'SHIPPED', action: 'SHIP', offsetDays: 3, actor: 'requester', note: () => 'Vendor mengkonfirmasi pengiriman' },
+        { status: 'PARTIAL_RECEIVED', action: 'RECEIVE', offsetDays: 5, actor: 'requester', note: () => 'Sebagian barang diterima di gudang' },
+        { status: 'RECEIVED', action: 'RECEIVE', offsetDays: 6, actor: 'requester', note: () => 'Seluruh barang diterima lengkap' },
+        { status: 'COMPLETED', action: 'COMPLETE', offsetDays: 10, actor: 'approver', note: () => 'PO ditutup — pembayaran dilunasi' },
+    ]
+
+    // Up to which step in the progression each terminal status reached
+    const PROGRESSION_INDEX: Record<string, number> = {
+        PO_DRAFT: 0,
+        PENDING_APPROVAL: 1,
+        APPROVED: 2,
+        ORDERED: 3,
+        SHIPPED: 4,
+        PARTIAL_RECEIVED: 5,
+        RECEIVED: 6,
+        COMPLETED: 7,
+    }
+
+    for (const po of purchaseOrderRecords) {
+        // Idempotent: skip if any events already exist for this PO
+        const existingEvents = await prisma.purchaseOrderEvent.count({ where: { purchaseOrderId: po.id } })
+        if (existingEvents > 0) continue
+
+        const actorMap = {
+            requester: requesterId,
+            approver: approverId,
+        }
+
+        if (po.status === 'CANCELLED') {
+            // Cancelled POs: CREATE → CANCEL
+            const baseDate = daysFromNow(-po.daysAgo)
+            await prisma.purchaseOrderEvent.create({
+                data: {
+                    purchaseOrderId: po.id,
+                    status: 'PO_DRAFT',
+                    changedBy: actorMap.requester,
+                    action: 'CREATE',
+                    notes: `PO ${po.number} dibuat sebagai draft`,
+                    metadata: { source: 'SEED', to: 'PO_DRAFT' },
+                    createdAt: baseDate,
+                },
+            })
+            await prisma.purchaseOrderEvent.create({
+                data: {
+                    purchaseOrderId: po.id,
+                    status: 'CANCELLED',
+                    changedBy: actorMap.approver,
+                    action: 'CANCEL',
+                    notes: 'PO dibatalkan — kebutuhan berubah',
+                    metadata: { source: 'SEED', from: 'PO_DRAFT', to: 'CANCELLED' },
+                    createdAt: new Date(baseDate.getTime() + 0.5 * 86_400_000),
+                },
+            })
+            continue
+        }
+
+        const targetIdx = PROGRESSION_INDEX[po.status]
+        if (targetIdx === undefined) continue
+
+        const baseDate = daysFromNow(-po.daysAgo)
+        for (let i = 0; i <= targetIdx; i++) {
+            const step = STATUS_PROGRESSION[i]
+            const prevStep = i > 0 ? STATUS_PROGRESSION[i - 1] : null
+            await prisma.purchaseOrderEvent.create({
+                data: {
+                    purchaseOrderId: po.id,
+                    status: step.status as ProcurementStatus,
+                    changedBy: actorMap[step.actor],
+                    action: step.action,
+                    notes: step.note(po.number),
+                    metadata: {
+                        source: 'SEED',
+                        ...(prevStep ? { from: prevStep.status } : {}),
+                        to: step.status,
+                    },
+                    createdAt: new Date(baseDate.getTime() + step.offsetDays * 86_400_000),
+                },
+            })
+        }
+    }
+
     // ---------- 11. Goods Received Notes (GRN) ----------
     console.log('  [11/14] Seeding goods received notes...')
     const grnSourcePOs = purchaseOrderRecords.filter(p =>
@@ -892,6 +984,7 @@ async function main() {
         customers: await prisma.customer.count({ where: { code: { startsWith: 'CUST-KRI-' } } }),
         purchaseRequests: await prisma.purchaseRequest.count({ where: { number: { startsWith: 'PR-KRI-' } } }),
         purchaseOrders: await prisma.purchaseOrder.count({ where: { number: { startsWith: 'PO-KRI-' } } }),
+        poEvents: await prisma.purchaseOrderEvent.count({ where: { purchaseOrder: { number: { startsWith: 'PO-KRI-' } } } }),
         grns: grnCount,
         invoicesAR: arCount,
         invoicesAP: apCount,
