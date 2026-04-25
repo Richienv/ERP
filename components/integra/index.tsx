@@ -145,6 +145,8 @@ export function IntegraButton({
     href,
     className,
     icon,
+    disabled,
+    title,
 }: {
     variant?: "primary" | "secondary" | "ghost"
     children: React.ReactNode
@@ -153,6 +155,8 @@ export function IntegraButton({
     href?: string
     className?: string
     icon?: React.ReactNode
+    disabled?: boolean
+    title?: string
 }) {
     const cls = cn(
         variant === "primary" ? INT.btnPrimary :
@@ -160,16 +164,16 @@ export function IntegraButton({
                 INT.btnSecondary,
         className,
     )
-    if (href) {
+    if (href && !disabled) {
         return (
-            <Link href={href} className={cls}>
+            <Link href={href} className={cls} title={title}>
                 {icon}
                 {children}
             </Link>
         )
     }
     return (
-        <button type={type} onClick={onClick} className={cls}>
+        <button type={type} onClick={onClick} className={cls} disabled={disabled} title={title}>
             {icon}
             {children}
         </button>

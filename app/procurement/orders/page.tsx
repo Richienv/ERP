@@ -12,7 +12,7 @@ import {
     IconChevronLeft,
     IconChevronRight,
 } from "@tabler/icons-react"
-import { X, Check, Download, Printer } from "lucide-react"
+import { X, Check, Download } from "lucide-react"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 
@@ -916,21 +916,6 @@ export default function PurchaseOrdersPage() {
                             toast.success(`${n} PO terpilih diekspor`)
                         },
                     },
-                    {
-                        label: "Print PDF",
-                        icon: <Printer className="size-3.5" />,
-                        onClick: () =>
-                            setStubModal({
-                                title: "Print PDF Batch",
-                                body: (
-                                    <p>
-                                        Print PDF untuk banyak PO sekaligus akan tersedia setelah endpoint
-                                        PDF tunggal selesai (Phase C). Untuk sekarang, buka tiap PO dari
-                                        baris tabel dan cetak satu per satu.
-                                    </p>
-                                ),
-                            }),
-                    },
                 ]}
             />
 
@@ -982,37 +967,18 @@ export default function PurchaseOrdersPage() {
                     <IntegraButton
                         variant="secondary"
                         icon={<IconArrowBackUp className="w-3.5 h-3.5" />}
-                        onClick={() =>
-                            setStubModal({
-                                title: "Retur Pembelian",
-                                body: (
-                                    <p>
-                                        Fitur Retur Pembelian akan tersedia di rilis berikutnya. Untuk
-                                        sekarang, hubungi admin untuk memproses retur secara manual
-                                        (penyesuaian stok dan debit note ke vendor).
-                                    </p>
-                                ),
-                            })
-                        }
+                        disabled
+                        className="opacity-50 cursor-not-allowed"
+                        title="Fitur Retur Pembelian tersedia di rilis berikutnya"
                     >
                         Retur Pembelian
                     </IntegraButton>
                     <IntegraButton
                         variant="primary"
                         icon={<IconPlus className="w-3.5 h-3.5" />}
-                        onClick={() =>
-                            setStubModal({
-                                title: "Buat PO Baru",
-                                body: (
-                                    <p>
-                                        Form pembuatan PO langsung sedang dalam pengembangan. Untuk
-                                        sekarang, buat <strong>Permintaan Pembelian (PR)</strong>{" "}
-                                        dulu di halaman Pengadaan → Permintaan, lalu PR yang disetujui
-                                        akan otomatis dikonversi menjadi PO.
-                                    </p>
-                                ),
-                            })
-                        }
+                        disabled
+                        className="opacity-50 cursor-not-allowed"
+                        title="Form Buat PO tersedia di rilis berikutnya. Untuk sekarang, gunakan Permintaan (PR) yang akan auto-convert."
                     >
                         Buat PO
                     </IntegraButton>
