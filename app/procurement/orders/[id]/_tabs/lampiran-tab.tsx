@@ -1,8 +1,13 @@
 "use client"
 import { TypstPdfButton } from "@/components/integra/typst-pdf-button"
+import { LinkedDocsPanel } from "@/components/integra/linked-docs-panel"
 import { Paperclip, FileText, Plus } from "lucide-react"
+import { buildLinkedDocs } from "../_helpers/build-linked-docs"
 
 export function LampiranTab({ data }: { data: any }) {
+    const trail = buildLinkedDocs(data)
+    const hasRelated = trail.length > 1
+
     // Auto-generated PDF "attachment" — always available via Typst
     const generatedPdf = {
         type: "auto",
@@ -62,14 +67,18 @@ export function LampiranTab({ data }: { data: any }) {
                 </div>
             </section>
 
-            {/* Linked documents — preview that LinkedDocsPanel will render in C8 */}
+            {/* Linked documents — PR asal → PO ini → GRN tujuan → Bill */}
             <section className="border-t border-[var(--integra-hairline)] pt-6">
                 <h3 className="text-[11px] font-medium uppercase tracking-wider text-[var(--integra-muted)] mb-3">
                     Dokumen Terkait
                 </h3>
-                <p className="text-[12.5px] text-[var(--integra-muted)]">
-                    Lihat panel <em>Dokumen Terkait</em> di sidebar untuk PR asal, GRN tujuan, dan Bill yang ter-generate.
-                </p>
+                {hasRelated ? (
+                    <LinkedDocsPanel trail={trail} />
+                ) : (
+                    <p className="text-[12.5px] text-[var(--integra-muted)]">
+                        Belum ada dokumen terkait (PR asal, GRN, atau Bill).
+                    </p>
+                )}
             </section>
         </div>
     )

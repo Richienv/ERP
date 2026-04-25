@@ -1,6 +1,8 @@
 "use client"
 import { StatusPill } from "@/components/integra"
+import { LinkedDocsPanel } from "@/components/integra/linked-docs-panel"
 import { fmtIDR, fmtDateShort } from "@/lib/integra-tokens"
+import { buildLinkedDocs } from "../_helpers/build-linked-docs"
 
 function statusKind(s: string): "ok" | "warn" | "err" | "info" | "neutral" {
     const m: Record<string, "ok" | "warn" | "err" | "info" | "neutral"> = {
@@ -25,8 +27,21 @@ function statusLabel(s: string): string {
 }
 
 export function HeaderTab({ data }: { data: any }) {
+    const trail = buildLinkedDocs(data)
+    const hasRelated = trail.length > 1
+
     return (
         <div className="grid grid-cols-2 gap-x-12 gap-y-6">
+            {/* Linked docs trail — only render if there are related documents */}
+            {hasRelated && (
+                <section className="col-span-2 pb-6 border-b border-[var(--integra-hairline)]">
+                    <h3 className="text-[11px] font-medium uppercase tracking-wider text-[var(--integra-muted)] mb-3">
+                        Alur Dokumen
+                    </h3>
+                    <LinkedDocsPanel trail={trail} />
+                </section>
+            )}
+
             {/* Left column: Pesanan */}
             <section>
                 <h3 className="text-[11px] font-medium uppercase tracking-wider text-[var(--integra-muted)] mb-3">Informasi Pesanan</h3>
