@@ -4,21 +4,23 @@ import * as React from "react"
 import { IntegraSidebar } from "./sidebar"
 
 /**
- * Top-level layout wrapper for Integra-styled routes.
- * Replaces the NB SidebarProvider chain. Provides only the sidebar —
- * each page renders its own topbar (breadcrumb + action buttons) so
+ * Top-level layout wrapper for ALL authenticated routes.
+ * Provides the Integra sidebar (sticky, hairline) + main content area.
+ * Pages render their own topbar (breadcrumb + action buttons) so
  * page-specific actions stay co-located with the page.
  *
- * Routes opt in via INTEGRA_ROUTE_PREFIXES in lib/integra-routes.ts.
+ * Pages still using legacy NB styling will sit inside this shell — the
+ * sidebar/topbar chrome is unified; page content keeps its own look until
+ * migrated.
  */
 export function IntegraShell({ children }: { children: React.ReactNode }) {
     return (
         <div
-            className="integra-app min-h-screen grid"
+            className="integra-app h-screen grid overflow-hidden"
             style={{ gridTemplateColumns: "240px 1fr" }}
         >
             <IntegraSidebar />
-            <main className="min-w-0 flex flex-col bg-[var(--integra-canvas)]">
+            <main className="min-w-0 overflow-auto bg-[var(--integra-canvas)]">
                 {children}
             </main>
         </div>

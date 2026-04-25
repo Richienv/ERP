@@ -6,12 +6,8 @@ import { usePathname } from "next/navigation"
 import { Toaster } from "@/components/ui/sonner"
 import { AIProvider } from "@/components/ai/ai-context"
 import { AISidebar } from "@/components/ai/ai-sidebar"
-import { SiteHeader } from "@/components/site-header"
 
-import { AppSidebar } from "@/components/app-sidebar"
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { IntegraShell } from "@/components/integra/shell"
-import { isIntegraRoute } from "@/lib/integra-routes"
 
 import { AuthProvider } from "@/lib/auth-context"
 import { RouteGuard } from "@/components/route-guard"
@@ -36,7 +32,6 @@ const AUTH_PAGES = new Set(["/login", "/signup", "/forgot-password", "/auth/call
 export function GlobalLayout({ children }: GlobalLayoutProps) {
   const pathname = usePathname()
   const isAuthPage = AUTH_PAGES.has(pathname)
-  const useIntegra = isIntegraRoute(pathname)
 
   return (
     <AuthProvider>
@@ -48,26 +43,12 @@ export function GlobalLayout({ children }: GlobalLayoutProps) {
               {children}
               <Toaster />
             </main>
-          ) : useIntegra ? (
+          ) : (
             <IntegraShell>
               <PageTransition>{children}</PageTransition>
               <AISidebar />
               <Toaster />
             </IntegraShell>
-          ) : (
-            <SidebarProvider>
-              <AppSidebar />
-              <SidebarInset className="max-h-svh overflow-hidden">
-                <SiteHeader />
-                <div className="flex-1 overflow-auto p-4 pt-0 gap-4 flex flex-col">
-                  <PageTransition>
-                    {children}
-                  </PageTransition>
-                </div>
-                <AISidebar />
-                <Toaster />
-              </SidebarInset>
-            </SidebarProvider>
           )}
         </RouteGuard>
         <OfflineIndicator />
