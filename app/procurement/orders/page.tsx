@@ -697,18 +697,25 @@ export default function PurchaseOrdersPage() {
         {
             key: "aksi",
             header: "Aksi",
-            render: (r) => (
-                <button
-                    type="button"
-                    className={INT.pillOutline + " cursor-pointer hover:border-[var(--integra-ink)]"}
-                    onClick={(e) => {
-                        e.stopPropagation()
-                        toast.info(`${actionLabel(r)}: ${r.id} sedang dibangun`)
-                    }}
-                >
-                    {actionLabel(r)}
-                </button>
-            ),
+            render: (r) => {
+                const label = actionLabel(r)
+                return (
+                    <button
+                        type="button"
+                        className={INT.pillOutline + " cursor-pointer hover:border-[var(--integra-ink)]"}
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            if (label === "Setujui") {
+                                router.push(`/procurement/orders/${r.dbId}#approval`)
+                            } else {
+                                router.push(`/procurement/orders/${r.dbId}`)
+                            }
+                        }}
+                    >
+                        {label}
+                    </button>
+                )
+            },
         },
     ]
 
@@ -1077,7 +1084,7 @@ export default function PurchaseOrdersPage() {
                             columns={cols}
                             rows={pageRows}
                             rowKey={(r) => r.dbId}
-                            onRowClick={(r) => toast.info(`Detail ${r.id} sedang dibangun`)}
+                            onRowClick={(r) => router.push(`/procurement/orders/${r.dbId}`)}
                         />
                     )}
 
