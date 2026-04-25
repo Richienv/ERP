@@ -10,7 +10,8 @@
     "lint": "eslint \"{app,lib,components}/**/*.{js,jsx,ts,tsx}\" --ignore-pattern \"**/._*\"",
     "db:seed": "npx prisma db seed",
     "db:reset": "npx prisma migrate reset --force",
-    "db:fresh": "npx prisma migrate reset --force && echo '✓ Database reset & seeded'"
+    "db:fresh": "npx prisma migrate reset --force && echo '✓ Database reset & seeded'",
+    "seed:kri-demo": "npx tsx prisma/seed-kri-demo.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
