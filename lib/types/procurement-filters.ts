@@ -31,3 +31,24 @@ export type POFilter = {
     /** Free-text search across PO number and supplier name (case-insensitive). */
     search?: string
 }
+
+/**
+ * Filter dimensions for the Purchase Request list page.
+ *
+ * All fields are optional — an empty `PRFilter` (or `undefined`) means
+ * "no filter applied, return everything".
+ */
+export type PRFilter = {
+    /** PRStatus enum values (e.g. ["PENDING", "APPROVED"]). */
+    status?: string[]
+    /** Department names (free-text on PR record). */
+    departments?: string[]
+    /** Priority strings (LOW, NORMAL, MEDIUM, HIGH, URGENT). */
+    priority?: string[]
+    /** ISO date string (inclusive lower bound on `createdAt`). */
+    dateStart?: string
+    /** ISO date string (inclusive upper bound on `createdAt`). */
+    dateEnd?: string
+    /** Free-text search across PR number, requester name, and department. */
+    search?: string
+}
