@@ -13,6 +13,9 @@ import {
     FALLBACK_WAREHOUSES,
     FALLBACK_EMPLOYEES
 } from "@/lib/db-fallbacks"
+import type { GRNFilter, BulkGRNResult } from "@/lib/types/grn-filters"
+
+export type { GRNFilter, BulkGRNResult } from "@/lib/types/grn-filters"
 
 const prismaAny = prisma as any
 
@@ -141,11 +144,50 @@ export async function getPendingPOsForReceiving() {
 // GET ALL GRNs
 // ==========================================
 
-export async function getAllGRNs() {
+export async function getAllGRNs(filter?: GRNFilter) {
     try {
         await getAuthzUser()
 
+        // Build a Prisma where clause from the filter. Empty/undefined filter
+        // returns everything (preserves the previous behaviour).
+        const where: any = {}
+        if (filter?.status?.length) {
+            where.status = { in: filter.status as any }
+        }
+        if (filter?.dateStart || filter?.dateEnd) {
+            where.receivedDate = {}
+            if (filter.dateStart) where.receivedDate.gte = new Date(filter.dateStart)
+            if (filter.dateEnd) {
+                // Make end-date inclusive (end of day in UTC — good enough for daily filter UI)
+                const end = new Date(filter.dateEnd)
+                end.setHours(23, 59, 59, 999)
+                where.receivedDate.lte = end
+            }
+        }
+        // Vendor + PO ref + search filters all live on the related PurchaseOrder
+        // (and its supplier). Build a nested AND so we can combine multiple
+        // related-record predicates safely.
+        const poWhereAnd: any[] = []
+        if (filter?.vendorIds?.length) {
+            poWhereAnd.push({ supplierId: { in: filter.vendorIds } })
+        }
+        if (filter?.poRef) {
+            poWhereAnd.push({ number: { contains: filter.poRef, mode: "insensitive" } })
+        }
+        if (filter?.search) {
+            // Search across GRN number OR PO number OR supplier name.
+            where.OR = [
+                { number: { contains: filter.search, mode: "insensitive" } },
+                { purchaseOrder: { number: { contains: filter.search, mode: "insensitive" } } },
+                { purchaseOrder: { supplier: { name: { contains: filter.search, mode: "insensitive" } } } },
+            ]
+        }
+        if (poWhereAnd.length > 0) {
+            where.purchaseOrder = { AND: poWhereAnd }
+        }
+
         const grns = await prismaAny.goodsReceivedNote.findMany({
+            where,
             orderBy: { createdAt: 'desc' },
             include: {
                 purchaseOrder: {
@@ -159,33 +201,44 @@ export async function getAllGRNs() {
             }
         })
 
-        return grns.map((grn: any) => ({
-            id: grn.id,
-            number: grn.number,
-            poNumber: grn.purchaseOrder.number,
-            vendorName: grn.purchaseOrder.supplier.name,
-            warehouseName: grn.warehouse.name,
-            receivedBy: grn.receivedBy
-                ? `${grn.receivedBy.firstName} ${grn.receivedBy.lastName || ''}`.trim()
-                : 'Unknown',
-            receivedDate: grn.receivedDate,
-            status: grn.status,
-            notes: grn.notes,
-            itemCount: grn.items.length,
-            totalAccepted: grn.items.reduce((sum: number, i: any) => sum + i.quantityAccepted, 0),
-            totalRejected: grn.items.reduce((sum: number, i: any) => sum + i.quantityRejected, 0),
-            items: grn.items.map((item: any) => ({
-                id: item.id,
-                productName: item.product.name,
-                productCode: item.product.code,
-                quantityOrdered: item.quantityOrdered,
-                quantityReceived: item.quantityReceived,
-                quantityAccepted: item.quantityAccepted,
-                quantityRejected: item.quantityRejected,
-                unitCost: Number(item.unitCost),
-                inspectionNotes: item.inspectionNotes
-            }))
-        }))
+        return grns.map((grn: any) => {
+            const totalQuantityReceived = grn.items.reduce(
+                (sum: number, i: any) => sum + (i.quantityReceived || 0),
+                0,
+            )
+            return {
+                id: grn.id,
+                number: grn.number,
+                purchaseOrderId: grn.purchaseOrderId,
+                poNumber: grn.purchaseOrder.number,
+                vendorId: grn.purchaseOrder.supplier.id,
+                vendorName: grn.purchaseOrder.supplier.name,
+                warehouseId: grn.warehouseId,
+                warehouseName: grn.warehouse.name,
+                receivedById: grn.receivedById,
+                receivedBy: grn.receivedBy
+                    ? `${grn.receivedBy.firstName} ${grn.receivedBy.lastName || ''}`.trim()
+                    : 'Unknown',
+                receivedDate: grn.receivedDate,
+                status: grn.status,
+                notes: grn.notes,
+                itemCount: grn.items.length,
+                totalQuantityReceived,
+                totalAccepted: grn.items.reduce((sum: number, i: any) => sum + i.quantityAccepted, 0),
+                totalRejected: grn.items.reduce((sum: number, i: any) => sum + i.quantityRejected, 0),
+                items: grn.items.map((item: any) => ({
+                    id: item.id,
+                    productName: item.product.name,
+                    productCode: item.product.code,
+                    quantityOrdered: item.quantityOrdered,
+                    quantityReceived: item.quantityReceived,
+                    quantityAccepted: item.quantityAccepted,
+                    quantityRejected: item.quantityRejected,
+                    unitCost: Number(item.unitCost),
+                    inspectionNotes: item.inspectionNotes
+                }))
+            }
+        })
     } catch (error) {
         console.error("Error fetching GRNs:", error)
         return []
@@ -851,3 +904,104 @@ async function recalculateVendorRating(grnId: string) {
         },
     })
 }
+
+// ==========================================
+// BULK ACTIONS — per-id transaction (partial success aware)
+// ==========================================
+
+/**
+ * Bulk-accept GRNs. Each id runs through the existing single-id `acceptGRN()`
+ * which handles SoD, GL posting, stock updates and PO transition. Failures
+ * are collected per-id rather than aborting the whole batch — matches the
+ * `bulkApprovePurchaseOrders` semantics in `lib/actions/procurement.ts`.
+ *
+ * NOTE: callers that want SoD override per-id will need to call `acceptGRN`
+ * individually with a reason. The bulk variant is intended for happy-path
+ * batch acceptance where no SoD violation exists.
+ */
+export async function bulkAcceptGRNs(ids: string[]): Promise<BulkGRNResult> {
+    const result: BulkGRNResult = { succeeded: [], failed: [] }
+    if (!Array.isArray(ids) || ids.length === 0) return result
+
+    try {
+        const user = await getAuthzUser()
+        assertRole(user, RECEIVING_ROLES)
+    } catch (e) {
+        const reason = e instanceof Error ? e.message : "Unauthorized"
+        for (const id of ids) result.failed.push({ id, reason })
+        return result
+    }
+
+    for (const id of ids) {
+        try {
+            const res = await acceptGRN(id)
+            if (res.success) {
+                result.succeeded.push(id)
+            } else {
+                const reason = "error" in res ? res.error : undefined
+                const sodFlag = "sodViolation" in res && res.sodViolation
+                result.failed.push({
+                    id,
+                    reason: reason ?? (sodFlag ? "SoD violation — terima manual" : "Unknown error"),
+                })
+            }
+        } catch (e: unknown) {
+            const reason = e instanceof Error ? e.message : "Unknown error"
+            result.failed.push({ id, reason })
+        }
+    }
+
+    if (result.succeeded.length > 0) {
+        revalidatePath("/procurement/receiving")
+        revalidatePath("/procurement")
+        revalidatePath("/inventory")
+    }
+
+    return result
+}
+
+/**
+ * Bulk-reject GRNs. Per-id transaction — same partial-success semantics
+ * as `bulkAcceptGRNs`. Defaults to a generic rejection reason when none
+ * is supplied.
+ */
+export async function bulkRejectGRNs(
+    ids: string[],
+    reason?: string,
+): Promise<BulkGRNResult> {
+    const result: BulkGRNResult = { succeeded: [], failed: [] }
+    if (!Array.isArray(ids) || ids.length === 0) return result
+
+    const rejectionReason = reason?.trim() || "Ditolak via bulk action"
+
+    try {
+        const user = await getAuthzUser()
+        assertRole(user, RECEIVING_ROLES)
+    } catch (e) {
+        const failReason = e instanceof Error ? e.message : "Unauthorized"
+        for (const id of ids) result.failed.push({ id, reason: failReason })
+        return result
+    }
+
+    for (const id of ids) {
+        try {
+            const res = await rejectGRN(id, rejectionReason)
+            if (res.success) {
+                result.succeeded.push(id)
+            } else {
+                result.failed.push({ id, reason: res.error ?? "Unknown error" })
+            }
+        } catch (e: unknown) {
+            const failReason = e instanceof Error ? e.message : "Unknown error"
+            result.failed.push({ id, reason: failReason })
+        }
+    }
+
+    if (result.succeeded.length > 0) {
+        revalidatePath("/procurement/receiving")
+        revalidatePath("/procurement")
+    }
+
+    return result
+}
+

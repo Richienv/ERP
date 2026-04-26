@@ -11,6 +11,7 @@ import { getTierForRoute } from "@/lib/cache-tiers"
 import { getARPaymentRegistry, getARPaymentStats } from "@/lib/actions/finance-ar"
 import { getVendorBillsRegistry, getVendorPayments, getVendorBills, getVendorAPBalances } from "@/lib/actions/finance-ap"
 import { getVendors } from "@/lib/actions/procurement"
+import { getAllGRNs, getPendingPOsForReceiving, getWarehousesForGRN, getEmployeesForGRN } from "@/lib/actions/grn"
 import { getJournalEntries, getGLAccountsList } from "@/lib/actions/finance-gl"
 import { getARAgingReport, getAPAgingReport } from "@/lib/actions/finance"
 import { getPayrollRun, getPayrollComplianceReport } from "@/app/actions/hcm"
@@ -149,7 +150,20 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/procurement/receiving": {
         queryKey: queryKeys.receiving.list(),
-        queryFn: () => fetchJson("/api/procurement/receiving-data", { pendingPOs: [], grns: [], warehouses: [], employees: [] }),
+        queryFn: async () => {
+            const [grns, pendingPOs, warehouses, employees] = await Promise.all([
+                getAllGRNs(),
+                getPendingPOsForReceiving(),
+                getWarehousesForGRN(),
+                getEmployeesForGRN(),
+            ])
+            return {
+                grns: grns ?? [],
+                pendingPOs: pendingPOs ?? [],
+                warehouses: warehouses ?? [],
+                employees: employees ?? [],
+            }
+        },
     },
     "/finance/journal": {
         queryKey: queryKeys.journal.list(),
