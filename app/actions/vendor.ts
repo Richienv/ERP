@@ -2,8 +2,11 @@
 
 import { prisma, withPrismaAuth } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
-import { PaymentTermLegacy } from "@prisma/client"
+import { PaymentTermLegacy, type Prisma } from "@prisma/client"
 import { isLegacyPaymentTerm } from "@/lib/payment-term-options"
+import type { VendorFilter } from "@/lib/types/vendor-filters"
+
+export type { VendorFilter } from "@/lib/types/vendor-filters"
 
 async function requireAuth() {
     const supabase = await createClient()
@@ -13,17 +16,47 @@ async function requireAuth() {
 }
 
 // ==========================================
-// GET ALL VENDORS
+// GET ALL VENDORS (with optional filter)
 // ==========================================
-// ==========================================
-// GET ALL VENDORS
-// ==========================================
-export async function getVendors() {
+export async function getVendors(filter?: VendorFilter) {
     try {
         await requireAuth()
 
+        const where: Prisma.SupplierWhereInput = {}
+
+        // Status filter (ACTIVE / INACTIVE)
+        if (filter?.status?.length) {
+            const wantsActive = filter.status.includes("ACTIVE")
+            const wantsInactive = filter.status.includes("INACTIVE")
+            if (wantsActive && !wantsInactive) where.isActive = true
+            else if (wantsInactive && !wantsActive) where.isActive = false
+        }
+
+        // Rating filter — multi-select [1..5]
+        if (filter?.ratings?.length) {
+            where.rating = { in: filter.ratings }
+        }
+
+        // Payment term filter
+        if (filter?.paymentTerms?.length) {
+            const valid = filter.paymentTerms.filter(isLegacyPaymentTerm) as PaymentTermLegacy[]
+            if (valid.length) where.paymentTerm = { in: valid }
+        }
+
+        // Free-text search across name / code / NPWP / contactName
+        if (filter?.search?.trim()) {
+            const q = filter.search.trim()
+            where.OR = [
+                { name: { contains: q, mode: "insensitive" } },
+                { code: { contains: q, mode: "insensitive" } },
+                { npwp: { contains: q, mode: "insensitive" } },
+                { contactName: { contains: q, mode: "insensitive" } },
+            ]
+        }
+
         const [vendors, activePOCounts] = await Promise.all([
             prisma.supplier.findMany({
+                where,
                 orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
                 include: {
                     _count: {
@@ -55,6 +88,7 @@ export async function getVendors() {
             officePhone: v.officePhone,
             address: v.address,
             address2: v.address2,
+            npwp: v.npwp ?? null,
             paymentTerm: v.paymentTerm,
             bankName: v.bankName,
             bankAccountNumber: v.bankAccountNumber,
@@ -71,6 +105,93 @@ export async function getVendors() {
         console.error("Error fetching vendors:", error)
         return []
     }
+}
+
+// ==========================================
+// GET VENDOR BY ID
+// ==========================================
+export async function getVendorById(id: string) {
+    try {
+        await requireAuth()
+        const vendor = await prisma.supplier.findUnique({
+            where: { id },
+            include: {
+                categories: true,
+                _count: { select: { purchaseOrders: true } },
+            },
+        })
+        if (!vendor) return null
+        return {
+            id: vendor.id,
+            code: vendor.code,
+            name: vendor.name,
+            contactName: vendor.contactName,
+            contactTitle: vendor.contactTitle,
+            email: vendor.email,
+            phone: vendor.phone,
+            picPhone: vendor.picPhone,
+            officePhone: vendor.officePhone,
+            address: vendor.address,
+            address2: vendor.address2,
+            npwp: vendor.npwp ?? null,
+            paymentTerm: vendor.paymentTerm,
+            bankName: vendor.bankName,
+            bankAccountNumber: vendor.bankAccountNumber,
+            bankAccountName: vendor.bankAccountName,
+            rating: Number(vendor.rating) || 0,
+            onTimeRate: Number(vendor.onTimeRate) || 0,
+            qualityScore: vendor.qualityScore != null ? Number(vendor.qualityScore) : null,
+            responsiveness: vendor.responsiveness != null ? Number(vendor.responsiveness) : null,
+            isActive: vendor.isActive,
+            totalOrders: vendor._count.purchaseOrders,
+            createdAt: vendor.createdAt,
+            updatedAt: vendor.updatedAt,
+            categories: vendor.categories.map(c => ({ id: c.id, code: c.code, name: c.name })),
+        }
+    } catch (error) {
+        console.error("Error fetching vendor by id:", error)
+        return null
+    }
+}
+
+// ==========================================
+// BULK UPDATE VENDOR STATUS
+// ==========================================
+export async function bulkUpdateVendorStatus(
+    ids: string[],
+    status: 'ACTIVE' | 'INACTIVE',
+): Promise<{ succeeded: string[]; failed: { id: string; reason: string }[] }> {
+    const result: { succeeded: string[]; failed: { id: string; reason: string }[] } = {
+        succeeded: [],
+        failed: [],
+    }
+    if (!Array.isArray(ids) || ids.length === 0) return result
+
+    try {
+        await requireAuth()
+    } catch (e) {
+        const reason = e instanceof Error ? e.message : "Unauthorized"
+        for (const id of ids) result.failed.push({ id, reason })
+        return result
+    }
+
+    const isActive = status === 'ACTIVE'
+
+    for (const id of ids) {
+        try {
+            await withPrismaAuth(async (p) => {
+                const vendor = await p.supplier.findUnique({ where: { id } })
+                if (!vendor) throw new Error("Vendor tidak ditemukan")
+                await p.supplier.update({ where: { id }, data: { isActive } })
+            })
+            result.succeeded.push(id)
+        } catch (e) {
+            const reason = e instanceof Error ? e.message : "Unknown error"
+            result.failed.push({ id, reason })
+        }
+    }
+
+    return result
 }
 
 // ==========================================
