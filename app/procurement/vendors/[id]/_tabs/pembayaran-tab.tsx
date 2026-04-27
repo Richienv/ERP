@@ -78,8 +78,9 @@ export function PembayaranTab({ data }: { data: VendorDetailPayload }) {
             type: "code",
             render: (r) => (
                 <Link
-                    href={`/finance/bills`}
+                    href={`/finance/invoices/${r.id}`}
                     className="font-mono text-[11.5px] text-[var(--integra-liren-blue)] hover:underline"
+                    title={`Buka detail tagihan ${r.number}`}
                 >
                     {r.number}
                 </Link>

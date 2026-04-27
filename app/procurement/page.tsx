@@ -4,6 +4,8 @@ import { useCallback, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { IconFilter, IconDownload, IconPlus } from "@tabler/icons-react"
+import * as XLSX from "xlsx"
+import { toast } from "sonner"
 
 import { useProcurementDashboard } from "@/hooks/use-procurement-dashboard"
 import { DashboardSkeleton } from "@/components/integra/dashboard-skeleton"
@@ -88,6 +90,9 @@ function fiscalLabel(): string {
 
 export default function ProcurementPage() {
     const searchParams = useSearchParams()
+    // NOTE: Period selector saat ini hanya sebagai placeholder UI — backend
+    // dasbor pengadaan belum menerima parameter periode. Saat backend siap,
+    // teruskan `period` ke `useProcurementDashboard` (atau ke search params).
     const [period, setPeriod] = useState<Period>("30H")
     const { data, isLoading } = useProcurementDashboard(searchParams.toString())
 
@@ -272,6 +277,55 @@ export default function ProcurementPage() {
         { label: "Sedang Berjalan", value: poSummary.inProgress ?? 0 },
     ]
 
+    /**
+     * Ekspor ringkasan dasbor pengadaan ke XLSX (KPI + Pipeline + Aktivitas).
+     * Dipakai oleh tombol "Ekspor" di topbar.
+     */
+    function exportDashboardSummary() {
+        try {
+            const wb = XLSX.utils.book_new()
+
+            // Sheet 1: KPI
+            const kpiRows = kpis.map((k) => ({
+                KPI: k.label ?? "",
+                Nilai: typeof k.value === "string" || typeof k.value === "number"
+                    ? String(k.value)
+                    : "",
+                Keterangan:
+                    typeof k.foot === "string" ? k.foot : "",
+            }))
+            const wsKpi = XLSX.utils.json_to_sheet(kpiRows)
+            XLSX.utils.book_append_sheet(wb, wsKpi, "KPI")
+
+            // Sheet 2: Pipeline PO
+            const pipelineRows = pipelineCells.map((c) => ({
+                Tahap: c.label,
+                Jumlah: c.value,
+            }))
+            const wsPipeline = XLSX.utils.json_to_sheet(pipelineRows)
+            XLSX.utils.book_append_sheet(wb, wsPipeline, "Pipeline PO")
+
+            // Sheet 3: Aktivitas Terbaru
+            const activityRows = (recentActivity ?? []).map((a: any) => ({
+                Waktu: a?.date ? fmtActivityTime(a.date) : "—",
+                Tipe: a?.type ?? "—",
+                Deskripsi: a?.description ?? a?.message ?? "—",
+                Referensi: a?.reference ?? a?.number ?? "",
+            }))
+            if (activityRows.length > 0) {
+                const wsAct = XLSX.utils.json_to_sheet(activityRows)
+                XLSX.utils.book_append_sheet(wb, wsAct, "Aktivitas")
+            }
+
+            const fname = `dasbor-pengadaan-${new Date().toISOString().slice(0, 10)}.xlsx`
+            XLSX.writeFile(wb, fname)
+            toast.success("Ringkasan dasbor diekspor ke XLSX")
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : "Unknown error"
+            toast.error(`Gagal ekspor: ${msg}`)
+        }
+    }
+
     return (
         <>
             {/* Topbar */}
@@ -293,10 +347,20 @@ export default function ProcurementPage() {
                         value={period}
                         onChange={setPeriod}
                     />
-                    <IntegraButton variant="secondary" icon={<IconFilter className="w-3.5 h-3.5" />}>
+                    <IntegraButton
+                        variant="secondary"
+                        icon={<IconFilter className="w-3.5 h-3.5" />}
+                        disabled
+                        title="Filter dasbor segera tersedia. Gunakan halaman PR/PO/GRN untuk filter detail."
+                    >
                         Filter
                     </IntegraButton>
-                    <IntegraButton variant="secondary" icon={<IconDownload className="w-3.5 h-3.5" />}>
+                    <IntegraButton
+                        variant="secondary"
+                        icon={<IconDownload className="w-3.5 h-3.5" />}
+                        title="Ekspor ringkasan dasbor (KPI + aktivitas) ke XLSX"
+                        onClick={() => exportDashboardSummary()}
+                    >
                         Ekspor
                     </IntegraButton>
                     <IntegraButton variant="primary" icon={<IconPlus className="w-3.5 h-3.5" />} href="/procurement/orders">

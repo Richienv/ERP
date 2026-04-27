@@ -126,9 +126,13 @@ function otdKind(otd: number): PillKind {
     return "err"
 }
 
-function maskNPWP(s: string | null): string {
+/**
+ * Format NPWP untuk ditampilkan di UI. NPWP bukan data rahasia di Indonesia
+ * (vendor mencantumkannya pada faktur), jadi kita tampilkan apa adanya dengan
+ * gaya monospace. Kalau kosong, tampilkan em-dash.
+ */
+function formatNPWP(s: string | null): string {
     if (!s) return "—"
-    // Display NPWP as-is for now (it's not a secret), with monospace styling
     return s
 }
 
@@ -607,7 +611,7 @@ export default function VendorsPage() {
             header: "NPWP",
             render: (r) => (
                 <span className="font-mono text-[11.5px] text-[var(--integra-muted)]">
-                    {maskNPWP(r.npwp)}
+                    {formatNPWP(r.npwp)}
                 </span>
             ),
             width: "150px",
