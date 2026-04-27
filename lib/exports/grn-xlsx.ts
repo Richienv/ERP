@@ -25,9 +25,7 @@ export interface GRNExportRow {
  * Bahasa labels and dates to display strings before passing rows in, so
  * this helper stays free of page-specific lookup tables.
  */
-export function exportGRNsToXlsx(rows: GRNExportRow[], filename?: string): number {
-    if (rows.length === 0) return 0
-
+function buildGRNSheet(rows: GRNExportRow[]) {
     const sheetData = rows.map((r) => ({
         "No GRN": r.number,
         "PO Ref": r.poNumber,
@@ -55,6 +53,13 @@ export function exportGRNsToXlsx(rows: GRNExportRow[], filename?: string): numbe
     }))
     ws["!cols"] = colWidths
 
+    return ws
+}
+
+export function exportGRNsToXlsx(rows: GRNExportRow[], filename?: string): number {
+    if (rows.length === 0) return 0
+
+    const ws = buildGRNSheet(rows)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, "Surat Jalan Masuk")
 
@@ -62,5 +67,23 @@ export function exportGRNsToXlsx(rows: GRNExportRow[], filename?: string): numbe
         filename ??
         `surat-jalan-masuk-${new Date().toISOString().slice(0, 10)}.xlsx`
     XLSX.writeFile(wb, fname)
+    return rows.length
+}
+
+/**
+ * Export the same GRN rows as `exportGRNsToXlsx` but as a CSV file. Preferred
+ * by warehouse audit/finance teams for archival and easier ad-hoc parsing.
+ */
+export function exportGRNsToCsv(rows: GRNExportRow[], filename?: string): number {
+    if (rows.length === 0) return 0
+
+    const ws = buildGRNSheet(rows)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Surat Jalan Masuk")
+
+    const fname =
+        filename ??
+        `surat-jalan-masuk-${new Date().toISOString().slice(0, 10)}.csv`
+    XLSX.writeFile(wb, fname, { bookType: "csv" })
     return rows.length
 }

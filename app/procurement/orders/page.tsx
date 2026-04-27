@@ -12,13 +12,19 @@ import {
     IconChevronLeft,
     IconChevronRight,
 } from "@tabler/icons-react"
-import { X, Check, Download, Upload } from "lucide-react"
+import { X, Check, Download, Upload, ChevronDown } from "lucide-react"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 
 import { usePurchaseOrders } from "@/hooks/use-purchase-orders"
 import { ImportPOsDialog } from "@/components/procurement/import-pos-dialog"
 import { FlagshipListSkeleton } from "@/components/integra/flagship-list-skeleton"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
     Panel,
     KPIRail,
@@ -38,7 +44,7 @@ import { SavedFiltersDropdown } from "@/components/integra/saved-filters-dropdow
 import type { POFilter } from "@/lib/types/procurement-filters"
 import { queryKeys } from "@/lib/query-keys"
 import { INT, fmtIDRJt, fmtDateTime } from "@/lib/integra-tokens"
-import { exportPOsToXlsx, type POExportRow } from "@/lib/exports/po-xlsx"
+import { exportPOsToXlsx, exportPOsToCsv, type POExportRow } from "@/lib/exports/po-xlsx"
 
 type Period = "1H" | "7H" | "30H" | "TTD" | "12B"
 type StatusTab = "ALL" | "ACTIVE" | "APPROVED" | "DONE" | "CANCELLED"
@@ -905,7 +911,7 @@ export default function PurchaseOrdersPage() {
                         onClick: () => runBulkAction("reject"),
                     },
                     {
-                        label: "Ekspor terpilih",
+                        label: "Ekspor terpilih (XLSX)",
                         icon: <Download className="size-3.5" />,
                         onClick: () => {
                             const selected = filtered.filter((r) => selectedIds.has(r.dbId))
@@ -915,7 +921,21 @@ export default function PurchaseOrdersPage() {
                             }
                             const fname = `pesanan-pembelian-terpilih-${new Date().toISOString().slice(0, 10)}.xlsx`
                             const n = exportPOsToXlsx(selected.map(toExportRow), fname)
-                            toast.success(`${n} PO terpilih diekspor`)
+                            toast.success(`${n} PO terpilih diekspor ke XLSX`)
+                        },
+                    },
+                    {
+                        label: "Ekspor terpilih (CSV)",
+                        icon: <Download className="size-3.5" />,
+                        onClick: () => {
+                            const selected = filtered.filter((r) => selectedIds.has(r.dbId))
+                            if (selected.length === 0) {
+                                toast.info("Tidak ada PO terpilih untuk diekspor")
+                                return
+                            }
+                            const fname = `pesanan-pembelian-terpilih-${new Date().toISOString().slice(0, 10)}.csv`
+                            const n = exportPOsToCsv(selected.map(toExportRow), fname)
+                            toast.success(`${n} PO terpilih diekspor ke CSV`)
                         },
                     },
                 ]}
@@ -952,27 +972,46 @@ export default function PurchaseOrdersPage() {
                     >
                         {`Filter${activeFilterCount > 0 ? ` · ${activeFilterCount}` : ""}`}
                     </IntegraButton>
-                    <IntegraButton
-                        variant="secondary"
-                        icon={<IconDownload className="w-3.5 h-3.5" />}
-                        onClick={() => {
-                            if (filtered.length === 0) {
-                                toast.info("Tidak ada data untuk diekspor")
-                                return
-                            }
-                            const n = exportPOsToXlsx(filtered.map(toExportRow))
-                            toast.success(`${n} PO diekspor`)
-                        }}
-                    >
-                        Ekspor
-                    </IntegraButton>
-                    <IntegraButton
-                        variant="secondary"
-                        icon={<Upload className="w-3.5 h-3.5" />}
-                        onClick={() => setImportOpen(true)}
-                    >
-                        Impor Excel
-                    </IntegraButton>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button
+                                type="button"
+                                className={INT.btnSecondary}
+                                disabled={filtered.length === 0}
+                                title={filtered.length === 0 ? "Tidak ada data untuk diekspor" : undefined}
+                            >
+                                <IconDownload className="w-3.5 h-3.5" />
+                                Ekspor
+                                <ChevronDown className="size-3" />
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                                onClick={() => {
+                                    if (filtered.length === 0) {
+                                        toast.info("Tidak ada data untuk diekspor")
+                                        return
+                                    }
+                                    const n = exportPOsToXlsx(filtered.map(toExportRow))
+                                    toast.success(`${n} PO diekspor ke XLSX`)
+                                }}
+                            >
+                                Ekspor XLSX
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={() => {
+                                    if (filtered.length === 0) {
+                                        toast.info("Tidak ada data untuk diekspor")
+                                        return
+                                    }
+                                    const n = exportPOsToCsv(filtered.map(toExportRow))
+                                    toast.success(`${n} PO diekspor ke CSV`)
+                                }}
+                            >
+                                Ekspor CSV
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                     <IntegraButton
                         variant="secondary"
                         icon={<IconArrowBackUp className="w-3.5 h-3.5" />}
@@ -982,15 +1021,28 @@ export default function PurchaseOrdersPage() {
                     >
                         Retur Pembelian
                     </IntegraButton>
-                    <IntegraButton
-                        variant="primary"
-                        icon={<IconPlus className="w-3.5 h-3.5" />}
-                        disabled
-                        className="opacity-50 cursor-not-allowed"
-                        title="Form Buat PO tersedia di rilis berikutnya. Untuk sekarang, gunakan Permintaan (PR) yang akan auto-convert."
-                    >
-                        Buat PO
-                    </IntegraButton>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button type="button" className={INT.btnPrimary}>
+                                <IconPlus className="w-3.5 h-3.5" />
+                                Buat PO
+                                <ChevronDown className="size-3" />
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                                disabled
+                                className="opacity-50"
+                                title="Form sedang dibangun. Untuk sekarang, gunakan Permintaan (PR) yang akan auto-convert."
+                            >
+                                Buat manual (segera)
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setImportOpen(true)}>
+                                <Upload className="size-3.5" />
+                                Impor dari Excel
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </div>
 

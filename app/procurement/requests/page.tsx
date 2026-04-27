@@ -11,12 +11,18 @@ import {
     IconChevronLeft,
     IconChevronRight,
 } from "@tabler/icons-react"
-import { X, Check, Download, Upload } from "lucide-react"
+import { X, Check, Download, Upload, ChevronDown } from "lucide-react"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 
 import { usePurchaseRequests } from "@/hooks/use-purchase-requests"
 import { FlagshipListSkeleton } from "@/components/integra/flagship-list-skeleton"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
     Panel,
     KPIRail,
@@ -36,7 +42,7 @@ import { SavedFiltersDropdown } from "@/components/integra/saved-filters-dropdow
 import type { PRFilter } from "@/lib/types/procurement-filters"
 import { queryKeys } from "@/lib/query-keys"
 import { INT, fmtIDRJt, fmtDateTime } from "@/lib/integra-tokens"
-import { exportPRsToXlsx, type PRExportRow } from "@/lib/exports/pr-xlsx"
+import { exportPRsToXlsx, exportPRsToCsv, type PRExportRow } from "@/lib/exports/pr-xlsx"
 import { ImportPRsDialog } from "@/components/procurement/import-prs-dialog"
 
 type Period = "1H" | "7H" | "30H" | "TTD" | "12B"
@@ -749,7 +755,7 @@ export default function PurchaseRequestsPage() {
                         onClick: () => runBulkAction("reject"),
                     },
                     {
-                        label: "Ekspor terpilih",
+                        label: "Ekspor terpilih (XLSX)",
                         icon: <Download className="size-3.5" />,
                         onClick: () => {
                             const selected = filtered.filter((r) => selectedIds.has(r.id))
@@ -759,7 +765,21 @@ export default function PurchaseRequestsPage() {
                             }
                             const fname = `permintaan-pembelian-terpilih-${new Date().toISOString().slice(0, 10)}.xlsx`
                             const n = exportPRsToXlsx(selected.map(toExportRow), fname)
-                            toast.success(`${n} PR terpilih diekspor`)
+                            toast.success(`${n} PR terpilih diekspor ke XLSX`)
+                        },
+                    },
+                    {
+                        label: "Ekspor terpilih (CSV)",
+                        icon: <Download className="size-3.5" />,
+                        onClick: () => {
+                            const selected = filtered.filter((r) => selectedIds.has(r.id))
+                            if (selected.length === 0) {
+                                toast.info("Tidak ada PR terpilih untuk diekspor")
+                                return
+                            }
+                            const fname = `permintaan-pembelian-terpilih-${new Date().toISOString().slice(0, 10)}.csv`
+                            const n = exportPRsToCsv(selected.map(toExportRow), fname)
+                            toast.success(`${n} PR terpilih diekspor ke CSV`)
                         },
                     },
                 ]}
@@ -796,34 +816,67 @@ export default function PurchaseRequestsPage() {
                     >
                         {`Filter${activeFilterCount > 0 ? ` · ${activeFilterCount}` : ""}`}
                     </IntegraButton>
-                    <IntegraButton
-                        variant="secondary"
-                        icon={<IconDownload className="w-3.5 h-3.5" />}
-                        onClick={() => {
-                            if (filtered.length === 0) {
-                                toast.info("Tidak ada data untuk diekspor")
-                                return
-                            }
-                            const n = exportPRsToXlsx(filtered.map(toExportRow))
-                            toast.success(`${n} PR diekspor`)
-                        }}
-                    >
-                        Ekspor
-                    </IntegraButton>
-                    <IntegraButton
-                        variant="secondary"
-                        icon={<Upload className="w-3.5 h-3.5" />}
-                        onClick={() => setImportOpen(true)}
-                    >
-                        Impor Excel
-                    </IntegraButton>
-                    <IntegraButton
-                        variant="primary"
-                        icon={<IconPlus className="w-3.5 h-3.5" />}
-                        href="/procurement/requests/new"
-                    >
-                        Buat PR
-                    </IntegraButton>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button
+                                type="button"
+                                className={INT.btnSecondary}
+                                disabled={filtered.length === 0}
+                                title={filtered.length === 0 ? "Tidak ada data untuk diekspor" : undefined}
+                            >
+                                <IconDownload className="w-3.5 h-3.5" />
+                                Ekspor
+                                <ChevronDown className="size-3" />
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                                onClick={() => {
+                                    if (filtered.length === 0) {
+                                        toast.info("Tidak ada data untuk diekspor")
+                                        return
+                                    }
+                                    const n = exportPRsToXlsx(filtered.map(toExportRow))
+                                    toast.success(`${n} PR diekspor ke XLSX`)
+                                }}
+                            >
+                                Ekspor XLSX
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={() => {
+                                    if (filtered.length === 0) {
+                                        toast.info("Tidak ada data untuk diekspor")
+                                        return
+                                    }
+                                    const n = exportPRsToCsv(filtered.map(toExportRow))
+                                    toast.success(`${n} PR diekspor ke CSV`)
+                                }}
+                            >
+                                Ekspor CSV
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button type="button" className={INT.btnPrimary}>
+                                <IconPlus className="w-3.5 h-3.5" />
+                                Buat PR
+                                <ChevronDown className="size-3" />
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                                onClick={() => router.push("/procurement/requests/new")}
+                            >
+                                <IconPlus className="size-3.5" />
+                                Buat manual (form)
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setImportOpen(true)}>
+                                <Upload className="size-3.5" />
+                                Impor dari Excel
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </div>
 

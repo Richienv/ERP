@@ -23,9 +23,7 @@ export interface POExportRow {
  * Bahasa labels before passing rows in, so that this helper stays free of
  * page-specific lookup tables.
  */
-export function exportPOsToXlsx(rows: POExportRow[], filename?: string): number {
-    if (rows.length === 0) return 0
-
+function buildPOSheet(rows: POExportRow[]) {
     const sheetData = rows.map((r) => ({
         "No PO": r.id,
         "Vendor": r.vendor,
@@ -50,6 +48,13 @@ export function exportPOsToXlsx(rows: POExportRow[], filename?: string): number 
     }))
     ws["!cols"] = colWidths
 
+    return ws
+}
+
+export function exportPOsToXlsx(rows: POExportRow[], filename?: string): number {
+    if (rows.length === 0) return 0
+
+    const ws = buildPOSheet(rows)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, "Pesanan Pembelian")
 
@@ -57,5 +62,24 @@ export function exportPOsToXlsx(rows: POExportRow[], filename?: string): number 
         filename ??
         `pesanan-pembelian-${new Date().toISOString().slice(0, 10)}.xlsx`
     XLSX.writeFile(wb, fname)
+    return rows.length
+}
+
+/**
+ * Export the same rows as `exportPOsToXlsx` but as a CSV file. Useful for
+ * accountants/auditors who prefer CSV (smaller, easier to parse with text
+ * tools, importable into legacy systems).
+ */
+export function exportPOsToCsv(rows: POExportRow[], filename?: string): number {
+    if (rows.length === 0) return 0
+
+    const ws = buildPOSheet(rows)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Pesanan Pembelian")
+
+    const fname =
+        filename ??
+        `pesanan-pembelian-${new Date().toISOString().slice(0, 10)}.csv`
+    XLSX.writeFile(wb, fname, { bookType: "csv" })
     return rows.length
 }

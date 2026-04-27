@@ -22,9 +22,7 @@ export interface PRExportRow {
  * The caller is responsible for translating raw enum values (status,
  * priority) to Bahasa labels before passing rows in.
  */
-export function exportPRsToXlsx(rows: PRExportRow[], filename?: string): number {
-    if (rows.length === 0) return 0
-
+function buildPRSheet(rows: PRExportRow[]) {
     const sheetData = rows.map((r) => ({
         "No PR": r.id,
         "Departemen": r.department,
@@ -49,6 +47,13 @@ export function exportPRsToXlsx(rows: PRExportRow[], filename?: string): number 
     }))
     ws["!cols"] = colWidths
 
+    return ws
+}
+
+export function exportPRsToXlsx(rows: PRExportRow[], filename?: string): number {
+    if (rows.length === 0) return 0
+
+    const ws = buildPRSheet(rows)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, "Permintaan Pembelian")
 
@@ -56,5 +61,23 @@ export function exportPRsToXlsx(rows: PRExportRow[], filename?: string): number 
         filename ??
         `permintaan-pembelian-${new Date().toISOString().slice(0, 10)}.xlsx`
     XLSX.writeFile(wb, fname)
+    return rows.length
+}
+
+/**
+ * Export the same rows as `exportPRsToXlsx` but as a CSV file. Preferred by
+ * accountants/auditors and easier to import into legacy systems.
+ */
+export function exportPRsToCsv(rows: PRExportRow[], filename?: string): number {
+    if (rows.length === 0) return 0
+
+    const ws = buildPRSheet(rows)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Permintaan Pembelian")
+
+    const fname =
+        filename ??
+        `permintaan-pembelian-${new Date().toISOString().slice(0, 10)}.csv`
+    XLSX.writeFile(wb, fname, { bookType: "csv" })
     return rows.length
 }

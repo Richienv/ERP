@@ -24,9 +24,7 @@ export interface VendorExportRow {
  * Caller is responsible for translating enum/status values to Bahasa labels
  * before passing rows in.
  */
-export function exportVendorsToXlsx(rows: VendorExportRow[], filename?: string): number {
-    if (rows.length === 0) return 0
-
+function buildVendorSheet(rows: VendorExportRow[]) {
     const sheetData = rows.map((r) => ({
         "Kode": r.code,
         "Nama Vendor": r.name,
@@ -54,11 +52,35 @@ export function exportVendorsToXlsx(rows: VendorExportRow[], filename?: string):
     }))
     ws["!cols"] = colWidths
 
+    return ws
+}
+
+export function exportVendorsToXlsx(rows: VendorExportRow[], filename?: string): number {
+    if (rows.length === 0) return 0
+
+    const ws = buildVendorSheet(rows)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, "Pemasok")
 
     const fname =
         filename ?? `pemasok-${new Date().toISOString().slice(0, 10)}.xlsx`
     XLSX.writeFile(wb, fname)
+    return rows.length
+}
+
+/**
+ * Export the same vendor rows as `exportVendorsToXlsx` but as a CSV file.
+ * Useful for finance/audit teams who prefer CSV.
+ */
+export function exportVendorsToCsv(rows: VendorExportRow[], filename?: string): number {
+    if (rows.length === 0) return 0
+
+    const ws = buildVendorSheet(rows)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Pemasok")
+
+    const fname =
+        filename ?? `pemasok-${new Date().toISOString().slice(0, 10)}.csv`
+    XLSX.writeFile(wb, fname, { bookType: "csv" })
     return rows.length
 }
