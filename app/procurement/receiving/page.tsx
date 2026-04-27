@@ -16,7 +16,7 @@ import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 
 import { useReceiving } from "@/hooks/use-receiving"
-import { TablePageSkeleton } from "@/components/ui/page-skeleton"
+import { FlagshipListSkeleton } from "@/components/integra/flagship-list-skeleton"
 import {
     Panel,
     KPIRail,
@@ -399,7 +399,7 @@ export default function ReceivingPage() {
     }, [filter])
 
     if (isLoading) {
-        return <TablePageSkeleton accentColor="bg-blue-400" />
+        return <FlagshipListSkeleton />
     }
 
     if (error) {
@@ -427,7 +427,7 @@ export default function ReceivingPage() {
     }
 
     if (!data) {
-        return <TablePageSkeleton accentColor="bg-blue-400" />
+        return <FlagshipListSkeleton />
     }
 
     const grns = (data.grns ?? []) as GRNRow[]

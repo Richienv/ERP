@@ -17,7 +17,7 @@ import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 
 import { usePurchaseOrders } from "@/hooks/use-purchase-orders"
-import { TablePageSkeleton } from "@/components/ui/page-skeleton"
+import { FlagshipListSkeleton } from "@/components/integra/flagship-list-skeleton"
 import {
     Panel,
     KPIRail,
@@ -503,7 +503,7 @@ export default function PurchaseOrdersPage() {
     }, [filter])
 
     if (isLoading) {
-        return <TablePageSkeleton accentColor="bg-blue-400" />
+        return <FlagshipListSkeleton />
     }
 
     if (error) {
@@ -527,7 +527,7 @@ export default function PurchaseOrdersPage() {
     }
 
     if (!data) {
-        return <TablePageSkeleton accentColor="bg-blue-400" />
+        return <FlagshipListSkeleton />
     }
 
     const orders = (data.orders ?? []) as PORow[]

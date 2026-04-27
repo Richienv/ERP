@@ -1,5 +1,5 @@
-import { TablePageSkeleton } from "@/components/ui/page-skeleton"
+import { FlagshipListSkeleton } from "@/components/integra/flagship-list-skeleton"
 
 export default function Loading() {
-    return <TablePageSkeleton accentColor="bg-amber-400" />
+    return <FlagshipListSkeleton />
 }

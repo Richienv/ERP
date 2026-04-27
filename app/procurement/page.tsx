@@ -6,7 +6,7 @@ import Link from "next/link"
 import { IconFilter, IconDownload, IconPlus } from "@tabler/icons-react"
 
 import { useProcurementDashboard } from "@/hooks/use-procurement-dashboard"
-import { TablePageSkeleton } from "@/components/ui/page-skeleton"
+import { DashboardSkeleton } from "@/components/integra/dashboard-skeleton"
 import {
     Panel, KPIRail, StatusPill, IntegraButton,
     PageHead, LiveDot, SegmentedButtons, DataTable, EmptyState,
@@ -102,7 +102,7 @@ export default function ProcurementPage() {
     }, [searchParams])
 
     if (isLoading || !data) {
-        return <TablePageSkeleton accentColor="bg-blue-400" />
+        return <DashboardSkeleton />
     }
 
     const {

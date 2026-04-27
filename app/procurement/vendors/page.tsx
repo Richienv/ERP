@@ -16,7 +16,7 @@ import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 
 import { useVendorsList } from "@/hooks/use-vendors"
-import { TablePageSkeleton } from "@/components/ui/page-skeleton"
+import { FlagshipListSkeleton } from "@/components/integra/flagship-list-skeleton"
 import {
     Panel,
     KPIRail,
@@ -362,7 +362,7 @@ export default function VendorsPage() {
     }, [filter])
 
     if (isLoading) {
-        return <TablePageSkeleton accentColor="bg-indigo-400" />
+        return <FlagshipListSkeleton />
     }
 
     if (error) {
@@ -386,7 +386,7 @@ export default function VendorsPage() {
     }
 
     if (!data) {
-        return <TablePageSkeleton accentColor="bg-indigo-400" />
+        return <FlagshipListSkeleton />
     }
 
     const vendors = (data ?? []) as VendorRow[]
