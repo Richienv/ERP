@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { PaymentTermLegacy, type Prisma } from "@prisma/client"
 import { isLegacyPaymentTerm } from "@/lib/payment-term-options"
 import type { VendorFilter } from "@/lib/types/vendor-filters"
+import { getAuthzUser, assertRole } from "@/lib/authz"
 
 export type { VendorFilter } from "@/lib/types/vendor-filters"
 
@@ -168,9 +169,14 @@ export async function bulkUpdateVendorStatus(
     if (!Array.isArray(ids) || ids.length === 0) return result
 
     try {
-        await requireAuth()
+        const user = await getAuthzUser()
+        // Hanya Manajer ke atas yang boleh aktivasi/nonaktivasi vendor.
+        assertRole(user, ["MANAGER", "PURCHASING", "DIRECTOR", "CEO", "ADMIN"])
     } catch (e) {
-        const reason = e instanceof Error ? e.message : "Unauthorized"
+        const raw = e instanceof Error ? e.message : "Unauthorized"
+        const reason = raw === "Forbidden"
+            ? "Hanya Manajer ke atas yang bisa mengubah status vendor"
+            : raw
         for (const id of ids) result.failed.push({ id, reason })
         return result
     }
@@ -403,6 +409,12 @@ export async function getSupplierCategories() {
 // ==========================================
 export async function toggleVendorStatus(vendorId: string) {
     try {
+        const user = await getAuthzUser()
+        try {
+            assertRole(user, ["MANAGER", "PURCHASING", "DIRECTOR", "CEO", "ADMIN"])
+        } catch {
+            return { success: false, error: "Hanya Manajer ke atas yang bisa mengubah status vendor" }
+        }
         return await withPrismaAuth(async (prisma) => {
             const vendor = await prisma.supplier.findUnique({ where: { id: vendorId } })
             if (!vendor) return { success: false, error: "Vendor tidak ditemukan" }

@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
+import { getAuthzUser } from "@/lib/authz"
 
 const prismaAny = prisma as any
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
     try {
+        await getAuthzUser()
         const grn = await prismaAny.goodsReceivedNote.findUnique({
             where: { id },
             include: {
@@ -135,7 +137,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
                                 email: grn.purchaseOrder.supplier.email ?? null,
                                 phone: grn.purchaseOrder.supplier.phone ?? null,
                                 address: grn.purchaseOrder.supplier.address ?? null,
-                                taxId: grn.purchaseOrder.supplier.taxId ?? null,
+                                npwp: grn.purchaseOrder.supplier.npwp ?? null,
                                 contactName: grn.purchaseOrder.supplier.contactName ?? null,
                             }
                           : null,
@@ -193,6 +195,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     } catch (e: unknown) {
         console.error("[GRN Detail API]", e)
         const msg = e instanceof Error ? e.message : "Internal error"
+        if (msg === "Unauthorized") {
+            return NextResponse.json({ error: msg }, { status: 401 })
+        }
         return NextResponse.json({ error: msg }, { status: 500 })
     }
 }

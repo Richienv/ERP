@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import { generatePoPdf } from "@/lib/pdf/po-pdf"
+import { getAuthzUser } from "@/lib/authz"
 
 /**
  * GET /api/procurement/orders/[id]/pdf
@@ -18,6 +19,7 @@ export async function GET(
 ) {
     const { id } = await params
     try {
+        await getAuthzUser()
         const pdf = await generatePoPdf(prisma, id)
         const po = await prisma.purchaseOrder.findUnique({
             where: { id },
@@ -35,6 +37,9 @@ export async function GET(
     } catch (e: unknown) {
         console.error("[PO PDF API]", e)
         const msg = e instanceof Error ? e.message : "Gagal membuat PDF"
+        if (msg === "Unauthorized") {
+            return NextResponse.json({ error: msg }, { status: 401 })
+        }
         return NextResponse.json({ error: msg }, { status: 500 })
     }
 }

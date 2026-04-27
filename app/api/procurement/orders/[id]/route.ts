@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
+import { getAuthzUser } from "@/lib/authz"
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
     try {
+        await getAuthzUser()
         const po = await prisma.purchaseOrder.findUnique({
             where: { id },
             include: {
@@ -96,6 +98,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     } catch (e: unknown) {
         console.error("[PO Detail API]", e)
         const msg = e instanceof Error ? e.message : "Internal error"
+        if (msg === "Unauthorized") {
+            return NextResponse.json({ error: msg }, { status: 401 })
+        }
         return NextResponse.json({ error: msg }, { status: 500 })
     }
 }
