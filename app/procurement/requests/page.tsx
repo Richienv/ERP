@@ -11,7 +11,7 @@ import {
     IconChevronLeft,
     IconChevronRight,
 } from "@tabler/icons-react"
-import { X, Check, Download } from "lucide-react"
+import { X, Check, Download, Upload } from "lucide-react"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 
@@ -37,6 +37,7 @@ import type { PRFilter } from "@/lib/types/procurement-filters"
 import { queryKeys } from "@/lib/query-keys"
 import { INT, fmtIDRJt, fmtDateTime } from "@/lib/integra-tokens"
 import { exportPRsToXlsx, type PRExportRow } from "@/lib/exports/pr-xlsx"
+import { ImportPRsDialog } from "@/components/procurement/import-prs-dialog"
 
 type Period = "1H" | "7H" | "30H" | "TTD" | "12B"
 type StatusTab = "ALL" | "PENDING" | "APPROVED" | "PO_CREATED" | "REJECTED"
@@ -262,6 +263,7 @@ export default function PurchaseRequestsPage() {
     const [statusTab, setStatusTab] = useState<StatusTab>("ALL")
     const [searchInput, setSearchInput] = useState<string>(filter.search ?? "")
     const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set())
+    const [importOpen, setImportOpen] = useState(false)
 
     // Keyboard shortcuts
     const searchInputRef = React.useRef<HTMLInputElement | null>(null)
@@ -807,6 +809,13 @@ export default function PurchaseRequestsPage() {
                         }}
                     >
                         Ekspor
+                    </IntegraButton>
+                    <IntegraButton
+                        variant="secondary"
+                        icon={<Upload className="w-3.5 h-3.5" />}
+                        onClick={() => setImportOpen(true)}
+                    >
+                        Impor Excel
                     </IntegraButton>
                     <IntegraButton
                         variant="primary"
@@ -1357,6 +1366,13 @@ export default function PurchaseRequestsPage() {
                     </div>
                 </div>
             )}
+
+            {/* Import PRs Dialog (XLSX 2-sheet bulk import) */}
+            <ImportPRsDialog
+                open={importOpen}
+                onOpenChange={setImportOpen}
+                hideTrigger
+            />
         </>
     )
 }

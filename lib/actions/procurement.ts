@@ -3228,3 +3228,505 @@ export async function bulkRejectPurchaseRequests(
 
     return result
 }
+
+// ==========================================
+// BULK IMPORT PURCHASE REQUESTS (XLSX/CSV — 2 sheets)
+// ==========================================
+//
+// Karena PR memiliki line items, template-nya 2 sheet:
+//   • Sheet "PR Header" → satu baris per PR (Reference, Email Pemohon, ...)
+//   • Sheet "PR Items"  → baris per item, di-match ke header via Reference
+//
+// Per-PR validation (partial-success aware):
+//   - Reference wajib (di header DAN items)
+//   - Email Pemohon wajib + harus terdaftar di Employee
+//   - Departemen wajib (fallback ke department employee jika kosong)
+//   - Prioritas opsional, harus salah satu dari LOW/NORMAL/MEDIUM/HIGH/URGENT
+//   - Setiap PR harus punya minimal 1 item di Sheet 'PR Items'
+//   - Setiap item: Kode Produk wajib + harus terdaftar, Qty > 0
+//
+// Strategi: satu transaction per PR — kalau item gagal, hanya PR itu yg
+// di-skip; PR lain tetap berhasil (sesuai pattern bulkImportVendors).
+
+export interface BulkImportPRRow {
+    /** Identifier user-defined untuk hubungkan header dengan items. */
+    reference?: string
+    requesterEmail?: string
+    department?: string
+    priority?: string
+    notes?: string
+}
+
+export interface BulkImportPRItemRow {
+    /** Harus match dengan reference di BulkImportPRRow. */
+    reference?: string
+    productCode?: string
+    quantity?: number
+    notes?: string
+}
+
+export interface BulkImportPRResult {
+    imported: number
+    errors: { row: number; reason: string }[]
+}
+
+const VALID_PR_PRIORITIES = ["LOW", "NORMAL", "MEDIUM", "HIGH", "URGENT"] as const
+
+export async function bulkImportPurchaseRequests(
+    headerRows: BulkImportPRRow[],
+    itemRows: BulkImportPRItemRow[],
+): Promise<BulkImportPRResult> {
+    const result: BulkImportPRResult = { imported: 0, errors: [] }
+
+    // ── Auth (sekali untuk seluruh batch)
+    try {
+        await getAuthzUser()
+    } catch {
+        for (let i = 0; i < headerRows.length; i++) {
+            result.errors.push({ row: i + 2, reason: "Tidak terautentikasi" })
+        }
+        return result
+    }
+
+    if (!Array.isArray(headerRows) || headerRows.length === 0) return result
+
+    // ── Group items by reference (case-insensitive trim)
+    const itemsByRef = new Map<string, BulkImportPRItemRow[]>()
+    for (const item of itemRows ?? []) {
+        const ref = item.reference?.trim()
+        if (!ref) continue
+        const key = ref.toLowerCase()
+        if (!itemsByRef.has(key)) itemsByRef.set(key, [])
+        itemsByRef.get(key)!.push(item)
+    }
+
+    for (let i = 0; i < headerRows.length; i++) {
+        const row = headerRows[i]
+        // Row index in the report (header at row 1, data starts at row 2)
+        const rowNum = i + 2
+
+        try {
+            const reference = row.reference?.trim()
+            if (!reference) {
+                result.errors.push({ row: rowNum, reason: "Reference wajib diisi" })
+                continue
+            }
+
+            // ── Requester lookup via email
+            const email = row.requesterEmail?.trim().toLowerCase()
+            if (!email) {
+                result.errors.push({ row: rowNum, reason: "Email Pemohon wajib diisi" })
+                continue
+            }
+            const employee = await prisma.employee.findFirst({
+                where: { email },
+                select: { id: true, department: true, status: true },
+            })
+            if (!employee) {
+                result.errors.push({
+                    row: rowNum,
+                    reason: `Email pemohon "${row.requesterEmail}" tidak ditemukan di master karyawan`,
+                })
+                continue
+            }
+            if (employee.status !== "ACTIVE") {
+                result.errors.push({
+                    row: rowNum,
+                    reason: `Karyawan "${row.requesterEmail}" berstatus ${employee.status} (harus ACTIVE)`,
+                })
+                continue
+            }
+
+            // ── Priority validation
+            const priorityInput = row.priority?.toUpperCase().trim() || "NORMAL"
+            if (!VALID_PR_PRIORITIES.includes(priorityInput as typeof VALID_PR_PRIORITIES[number])) {
+                result.errors.push({
+                    row: rowNum,
+                    reason: `Prioritas "${row.priority}" tidak valid. Pilihan: ${VALID_PR_PRIORITIES.join(", ")}`,
+                })
+                continue
+            }
+
+            // ── Department (fallback ke department employee jika kosong)
+            const department = row.department?.trim() || employee.department || "General"
+
+            // ── Items lookup
+            const itemsForPR = itemsByRef.get(reference.toLowerCase()) ?? []
+            if (itemsForPR.length === 0) {
+                result.errors.push({
+                    row: rowNum,
+                    reason: `PR "${reference}" tidak punya item di Sheet 'PR Items' (minimal 1)`,
+                })
+                continue
+            }
+
+            // Lookup all referenced products in one query
+            const productCodes = Array.from(
+                new Set(
+                    itemsForPR
+                        .map((it) => it.productCode?.trim().toUpperCase())
+                        .filter((c): c is string => Boolean(c)),
+                ),
+            )
+            const products = productCodes.length
+                ? await prisma.product.findMany({
+                      where: { code: { in: productCodes } },
+                      select: { id: true, code: true },
+                  })
+                : []
+            const productMap = new Map(products.map((p) => [p.code.toUpperCase(), p]))
+
+            const itemsToCreate: { productId: string; quantity: number; notes: string | null; status: "PENDING" }[] = []
+            let itemError: string | null = null
+            for (const it of itemsForPR) {
+                const code = it.productCode?.trim().toUpperCase()
+                if (!code) {
+                    itemError = `Item PR "${reference}": Kode Produk wajib diisi`
+                    break
+                }
+                const product = productMap.get(code)
+                if (!product) {
+                    itemError = `Item PR "${reference}": Produk dengan kode "${code}" tidak ditemukan`
+                    break
+                }
+                const qty = Number(it.quantity)
+                if (!Number.isFinite(qty) || qty <= 0) {
+                    itemError = `Item PR "${reference}" produk "${code}": Qty wajib > 0`
+                    break
+                }
+                itemsToCreate.push({
+                    productId: product.id,
+                    quantity: Math.round(qty),
+                    notes: it.notes?.trim() || null,
+                    status: "PENDING",
+                })
+            }
+
+            if (itemError) {
+                result.errors.push({ row: rowNum, reason: itemError })
+                continue
+            }
+
+            // ── Create PR + items dalam single transaction (per-PR atomicity).
+            // Sequential PO/PR-style numbering via getNextDocNumber.
+            await withPrismaAuth(async (tx) => {
+                const now = new Date()
+                const year = now.getFullYear()
+                const month = String(now.getMonth() + 1).padStart(2, "0")
+                const prefix = `PR-${year}${month}`
+                const number = await getNextDocNumber(tx, prefix, 4)
+
+                await tx.purchaseRequest.create({
+                    data: {
+                        number,
+                        requesterId: employee.id,
+                        department,
+                        priority: priorityInput,
+                        status: "PENDING",
+                        notes: row.notes?.trim() || null,
+                        requestDate: new Date(),
+                        items: { create: itemsToCreate },
+                    },
+                    select: { id: true },
+                })
+            })
+
+            result.imported++
+        } catch (e: unknown) {
+            const reason = e instanceof Error ? e.message : "Unknown error"
+            result.errors.push({ row: rowNum, reason })
+        }
+    }
+
+    if (result.imported > 0) {
+        revalidateProcurementPaths()
+    }
+
+    return result
+}
+
+// ==========================================
+// BULK IMPORT PURCHASE ORDERS (XLSX/CSV — 2 sheets)
+// ==========================================
+//
+// Karena PO memiliki line items, template-nya 2 sheet:
+//   • Sheet "PO Header" → satu baris per PO (Reference, Kode Pemasok, ...)
+//   • Sheet "PO Items"  → baris per item, di-match ke header via Reference
+//
+// Per-PO validation (partial-success aware):
+//   - Reference wajib (di header DAN items)
+//   - Kode Pemasok wajib + harus terdaftar di Supplier
+//   - Tanggal opsional (default = hari ini), format DD/MM/YYYY atau YYYY-MM-DD
+//   - Setiap PO harus punya minimal 1 item di Sheet 'PO Items'
+//   - Setiap item: Kode Produk wajib + harus terdaftar, Qty > 0, Harga Satuan > 0
+//
+// Strategi: satu transaction per PO — kalau item gagal, hanya PO itu yg
+// di-skip; PO lain tetap berhasil (sesuai pattern bulkImportVendors/PR).
+//
+// PPN 11% dihitung server-side berdasarkan TAX_RATES.PPN — tidak diimport.
+// Status default = PO_DRAFT. Nomor PO di-generate via getNextDocNumber.
+
+export interface BulkImportPORow {
+    /** Identifier user-defined untuk hubungkan header dengan items. */
+    reference?: string
+    supplierCode?: string
+    /** Format DD/MM/YYYY atau YYYY-MM-DD. */
+    orderDate?: string
+    /** Format DD/MM/YYYY atau YYYY-MM-DD. */
+    expectedDate?: string
+    notes?: string
+}
+
+export interface BulkImportPOItemRow {
+    /** Harus match dengan reference di BulkImportPORow. */
+    reference?: string
+    productCode?: string
+    quantity?: number
+    unitPrice?: number
+    notes?: string
+}
+
+export interface BulkImportPOResult {
+    imported: number
+    errors: { row: number; reason: string }[]
+}
+
+/**
+ * Parse a date cell into a JS Date. Accepts:
+ *   - DD/MM/YYYY or DD-MM-YYYY (Indonesian format)
+ *   - YYYY-MM-DD (ISO)
+ *   - Excel serial number (rare; converted before reaching here, but guarded)
+ * Returns null if unparseable.
+ */
+function parsePODate(value: string | undefined | null): Date | null {
+    if (value === undefined || value === null) return null
+    const trimmed = String(value).trim()
+    if (!trimmed) return null
+    // DD/MM/YYYY or DD-MM-YYYY
+    const ddmm = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/)
+    if (ddmm) {
+        const [, d, m, y] = ddmm
+        const date = new Date(Number(y), Number(m) - 1, Number(d))
+        if (!isNaN(date.getTime())) return date
+    }
+    // ISO YYYY-MM-DD (or full ISO with time)
+    const iso = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (iso) {
+        const date = new Date(trimmed)
+        if (!isNaN(date.getTime())) return date
+    }
+    return null
+}
+
+export async function bulkImportPurchaseOrders(
+    headerRows: BulkImportPORow[],
+    itemRows: BulkImportPOItemRow[],
+): Promise<BulkImportPOResult> {
+    const result: BulkImportPOResult = { imported: 0, errors: [] }
+
+    // ── Auth + actor (sekali untuk seluruh batch)
+    let actorUser: { id: string; role: string; email?: string | null }
+    try {
+        const u = await getAuthzUser()
+        assertRole(u, PURCHASING_ROLES)
+        actorUser = u as typeof actorUser
+    } catch (e: unknown) {
+        const reason = e instanceof Error ? e.message : "Tidak terautentikasi"
+        for (let i = 0; i < headerRows.length; i++) {
+            result.errors.push({ row: i + 2, reason })
+        }
+        return result
+    }
+
+    if (!Array.isArray(headerRows) || headerRows.length === 0) return result
+
+    // ── Group items by reference (case-insensitive trim)
+    const itemsByRef = new Map<string, BulkImportPOItemRow[]>()
+    for (const item of itemRows ?? []) {
+        const ref = item.reference?.trim()
+        if (!ref) continue
+        const key = ref.toLowerCase()
+        if (!itemsByRef.has(key)) itemsByRef.set(key, [])
+        itemsByRef.get(key)!.push(item)
+    }
+
+    for (let i = 0; i < headerRows.length; i++) {
+        const row = headerRows[i]
+        // Row index in the report (header at row 1, data starts at row 2)
+        const rowNum = i + 2
+
+        try {
+            const reference = row.reference?.trim()
+            if (!reference) {
+                result.errors.push({ row: rowNum, reason: "Reference wajib diisi" })
+                continue
+            }
+
+            // ── Supplier lookup via code (case-insensitive — schema stores
+            // codes uppercase by convention).
+            const supplierCode = row.supplierCode?.trim().toUpperCase()
+            if (!supplierCode) {
+                result.errors.push({ row: rowNum, reason: "Kode Pemasok wajib diisi" })
+                continue
+            }
+            const supplier = await prisma.supplier.findUnique({
+                where: { code: supplierCode },
+                select: { id: true, isActive: true },
+            })
+            if (!supplier) {
+                result.errors.push({
+                    row: rowNum,
+                    reason: `Pemasok dengan kode "${row.supplierCode}" tidak ditemukan`,
+                })
+                continue
+            }
+            if (!supplier.isActive) {
+                result.errors.push({
+                    row: rowNum,
+                    reason: `Pemasok "${row.supplierCode}" sedang nonaktif — aktifkan dulu sebelum import.`,
+                })
+                continue
+            }
+
+            // ── Dates (default orderDate = today; expectedDate optional)
+            const orderDate = parsePODate(row.orderDate) ?? new Date()
+            const expectedDate = parsePODate(row.expectedDate)
+            if (row.expectedDate && !expectedDate) {
+                result.errors.push({
+                    row: rowNum,
+                    reason: `Tgl Diharapkan "${row.expectedDate}" tidak valid (gunakan DD/MM/YYYY)`,
+                })
+                continue
+            }
+            if (row.orderDate && !parsePODate(row.orderDate)) {
+                result.errors.push({
+                    row: rowNum,
+                    reason: `Tanggal Pesanan "${row.orderDate}" tidak valid (gunakan DD/MM/YYYY)`,
+                })
+                continue
+            }
+
+            // ── Items lookup
+            const itemsForPO = itemsByRef.get(reference.toLowerCase()) ?? []
+            if (itemsForPO.length === 0) {
+                result.errors.push({
+                    row: rowNum,
+                    reason: `PO "${reference}" tidak punya item di Sheet 'PO Items' (minimal 1)`,
+                })
+                continue
+            }
+
+            // Lookup all referenced products in one query
+            const productCodes = Array.from(
+                new Set(
+                    itemsForPO
+                        .map((it) => it.productCode?.trim().toUpperCase())
+                        .filter((c): c is string => Boolean(c)),
+                ),
+            )
+            const products = productCodes.length
+                ? await prisma.product.findMany({
+                      where: { code: { in: productCodes } },
+                      select: { id: true, code: true },
+                  })
+                : []
+            const productMap = new Map(products.map((p) => [p.code.toUpperCase(), p]))
+
+            type POItemCreate = {
+                productId: string
+                quantity: number
+                unitPrice: number
+                totalPrice: number
+            }
+            const itemsToCreate: POItemCreate[] = []
+            let itemError: string | null = null
+            let subtotal = 0
+
+            for (const it of itemsForPO) {
+                const code = it.productCode?.trim().toUpperCase()
+                if (!code) {
+                    itemError = `Item PO "${reference}": Kode Produk wajib diisi`
+                    break
+                }
+                const product = productMap.get(code)
+                if (!product) {
+                    itemError = `Item PO "${reference}": Produk dengan kode "${code}" tidak ditemukan`
+                    break
+                }
+                const qty = Number(it.quantity)
+                if (!Number.isFinite(qty) || qty <= 0) {
+                    itemError = `Item PO "${reference}" produk "${code}": Qty wajib > 0`
+                    break
+                }
+                const price = Number(it.unitPrice)
+                if (!Number.isFinite(price) || price <= 0) {
+                    itemError = `Item PO "${reference}" produk "${code}": Harga Satuan wajib > 0`
+                    break
+                }
+                const lineTotal = Math.round(qty) * price
+                subtotal += lineTotal
+                itemsToCreate.push({
+                    productId: product.id,
+                    quantity: Math.round(qty),
+                    unitPrice: price,
+                    totalPrice: lineTotal,
+                })
+            }
+
+            if (itemError) {
+                result.errors.push({ row: rowNum, reason: itemError })
+                continue
+            }
+
+            // ── Create PO + items + event dalam single transaction (per-PO atomicity).
+            // PPN 11% (TAX_RATES.PPN) — defaults to EXCLUSIVE tax mode (DPP + PPN).
+            await withPrismaAuth(async (tx) => {
+                const now = new Date()
+                const year = now.getFullYear()
+                const month = String(now.getMonth() + 1).padStart(2, "0")
+                const prefix = `PO-${year}${month}`
+                const number = await getNextDocNumber(tx, prefix, 4)
+
+                const taxAmount = Math.round(subtotal * TAX_RATES.PPN)
+                const netAmount = subtotal + taxAmount
+
+                const created = await tx.purchaseOrder.create({
+                    data: {
+                        number,
+                        supplierId: supplier.id,
+                        orderDate,
+                        expectedDate,
+                        status: "PO_DRAFT",
+                        createdBy: actorUser.id,
+                        totalAmount: subtotal,
+                        taxAmount,
+                        netAmount,
+                        // taxMode defaults to EXCLUSIVE per schema.
+                        items: { create: itemsToCreate },
+                    },
+                    select: { id: true },
+                })
+
+                await createPurchaseOrderEvent(tx as any, {
+                    purchaseOrderId: created.id,
+                    status: "PO_DRAFT",
+                    changedBy: actorUser.id,
+                    action: "BULK_IMPORT",
+                    notes: row.notes?.trim() || undefined,
+                    metadata: { source: "XLSX_IMPORT", reference },
+                })
+            })
+
+            result.imported++
+        } catch (e: unknown) {
+            const reason = e instanceof Error ? e.message : "Unknown error"
+            result.errors.push({ row: rowNum, reason })
+        }
+    }
+
+    if (result.imported > 0) {
+        revalidateProcurementPaths()
+    }
+
+    return result
+}
