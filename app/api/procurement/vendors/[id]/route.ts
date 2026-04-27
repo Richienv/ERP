@@ -87,7 +87,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
             where: { supplierId: id },
             select: {
                 status: true,
-                totalAmount: true,
+                netAmount: true,
                 expectedDate: true,
                 orderDate: true,
                 goodsReceivedNotes: {
@@ -99,7 +99,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         })
 
         const poTotalCount = allPos.length
-        const totalSpend = allPos.reduce((s, p) => s + Number(p.totalAmount ?? 0), 0)
+        // Pakai netAmount (grand total post-PPN) supaya KPI vendor mencerminkan
+        // belanja sesungguhnya — bukan DPP yang under-count ~10%.
+        const totalSpend = allPos
+            .filter((p) => !CANCELLED_STATUSES.has(p.status as ProcurementStatusValue))
+            .reduce((s, p) => s + Number(p.netAmount ?? 0), 0)
         const avgPoValue = poTotalCount > 0 ? totalSpend / poTotalCount : 0
 
         // Completion rate: PO selesai / PO non-cancelled (BUKAN OTD beneran).
@@ -134,11 +138,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         ).length
         const rejectionRate = poTotalCount > 0 ? (cancelledCount / poTotalCount) * 100 : 0
 
-        // YTD purchases (current calendar year)
+        // YTD purchases (current calendar year) — pakai netAmount (grand total).
         const yearStart = new Date(new Date().getFullYear(), 0, 1)
         const ytdPurchases = allPos
             .filter((p) => p.orderDate && new Date(p.orderDate) >= yearStart)
-            .reduce((s, p) => s + Number(p.totalAmount ?? 0), 0)
+            .reduce((s, p) => s + Number(p.netAmount ?? 0), 0)
 
         // Outstanding AP — agregasi dari SEMUA invoice INV_IN vendor yang belum
         // lunas (sebelumnya cuma top-20 — undercounted vendor besar).

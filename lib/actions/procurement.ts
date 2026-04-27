@@ -219,12 +219,12 @@ export async function getProcurementStats(input?: ProcurementStatsInput) {
         ] = await Promise.all([
             safe("current-month-pos", prisma.purchaseOrder.findMany({
                 where: { status: { in: activeSpendStatuses }, createdAt: { gte: startOfCurrentMonth, lt: startOfNextMonth } },
-                select: { totalAmount: true }
-            }), [] as Array<{ totalAmount: any }>),
+                select: { netAmount: true }
+            }), [] as Array<{ netAmount: any }>),
             safe("previous-month-pos", prisma.purchaseOrder.findMany({
                 where: { status: { in: activeSpendStatuses }, createdAt: { gte: startOfPreviousMonth, lt: startOfCurrentMonth } },
-                select: { totalAmount: true }
-            }), [] as Array<{ totalAmount: any }>),
+                select: { netAmount: true }
+            }), [] as Array<{ netAmount: any }>),
             safe("vendors-health", prisma.supplier.findMany({ where: { isActive: true }, select: { rating: true, onTimeRate: true } }), [] as Array<{ rating: number | null; onTimeRate: number | null }>),
             safe("urgent-needs", prisma.$queryRaw<[{ count: bigint }]>`
                     SELECT COUNT(DISTINCT p.id)::bigint as count
@@ -267,8 +267,8 @@ export async function getProcurementStats(input?: ProcurementStatsInput) {
             safe("receiving-filtered-total", prisma.goodsReceivedNote.count({ where: receivingWhere }), 0),
         ])
 
-        const currentSpend = currentMonthPOs.reduce((sum, po) => sum + Number(po.totalAmount || 0), 0)
-        const previousSpend = previousMonthPOs.reduce((sum, po) => sum + Number(po.totalAmount || 0), 0)
+        const currentSpend = currentMonthPOs.reduce((sum, po) => sum + Number(po.netAmount || 0), 0)
+        const previousSpend = previousMonthPOs.reduce((sum, po) => sum + Number(po.netAmount || 0), 0)
         const growth = previousSpend > 0 ? ((currentSpend - previousSpend) / previousSpend) * 100 : 0
 
         const avgRating = vendors.length > 0 ? vendors.reduce((sum, v) => sum + (v.rating || 0), 0) / vendors.length : 0
@@ -1561,7 +1561,8 @@ export async function getAllPurchaseOrders(filter?: POFilter) {
                 vendorEmail: po.supplier?.email || '',
                 vendorPhone: po.supplier?.phone || '',
                 date: new Date(po.orderDate).toLocaleDateString('id-ID'),
-                total: Number(po.totalAmount),
+                total: Number(po.netAmount),
+                subtotal: Number(po.totalAmount),
                 status: po.status,
                 revision: po.revision,
                 items: po.items?.reduce((sum, item) => sum + Number(item.quantity || 0), 0) || 0,

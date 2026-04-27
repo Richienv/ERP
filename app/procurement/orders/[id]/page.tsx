@@ -67,7 +67,7 @@ export default function PoDetailPage({ params }: { params: Promise<{ id: string 
         )
     }
 
-    const totalJt = (Number(data.totalAmount ?? 0) / 1_000_000).toFixed(1).replace(".", ",")
+    const totalJt = (Number(data.netAmount ?? 0) / 1_000_000).toFixed(1).replace(".", ",")
     const itemCount = data.items?.length ?? 0
     const supplierName = data.supplier?.name ?? "Unknown"
 
