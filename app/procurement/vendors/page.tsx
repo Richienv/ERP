@@ -11,7 +11,7 @@ import {
     IconChevronLeft,
     IconChevronRight,
 } from "@tabler/icons-react"
-import { X, Check, Download, CircleSlash } from "lucide-react"
+import { X, Check, Download, CircleSlash, Upload } from "lucide-react"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 
@@ -36,6 +36,7 @@ import type { VendorFilter } from "@/lib/types/vendor-filters"
 import { queryKeys } from "@/lib/query-keys"
 import { INT, fmtDateTime } from "@/lib/integra-tokens"
 import { exportVendorsToXlsx, type VendorExportRow } from "@/lib/exports/vendor-xlsx"
+import { ImportVendorsDialog } from "@/components/procurement/import-vendors-dialog"
 
 // ──────────────────────────────────────────────────────────────────
 // Types
@@ -222,6 +223,7 @@ export default function VendorsPage() {
     const [statusTab, setStatusTab] = useState<StatusTab>("ALL")
     const [searchInput, setSearchInput] = useState<string>(filter.search ?? "")
     const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set())
+    const [importOpen, setImportOpen] = useState(false)
     const [stubModal, setStubModal] = React.useState<{
         title: string
         body: React.ReactNode
@@ -742,6 +744,13 @@ export default function VendorsPage() {
                         Ekspor
                     </IntegraButton>
                     <IntegraButton
+                        variant="secondary"
+                        icon={<Upload className="w-3.5 h-3.5" />}
+                        onClick={() => setImportOpen(true)}
+                    >
+                        Impor Excel
+                    </IntegraButton>
+                    <IntegraButton
                         variant="primary"
                         icon={<IconPlus className="w-3.5 h-3.5" />}
                         onClick={() =>
@@ -1101,6 +1110,13 @@ export default function VendorsPage() {
                     </div>
                 </div>
             )}
+
+            {/* Import Vendors Dialog (XLSX/CSV bulk import) */}
+            <ImportVendorsDialog
+                open={importOpen}
+                onOpenChange={setImportOpen}
+                hideTrigger
+            />
 
             {/* Keyboard shortcuts cheatsheet */}
             {showShortcuts && (

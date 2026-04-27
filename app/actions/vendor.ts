@@ -497,3 +497,152 @@ export async function createSupplierCategory(name: string) {
         return { success: false, error: error.message || "Gagal membuat kategori" }
     }
 }
+
+// ==========================================
+// BULK IMPORT VENDORS (XLSX/CSV)
+// ==========================================
+//
+// Per-row validation:
+//   - Nama Vendor (name) wajib
+//   - Kode (code) wajib + harus unik
+//   - NPWP harus 15 digit jika diisi (titik/strip dihilangkan dulu)
+//   - Pembayaran harus salah satu dari PaymentTermLegacy enum
+//   - Rating harus 1-5 jika diisi
+//
+// Partial-success: collect per-row errors, continue importing valid rows.
+
+export interface BulkImportVendorRow {
+    name?: string
+    code?: string
+    contactName?: string
+    email?: string
+    phone?: string
+    /** NPWP (Indonesian Tax ID). Stored as `npwp` on the Supplier model. */
+    taxId?: string
+    address?: string
+    /** Must match PaymentTermLegacy enum (CASH, NET_15, NET_30, NET_45, NET_60, NET_90, COD). */
+    paymentTerm?: string
+    /** 1-5. */
+    rating?: number
+    isActive?: boolean
+}
+
+export interface BulkImportVendorResult {
+    imported: number
+    errors: { row: number; reason: string }[]
+}
+
+const VALID_PAYMENT_TERMS = ["CASH", "NET_15", "NET_30", "NET_45", "NET_60", "NET_90", "COD"] as const
+type ValidPaymentTerm = typeof VALID_PAYMENT_TERMS[number]
+
+export async function bulkImportVendors(
+    rows: BulkImportVendorRow[],
+): Promise<BulkImportVendorResult> {
+    const result: BulkImportVendorResult = { imported: 0, errors: [] }
+
+    try {
+        await requireAuth()
+    } catch {
+        // Single auth-error covers the whole batch.
+        for (let i = 0; i < rows.length; i++) {
+            result.errors.push({ row: i + 2, reason: "Tidak terautentikasi" })
+        }
+        return result
+    }
+
+    if (!Array.isArray(rows) || rows.length === 0) return result
+
+    for (let i = 0; i < rows.length; i++) {
+        const row = rows[i]
+        // Row index in the report (header at row 1, data starts at row 2)
+        const rowNum = i + 2
+
+        try {
+            // ── Required fields
+            const name = row.name?.trim()
+            const code = row.code?.trim().toUpperCase()
+            if (!name) {
+                result.errors.push({ row: rowNum, reason: "Nama Vendor wajib diisi" })
+                continue
+            }
+            if (!code) {
+                result.errors.push({ row: rowNum, reason: "Kode wajib diisi" })
+                continue
+            }
+
+            // ── Duplicate code check
+            const existing = await prisma.supplier.findUnique({
+                where: { code },
+                select: { id: true },
+            })
+            if (existing) {
+                result.errors.push({ row: rowNum, reason: `Kode "${code}" sudah ada` })
+                continue
+            }
+
+            // ── NPWP validation (15 digits if provided; allow dot/dash separators)
+            let normalisedNpwp: string | null = null
+            if (row.taxId && row.taxId.trim()) {
+                const cleaned = row.taxId.replace(/\D/g, "")
+                if (cleaned.length !== 15) {
+                    result.errors.push({
+                        row: rowNum,
+                        reason: `NPWP harus 15 digit (${cleaned.length} ditemukan)`,
+                    })
+                    continue
+                }
+                normalisedNpwp = row.taxId.trim()
+            }
+
+            // ── Payment term validation
+            let paymentTerm: ValidPaymentTerm = "CASH"
+            const termInput = row.paymentTerm?.toUpperCase().trim()
+            if (termInput) {
+                if (!VALID_PAYMENT_TERMS.includes(termInput as ValidPaymentTerm)) {
+                    result.errors.push({
+                        row: rowNum,
+                        reason: `Pembayaran tidak valid. Pilihan: ${VALID_PAYMENT_TERMS.join(", ")}`,
+                    })
+                    continue
+                }
+                paymentTerm = termInput as ValidPaymentTerm
+            }
+
+            // ── Rating validation
+            let rating = 0
+            if (row.rating !== undefined && row.rating !== null && !Number.isNaN(row.rating)) {
+                if (row.rating < 1 || row.rating > 5) {
+                    result.errors.push({
+                        row: rowNum,
+                        reason: `Rating harus 1-5 (${row.rating} diberikan)`,
+                    })
+                    continue
+                }
+                rating = Math.round(row.rating)
+            }
+
+            await prisma.supplier.create({
+                data: {
+                    name,
+                    code,
+                    contactName: row.contactName?.trim() || null,
+                    email: row.email?.trim() || null,
+                    phone: row.phone?.trim() || null,
+                    npwp: normalisedNpwp,
+                    address: row.address?.trim() || null,
+                    paymentTerm: paymentTerm as PaymentTermLegacy,
+                    rating,
+                    onTimeRate: 0,
+                    isActive: row.isActive ?? true,
+                },
+            })
+
+            result.imported++
+        } catch (e: unknown) {
+            const reason = e instanceof Error ? e.message : "Unknown error"
+            result.errors.push({ row: rowNum, reason })
+        }
+    }
+
+    return result
+}
