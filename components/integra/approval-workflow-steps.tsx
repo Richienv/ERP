@@ -32,7 +32,7 @@ export type POApprovalStatus =
     | "REJECTED"
     | "CANCELLED"
 
-type StepStatus = "done" | "current" | "pending"
+type StepStatus = "done" | "current" | "pending" | "rejected" | "cancelled"
 
 type Step = {
     label: string
@@ -70,29 +70,42 @@ export function ApprovalWorkflowSteps({
 }) {
     const needsCEO = amount > CEO_THRESHOLD
     const postApproval = isPostApproval(status)
+    const isRejected = status === "REJECTED"
+    const isCancelled = status === "CANCELLED"
 
+    // Step pertama (Dibuat) selalu selesai. Untuk PO yang dibatalkan, kita
+    // tetap mark step Dibuat sebagai done — tapi step di belakangnya
+    // ditandai cancelled (bukan pending) supaya jelas bahwa flow
+    // dihentikan, bukan masih menunggu.
     const steps: Step[] = [
         { label: "Dibuat", actor: creatorName, status: "done" },
         {
             label: "Manager Review",
-            actor: approverName ?? "Menunggu",
-            status: postApproval
-                ? "done"
-                : status === "PENDING_APPROVAL"
-                    ? "current"
-                    : "pending",
+            actor: isRejected ? (approverName ?? "Manajer") : approverName ?? "Menunggu",
+            status: isRejected
+                ? "rejected"
+                : isCancelled
+                    ? "cancelled"
+                    : postApproval
+                        ? "done"
+                        : status === "PENDING_APPROVAL"
+                            ? "current"
+                            : "pending",
+            note: isRejected ? "PO ditolak di sini" : undefined,
         },
     ]
 
     if (needsCEO) {
-        const ceoStatus: StepStatus = postApproval
-            ? "done"
-            : status === "PENDING_APPROVAL"
-                ? "pending"
-                : "pending"
+        const ceoStatus: StepStatus = isRejected
+            ? "cancelled" // sudah di-reject di Manager step → CEO jadi tidak relevan
+            : isCancelled
+                ? "cancelled"
+                : postApproval
+                    ? "done"
+                    : "pending"
         steps.push({
             label: "CEO Approval",
-            actor: ceoName ?? "Menunggu",
+            actor: ceoName ?? (isRejected || isCancelled ? "—" : "Menunggu"),
             status: ceoStatus,
             note: `Wajib (>Rp ${(CEO_THRESHOLD / 1_000_000).toFixed(0)} jt)`,
         })
@@ -118,18 +131,36 @@ export function ApprovalWorkflowSteps({
                                     "border-2 border-[var(--integra-liren-blue)] text-[var(--integra-liren-blue)]",
                                 s.status === "pending" &&
                                     "border border-[var(--integra-hairline-strong)] text-[var(--integra-muted)]",
+                                s.status === "rejected" &&
+                                    "bg-[var(--integra-red)] text-white",
+                                s.status === "cancelled" &&
+                                    "bg-[#E8E5DA] text-[var(--integra-muted)] line-through",
                             )}
                         >
-                            {i + 1}
+                            {s.status === "rejected" ? "✕" : i + 1}
                         </span>
-                        <div className="text-[11.5px] font-medium text-center text-[var(--integra-ink)]">
+                        <div
+                            className={cn(
+                                "text-[11.5px] font-medium text-center",
+                                s.status === "cancelled"
+                                    ? "text-[var(--integra-muted)] line-through"
+                                    : "text-[var(--integra-ink)]",
+                            )}
+                        >
                             {s.label}
                         </div>
                         <div className="text-[10.5px] text-[var(--integra-muted)] text-center">
                             {s.actor}
                         </div>
                         {s.note && (
-                            <div className="text-[10px] text-[var(--integra-muted)] italic mt-0.5 text-center">
+                            <div
+                                className={cn(
+                                    "text-[10px] italic mt-0.5 text-center",
+                                    s.status === "rejected"
+                                        ? "text-[var(--integra-red)]"
+                                        : "text-[var(--integra-muted)]",
+                                )}
+                            >
                                 {s.note}
                             </div>
                         )}
@@ -141,7 +172,11 @@ export function ApprovalWorkflowSteps({
                                 "flex-1 h-px mt-3",
                                 s.status === "done"
                                     ? "bg-[var(--integra-green-ok)]"
-                                    : "bg-[var(--integra-hairline-strong)]",
+                                    : s.status === "rejected"
+                                        ? "bg-[var(--integra-red)]"
+                                        : s.status === "cancelled"
+                                            ? "bg-[#E8E5DA]"
+                                            : "bg-[var(--integra-hairline-strong)]",
                             )}
                         />
                     )}

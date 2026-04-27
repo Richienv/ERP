@@ -28,6 +28,7 @@ export function TypstPdfButton({
     async function handleClick() {
         setLoading(true)
         let url: string | null = null
+        let downloadStarted = false
         try {
             const res = await fetch(endpoint)
             if (!res.ok) throw new Error("Gagal membuat PDF")
@@ -37,13 +38,23 @@ export function TypstPdfButton({
             a.href = url
             a.download = filename
             a.click()
+            downloadStarted = true
             toast.success(`PDF disimpan: ${filename}`)
         } catch (e: unknown) {
             const message = e instanceof Error ? e.message : "Tidak diketahui"
             toast.error(`Gagal generate PDF: ${message}`)
         } finally {
-            // Always revoke to prevent memory leak (success or error path)
-            if (url) URL.revokeObjectURL(url)
+            // Revoke object URL untuk cegah memory leak. Pada path sukses,
+            // delay sebentar — beberapa browser membatalkan download kalau
+            // blob URL di-revoke synchronously sebelum unduhan dimulai.
+            if (url) {
+                if (downloadStarted) {
+                    const blobUrl = url
+                    setTimeout(() => URL.revokeObjectURL(blobUrl), 5000)
+                } else {
+                    URL.revokeObjectURL(url)
+                }
+            }
             setLoading(false)
         }
     }

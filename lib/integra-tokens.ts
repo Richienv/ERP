@@ -137,7 +137,13 @@ export function fmtIDR(n: number): string {
     return idrFormatter.format(Math.round(n))
 }
 
-/** Format IDR in jt (juta) — e.g. 4_281_600_000 → "4.281,6 jt" */
+/**
+ * Format IDR ringkas (compact) sesuai magnitudo:
+ * - >= 1 milyar  → "4,3 M"     (e.g. 4_281_600_000)
+ * - >= 1 juta    → "281,6 jt"  (e.g. 281_600_000)
+ * - >= 1 ribu    → "12,5 rb"   (e.g. 12_500)
+ * - lainnya      → angka penuh dengan thousands separator (id-ID).
+ */
 export function fmtIDRJt(n: number): string {
     if (Math.abs(n) >= 1_000_000_000) {
         return idrShortFormatter.format(n / 1_000_000_000) + " M"
