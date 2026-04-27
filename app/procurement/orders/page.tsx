@@ -12,11 +12,12 @@ import {
     IconChevronLeft,
     IconChevronRight,
 } from "@tabler/icons-react"
-import { X, Check, Download } from "lucide-react"
+import { X, Check, Download, Upload } from "lucide-react"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 
 import { usePurchaseOrders } from "@/hooks/use-purchase-orders"
+import { ImportPOsDialog } from "@/components/procurement/import-pos-dialog"
 import { FlagshipListSkeleton } from "@/components/integra/flagship-list-skeleton"
 import {
     Panel,
@@ -361,6 +362,7 @@ export default function PurchaseOrdersPage() {
         title: string
         body: React.ReactNode
     } | null>(null)
+    const [importOpen, setImportOpen] = React.useState(false)
 
     // ── Keyboard shortcuts (D3)
     const searchInputRef = React.useRef<HTMLInputElement | null>(null)
@@ -963,6 +965,13 @@ export default function PurchaseOrdersPage() {
                         }}
                     >
                         Ekspor
+                    </IntegraButton>
+                    <IntegraButton
+                        variant="secondary"
+                        icon={<Upload className="w-3.5 h-3.5" />}
+                        onClick={() => setImportOpen(true)}
+                    >
+                        Impor Excel
                     </IntegraButton>
                     <IntegraButton
                         variant="secondary"
@@ -1595,6 +1604,13 @@ export default function PurchaseOrdersPage() {
                     </div>
                 </div>
             )}
+
+            {/* Import POs Dialog (XLSX bulk import — 2 sheets: Header + Items) */}
+            <ImportPOsDialog
+                open={importOpen}
+                onOpenChange={setImportOpen}
+                hideTrigger
+            />
         </>
     )
 }
