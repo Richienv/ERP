@@ -1005,3 +1005,337 @@ export async function bulkRejectGRNs(
     return result
 }
 
+// ==========================================
+// BULK IMPORT GRNs (XLSX) — backlog migration
+// ==========================================
+//
+// Khusus GRN: tiap baris harus reference No PO yang SUDAH ADA di sistem.
+// Kontrak (mirror bulkImportPurchaseOrders di lib/actions/procurement.ts):
+//   - 2 sheet di Excel: 'GRN Header' + 'GRN Items', dilink via Reference (bukan No GRN —
+//     nomor GRN otomatis di-generate via getNextDocNumber dgn prefix SJM-YYYYMM).
+//   - Setiap GRN harus punya minimal 1 item di Sheet 'GRN Items'.
+//   - Setiap item: Kode Produk wajib + harus ada di PO yg di-reference, Qty Diterima > 0.
+//
+// Strategi: satu transaction per GRN — kalau item gagal, hanya GRN itu yg
+// di-skip; GRN lain tetap berhasil (sesuai pattern bulkImportPurchaseOrders).
+//
+// Status default = DRAFT. User harus terima manual via UI agar stok bertambah
+// dan jurnal terbentuk (acceptGRN posts inventory GL + updates PO receivedQty).
+
+export interface BulkImportGRNRow {
+    /** Identifier user-defined untuk hubungkan header dengan items. */
+    reference?: string
+    /** Nomor PO yang SUDAH ADA di sistem (mis. PO-202604-0001). */
+    poNumber?: string
+    /** Format DD/MM/YYYY atau YYYY-MM-DD. */
+    receivedDate?: string
+    /** Opsional — kode gudang dari master Warehouse (mis. GD-001). */
+    warehouseCode?: string
+    notes?: string
+}
+
+export interface BulkImportGRNItemRow {
+    /** Harus match dengan reference di BulkImportGRNRow. */
+    reference?: string
+    productCode?: string
+    receivedQty?: number
+    /** "Ya" / "Tidak" — Ya berarti seluruh qty diterima (accepted = received).
+     *  Tidak berarti hanya qty yang ditulis yang accepted (sisa anggap rejected/missing). */
+    matchedOrder?: string
+    notes?: string
+}
+
+export interface BulkImportGRNResult {
+    imported: number
+    errors: { row: number; reason: string }[]
+}
+
+function parseGRNDate(value: string | undefined | null): Date | null {
+    if (value === undefined || value === null) return null
+    const trimmed = String(value).trim()
+    if (!trimmed) return null
+    // DD/MM/YYYY or DD-MM-YYYY
+    const ddmm = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/)
+    if (ddmm) {
+        const [, d, m, y] = ddmm
+        const date = new Date(Number(y), Number(m) - 1, Number(d))
+        if (!isNaN(date.getTime())) return date
+    }
+    // ISO YYYY-MM-DD (or full ISO with time)
+    const iso = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (iso) {
+        const date = new Date(trimmed)
+        if (!isNaN(date.getTime())) return date
+    }
+    return null
+}
+
+export async function bulkImportGRNs(
+    headerRows: BulkImportGRNRow[],
+    itemRows: BulkImportGRNItemRow[],
+): Promise<BulkImportGRNResult> {
+    const result: BulkImportGRNResult = { imported: 0, errors: [] }
+
+    // ── Auth + actor (sekali untuk seluruh batch)
+    let actorUser: { id: string; role: string; email?: string | null }
+    try {
+        const u = await getAuthzUser()
+        assertRole(u, RECEIVING_ROLES)
+        actorUser = u as typeof actorUser
+    } catch (e: unknown) {
+        const reason = e instanceof Error ? e.message : "Tidak terautentikasi"
+        for (let i = 0; i < headerRows.length; i++) {
+            result.errors.push({ row: i + 2, reason })
+        }
+        return result
+    }
+
+    if (!Array.isArray(headerRows) || headerRows.length === 0) return result
+
+    // Resolve receivedById once (non-fatal if employee record missing)
+    const employee = await getEmployeeForUserEmail(actorUser.email)
+    const receivedById = employee?.id || null
+
+    // ── Group items by reference (case-insensitive trim)
+    const itemsByRef = new Map<string, BulkImportGRNItemRow[]>()
+    for (const item of itemRows ?? []) {
+        const ref = item.reference?.trim()
+        if (!ref) continue
+        const key = ref.toLowerCase()
+        if (!itemsByRef.has(key)) itemsByRef.set(key, [])
+        itemsByRef.get(key)!.push(item)
+    }
+
+    for (let i = 0; i < headerRows.length; i++) {
+        const row = headerRows[i]
+        // Row index in the report (header at row 1, data starts at row 2)
+        const rowNum = i + 2
+
+        try {
+            const reference = row.reference?.trim()
+            if (!reference) {
+                result.errors.push({ row: rowNum, reason: "Reference wajib diisi" })
+                continue
+            }
+
+            const poNumber = row.poNumber?.trim()
+            if (!poNumber) {
+                result.errors.push({
+                    row: rowNum,
+                    reason: "No PO wajib diisi (untuk link ke PO yang sudah ada)",
+                })
+                continue
+            }
+
+            // ── PO lookup (must exist + be in receivable status)
+            const po = await prisma.purchaseOrder.findUnique({
+                where: { number: poNumber },
+                include: {
+                    items: { include: { product: true, grnItems: true } },
+                },
+            })
+            if (!po) {
+                result.errors.push({
+                    row: rowNum,
+                    reason: `PO "${poNumber}" tidak ditemukan di sistem`,
+                })
+                continue
+            }
+            // Allow any status that's valid for receiving OR has been completed
+            // (backlog migration — old POs may already be COMPLETED in legacy system)
+            const ALLOWED_PO_STATUSES = [
+                "ORDERED",
+                "VENDOR_CONFIRMED",
+                "SHIPPED",
+                "PARTIAL_RECEIVED",
+                "RECEIVED",
+                "COMPLETED",
+                "APPROVED",
+            ]
+            if (!ALLOWED_PO_STATUSES.includes(po.status)) {
+                result.errors.push({
+                    row: rowNum,
+                    reason: `PO "${poNumber}" status ${po.status} tidak bisa diterima (perlu min APPROVED/ORDERED)`,
+                })
+                continue
+            }
+
+            // ── Date (default = today)
+            const receivedDate = parseGRNDate(row.receivedDate) ?? new Date()
+            if (row.receivedDate && !parseGRNDate(row.receivedDate)) {
+                result.errors.push({
+                    row: rowNum,
+                    reason: `Tanggal Terima "${row.receivedDate}" tidak valid (gunakan DD/MM/YYYY)`,
+                })
+                continue
+            }
+
+            // ── Warehouse: optional via code lookup, fallback to first PO item's
+            // associated stockLevel warehouse, else first active warehouse.
+            let warehouseId: string | null = null
+            if (row.warehouseCode?.trim()) {
+                const wh = await prisma.warehouse.findUnique({
+                    where: { code: row.warehouseCode.trim().toUpperCase() },
+                    select: { id: true, isActive: true },
+                })
+                if (!wh) {
+                    result.errors.push({
+                        row: rowNum,
+                        reason: `Gudang dengan kode "${row.warehouseCode}" tidak ditemukan`,
+                    })
+                    continue
+                }
+                if (!wh.isActive) {
+                    result.errors.push({
+                        row: rowNum,
+                        reason: `Gudang "${row.warehouseCode}" sedang nonaktif`,
+                    })
+                    continue
+                }
+                warehouseId = wh.id
+            } else {
+                // Fallback: pick first active warehouse (most SMEs have just one)
+                const fallbackWh = await prisma.warehouse.findFirst({
+                    where: { isActive: true },
+                    orderBy: { createdAt: "asc" },
+                    select: { id: true },
+                })
+                if (!fallbackWh) {
+                    result.errors.push({
+                        row: rowNum,
+                        reason: "Tidak ada gudang aktif di sistem — buat dulu di Inventory > Gudang",
+                    })
+                    continue
+                }
+                warehouseId = fallbackWh.id
+            }
+
+            // ── Items lookup
+            const itemsForGRN = itemsByRef.get(reference.toLowerCase()) ?? []
+            if (itemsForGRN.length === 0) {
+                result.errors.push({
+                    row: rowNum,
+                    reason: `GRN "${reference}" tidak punya item di Sheet 'GRN Items' (minimal 1)`,
+                })
+                continue
+            }
+
+            // Lookup all referenced products in one query
+            const productCodes = Array.from(
+                new Set(
+                    itemsForGRN
+                        .map((it) => it.productCode?.trim().toUpperCase())
+                        .filter((c): c is string => Boolean(c)),
+                ),
+            )
+            const products = productCodes.length
+                ? await prisma.product.findMany({
+                      where: { code: { in: productCodes } },
+                      select: { id: true, code: true, name: true },
+                  })
+                : []
+            const productMap = new Map(products.map((p) => [p.code.toUpperCase(), p]))
+
+            type GRNItemCreate = {
+                poItemId: string
+                productId: string
+                quantityOrdered: number
+                quantityReceived: number
+                quantityAccepted: number
+                quantityRejected: number
+                unitCost: number
+                inspectionNotes: string | null
+            }
+            const itemsToCreate: GRNItemCreate[] = []
+            let itemError: string | null = null
+
+            for (const it of itemsForGRN) {
+                const code = it.productCode?.trim().toUpperCase()
+                if (!code) {
+                    itemError = `Item GRN "${reference}": Kode Produk wajib diisi`
+                    break
+                }
+                const product = productMap.get(code)
+                if (!product) {
+                    itemError = `Item GRN "${reference}": Produk dengan kode "${code}" tidak ditemukan`
+                    break
+                }
+                const qty = Number(it.receivedQty)
+                if (!Number.isFinite(qty) || qty <= 0) {
+                    itemError = `Item GRN "${reference}" produk "${code}": Qty Diterima wajib > 0`
+                    break
+                }
+
+                // Find matching PO item by productId
+                const poItem = po.items.find((pi: any) => pi.productId === product.id)
+                if (!poItem) {
+                    itemError = `Item GRN "${reference}" produk "${code}": tidak ada di PO ${poNumber}`
+                    break
+                }
+
+                // Sesuai Pesanan: "Ya" → semua qty terima = accepted; "Tidak" → semua tetap accepted
+                // tapi tandai sisa qty PO sebagai missing (handled by partial-receive PO transition).
+                // Default = "Ya".
+                const matched = (it.matchedOrder ?? "Ya").trim().toLowerCase()
+                const isMatched = matched === "ya" || matched === "y" || matched === "yes" || matched === ""
+
+                const qtyInt = Math.round(qty)
+                itemsToCreate.push({
+                    poItemId: poItem.id,
+                    productId: product.id,
+                    quantityOrdered: poItem.quantity,
+                    quantityReceived: qtyInt,
+                    quantityAccepted: isMatched ? qtyInt : qtyInt, // both cases: accepted = received
+                    quantityRejected: 0,
+                    unitCost: Number(poItem.unitPrice),
+                    inspectionNotes: it.notes?.trim() || null,
+                })
+            }
+
+            if (itemError) {
+                result.errors.push({ row: rowNum, reason: itemError })
+                continue
+            }
+
+            // ── Create GRN + items dalam single transaction (per-GRN atomicity).
+            // Status default = DRAFT — user harus terima manual via UI agar stok
+            // bertambah & jurnal inventory terbentuk (acceptGRN handles GL).
+            await withPrismaAuth(async (tx) => {
+                const { getNextDocNumber } = await import("@/lib/document-numbering")
+                const txAny = tx as any
+
+                const now = new Date()
+                const year = now.getFullYear()
+                const month = String(now.getMonth() + 1).padStart(2, "0")
+                const prefix = `SJM-${year}${month}`
+                const number = await getNextDocNumber(txAny, prefix, 4)
+
+                await txAny.goodsReceivedNote.create({
+                    data: {
+                        number,
+                        purchaseOrderId: po.id,
+                        warehouseId: warehouseId!,
+                        receivedById: receivedById || undefined,
+                        receivedDate,
+                        status: "DRAFT",
+                        notes: row.notes?.trim() || null,
+                        items: { create: itemsToCreate },
+                    },
+                })
+            })
+
+            result.imported++
+        } catch (e: unknown) {
+            const reason = e instanceof Error ? e.message : "Unknown error"
+            result.errors.push({ row: rowNum, reason })
+        }
+    }
+
+    if (result.imported > 0) {
+        revalidatePath("/procurement/receiving")
+        revalidatePath("/procurement")
+        revalidatePath("/inventory")
+    }
+
+    return result
+}

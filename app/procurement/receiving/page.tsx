@@ -11,12 +11,18 @@ import {
     IconChevronLeft,
     IconChevronRight,
 } from "@tabler/icons-react"
-import { X, Check, Download } from "lucide-react"
+import { X, Check, Download, Upload, ChevronDown } from "lucide-react"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 
 import { useReceiving } from "@/hooks/use-receiving"
 import { FlagshipListSkeleton } from "@/components/integra/flagship-list-skeleton"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
     Panel,
     KPIRail,
@@ -36,7 +42,8 @@ import { SavedFiltersDropdown } from "@/components/integra/saved-filters-dropdow
 import type { GRNFilter } from "@/lib/types/grn-filters"
 import { queryKeys } from "@/lib/query-keys"
 import { INT, fmtDateTime } from "@/lib/integra-tokens"
-import { exportGRNsToXlsx, type GRNExportRow } from "@/lib/exports/grn-xlsx"
+import { exportGRNsToXlsx, exportGRNsToCsv, type GRNExportRow } from "@/lib/exports/grn-xlsx"
+import { ImportGRNsDialog } from "@/components/procurement/import-grns-dialog"
 
 type Period = "1H" | "7H" | "30H" | "TTD" | "12B"
 type StatusTab = "ALL" | "INSPECTING" | "PARTIAL_ACCEPTED" | "ACCEPTED" | "REJECTED"
@@ -262,6 +269,7 @@ export default function ReceivingPage() {
     const [statusTab, setStatusTab] = useState<StatusTab>("ALL")
     const [searchInput, setSearchInput] = useState<string>(filter.search ?? "")
     const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set())
+    const [importOpen, setImportOpen] = React.useState(false)
 
     // Keyboard shortcuts
     const searchInputRef = React.useRef<HTMLInputElement | null>(null)
@@ -751,7 +759,7 @@ export default function ReceivingPage() {
                         onClick: () => runBulkAction("reject"),
                     },
                     {
-                        label: "Ekspor terpilih",
+                        label: "Ekspor terpilih (XLSX)",
                         icon: <Download className="size-3.5" />,
                         onClick: () => {
                             const selected = filtered.filter((r) => selectedIds.has(r.id))
@@ -761,7 +769,21 @@ export default function ReceivingPage() {
                             }
                             const fname = `surat-jalan-masuk-terpilih-${new Date().toISOString().slice(0, 10)}.xlsx`
                             const n = exportGRNsToXlsx(selected.map(toExportRow), fname)
-                            toast.success(`${n} GRN terpilih diekspor`)
+                            toast.success(`${n} GRN terpilih diekspor ke XLSX`)
+                        },
+                    },
+                    {
+                        label: "Ekspor terpilih (CSV)",
+                        icon: <Download className="size-3.5" />,
+                        onClick: () => {
+                            const selected = filtered.filter((r) => selectedIds.has(r.id))
+                            if (selected.length === 0) {
+                                toast.info("Tidak ada GRN terpilih untuk diekspor")
+                                return
+                            }
+                            const fname = `surat-jalan-masuk-terpilih-${new Date().toISOString().slice(0, 10)}.csv`
+                            const n = exportGRNsToCsv(selected.map(toExportRow), fname)
+                            toast.success(`${n} GRN terpilih diekspor ke CSV`)
                         },
                     },
                 ]}
@@ -798,29 +820,73 @@ export default function ReceivingPage() {
                     >
                         {`Filter${activeFilterCount > 0 ? ` · ${activeFilterCount}` : ""}`}
                     </IntegraButton>
-                    <IntegraButton
-                        variant="secondary"
-                        icon={<IconDownload className="w-3.5 h-3.5" />}
-                        onClick={() => {
-                            if (filtered.length === 0) {
-                                toast.info("Tidak ada data untuk diekspor")
-                                return
-                            }
-                            const n = exportGRNsToXlsx(filtered.map(toExportRow))
-                            toast.success(`${n} GRN diekspor`)
-                        }}
-                    >
-                        Ekspor
-                    </IntegraButton>
-                    <IntegraButton
-                        variant="primary"
-                        icon={<IconPlus className="w-3.5 h-3.5" />}
-                        href={buatGrnHref}
-                        disabled={buatGrnDisabled}
-                        title={buatGrnTitle}
-                    >
-                        Buat GRN
-                    </IntegraButton>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button
+                                type="button"
+                                className={INT.btnSecondary}
+                                disabled={filtered.length === 0}
+                                title={filtered.length === 0 ? "Tidak ada data untuk diekspor" : undefined}
+                            >
+                                <IconDownload className="w-3.5 h-3.5" />
+                                Ekspor
+                                <ChevronDown className="size-3" />
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                                onClick={() => {
+                                    if (filtered.length === 0) {
+                                        toast.info("Tidak ada data untuk diekspor")
+                                        return
+                                    }
+                                    const n = exportGRNsToXlsx(filtered.map(toExportRow))
+                                    toast.success(`${n} GRN diekspor ke XLSX`)
+                                }}
+                            >
+                                Ekspor XLSX
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={() => {
+                                    if (filtered.length === 0) {
+                                        toast.info("Tidak ada data untuk diekspor")
+                                        return
+                                    }
+                                    const n = exportGRNsToCsv(filtered.map(toExportRow))
+                                    toast.success(`${n} GRN diekspor ke CSV`)
+                                }}
+                            >
+                                Ekspor CSV
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button type="button" className={INT.btnPrimary}>
+                                <IconPlus className="w-3.5 h-3.5" />
+                                Buat GRN
+                                <ChevronDown className="size-3" />
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                                disabled={buatGrnDisabled}
+                                className={buatGrnDisabled ? "opacity-50" : undefined}
+                                title={buatGrnTitle}
+                                onClick={() => {
+                                    if (buatGrnDisabled || !buatGrnHref) return
+                                    router.push(buatGrnHref)
+                                }}
+                            >
+                                <IconPlus className="size-3.5" />
+                                Buat dari PO
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setImportOpen(true)}>
+                                <Upload className="size-3.5" />
+                                Impor dari Excel
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </div>
 
@@ -1224,6 +1290,13 @@ export default function ReceivingPage() {
                         }}
                     />
                 }
+            />
+
+            {/* Import GRNs Dialog (XLSX bulk import — 2 sheets: Header + Items) */}
+            <ImportGRNsDialog
+                open={importOpen}
+                onOpenChange={setImportOpen}
+                hideTrigger
             />
 
             {/* Keyboard shortcuts cheatsheet */}
