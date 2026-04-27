@@ -6,10 +6,8 @@ import { usePathname } from "next/navigation"
 import { Toaster } from "@/components/ui/sonner"
 import { AIProvider } from "@/components/ai/ai-context"
 import { AISidebar } from "@/components/ai/ai-sidebar"
-import { SiteHeader } from "@/components/site-header"
 
-import { AppSidebar } from "@/components/app-sidebar"
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { IntegraShell } from "@/components/integra/shell"
 
 import { AuthProvider } from "@/lib/auth-context"
 import { RouteGuard } from "@/components/route-guard"
@@ -46,19 +44,11 @@ export function GlobalLayout({ children }: GlobalLayoutProps) {
               <Toaster />
             </main>
           ) : (
-            <SidebarProvider>
-              <AppSidebar />
-              <SidebarInset className="max-h-svh overflow-hidden">
-                <SiteHeader />
-                <div className="flex-1 overflow-auto p-4 pt-0 gap-4 flex flex-col">
-                  <PageTransition>
-                    {children}
-                  </PageTransition>
-                </div>
-                <AISidebar />
-                <Toaster />
-              </SidebarInset>
-            </SidebarProvider>
+            <IntegraShell>
+              <PageTransition>{children}</PageTransition>
+              <AISidebar />
+              <Toaster />
+            </IntegraShell>
           )}
         </RouteGuard>
         <OfflineIndicator />

@@ -1,7 +1,10 @@
 "use server"
 
 import { withPrismaAuth, prisma } from "@/lib/db"
-import { ProcurementStatus, PrismaClient } from "@prisma/client"
+import { ProcurementStatus, PrismaClient, Prisma } from "@prisma/client"
+import type { POFilter, PRFilter } from "@/lib/types/procurement-filters"
+
+export type { POFilter, PRFilter } from "@/lib/types/procurement-filters"
 import { recordPendingBillFromPO } from "@/lib/actions/finance-invoices"
 import { FALLBACK_PURCHASE_ORDERS, FALLBACK_VENDORS } from "@/lib/db-fallbacks"
 import { assertRole, getAuthzUser } from "@/lib/authz"
@@ -216,12 +219,12 @@ export async function getProcurementStats(input?: ProcurementStatsInput) {
         ] = await Promise.all([
             safe("current-month-pos", prisma.purchaseOrder.findMany({
                 where: { status: { in: activeSpendStatuses }, createdAt: { gte: startOfCurrentMonth, lt: startOfNextMonth } },
-                select: { totalAmount: true }
-            }), [] as Array<{ totalAmount: any }>),
+                select: { netAmount: true }
+            }), [] as Array<{ netAmount: any }>),
             safe("previous-month-pos", prisma.purchaseOrder.findMany({
                 where: { status: { in: activeSpendStatuses }, createdAt: { gte: startOfPreviousMonth, lt: startOfCurrentMonth } },
-                select: { totalAmount: true }
-            }), [] as Array<{ totalAmount: any }>),
+                select: { netAmount: true }
+            }), [] as Array<{ netAmount: any }>),
             safe("vendors-health", prisma.supplier.findMany({ where: { isActive: true }, select: { rating: true, onTimeRate: true } }), [] as Array<{ rating: number | null; onTimeRate: number | null }>),
             safe("urgent-needs", prisma.$queryRaw<[{ count: bigint }]>`
                     SELECT COUNT(DISTINCT p.id)::bigint as count
@@ -264,8 +267,8 @@ export async function getProcurementStats(input?: ProcurementStatsInput) {
             safe("receiving-filtered-total", prisma.goodsReceivedNote.count({ where: receivingWhere }), 0),
         ])
 
-        const currentSpend = currentMonthPOs.reduce((sum, po) => sum + Number(po.totalAmount || 0), 0)
-        const previousSpend = previousMonthPOs.reduce((sum, po) => sum + Number(po.totalAmount || 0), 0)
+        const currentSpend = currentMonthPOs.reduce((sum, po) => sum + Number(po.netAmount || 0), 0)
+        const previousSpend = previousMonthPOs.reduce((sum, po) => sum + Number(po.netAmount || 0), 0)
         const growth = previousSpend > 0 ? ((currentSpend - previousSpend) / previousSpend) * 100 : 0
 
         const avgRating = vendors.length > 0 ? vendors.reduce((sum, v) => sum + (v.rating || 0), 0) / vendors.length : 0
@@ -456,47 +459,209 @@ export async function getProcurementStats(input?: ProcurementStatsInput) {
 // PURCHASE REQUEST ACTIONS
 // ==========================================
 
-export async function getPurchaseRequests() {
+export async function getPurchaseRequests(filter?: PRFilter) {
     try {
         return await withPrismaAuth(async (prisma) => {
+            const where: Prisma.PurchaseRequestWhereInput = {}
+
+            if (filter?.status?.length) {
+                where.status = { in: filter.status as any }
+            }
+            if (filter?.departments?.length) {
+                where.department = { in: filter.departments }
+            }
+            if (filter?.priority?.length) {
+                where.priority = { in: filter.priority }
+            }
+            if (filter?.dateStart || filter?.dateEnd) {
+                const createdAt: Prisma.DateTimeFilter = {}
+                if (filter.dateStart) createdAt.gte = new Date(filter.dateStart)
+                if (filter.dateEnd) createdAt.lte = new Date(filter.dateEnd)
+                where.createdAt = createdAt
+            }
+            if (filter?.search) {
+                where.OR = [
+                    { number: { contains: filter.search, mode: "insensitive" } },
+                    { department: { contains: filter.search, mode: "insensitive" } },
+                    {
+                        requester: {
+                            OR: [
+                                { firstName: { contains: filter.search, mode: "insensitive" } },
+                                { lastName: { contains: filter.search, mode: "insensitive" } },
+                            ],
+                        },
+                    },
+                ]
+            }
+
             const requests = await prisma.purchaseRequest.findMany({
+                where,
                 include: {
                     requester: {
-                        select: { firstName: true, lastName: true, department: true }
+                        select: { firstName: true, lastName: true, department: true },
+                    },
+                    approver: {
+                        select: { firstName: true, lastName: true },
                     },
                     items: {
                         include: {
                             product: {
-                                select: { name: true, unit: true }
-                            }
-                        }
-                    }
+                                select: { name: true, unit: true, costPrice: true },
+                            },
+                        },
+                    },
                 },
-                orderBy: { createdAt: 'desc' }
+                orderBy: { createdAt: "desc" },
             })
 
-            return requests.map((req: any) => ({
-                id: req.id,
-                number: req.number,
-                requester: `${req.requester?.firstName || ''} ${req.requester?.lastName || ''}`.trim(),
-                department: req.department || req.requester?.department,
-                status: req.status,
-                priority: req.priority,
-                notes: req.notes,
-                date: new Date(req.createdAt),
-                itemCount: req.items?.length || 0,
-                items: req.items?.map((i: any) => ({
-                    id: i.id,
-                    productName: i.product?.name,
-                    quantity: i.quantity,
-                    unit: i.product?.unit,
-                    status: i.status
-                })) || []
-            }))
+            return requests.map((req: any) => {
+                const requesterName = `${req.requester?.firstName || ""} ${req.requester?.lastName || ""}`.trim()
+                const approverName = req.approver
+                    ? `${req.approver.firstName || ""} ${req.approver.lastName || ""}`.trim()
+                    : null
+                // Estimated total = Σ(qty × costPrice). Item tanpa costPrice dilewati,
+                // dan kalau ada minimal satu item tanpa harga, estimatedTotal jadi
+                // null supaya UI bisa menampilkan "—" + warning, alih-alih angka
+                // setengah jadi yang menyesatkan keputusan approval.
+                const items = (req.items ?? []) as Array<any>
+                let estimatedTotal: number | null = 0
+                let hasMissingPrice = false
+                for (const item of items) {
+                    const rawCost = item.product?.costPrice
+                    const cost = rawCost === null || rawCost === undefined ? null : Number(rawCost)
+                    if (cost === null || !Number.isFinite(cost) || cost <= 0) {
+                        hasMissingPrice = true
+                        continue
+                    }
+                    const qty = Number(item.quantity ?? 0)
+                    estimatedTotal += cost * qty
+                }
+                if (hasMissingPrice) estimatedTotal = null
+                return {
+                    id: req.id,
+                    number: req.number,
+                    requester: requesterName,
+                    requesterFirstName: req.requester?.firstName ?? "",
+                    requesterLastName: req.requester?.lastName ?? "",
+                    department: req.department || req.requester?.department || "",
+                    status: req.status,
+                    priority: req.priority || "NORMAL",
+                    notes: req.notes,
+                    date: new Date(req.createdAt),
+                    approver: approverName,
+                    estimatedTotal,
+                    hasMissingPrice,
+                    itemCount: req.items?.length || 0,
+                    items: req.items?.map((i: any) => ({
+                        id: i.id,
+                        productName: i.product?.name,
+                        quantity: i.quantity,
+                        unit: i.product?.unit,
+                        status: i.status,
+                    })) || [],
+                }
+            })
         })
     } catch (error) {
         console.error("Error fetching requests:", error)
         return []
+    }
+}
+
+/**
+ * Fetch a single Purchase Request with full relations for the detail page.
+ * Returns null if not found. Decimal fields are converted to numbers for
+ * JSON serialization.
+ */
+export async function getPurchaseRequestById(id: string) {
+    try {
+        await getAuthzUser()
+        const pr = await prisma.purchaseRequest.findUnique({
+            where: { id },
+            include: {
+                requester: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                        department: true,
+                        position: true,
+                    },
+                },
+                approver: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                        department: true,
+                        position: true,
+                    },
+                },
+                items: {
+                    include: {
+                        product: {
+                            select: {
+                                id: true,
+                                code: true,
+                                name: true,
+                                unit: true,
+                                costPrice: true,
+                            },
+                        },
+                        preferredSupplier: {
+                            select: { id: true, name: true, email: true, phone: true },
+                        },
+                    },
+                },
+                purchaseOrder: {
+                    select: {
+                        id: true,
+                        number: true,
+                        status: true,
+                        totalAmount: true,
+                    },
+                },
+            },
+        })
+
+        if (!pr) return null
+
+        // Estimated unit/total cost helper
+        const items = pr.items.map((i: any) => {
+            const unitPrice = Number(i.product?.costPrice ?? 0)
+            const qty = Number(i.quantity ?? 0)
+            return {
+                ...i,
+                quantity: qty,
+                unitPrice,
+                totalPrice: unitPrice * qty,
+                product: i.product
+                    ? {
+                          ...i.product,
+                          costPrice: Number(i.product.costPrice ?? 0),
+                      }
+                    : null,
+            }
+        })
+
+        const estimatedTotal = items.reduce((s, i) => s + i.totalPrice, 0)
+
+        return {
+            ...pr,
+            items,
+            estimatedTotal,
+            purchaseOrder: pr.purchaseOrder
+                ? {
+                      ...pr.purchaseOrder,
+                      totalAmount: Number(pr.purchaseOrder.totalAmount ?? 0),
+                  }
+                : null,
+        }
+    } catch (e) {
+        console.error("getPurchaseRequestById failed", e)
+        return null
     }
 }
 
@@ -1331,11 +1496,47 @@ export async function createPOFromPR(...args: Parameters<typeof convertPRToPO>) 
     return convertPRToPO(...args)
 }
 
-export async function getAllPurchaseOrders() {
+export async function getAllPurchaseOrders(filter?: POFilter) {
     try {
         await getAuthzUser()
 
+        // Build Prisma where clause from filter dimensions. Empty/undefined
+        // filter -> no constraints (returns everything, original behaviour).
+        const where: Prisma.PurchaseOrderWhereInput = {}
+
+        if (filter?.status?.length) {
+            where.status = { in: filter.status as ProcurementStatus[] }
+        }
+        if (filter?.vendorIds?.length) {
+            where.supplierId = { in: filter.vendorIds }
+        }
+        if (filter?.dateStart || filter?.dateEnd) {
+            const orderDate: Prisma.DateTimeFilter = {}
+            if (filter.dateStart) orderDate.gte = new Date(filter.dateStart)
+            if (filter.dateEnd) orderDate.lte = new Date(filter.dateEnd)
+            where.orderDate = orderDate
+        }
+        if (filter?.amountMin != null || filter?.amountMax != null) {
+            const totalAmount: Prisma.DecimalFilter = {}
+            if (filter.amountMin != null) totalAmount.gte = filter.amountMin
+            if (filter.amountMax != null) totalAmount.lte = filter.amountMax
+            where.totalAmount = totalAmount
+        }
+        if (filter?.paymentTerms?.length) {
+            // PurchaseOrder has no paymentTerm column — filter via supplier.
+            where.supplier = {
+                paymentTerm: { in: filter.paymentTerms as any },
+            }
+        }
+        if (filter?.search) {
+            where.OR = [
+                { number: { contains: filter.search, mode: "insensitive" } },
+                { supplier: { name: { contains: filter.search, mode: "insensitive" } } },
+            ]
+        }
+
         const orders = await prisma.purchaseOrder.findMany({
+            where,
             orderBy: { createdAt: 'desc' },
             include: {
                 supplier: {
@@ -1373,7 +1574,8 @@ export async function getAllPurchaseOrders() {
                 vendorEmail: po.supplier?.email || '',
                 vendorPhone: po.supplier?.phone || '',
                 date: new Date(po.orderDate).toLocaleDateString('id-ID'),
-                total: Number(po.totalAmount),
+                total: Number(po.netAmount),
+                subtotal: Number(po.totalAmount),
                 status: po.status,
                 revision: po.revision,
                 items: po.items?.reduce((sum, item) => sum + Number(item.quantity || 0), 0) || 0,
@@ -2704,4 +2906,841 @@ export async function createPurchaseReturn(input: CreatePurchaseReturnInput) {
             }
         }
     })
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Bulk actions — per-id transaction (partial success aware)
+// ──────────────────────────────────────────────────────────────────
+
+export type BulkPOResult = {
+    succeeded: string[]
+    failed: { id: string; reason: string }[]
+}
+
+/**
+ * Bulk approve POs. Each id runs in its own transaction so partial
+ * success works — failures are collected per-id rather than aborting
+ * the whole batch. Mirrors approvePurchaseOrder() semantics (SoD,
+ * status guard, event log, finance trigger).
+ */
+export async function bulkApprovePurchaseOrders(ids: string[]): Promise<BulkPOResult> {
+    const result: BulkPOResult = { succeeded: [], failed: [] }
+    if (!Array.isArray(ids) || ids.length === 0) return result
+
+    let user: Awaited<ReturnType<typeof getAuthzUser>>
+    try {
+        user = await getAuthzUser()
+        assertRole(user, APPROVER_ROLES)
+    } catch (e) {
+        const reason = e instanceof Error ? e.message : "Unauthorized"
+        for (const id of ids) result.failed.push({ id, reason })
+        return result
+    }
+
+    for (const id of ids) {
+        try {
+            const po = await withPrismaAuth(async (prismaClient) => {
+                await requireActiveProcurementActor(prismaClient, user)
+                const current = await prismaClient.purchaseOrder.findUnique({ where: { id } })
+                if (!current) throw new Error("PO tidak ditemukan")
+
+                if ((current as any).createdBy && (current as any).createdBy === user.id) {
+                    throw new Error("SoD: Anda yang membuat PO ini. Minta persetujuan dari pengguna lain.")
+                }
+
+                if (current.status !== ProcurementStatus.PENDING_APPROVAL) {
+                    throw new Error(`PO sudah ${current.status} — tidak bisa di-approve`)
+                }
+
+                assertPOTransition(current.status as any, "APPROVED")
+
+                const updateRes = await prismaClient.purchaseOrder.updateMany({
+                    where: { id, status: current.status },
+                    data: {
+                        previousStatus: current.status as any,
+                        status: "APPROVED",
+                        approvedBy: user.id,
+                    },
+                })
+                if (updateRes.count === 0) {
+                    throw new Error("PO sudah diproses oleh pengguna lain. Refresh halaman.")
+                }
+                const updated = await prismaClient.purchaseOrder.findUniqueOrThrow({
+                    where: { id },
+                    include: { supplier: true, items: { include: { product: true } } },
+                })
+
+                await createPurchaseOrderEvent(prismaClient as any, {
+                    purchaseOrderId: id,
+                    status: "APPROVED",
+                    changedBy: user.id,
+                    action: "APPROVE",
+                    metadata: { source: "BULK_ACTION" },
+                })
+
+                return updated
+            })
+
+            // Trigger finance bill creation outside the transaction (mirrors single approve)
+            try {
+                await recordPendingBillFromPO(po)
+            } catch (financeErr) {
+                // Non-fatal: PO approved but bill creation failed; log.
+                console.error("bulkApprove finance trigger failed for", id, financeErr)
+            }
+
+            result.succeeded.push(id)
+        } catch (e: unknown) {
+            const reason = e instanceof Error ? e.message : "Unknown error"
+            result.failed.push({ id, reason })
+        }
+    }
+
+    if (result.succeeded.length > 0) {
+        revalidateProcurementPaths()
+    }
+
+    return result
+}
+
+/**
+ * Bulk reject POs. Per-id transaction — same partial-success semantics
+ * as bulkApprovePurchaseOrders. Mirrors rejectPurchaseOrder().
+ */
+export async function bulkRejectPurchaseOrders(
+    ids: string[],
+    reason?: string,
+): Promise<BulkPOResult> {
+    const result: BulkPOResult = { succeeded: [], failed: [] }
+    if (!Array.isArray(ids) || ids.length === 0) return result
+
+    const rejectionReason = reason?.trim() || "Ditolak via bulk action"
+
+    let user: Awaited<ReturnType<typeof getAuthzUser>>
+    try {
+        user = await getAuthzUser()
+        assertRole(user, APPROVER_ROLES)
+    } catch (e) {
+        const failReason = e instanceof Error ? e.message : "Unauthorized"
+        for (const id of ids) result.failed.push({ id, reason: failReason })
+        return result
+    }
+
+    for (const id of ids) {
+        try {
+            await withPrismaAuth(async (prismaClient) => {
+                await requireActiveProcurementActor(prismaClient, user)
+                const current = await prismaClient.purchaseOrder.findUnique({ where: { id } })
+                if (!current) throw new Error("PO tidak ditemukan")
+
+                if (current.status !== ProcurementStatus.PENDING_APPROVAL) {
+                    throw new Error(`PO sudah ${current.status} — tidak bisa ditolak`)
+                }
+
+                assertPOTransition(current.status as any, "REJECTED")
+
+                const updateRes = await prismaClient.purchaseOrder.updateMany({
+                    where: { id, status: current.status },
+                    data: {
+                        previousStatus: current.status as any,
+                        status: "REJECTED",
+                        rejectionReason: rejectionReason,
+                    },
+                })
+                if (updateRes.count === 0) {
+                    throw new Error("PO sudah diproses oleh pengguna lain. Refresh halaman.")
+                }
+
+                await createPurchaseOrderEvent(prismaClient as any, {
+                    purchaseOrderId: id,
+                    status: "REJECTED",
+                    changedBy: user.id,
+                    action: "REJECT",
+                    notes: rejectionReason,
+                    metadata: { source: "BULK_ACTION" },
+                })
+            })
+
+            result.succeeded.push(id)
+        } catch (e: unknown) {
+            const failReason = e instanceof Error ? e.message : "Unknown error"
+            result.failed.push({ id, reason: failReason })
+        }
+    }
+
+    if (result.succeeded.length > 0) {
+        revalidateProcurementPaths()
+    }
+
+    return result
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Purchase Request — Bulk approve / reject (per-id transaction)
+// ──────────────────────────────────────────────────────────────────
+
+export type BulkPRResult = {
+    succeeded: string[]
+    failed: { id: string; reason: string }[]
+}
+
+/**
+ * Bulk approve PRs. Each id runs in its own transaction so partial
+ * success works — failures are collected per-id rather than aborting
+ * the whole batch. Mirrors approvePurchaseRequest() semantics
+ * (department guard, status guard, atomic update).
+ */
+export async function bulkApprovePurchaseRequests(ids: string[]): Promise<BulkPRResult> {
+    const result: BulkPRResult = { succeeded: [], failed: [] }
+    if (!Array.isArray(ids) || ids.length === 0) return result
+
+    let user: Awaited<ReturnType<typeof getAuthzUser>>
+    try {
+        user = await getAuthzUser()
+        assertRole(user, PR_APPROVER_ROLES)
+    } catch (e) {
+        const reason = e instanceof Error ? e.message : "Unauthorized"
+        for (const id of ids) result.failed.push({ id, reason })
+        return result
+    }
+
+    for (const id of ids) {
+        try {
+            await withPrismaAuth(async (prismaClient) => {
+                const actor = await resolveEmployeeContext(prismaClient, user)
+                if (!actor) throw new Error("Akun approver belum terhubung ke employee aktif.")
+
+                const pr = await prismaClient.purchaseRequest.findUnique({
+                    where: { id },
+                    include: {
+                        requester: { select: { id: true, department: true } },
+                    },
+                })
+                if (!pr) throw new Error("PR tidak ditemukan")
+                if (pr.status !== "PENDING") {
+                    throw new Error(`PR sudah ${pr.status} — tidak bisa di-approve`)
+                }
+
+                const allowed = canApproveForDepartment({
+                    role: user.role,
+                    actorDepartment: actor.department,
+                    actorPosition: actor.position,
+                    targetDepartment: pr.department || pr.requester?.department || "",
+                })
+                if (!allowed) {
+                    throw new Error("Anda hanya dapat meng-approve PR untuk departemen Anda.")
+                }
+
+                const updateRes = await prismaClient.purchaseRequest.updateMany({
+                    where: { id, status: "PENDING" },
+                    data: {
+                        status: "APPROVED",
+                        approverId: actor.id,
+                    },
+                })
+                if (updateRes.count === 0) {
+                    throw new Error("PR sudah diproses oleh pengguna lain. Refresh halaman.")
+                }
+
+                await prismaClient.purchaseRequestItem.updateMany({
+                    where: { purchaseRequestId: id, status: "PENDING" },
+                    data: { status: "APPROVED" },
+                })
+            })
+
+            result.succeeded.push(id)
+        } catch (e: unknown) {
+            const reason = e instanceof Error ? e.message : "Unknown error"
+            result.failed.push({ id, reason })
+        }
+    }
+
+    if (result.succeeded.length > 0) {
+        revalidateProcurementPaths()
+    }
+
+    return result
+}
+
+/**
+ * Bulk reject PRs. Per-id transaction — same partial-success semantics
+ * as bulkApprovePurchaseRequests. Mirrors rejectPurchaseRequest().
+ */
+export async function bulkRejectPurchaseRequests(
+    ids: string[],
+    reason?: string,
+): Promise<BulkPRResult> {
+    const result: BulkPRResult = { succeeded: [], failed: [] }
+    if (!Array.isArray(ids) || ids.length === 0) return result
+
+    const rejectionReason = reason?.trim() || "Ditolak via bulk action"
+
+    let user: Awaited<ReturnType<typeof getAuthzUser>>
+    try {
+        user = await getAuthzUser()
+        assertRole(user, PR_APPROVER_ROLES)
+    } catch (e) {
+        const failReason = e instanceof Error ? e.message : "Unauthorized"
+        for (const id of ids) result.failed.push({ id, reason: failReason })
+        return result
+    }
+
+    for (const id of ids) {
+        try {
+            await withPrismaAuth(async (prismaClient) => {
+                const actor = await resolveEmployeeContext(prismaClient, user)
+                if (!actor) throw new Error("Akun approver belum terhubung ke employee aktif.")
+
+                const pr = await prismaClient.purchaseRequest.findUnique({
+                    where: { id },
+                    include: {
+                        requester: { select: { id: true, department: true } },
+                    },
+                })
+                if (!pr) throw new Error("PR tidak ditemukan")
+                if (pr.status !== "PENDING") {
+                    throw new Error(`PR sudah ${pr.status} — tidak bisa ditolak`)
+                }
+
+                const allowed = canApproveForDepartment({
+                    role: user.role,
+                    actorDepartment: actor.department,
+                    actorPosition: actor.position,
+                    targetDepartment: pr.department || pr.requester?.department || "",
+                })
+                if (!allowed) {
+                    throw new Error("Anda hanya dapat menolak PR untuk departemen Anda.")
+                }
+
+                const updateRes = await prismaClient.purchaseRequest.updateMany({
+                    where: { id, status: "PENDING" },
+                    data: {
+                        status: "REJECTED",
+                        notes: `[DITOLAK] ${rejectionReason}${pr.notes ? `\n\n[Catatan asal] ${pr.notes}` : ""}`,
+                    },
+                })
+                if (updateRes.count === 0) {
+                    throw new Error("PR sudah diproses oleh pengguna lain. Refresh halaman.")
+                }
+
+                await prismaClient.purchaseRequestItem.updateMany({
+                    where: { purchaseRequestId: id, status: "PENDING" },
+                    data: { status: "REJECTED" },
+                })
+            })
+
+            result.succeeded.push(id)
+        } catch (e: unknown) {
+            const failReason = e instanceof Error ? e.message : "Unknown error"
+            result.failed.push({ id, reason: failReason })
+        }
+    }
+
+    if (result.succeeded.length > 0) {
+        revalidateProcurementPaths()
+    }
+
+    return result
+}
+
+// ==========================================
+// BULK IMPORT PURCHASE REQUESTS (XLSX/CSV — 2 sheets)
+// ==========================================
+//
+// Karena PR memiliki line items, template-nya 2 sheet:
+//   • Sheet "PR Header" → satu baris per PR (Reference, Email Pemohon, ...)
+//   • Sheet "PR Items"  → baris per item, di-match ke header via Reference
+//
+// Per-PR validation (partial-success aware):
+//   - Reference wajib (di header DAN items)
+//   - Email Pemohon wajib + harus terdaftar di Employee
+//   - Departemen wajib (fallback ke department employee jika kosong)
+//   - Prioritas opsional, harus salah satu dari LOW/NORMAL/MEDIUM/HIGH/URGENT
+//   - Setiap PR harus punya minimal 1 item di Sheet 'PR Items'
+//   - Setiap item: Kode Produk wajib + harus terdaftar, Qty > 0
+//
+// Strategi: satu transaction per PR — kalau item gagal, hanya PR itu yg
+// di-skip; PR lain tetap berhasil (sesuai pattern bulkImportVendors).
+
+export interface BulkImportPRRow {
+    /** Identifier user-defined untuk hubungkan header dengan items. */
+    reference?: string
+    requesterEmail?: string
+    department?: string
+    priority?: string
+    notes?: string
+}
+
+export interface BulkImportPRItemRow {
+    /** Harus match dengan reference di BulkImportPRRow. */
+    reference?: string
+    productCode?: string
+    quantity?: number
+    notes?: string
+}
+
+export interface BulkImportPRResult {
+    imported: number
+    errors: { row: number; reason: string }[]
+}
+
+const VALID_PR_PRIORITIES = ["LOW", "NORMAL", "MEDIUM", "HIGH", "URGENT"] as const
+
+export async function bulkImportPurchaseRequests(
+    headerRows: BulkImportPRRow[],
+    itemRows: BulkImportPRItemRow[],
+): Promise<BulkImportPRResult> {
+    const result: BulkImportPRResult = { imported: 0, errors: [] }
+
+    // ── Auth (sekali untuk seluruh batch)
+    try {
+        await getAuthzUser()
+    } catch {
+        for (let i = 0; i < headerRows.length; i++) {
+            result.errors.push({ row: i + 2, reason: "Tidak terautentikasi" })
+        }
+        return result
+    }
+
+    if (!Array.isArray(headerRows) || headerRows.length === 0) return result
+
+    // ── Group items by reference (case-insensitive trim)
+    const itemsByRef = new Map<string, BulkImportPRItemRow[]>()
+    for (const item of itemRows ?? []) {
+        const ref = item.reference?.trim()
+        if (!ref) continue
+        const key = ref.toLowerCase()
+        if (!itemsByRef.has(key)) itemsByRef.set(key, [])
+        itemsByRef.get(key)!.push(item)
+    }
+
+    for (let i = 0; i < headerRows.length; i++) {
+        const row = headerRows[i]
+        // Row index in the report (header at row 1, data starts at row 2)
+        const rowNum = i + 2
+
+        try {
+            const reference = row.reference?.trim()
+            if (!reference) {
+                result.errors.push({ row: rowNum, reason: "Reference wajib diisi" })
+                continue
+            }
+
+            // ── Requester lookup via email
+            const email = row.requesterEmail?.trim().toLowerCase()
+            if (!email) {
+                result.errors.push({ row: rowNum, reason: "Email Pemohon wajib diisi" })
+                continue
+            }
+            const employee = await prisma.employee.findFirst({
+                where: { email },
+                select: { id: true, department: true, status: true },
+            })
+            if (!employee) {
+                result.errors.push({
+                    row: rowNum,
+                    reason: `Email pemohon "${row.requesterEmail}" tidak ditemukan di master karyawan`,
+                })
+                continue
+            }
+            if (employee.status !== "ACTIVE") {
+                result.errors.push({
+                    row: rowNum,
+                    reason: `Karyawan "${row.requesterEmail}" berstatus ${employee.status} (harus ACTIVE)`,
+                })
+                continue
+            }
+
+            // ── Priority validation
+            const priorityInput = row.priority?.toUpperCase().trim() || "NORMAL"
+            if (!VALID_PR_PRIORITIES.includes(priorityInput as typeof VALID_PR_PRIORITIES[number])) {
+                result.errors.push({
+                    row: rowNum,
+                    reason: `Prioritas "${row.priority}" tidak valid. Pilihan: ${VALID_PR_PRIORITIES.join(", ")}`,
+                })
+                continue
+            }
+
+            // ── Department (fallback ke department employee jika kosong)
+            const department = row.department?.trim() || employee.department || "General"
+
+            // ── Items lookup
+            const itemsForPR = itemsByRef.get(reference.toLowerCase()) ?? []
+            if (itemsForPR.length === 0) {
+                result.errors.push({
+                    row: rowNum,
+                    reason: `PR "${reference}" tidak punya item di Sheet 'PR Items' (minimal 1)`,
+                })
+                continue
+            }
+
+            // Lookup all referenced products in one query
+            const productCodes = Array.from(
+                new Set(
+                    itemsForPR
+                        .map((it) => it.productCode?.trim().toUpperCase())
+                        .filter((c): c is string => Boolean(c)),
+                ),
+            )
+            const products = productCodes.length
+                ? await prisma.product.findMany({
+                      where: { code: { in: productCodes } },
+                      select: { id: true, code: true },
+                  })
+                : []
+            const productMap = new Map(products.map((p) => [p.code.toUpperCase(), p]))
+
+            const itemsToCreate: { productId: string; quantity: number; notes: string | null; status: "PENDING" }[] = []
+            let itemError: string | null = null
+            for (const it of itemsForPR) {
+                const code = it.productCode?.trim().toUpperCase()
+                if (!code) {
+                    itemError = `Item PR "${reference}": Kode Produk wajib diisi`
+                    break
+                }
+                const product = productMap.get(code)
+                if (!product) {
+                    itemError = `Item PR "${reference}": Produk dengan kode "${code}" tidak ditemukan`
+                    break
+                }
+                const qty = Number(it.quantity)
+                if (!Number.isFinite(qty) || qty <= 0) {
+                    itemError = `Item PR "${reference}" produk "${code}": Qty wajib > 0`
+                    break
+                }
+                itemsToCreate.push({
+                    productId: product.id,
+                    quantity: Math.round(qty),
+                    notes: it.notes?.trim() || null,
+                    status: "PENDING",
+                })
+            }
+
+            if (itemError) {
+                result.errors.push({ row: rowNum, reason: itemError })
+                continue
+            }
+
+            // ── Create PR + items dalam single transaction (per-PR atomicity).
+            // Sequential PO/PR-style numbering via getNextDocNumber.
+            await withPrismaAuth(async (tx) => {
+                const now = new Date()
+                const year = now.getFullYear()
+                const month = String(now.getMonth() + 1).padStart(2, "0")
+                const prefix = `PR-${year}${month}`
+                const number = await getNextDocNumber(tx, prefix, 4)
+
+                await tx.purchaseRequest.create({
+                    data: {
+                        number,
+                        requesterId: employee.id,
+                        department,
+                        priority: priorityInput,
+                        status: "PENDING",
+                        notes: row.notes?.trim() || null,
+                        requestDate: new Date(),
+                        items: { create: itemsToCreate },
+                    },
+                    select: { id: true },
+                })
+            })
+
+            result.imported++
+        } catch (e: unknown) {
+            const reason = e instanceof Error ? e.message : "Unknown error"
+            result.errors.push({ row: rowNum, reason })
+        }
+    }
+
+    if (result.imported > 0) {
+        revalidateProcurementPaths()
+    }
+
+    return result
+}
+
+// ==========================================
+// BULK IMPORT PURCHASE ORDERS (XLSX/CSV — 2 sheets)
+// ==========================================
+//
+// Karena PO memiliki line items, template-nya 2 sheet:
+//   • Sheet "PO Header" → satu baris per PO (Reference, Kode Pemasok, ...)
+//   • Sheet "PO Items"  → baris per item, di-match ke header via Reference
+//
+// Per-PO validation (partial-success aware):
+//   - Reference wajib (di header DAN items)
+//   - Kode Pemasok wajib + harus terdaftar di Supplier
+//   - Tanggal opsional (default = hari ini), format DD/MM/YYYY atau YYYY-MM-DD
+//   - Setiap PO harus punya minimal 1 item di Sheet 'PO Items'
+//   - Setiap item: Kode Produk wajib + harus terdaftar, Qty > 0, Harga Satuan > 0
+//
+// Strategi: satu transaction per PO — kalau item gagal, hanya PO itu yg
+// di-skip; PO lain tetap berhasil (sesuai pattern bulkImportVendors/PR).
+//
+// PPN 11% dihitung server-side berdasarkan TAX_RATES.PPN — tidak diimport.
+// Status default = PO_DRAFT. Nomor PO di-generate via getNextDocNumber.
+
+export interface BulkImportPORow {
+    /** Identifier user-defined untuk hubungkan header dengan items. */
+    reference?: string
+    supplierCode?: string
+    /** Format DD/MM/YYYY atau YYYY-MM-DD. */
+    orderDate?: string
+    /** Format DD/MM/YYYY atau YYYY-MM-DD. */
+    expectedDate?: string
+    notes?: string
+}
+
+export interface BulkImportPOItemRow {
+    /** Harus match dengan reference di BulkImportPORow. */
+    reference?: string
+    productCode?: string
+    quantity?: number
+    unitPrice?: number
+    notes?: string
+}
+
+export interface BulkImportPOResult {
+    imported: number
+    errors: { row: number; reason: string }[]
+}
+
+/**
+ * Parse a date cell into a JS Date. Accepts:
+ *   - DD/MM/YYYY or DD-MM-YYYY (Indonesian format)
+ *   - YYYY-MM-DD (ISO)
+ *   - Excel serial number (rare; converted before reaching here, but guarded)
+ * Returns null if unparseable.
+ */
+function parsePODate(value: string | undefined | null): Date | null {
+    if (value === undefined || value === null) return null
+    const trimmed = String(value).trim()
+    if (!trimmed) return null
+    // DD/MM/YYYY or DD-MM-YYYY
+    const ddmm = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/)
+    if (ddmm) {
+        const [, d, m, y] = ddmm
+        const date = new Date(Number(y), Number(m) - 1, Number(d))
+        if (!isNaN(date.getTime())) return date
+    }
+    // ISO YYYY-MM-DD (or full ISO with time)
+    const iso = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (iso) {
+        const date = new Date(trimmed)
+        if (!isNaN(date.getTime())) return date
+    }
+    return null
+}
+
+export async function bulkImportPurchaseOrders(
+    headerRows: BulkImportPORow[],
+    itemRows: BulkImportPOItemRow[],
+): Promise<BulkImportPOResult> {
+    const result: BulkImportPOResult = { imported: 0, errors: [] }
+
+    // ── Auth + actor (sekali untuk seluruh batch)
+    let actorUser: { id: string; role: string; email?: string | null }
+    try {
+        const u = await getAuthzUser()
+        assertRole(u, PURCHASING_ROLES)
+        actorUser = u as typeof actorUser
+    } catch (e: unknown) {
+        const reason = e instanceof Error ? e.message : "Tidak terautentikasi"
+        for (let i = 0; i < headerRows.length; i++) {
+            result.errors.push({ row: i + 2, reason })
+        }
+        return result
+    }
+
+    if (!Array.isArray(headerRows) || headerRows.length === 0) return result
+
+    // ── Group items by reference (case-insensitive trim)
+    const itemsByRef = new Map<string, BulkImportPOItemRow[]>()
+    for (const item of itemRows ?? []) {
+        const ref = item.reference?.trim()
+        if (!ref) continue
+        const key = ref.toLowerCase()
+        if (!itemsByRef.has(key)) itemsByRef.set(key, [])
+        itemsByRef.get(key)!.push(item)
+    }
+
+    for (let i = 0; i < headerRows.length; i++) {
+        const row = headerRows[i]
+        // Row index in the report (header at row 1, data starts at row 2)
+        const rowNum = i + 2
+
+        try {
+            const reference = row.reference?.trim()
+            if (!reference) {
+                result.errors.push({ row: rowNum, reason: "Reference wajib diisi" })
+                continue
+            }
+
+            // ── Supplier lookup via code (case-insensitive — schema stores
+            // codes uppercase by convention).
+            const supplierCode = row.supplierCode?.trim().toUpperCase()
+            if (!supplierCode) {
+                result.errors.push({ row: rowNum, reason: "Kode Pemasok wajib diisi" })
+                continue
+            }
+            const supplier = await prisma.supplier.findUnique({
+                where: { code: supplierCode },
+                select: { id: true, isActive: true },
+            })
+            if (!supplier) {
+                result.errors.push({
+                    row: rowNum,
+                    reason: `Pemasok dengan kode "${row.supplierCode}" tidak ditemukan`,
+                })
+                continue
+            }
+            if (!supplier.isActive) {
+                result.errors.push({
+                    row: rowNum,
+                    reason: `Pemasok "${row.supplierCode}" sedang nonaktif — aktifkan dulu sebelum import.`,
+                })
+                continue
+            }
+
+            // ── Dates (default orderDate = today; expectedDate optional)
+            const orderDate = parsePODate(row.orderDate) ?? new Date()
+            const expectedDate = parsePODate(row.expectedDate)
+            if (row.expectedDate && !expectedDate) {
+                result.errors.push({
+                    row: rowNum,
+                    reason: `Tgl Diharapkan "${row.expectedDate}" tidak valid (gunakan DD/MM/YYYY)`,
+                })
+                continue
+            }
+            if (row.orderDate && !parsePODate(row.orderDate)) {
+                result.errors.push({
+                    row: rowNum,
+                    reason: `Tanggal Pesanan "${row.orderDate}" tidak valid (gunakan DD/MM/YYYY)`,
+                })
+                continue
+            }
+
+            // ── Items lookup
+            const itemsForPO = itemsByRef.get(reference.toLowerCase()) ?? []
+            if (itemsForPO.length === 0) {
+                result.errors.push({
+                    row: rowNum,
+                    reason: `PO "${reference}" tidak punya item di Sheet 'PO Items' (minimal 1)`,
+                })
+                continue
+            }
+
+            // Lookup all referenced products in one query
+            const productCodes = Array.from(
+                new Set(
+                    itemsForPO
+                        .map((it) => it.productCode?.trim().toUpperCase())
+                        .filter((c): c is string => Boolean(c)),
+                ),
+            )
+            const products = productCodes.length
+                ? await prisma.product.findMany({
+                      where: { code: { in: productCodes } },
+                      select: { id: true, code: true },
+                  })
+                : []
+            const productMap = new Map(products.map((p) => [p.code.toUpperCase(), p]))
+
+            type POItemCreate = {
+                productId: string
+                quantity: number
+                unitPrice: number
+                totalPrice: number
+            }
+            const itemsToCreate: POItemCreate[] = []
+            let itemError: string | null = null
+            let subtotal = 0
+
+            for (const it of itemsForPO) {
+                const code = it.productCode?.trim().toUpperCase()
+                if (!code) {
+                    itemError = `Item PO "${reference}": Kode Produk wajib diisi`
+                    break
+                }
+                const product = productMap.get(code)
+                if (!product) {
+                    itemError = `Item PO "${reference}": Produk dengan kode "${code}" tidak ditemukan`
+                    break
+                }
+                const qty = Number(it.quantity)
+                if (!Number.isFinite(qty) || qty <= 0) {
+                    itemError = `Item PO "${reference}" produk "${code}": Qty wajib > 0`
+                    break
+                }
+                const price = Number(it.unitPrice)
+                if (!Number.isFinite(price) || price <= 0) {
+                    itemError = `Item PO "${reference}" produk "${code}": Harga Satuan wajib > 0`
+                    break
+                }
+                const lineTotal = Math.round(qty) * price
+                subtotal += lineTotal
+                itemsToCreate.push({
+                    productId: product.id,
+                    quantity: Math.round(qty),
+                    unitPrice: price,
+                    totalPrice: lineTotal,
+                })
+            }
+
+            if (itemError) {
+                result.errors.push({ row: rowNum, reason: itemError })
+                continue
+            }
+
+            // ── Create PO + items + event dalam single transaction (per-PO atomicity).
+            // PPN 11% (TAX_RATES.PPN) — defaults to EXCLUSIVE tax mode (DPP + PPN).
+            await withPrismaAuth(async (tx) => {
+                const now = new Date()
+                const year = now.getFullYear()
+                const month = String(now.getMonth() + 1).padStart(2, "0")
+                const prefix = `PO-${year}${month}`
+                const number = await getNextDocNumber(tx, prefix, 4)
+
+                const taxAmount = Math.round(subtotal * TAX_RATES.PPN)
+                const netAmount = subtotal + taxAmount
+
+                const created = await tx.purchaseOrder.create({
+                    data: {
+                        number,
+                        supplierId: supplier.id,
+                        orderDate,
+                        expectedDate,
+                        status: "PO_DRAFT",
+                        createdBy: actorUser.id,
+                        totalAmount: subtotal,
+                        taxAmount,
+                        netAmount,
+                        // taxMode defaults to EXCLUSIVE per schema.
+                        items: { create: itemsToCreate },
+                    },
+                    select: { id: true },
+                })
+
+                await createPurchaseOrderEvent(tx as any, {
+                    purchaseOrderId: created.id,
+                    status: "PO_DRAFT",
+                    changedBy: actorUser.id,
+                    action: "BULK_IMPORT",
+                    notes: row.notes?.trim() || undefined,
+                    metadata: { source: "XLSX_IMPORT", reference },
+                })
+            })
+
+            result.imported++
+        } catch (e: unknown) {
+            const reason = e instanceof Error ? e.message : "Unknown error"
+            result.errors.push({ row: rowNum, reason })
+        }
+    }
+
+    if (result.imported > 0) {
+        revalidateProcurementPaths()
+    }
+
+    return result
 }

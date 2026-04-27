@@ -33,18 +33,31 @@ export async function GET() {
                     ? [pr.requester.firstName, pr.requester.lastName].filter(Boolean).join(" ")
                     : "Tidak Diketahui"
 
-                const mappedItems = pr.items.map((item) => ({
-                    id: item.id,
-                    productName: item.product?.name ?? "Produk tidak diketahui",
-                    quantity: item.quantity,
-                    unit: item.product?.unit ?? "pcs",
-                    estimatedPrice: Number(item.product?.costPrice ?? 0),
-                }))
+                let hasMissingPrice = false
+                const mappedItems = pr.items.map((item) => {
+                    const rawCost = item.product?.costPrice
+                    const cost =
+                        rawCost === null || rawCost === undefined ? null : Number(rawCost)
+                    const hasValidCost = cost !== null && Number.isFinite(cost) && cost > 0
+                    if (!hasValidCost) hasMissingPrice = true
+                    return {
+                        id: item.id,
+                        productName: item.product?.name ?? "Produk tidak diketahui",
+                        quantity: item.quantity,
+                        unit: item.product?.unit ?? "pcs",
+                        estimatedPrice: hasValidCost ? (cost as number) : 0,
+                    }
+                })
 
-                const estimatedTotal = mappedItems.reduce(
-                    (sum: number, item) => sum + item.quantity * item.estimatedPrice,
-                    0
-                )
+                // Item tanpa costPrice akan mendistorsi total — tampilkan null
+                // ke UI supaya bisa dirender "—" + warning, alih-alih angka
+                // setengah jadi yang menyesatkan keputusan approval.
+                const estimatedTotal = hasMissingPrice
+                    ? null
+                    : mappedItems.reduce(
+                          (sum: number, item) => sum + item.quantity * item.estimatedPrice,
+                          0
+                      )
 
                 return {
                     id: pr.id,
@@ -56,6 +69,7 @@ export async function GET() {
                     itemCount: pr.items.length,
                     items: mappedItems,
                     estimatedTotal,
+                    hasMissingPrice,
                     createdAt: pr.createdAt,
                 }
             }),

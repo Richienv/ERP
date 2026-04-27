@@ -5,13 +5,19 @@ import { queryKeys } from "@/lib/query-keys"
 import { getAllPurchaseOrders, getVendors } from "@/lib/actions/procurement"
 import { getProductsForPO } from "@/app/actions/purchase-order"
 import { getWarehousesForGRN } from "@/lib/actions/grn"
+import type { POFilter } from "@/lib/types/procurement-filters"
 
-export function usePurchaseOrders() {
+// Re-export POFilter so consumers can `import { usePurchaseOrders, POFilter } from "@/hooks/use-purchase-orders"`.
+export type { POFilter } from "@/lib/types/procurement-filters"
+
+export function usePurchaseOrders(filter?: POFilter) {
     return useQuery({
-        queryKey: queryKeys.purchaseOrders.list(),
+        queryKey: filter
+            ? ([...queryKeys.purchaseOrders.list(), filter] as const)
+            : queryKeys.purchaseOrders.list(),
         queryFn: async () => {
             const [orders, vendorsRaw, products, warehouses] = await Promise.all([
-                getAllPurchaseOrders(),
+                getAllPurchaseOrders(filter),
                 getVendors(),
                 getProductsForPO(),
                 getWarehousesForGRN(),

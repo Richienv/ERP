@@ -3683,8 +3683,6 @@ enum FlagStatus {
   READ
   ACTED
   DISMISSED
-
-  @@map("flag_status")
 }
 
 model CeoFlag {

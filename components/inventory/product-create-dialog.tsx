@@ -81,7 +81,7 @@ const CATEGORY_DESC_TEMPLATES: Record<string, string> = {
 const INITIAL_AUTO_TAGS = { unit: false, desc: false, reorder: false, maxStock: false, sellPrice: false }
 const INITIAL_MANUALLY_SET = { unit: false, desc: false, reorder: false, maxStock: false, sellPrice: false }
 
-export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen?: boolean; onAutoOpenConsumed?: () => void } = {}) {
+export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed, hideTrigger }: { autoOpen?: boolean; onAutoOpenConsumed?: () => void; hideTrigger?: boolean } = {}) {
     const [open, setOpen] = useState(false)
 
     useEffect(() => {
@@ -288,12 +288,14 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
 
     return (
         <>
-            <Button
-                onClick={() => setOpen(true)}
-                className={NB.triggerBtn}
-            >
-                <Plus className="mr-2 h-4 w-4" /> Produk Baru
-            </Button>
+            {!hideTrigger && (
+                <Button
+                    onClick={() => setOpen(true)}
+                    className={NB.triggerBtn}
+                >
+                    <Plus className="mr-2 h-4 w-4" /> Produk Baru
+                </Button>
+            )}
 
             <NBDialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { form.reset(); resetAutoFill() } }}>
                 <NBDialogHeader

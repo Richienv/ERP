@@ -34,7 +34,8 @@ interface PendingPR {
     notes: string | null
     itemCount: number
     items: PRItem[]
-    estimatedTotal: number
+    estimatedTotal: number | null
+    hasMissingPrice?: boolean
     createdAt: string
 }
 
@@ -209,12 +210,22 @@ export function PRApprovalPopup({ open, onClose, onAllActioned }: PRApprovalPopu
                                 )}
 
                                 {/* Estimated Total */}
-                                {pr.estimatedTotal > 0 && (
+                                {pr.estimatedTotal === null ? (
+                                    <div className="flex justify-between items-center px-1">
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Estimasi Total</span>
+                                        <span
+                                            className="text-sm font-mono font-bold text-amber-600"
+                                            title="Sebagian item tidak punya harga pokok"
+                                        >
+                                            —
+                                        </span>
+                                    </div>
+                                ) : pr.estimatedTotal > 0 ? (
                                     <div className="flex justify-between items-center px-1">
                                         <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Estimasi Total</span>
                                         <span className="text-sm font-mono font-bold text-emerald-700">{formatIDR(pr.estimatedTotal)}</span>
                                     </div>
-                                )}
+                                ) : null}
 
                                 {/* Notes */}
                                 {pr.notes && (
