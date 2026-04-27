@@ -515,14 +515,14 @@ export default function ReceivingPage() {
     const allOnPageSelected =
         pageRows.length > 0 && pageRows.every((r) => selectedIds.has(r.id))
 
-    const runBulkAction = async (action: "accept" | "reject") => {
+    const runBulkAction = async (action: "accept" | "reject", reason?: string) => {
         const ids = Array.from(selectedIds)
         if (ids.length === 0) return
         try {
             const res = await fetch("/api/procurement/receiving/bulk", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ids, action }),
+                body: JSON.stringify({ ids, action, reason }),
             })
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}))
@@ -586,15 +586,16 @@ export default function ReceivingPage() {
         },
     ]
 
-    // Buat GRN button: route to first pending PO if any, otherwise disabled
+    // Buat GRN button: arahkan ke detail PO pertama yang masih punya item
+    // tertunda (PO detail page menyediakan tombol "Buat GRN" di tab Item).
     const firstPendingPO = pendingPOs[0]
     const buatGrnHref = firstPendingPO
-        ? `/procurement/orders/${firstPendingPO.id}#grn`
+        ? `/procurement/orders/${firstPendingPO.id}`
         : undefined
     const buatGrnDisabled = pendingPOs.length === 0
     const buatGrnTitle = buatGrnDisabled
-        ? "Buat GRN dari PO yang dipesan"
-        : `Buat GRN dari PO ${firstPendingPO?.number ?? ""}`
+        ? "Tidak ada PO yang menunggu penerimaan"
+        : `Buka PO ${firstPendingPO?.number ?? ""} untuk membuat GRN`
 
     // Action button label
     const actionLabel = (g: GRNRow): string => {
@@ -692,7 +693,7 @@ export default function ReceivingPage() {
         },
         {
             key: "warehouse",
-            header: "Penerima",
+            header: "Gudang",
             render: (r) =>
                 r.warehouseName || <span className="text-[var(--integra-muted)]">—</span>,
         },
@@ -756,7 +757,13 @@ export default function ReceivingPage() {
                         icon: <X className="size-3.5" />,
                         variant: "danger",
                         confirm: `Tolak ${selectedIds.size} GRN?`,
-                        onClick: () => runBulkAction("reject"),
+                        onClick: () => {
+                            const reason =
+                                typeof window !== "undefined"
+                                    ? window.prompt("Alasan penolakan (opsional):") ?? ""
+                                    : ""
+                            return runBulkAction("reject", reason)
+                        },
                     },
                     {
                         label: "Ekspor terpilih (XLSX)",
@@ -1222,12 +1229,13 @@ export default function ReceivingPage() {
                                         <button
                                             type="button"
                                             onClick={() =>
-                                                router.push(`/procurement/orders/${po.id}#grn`)
+                                                router.push(`/procurement/orders/${po.id}`)
                                             }
                                             className={
                                                 INT.pillOutline +
                                                 " cursor-pointer hover:border-[var(--integra-ink)]"
                                             }
+                                            title={`Buka PO ${po.number} untuk membuat GRN`}
                                         >
                                             Buat GRN
                                         </button>
