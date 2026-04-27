@@ -22,9 +22,20 @@ export function ApprovalTab({ data }: { data: any }) {
 
     const status = data.status as POApprovalStatus
 
+    // Threshold CEO dihitung dari nilai POST-tax (netAmount = DPP + PPN).
+    // Sebelumnya pakai totalAmount (DPP saja) → PO yang seharusnya butuh CEO
+    // approval bisa lolos kalau di bawah threshold sebelum PPN.
+    const grandTotal = Number(data.netAmount ?? data.totalAmount ?? 0)
+    // Tanggal approval di-derive dari purchaseOrderEvent (model PO tidak punya
+    // field approvedAt langsung).
+    const approvedEvent = (data.events ?? []).find(
+        (e: any) => e?.action === "APPROVE" || e?.status === "APPROVED",
+    )
+    const approvedAt: string | null = approvedEvent?.createdAt ?? null
+
     async function handleAction(action: "approve" | "reject") {
         const verb = action === "approve" ? "Setujui" : "Tolak"
-        if (!confirm(`${verb} PO ${data.number} (${fmtIDR(Number(data.totalAmount))})?`)) return
+        if (!confirm(`${verb} PO ${data.number} (${fmtIDR(grandTotal)})?`)) return
 
         setBusy(true)
         try {
@@ -56,12 +67,12 @@ export function ApprovalTab({ data }: { data: any }) {
             <section>
                 <h3 className="text-[11px] font-medium uppercase tracking-wider text-[var(--integra-muted)] mb-4">Alur Approval</h3>
                 <ApprovalWorkflowSteps
-                    amount={Number(data.totalAmount)}
+                    amount={grandTotal}
                     status={status}
                     creatorName={creatorName}
                     approverName={approverName}
                 />
-                {Number(data.totalAmount) > CEO_THRESHOLD && (
+                {grandTotal > CEO_THRESHOLD && (
                     <p className="text-[11px] text-[var(--integra-muted)] mt-3 italic">
                         PO ini bernilai &gt;Rp {(CEO_THRESHOLD / 1_000_000).toFixed(0)} jt — membutuhkan approval CEO.
                     </p>
@@ -73,7 +84,7 @@ export function ApprovalTab({ data }: { data: any }) {
                 <section className="border-t border-[var(--integra-hairline)] pt-6">
                     <h3 className="text-[11px] font-medium uppercase tracking-wider text-[var(--integra-muted)] mb-3">Aksi</h3>
                     <p className="text-[12.5px] text-[var(--integra-ink-soft)] mb-4">
-                        PO ini menunggu persetujuan kamu. Total nilai: <strong className="font-mono">{fmtIDR(Number(data.totalAmount))}</strong>
+                        PO ini menunggu persetujuan kamu. Total nilai: <strong className="font-mono">{fmtIDR(grandTotal)}</strong>
                     </p>
                     <div className="flex gap-2">
                         <button
@@ -111,12 +122,12 @@ export function ApprovalTab({ data }: { data: any }) {
             )}
 
             {/* Approver info */}
-            {data.approvedAt && (
+            {approvedAt && (
                 <section className="border-t border-[var(--integra-hairline)] pt-6">
                     <h3 className="text-[11px] font-medium uppercase tracking-wider text-[var(--integra-muted)] mb-2">Detail Approval</h3>
                     <dl className="grid grid-cols-[120px_1fr] gap-2 text-[12.5px]">
                         <dt className="text-[var(--integra-muted)]">Disetujui pada</dt>
-                        <dd className="font-mono">{new Date(data.approvedAt).toLocaleString("id-ID")}</dd>
+                        <dd className="font-mono">{new Date(approvedAt).toLocaleString("id-ID")}</dd>
                         {approverName && (
                             <>
                                 <dt className="text-[var(--integra-muted)]">Disetujui oleh</dt>

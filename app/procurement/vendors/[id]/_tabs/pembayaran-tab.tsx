@@ -37,10 +37,14 @@ function billStatusLabel(s: string): string {
     return m[s] ?? s
 }
 
+// Payment.glPostingStatus enum: PENDING | POSTED | FAILED (lihat schema.prisma).
+// Label-label lain (DRAFT/APPROVED/COMPLETED/CANCELLED) diretain untuk
+// kompatibilitas — tidak terjadi error kalau muncul varian status lama.
 function paymentStatusKind(s: string): PillKind {
     const m: Record<string, PillKind> = {
         DRAFT: "neutral",
         PENDING: "warn",
+        POSTED: "ok",
         APPROVED: "info",
         COMPLETED: "ok",
         CANCELLED: "neutral",
@@ -51,8 +55,9 @@ function paymentStatusKind(s: string): PillKind {
 
 function paymentStatusLabel(s: string): string {
     const m: Record<string, string> = {
-        DRAFT: "Draft",
+        DRAFT: "Draf",
         PENDING: "Menunggu",
+        POSTED: "Disetujui",
         APPROVED: "Disetujui",
         COMPLETED: "Selesai",
         CANCELLED: "Dibatalkan",

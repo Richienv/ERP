@@ -86,8 +86,9 @@ export function PerformaTab({ data }: { data: VendorDetailPayload }) {
                             />
                         </div>
                         <p className="text-[10.5px] text-[var(--integra-muted)] mt-1">
-                            {m.completedCount} dari {m.poTotalCount - m.cancelledCount} PO selesai
-                            tepat
+                            Selesai tepat waktu (GRN diterima &le; tgl yang diharapkan).
+                            Completion rate: {m.completionPct.toFixed(1)}% ({m.completedCount} dari{" "}
+                            {m.poTotalCount - m.cancelledCount} PO selesai)
                         </p>
                     </div>
 

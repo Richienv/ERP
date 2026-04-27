@@ -30,6 +30,13 @@ export function HeaderTab({ data }: { data: any }) {
     const trail = buildLinkedDocs(data)
     const hasRelated = trail.length > 1
 
+    // Tanggal approval di-derive dari purchaseOrderEvent (tidak ada field
+    // `approvedAt` langsung di model PurchaseOrder).
+    const approvedEvent = (data.events ?? []).find(
+        (e: any) => e?.action === "APPROVE" || e?.status === "APPROVED",
+    )
+    const approvedAt = approvedEvent?.createdAt ?? null
+
     return (
         <div className="grid grid-cols-2 gap-x-12 gap-y-6">
             {/* Linked docs trail — only render if there are related documents */}
@@ -60,7 +67,7 @@ export function HeaderTab({ data }: { data: any }) {
                         <span className="font-mono text-[12.5px]">{data.expectedDate ? fmtDateShort(new Date(data.expectedDate)) : "—"}</span>
                     </Row>
                     <Row label="Tgl Approval">
-                        <span className="font-mono text-[12.5px]">{data.approvedAt ? fmtDateShort(new Date(data.approvedAt)) : "—"}</span>
+                        <span className="font-mono text-[12.5px]">{approvedAt ? fmtDateShort(new Date(approvedAt)) : "—"}</span>
                     </Row>
                     <Row label="Jumlah Item">
                         <span className="font-mono text-[12.5px]">{data.items?.length ?? 0}</span>
@@ -86,7 +93,7 @@ export function HeaderTab({ data }: { data: any }) {
                             <span className="font-mono text-[12.5px]">{data.supplier.phone ?? "—"}</span>
                         </Row>
                         <Row label="NPWP">
-                            <span className="font-mono text-[12.5px]">{data.supplier.taxId ?? "—"}</span>
+                            <span className="font-mono text-[12.5px]">{data.supplier.npwp ?? "—"}</span>
                         </Row>
                         <Row label="Pembayaran">
                             <span className="text-[12.5px]">{data.supplier.paymentTerm ?? "—"}</span>
@@ -107,14 +114,16 @@ export function HeaderTab({ data }: { data: any }) {
             <section className="col-span-2 pt-4 border-t border-[var(--integra-hairline)]">
                 <h3 className="text-[11px] font-medium uppercase tracking-wider text-[var(--integra-muted)] mb-3">Nilai</h3>
                 <div className="grid grid-cols-3 gap-6">
+                    {/* Skema Prisma: totalAmount = subtotal pre-tax (DPP),
+                        taxAmount = PPN, netAmount = grand total (DPP+PPN). */}
                     <Row label="Subtotal">
-                        <span className="font-mono text-[14px] text-[var(--integra-ink)]">{fmtIDR(data.netAmount ?? 0)}</span>
+                        <span className="font-mono text-[14px] text-[var(--integra-ink)]">{fmtIDR(data.totalAmount ?? 0)}</span>
                     </Row>
                     <Row label="PPN (11%)">
                         <span className="font-mono text-[14px] text-[var(--integra-ink)]">{fmtIDR(data.taxAmount ?? 0)}</span>
                     </Row>
                     <Row label="Total">
-                        <span className="font-mono text-[16px] font-medium text-[var(--integra-ink)]">{fmtIDR(data.totalAmount ?? 0)}</span>
+                        <span className="font-mono text-[16px] font-medium text-[var(--integra-ink)]">{fmtIDR(data.netAmount ?? 0)}</span>
                     </Row>
                 </div>
             </section>

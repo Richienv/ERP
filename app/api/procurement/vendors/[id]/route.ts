@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
+import { getAuthzUser } from "@/lib/authz"
 
 type ProcurementStatusValue =
     | "PO_DRAFT"
@@ -20,6 +21,7 @@ const CANCELLED_STATUSES = new Set<ProcurementStatusValue>(["CANCELLED", "REJECT
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
     try {
+        await getAuthzUser()
         const vendor = await prisma.supplier.findUnique({
             where: { id },
             include: {
@@ -78,24 +80,53 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
             return NextResponse.json({ error: "Vendor tidak ditemukan" }, { status: 404 })
         }
 
-        // Aggregate purchase performance metrics across ALL POs (not just last 20)
+        // Aggregate purchase performance metrics across ALL POs (not just last 20).
+        // Include latest GRN receivedDate per PO so we bisa hitung OTD beneran
+        // (membandingkan tanggal terima vs tanggal yang diharapkan).
         const allPos = await prisma.purchaseOrder.findMany({
             where: { supplierId: id },
-            select: { status: true, totalAmount: true, expectedDate: true, orderDate: true },
+            select: {
+                status: true,
+                totalAmount: true,
+                expectedDate: true,
+                orderDate: true,
+                goodsReceivedNotes: {
+                    select: { receivedDate: true },
+                    orderBy: { receivedDate: "desc" },
+                    take: 1,
+                },
+            },
         })
 
         const poTotalCount = allPos.length
         const totalSpend = allPos.reduce((s, p) => s + Number(p.totalAmount ?? 0), 0)
         const avgPoValue = poTotalCount > 0 ? totalSpend / poTotalCount : 0
 
-        // OTD: completed POs / non-cancelled POs
+        // Completion rate: PO selesai / PO non-cancelled (BUKAN OTD beneran).
         const nonCancelled = allPos.filter(
             (p) => !CANCELLED_STATUSES.has(p.status as ProcurementStatusValue),
         )
         const completedCount = nonCancelled.filter((p) =>
             DONE_STATUSES.has(p.status as ProcurementStatusValue),
         ).length
-        const otdPct = nonCancelled.length > 0 ? (completedCount / nonCancelled.length) * 100 : 0
+        const completionPct = nonCancelled.length > 0 ? (completedCount / nonCancelled.length) * 100 : 0
+
+        // OTD beneran: PO selesai dengan latest GRN <= expectedDate / total PO selesai.
+        // Hanya hitung PO yang punya expectedDate dan minimal 1 GRN.
+        const completedPos = nonCancelled.filter((p) =>
+            DONE_STATUSES.has(p.status as ProcurementStatusValue),
+        )
+        const completedWithExpected = completedPos.filter(
+            (p) => p.expectedDate && p.goodsReceivedNotes.length > 0,
+        )
+        const onTimePos = completedWithExpected.filter((p) => {
+            const lastReceived = p.goodsReceivedNotes[0]?.receivedDate
+            return lastReceived && new Date(lastReceived) <= new Date(p.expectedDate as Date)
+        })
+        const otdPct =
+            completedWithExpected.length > 0
+                ? (onTimePos.length / completedWithExpected.length) * 100
+                : 0
 
         // Rejection rate: rejected/cancelled / total
         const cancelledCount = allPos.filter((p) =>
@@ -109,11 +140,17 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
             .filter((p) => p.orderDate && new Date(p.orderDate) >= yearStart)
             .reduce((s, p) => s + Number(p.totalAmount ?? 0), 0)
 
-        // Outstanding AP — sum balanceDue from unpaid bills
-        const outstandingAp = (vendor.Invoice ?? []).reduce(
-            (s, inv) => s + Number(inv.balanceDue ?? 0),
-            0,
-        )
+        // Outstanding AP — agregasi dari SEMUA invoice INV_IN vendor yang belum
+        // lunas (sebelumnya cuma top-20 — undercounted vendor besar).
+        const outstandingApAgg = await prisma.invoice.aggregate({
+            where: {
+                supplierId: id,
+                type: "INV_IN",
+                status: { notIn: ["PAID", "CANCELLED", "VOID"] },
+            },
+            _sum: { balanceDue: true },
+        })
+        const outstandingAp = Number(outstandingApAgg._sum.balanceDue ?? 0)
 
         // Decimal-safe serialization
         const safe = {
@@ -190,7 +227,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
                 poTotalCount,
                 totalSpend,
                 avgPoValue,
+                // OTD beneran (berdasarkan GRN receivedDate vs expectedDate).
+                // Hanya menghitung PO yang sudah selesai DAN punya expectedDate +
+                // GRN. Kalau tidak ada data, returns 0.
                 otdPct,
+                // Completion rate (rasio PO selesai vs PO non-cancelled). Nama
+                // lama 'otdPct' menyesatkan — sekarang dipisah jadi 2 metrik
+                // yang artinya beda.
+                completionPct,
                 completedCount,
                 cancelledCount,
                 rejectionRate,
@@ -203,6 +247,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     } catch (e: unknown) {
         console.error("[Vendor Detail API]", e)
         const msg = e instanceof Error ? e.message : "Internal error"
+        if (msg === "Unauthorized") {
+            return NextResponse.json({ error: msg }, { status: 401 })
+        }
         return NextResponse.json({ error: msg }, { status: 500 })
     }
 }

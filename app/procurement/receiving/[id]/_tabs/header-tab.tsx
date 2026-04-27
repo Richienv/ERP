@@ -155,7 +155,7 @@ export function HeaderTab({ data }: { data: any }) {
                                 </Row>
                                 <Row label="NPWP">
                                     <span className="font-mono text-[12.5px]">
-                                        {data.purchaseOrder.supplier.taxId ?? "—"}
+                                        {data.purchaseOrder.supplier.npwp ?? "—"}
                                     </span>
                                 </Row>
                             </>

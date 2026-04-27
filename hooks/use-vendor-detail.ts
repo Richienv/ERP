@@ -6,7 +6,17 @@ export type VendorDetailMetrics = {
     poTotalCount: number
     totalSpend: number
     avgPoValue: number
+    /**
+     * On-Time Delivery percentage — dihitung dari PO selesai yang punya
+     * expectedDate + GRN: rasio (GRN receivedDate <= expectedDate) terhadap
+     * total PO selesai dengan data tersebut.
+     */
     otdPct: number
+    /**
+     * Completion rate — rasio PO selesai (RECEIVED/COMPLETED) terhadap PO
+     * non-cancelled. Sebelumnya field ini disebut otdPct (menyesatkan).
+     */
+    completionPct: number
     completedCount: number
     cancelledCount: number
     rejectionRate: number
