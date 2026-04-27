@@ -61,7 +61,8 @@ interface PRRow {
     notes: string | null
     date: Date
     approver: string | null
-    estimatedTotal: number
+    estimatedTotal: number | null
+    hasMissingPrice?: boolean
     itemCount: number
 }
 
@@ -678,7 +679,16 @@ export default function PurchaseRequestsPage() {
             header: "Nilai Estimasi (Rp)",
             type: "num",
             render: (r) => {
-                if (!r.estimatedTotal) return <span className="text-[var(--integra-muted)]">—</span>
+                if (r.estimatedTotal === null || r.estimatedTotal === undefined) {
+                    return (
+                        <span
+                            className="text-[var(--integra-amber)]"
+                            title="Sebagian item tidak punya harga pokok — estimasi belum bisa dihitung"
+                        >
+                            —
+                        </span>
+                    )
+                }
                 return r.estimatedTotal.toLocaleString("id-ID")
             },
         },
@@ -1261,7 +1271,7 @@ export default function PurchaseRequestsPage() {
                                                 <span className="text-[var(--integra-ink)]">
                                                     {q.requester || "—"}
                                                 </span>
-                                                {q.estimatedTotal > 0 && (
+                                                {typeof q.estimatedTotal === "number" && q.estimatedTotal > 0 && (
                                                     <>
                                                         {" "}·{" "}
                                                         <span className="text-[var(--integra-ink)]">

@@ -153,9 +153,20 @@ export function HeaderTab({ data }: { data: any }) {
                     Estimasi dihitung dari harga pokok produk × kuantitas. Harga final ditentukan pada saat PO diterbitkan.
                 </p>
                 <Row label="Total Estimasi">
-                    <span className="font-mono text-[16px] font-medium text-[var(--integra-ink)]">
-                        {fmtIDR(data.estimatedTotal ?? 0)}
-                    </span>
+                    {data.estimatedTotal === null || data.estimatedTotal === undefined ? (
+                        <div className="flex flex-col gap-1">
+                            <span className="font-mono text-[16px] font-medium text-[var(--integra-amber)]">
+                                —
+                            </span>
+                            <span className="text-[11px] text-[var(--integra-amber)]">
+                                Sebagian item tidak punya harga pokok — estimasi belum bisa dihitung.
+                            </span>
+                        </div>
+                    ) : (
+                        <span className="font-mono text-[16px] font-medium text-[var(--integra-ink)]">
+                            {fmtIDR(data.estimatedTotal)}
+                        </span>
+                    )}
                 </Row>
             </section>
 

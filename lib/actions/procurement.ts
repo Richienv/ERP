@@ -519,12 +519,24 @@ export async function getPurchaseRequests(filter?: PRFilter) {
                 const approverName = req.approver
                     ? `${req.approver.firstName || ""} ${req.approver.lastName || ""}`.trim()
                     : null
-                // Estimated total = sum(qty * costPrice) when costPrice is known; else 0.
-                const estimatedTotal = (req.items ?? []).reduce((sum: number, item: any) => {
-                    const cost = Number(item.product?.costPrice ?? 0)
+                // Estimated total = Σ(qty × costPrice). Item tanpa costPrice dilewati,
+                // dan kalau ada minimal satu item tanpa harga, estimatedTotal jadi
+                // null supaya UI bisa menampilkan "—" + warning, alih-alih angka
+                // setengah jadi yang menyesatkan keputusan approval.
+                const items = (req.items ?? []) as Array<any>
+                let estimatedTotal: number | null = 0
+                let hasMissingPrice = false
+                for (const item of items) {
+                    const rawCost = item.product?.costPrice
+                    const cost = rawCost === null || rawCost === undefined ? null : Number(rawCost)
+                    if (cost === null || !Number.isFinite(cost) || cost <= 0) {
+                        hasMissingPrice = true
+                        continue
+                    }
                     const qty = Number(item.quantity ?? 0)
-                    return sum + cost * qty
-                }, 0)
+                    estimatedTotal += cost * qty
+                }
+                if (hasMissingPrice) estimatedTotal = null
                 return {
                     id: req.id,
                     number: req.number,
@@ -538,6 +550,7 @@ export async function getPurchaseRequests(filter?: PRFilter) {
                     date: new Date(req.createdAt),
                     approver: approverName,
                     estimatedTotal,
+                    hasMissingPrice,
                     itemCount: req.items?.length || 0,
                     items: req.items?.map((i: any) => ({
                         id: i.id,

@@ -80,16 +80,25 @@ export async function GET(
         }
 
         // Convert Decimal fields to plain numbers; pre-compute estimated totals
-        // from product.costPrice (PR has no committed unit price until PO is
-        // generated, so this is a planning estimate only).
+        // dari product.costPrice (PR belum punya unit price terkomit sampai PO
+        // diterbitkan, jadi ini estimasi planning saja).
+        //
+        // Kalau ada item tanpa costPrice (atau cost <= 0) — mis. produk baru —
+        // estimatedTotal di-null-kan supaya UI menampilkan "—" + warning,
+        // bukan angka setengah jadi yang under-count nilai PR.
+        let hasMissingPrice = false
         const items = pr.items.map((i) => {
-            const unitPrice = Number(i.product?.costPrice ?? 0)
+            const rawCost = i.product?.costPrice
+            const costNum = rawCost === null || rawCost === undefined ? null : Number(rawCost)
+            const hasValidCost = costNum !== null && Number.isFinite(costNum) && costNum > 0
+            if (!hasValidCost) hasMissingPrice = true
+            const unitPrice = hasValidCost ? (costNum as number) : 0
             const qty = Number(i.quantity ?? 0)
             return {
                 ...i,
                 quantity: qty,
                 unitPrice,
-                totalPrice: unitPrice * qty,
+                totalPrice: hasValidCost ? unitPrice * qty : 0,
                 product: i.product
                     ? {
                           ...i.product,
@@ -99,12 +108,15 @@ export async function GET(
             }
         })
 
-        const estimatedTotal = items.reduce((s, i) => s + i.totalPrice, 0)
+        const estimatedTotal = hasMissingPrice
+            ? null
+            : items.reduce((s, i) => s + i.totalPrice, 0)
 
         const safe = {
             ...pr,
             items,
             estimatedTotal,
+            hasMissingPrice,
             purchaseOrder: pr.purchaseOrder
                 ? {
                       ...pr.purchaseOrder,

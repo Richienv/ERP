@@ -74,7 +74,10 @@ export default function PrDetailPage({ params }: { params: Promise<{ id: string 
         ? `${data.requester.firstName ?? ""} ${data.requester.lastName ?? ""}`.trim() || "—"
         : "—"
     const department = data.department || data.requester?.department || "—"
-    const totalJt = (Number(data.estimatedTotal ?? 0) / 1_000_000).toFixed(1).replace(".", ",")
+    const estimatedLabel =
+        data.estimatedTotal === null || data.estimatedTotal === undefined
+            ? "Estimasi: —"
+            : `Estimasi Rp ${(Number(data.estimatedTotal) / 1_000_000).toFixed(1).replace(".", ",")} jt`
 
     return (
         <DetailPage
@@ -84,7 +87,7 @@ export default function PrDetailPage({ params }: { params: Promise<{ id: string 
                 { label: "Permintaan Pembelian", href: "/procurement/requests" },
             ]}
             title={data.number}
-            subtitle={`${requesterName} · ${department} · ${itemCount} item · Estimasi Rp ${totalJt} jt`}
+            subtitle={`${requesterName} · ${department} · ${itemCount} item · ${estimatedLabel}`}
             tabs={[
                 {
                     key: "header",

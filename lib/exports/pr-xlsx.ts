@@ -9,7 +9,12 @@ export interface PRExportRow {
     priority: string
     status: string
     items: number
-    estimatedTotal: number
+    /**
+     * Nilai estimasi total. Bernilai null kalau ada item PR tanpa harga
+     * pokok terdaftar — disampaikan ke worksheet sebagai string "—" supaya
+     * jelas vs angka 0 yang valid.
+     */
+    estimatedTotal: number | null
     approver: string
     date: string
 }
@@ -30,7 +35,7 @@ function buildPRSheet(rows: PRExportRow[]) {
         "Prioritas": r.priority,
         "Status": r.status,
         "Item": r.items,
-        "Nilai Estimasi (Rp)": r.estimatedTotal,
+        "Nilai Estimasi (Rp)": r.estimatedTotal ?? "—",
         "Approver": r.approver,
         "Tanggal Buat": r.date,
     }))

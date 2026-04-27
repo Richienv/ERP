@@ -162,7 +162,13 @@ export function ApprovalTab({ data }: { data: any }) {
                     </h3>
                     <p className="text-[12.5px] text-[var(--integra-ink-soft)] mb-4">
                         PR ini menunggu persetujuan kamu. Nilai estimasi:{" "}
-                        <strong className="font-mono">{fmtIDR(Number(data.estimatedTotal ?? 0))}</strong>
+                        {data.estimatedTotal === null || data.estimatedTotal === undefined ? (
+                            <strong className="font-mono text-[var(--integra-amber)]" title="Sebagian item tidak punya harga pokok">
+                                belum tersedia
+                            </strong>
+                        ) : (
+                            <strong className="font-mono">{fmtIDR(Number(data.estimatedTotal))}</strong>
+                        )}
                     </p>
                     <div className="flex gap-2">
                         <button
