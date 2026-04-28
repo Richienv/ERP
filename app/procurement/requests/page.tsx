@@ -42,7 +42,15 @@ import { SavedFiltersDropdown } from "@/components/integra/saved-filters-dropdow
 import type { PRFilter } from "@/lib/types/procurement-filters"
 import { queryKeys } from "@/lib/query-keys"
 import { INT, fmtIDRJt, fmtDateTime } from "@/lib/integra-tokens"
-import { exportPRsToXlsx, exportPRsToCsv, type PRExportRow } from "@/lib/exports/pr-xlsx"
+import type { PRExportRow } from "@/lib/exports/pr-xlsx"
+async function exportPRsToXlsx(rows: PRExportRow[], filename?: string) {
+    const m = await import("@/lib/exports/pr-xlsx")
+    return m.exportPRsToXlsx(rows, filename)
+}
+async function exportPRsToCsv(rows: PRExportRow[], filename?: string) {
+    const m = await import("@/lib/exports/pr-xlsx")
+    return m.exportPRsToCsv(rows, filename)
+}
 import dynamic from "next/dynamic"
 const ImportPRsDialog = dynamic(
     () => import("@/components/procurement/import-prs-dialog").then(m => ({ default: m.ImportPRsDialog })),
@@ -771,28 +779,28 @@ export default function PurchaseRequestsPage() {
                     {
                         label: "Ekspor terpilih (XLSX)",
                         icon: <Download className="size-3.5" />,
-                        onClick: () => {
+                        onClick: async () => {
                             const selected = filtered.filter((r) => selectedIds.has(r.id))
                             if (selected.length === 0) {
                                 toast.info("Tidak ada PR terpilih untuk diekspor")
                                 return
                             }
                             const fname = `permintaan-pembelian-terpilih-${new Date().toISOString().slice(0, 10)}.xlsx`
-                            const n = exportPRsToXlsx(selected.map(toExportRow), fname)
+                            const n = await exportPRsToXlsx(selected.map(toExportRow), fname)
                             toast.success(`${n} PR terpilih diekspor ke XLSX`)
                         },
                     },
                     {
                         label: "Ekspor terpilih (CSV)",
                         icon: <Download className="size-3.5" />,
-                        onClick: () => {
+                        onClick: async () => {
                             const selected = filtered.filter((r) => selectedIds.has(r.id))
                             if (selected.length === 0) {
                                 toast.info("Tidak ada PR terpilih untuk diekspor")
                                 return
                             }
                             const fname = `permintaan-pembelian-terpilih-${new Date().toISOString().slice(0, 10)}.csv`
-                            const n = exportPRsToCsv(selected.map(toExportRow), fname)
+                            const n = await exportPRsToCsv(selected.map(toExportRow), fname)
                             toast.success(`${n} PR terpilih diekspor ke CSV`)
                         },
                     },
@@ -845,24 +853,24 @@ export default function PurchaseRequestsPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem
-                                onClick={() => {
+                                onClick={async () => {
                                     if (filtered.length === 0) {
                                         toast.info("Tidak ada data untuk diekspor")
                                         return
                                     }
-                                    const n = exportPRsToXlsx(filtered.map(toExportRow))
+                                    const n = await exportPRsToXlsx(filtered.map(toExportRow))
                                     toast.success(`${n} PR diekspor ke XLSX`)
                                 }}
                             >
                                 Ekspor XLSX
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                                onClick={() => {
+                                onClick={async () => {
                                     if (filtered.length === 0) {
                                         toast.info("Tidak ada data untuk diekspor")
                                         return
                                     }
-                                    const n = exportPRsToCsv(filtered.map(toExportRow))
+                                    const n = await exportPRsToCsv(filtered.map(toExportRow))
                                     toast.success(`${n} PR diekspor ke CSV`)
                                 }}
                             >

@@ -42,7 +42,15 @@ import { SavedFiltersDropdown } from "@/components/integra/saved-filters-dropdow
 import type { GRNFilter } from "@/lib/types/grn-filters"
 import { queryKeys } from "@/lib/query-keys"
 import { INT, fmtDateTime } from "@/lib/integra-tokens"
-import { exportGRNsToXlsx, exportGRNsToCsv, type GRNExportRow } from "@/lib/exports/grn-xlsx"
+import type { GRNExportRow } from "@/lib/exports/grn-xlsx"
+async function exportGRNsToXlsx(rows: GRNExportRow[], filename?: string) {
+    const m = await import("@/lib/exports/grn-xlsx")
+    return m.exportGRNsToXlsx(rows, filename)
+}
+async function exportGRNsToCsv(rows: GRNExportRow[], filename?: string) {
+    const m = await import("@/lib/exports/grn-xlsx")
+    return m.exportGRNsToCsv(rows, filename)
+}
 import dynamic from "next/dynamic"
 const ImportGRNsDialog = dynamic(
     () => import("@/components/procurement/import-grns-dialog").then(m => ({ default: m.ImportGRNsDialog })),
@@ -772,28 +780,28 @@ export default function ReceivingPage() {
                     {
                         label: "Ekspor terpilih (XLSX)",
                         icon: <Download className="size-3.5" />,
-                        onClick: () => {
+                        onClick: async () => {
                             const selected = filtered.filter((r) => selectedIds.has(r.id))
                             if (selected.length === 0) {
                                 toast.info("Tidak ada GRN terpilih untuk diekspor")
                                 return
                             }
                             const fname = `surat-jalan-masuk-terpilih-${new Date().toISOString().slice(0, 10)}.xlsx`
-                            const n = exportGRNsToXlsx(selected.map(toExportRow), fname)
+                            const n = await exportGRNsToXlsx(selected.map(toExportRow), fname)
                             toast.success(`${n} GRN terpilih diekspor ke XLSX`)
                         },
                     },
                     {
                         label: "Ekspor terpilih (CSV)",
                         icon: <Download className="size-3.5" />,
-                        onClick: () => {
+                        onClick: async () => {
                             const selected = filtered.filter((r) => selectedIds.has(r.id))
                             if (selected.length === 0) {
                                 toast.info("Tidak ada GRN terpilih untuk diekspor")
                                 return
                             }
                             const fname = `surat-jalan-masuk-terpilih-${new Date().toISOString().slice(0, 10)}.csv`
-                            const n = exportGRNsToCsv(selected.map(toExportRow), fname)
+                            const n = await exportGRNsToCsv(selected.map(toExportRow), fname)
                             toast.success(`${n} GRN terpilih diekspor ke CSV`)
                         },
                     },
@@ -846,24 +854,24 @@ export default function ReceivingPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem
-                                onClick={() => {
+                                onClick={async () => {
                                     if (filtered.length === 0) {
                                         toast.info("Tidak ada data untuk diekspor")
                                         return
                                     }
-                                    const n = exportGRNsToXlsx(filtered.map(toExportRow))
+                                    const n = await exportGRNsToXlsx(filtered.map(toExportRow))
                                     toast.success(`${n} GRN diekspor ke XLSX`)
                                 }}
                             >
                                 Ekspor XLSX
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                                onClick={() => {
+                                onClick={async () => {
                                     if (filtered.length === 0) {
                                         toast.info("Tidak ada data untuk diekspor")
                                         return
                                     }
-                                    const n = exportGRNsToCsv(filtered.map(toExportRow))
+                                    const n = await exportGRNsToCsv(filtered.map(toExportRow))
                                     toast.success(`${n} GRN diekspor ke CSV`)
                                 }}
                             >
