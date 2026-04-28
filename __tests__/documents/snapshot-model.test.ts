@@ -48,15 +48,19 @@ describe('DocumentSnapshot model', () => {
         expect(list.map(s => s.version)).toEqual([3, 2, 1])
     })
 
-    it('cascade deletes distributions when snapshot deleted', async () => {
+    it('does NOT cascade-delete distributions; throws on FK violation', async () => {
         const snap = await prisma.documentSnapshot.create({
             data: { type: 'PO', entityId, version: 1, storageKey: 'k', triggerEvent: 't' },
         })
         await prisma.documentDistribution.create({
             data: { snapshotId: snap.id, action: 'PRINT', actorId: randomUUID() },
         })
+        await expect(
+            prisma.documentSnapshot.delete({ where: { id: snap.id } })
+        ).rejects.toThrow(/foreign key|constraint/i)
+
+        // cleanup
+        await prisma.documentDistribution.deleteMany({ where: { snapshotId: snap.id } })
         await prisma.documentSnapshot.delete({ where: { id: snap.id } })
-        const dists = await prisma.documentDistribution.findMany({ where: { snapshotId: snap.id } })
-        expect(dists).toHaveLength(0)
-    }, 30000) // remote Supabase round-trips push this past the 5s default
+    }, 30000)
 })

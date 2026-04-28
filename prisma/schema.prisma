@@ -4078,7 +4078,7 @@ model DocumentSnapshot {
 model DocumentDistribution {
   id              String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   snapshotId      String           @db.Uuid
-  snapshot        DocumentSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  snapshot        DocumentSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Restrict)
   action          String           // "PRINT" | "DOWNLOAD" | "EMAIL"
   actorId         String           @db.Uuid
   recipientEmail  String?
