@@ -102,6 +102,5 @@ export function useVendorDetail(id: string) {
             return res.json()
         },
         enabled: !!id,
-        staleTime: 30_000,
     })
 }

@@ -18,6 +18,5 @@ export function usePurchaseRequestDetail(id: string) {
             return res.json()
         },
         enabled: !!id,
-        staleTime: 30_000,
     })
 }
