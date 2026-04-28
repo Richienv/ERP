@@ -363,7 +363,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryFn: () => fetch("/api/finance/fiscal-periods").then((r) => r.json()).then((p) => p.data ?? []),
     },
     "/documents": {
-        queryKey: queryKeys.documents.list(),
+        queryKey: queryKeys.documents.overview(),
         queryFn: () => fetchJson("/api/documents/overview", {}),
     },
     "/hcm": {

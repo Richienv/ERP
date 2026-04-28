@@ -246,7 +246,11 @@ export const queryKeys = {
     },
     documents: {
         all: ["documents"] as const,
-        list: () => [...queryKeys.documents.all, "list"] as const,
+        overview: () => [...queryKeys.documents.all, "overview"] as const,
+        list: (type: string, entityId: string) =>
+            [...queryKeys.documents.all, type, entityId] as const,
+        distributions: (snapshotId: string) =>
+            [...queryKeys.documents.all, "distributions", snapshotId] as const,
     },
     salesPage: {
         all: ["salesPage"] as const,
