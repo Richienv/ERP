@@ -462,106 +462,106 @@ export async function getProcurementStats(input?: ProcurementStatsInput) {
 
 export async function getPurchaseRequests(filter?: PRFilter) {
     try {
-        return await withPrismaAuth(async (prisma) => {
-            const where: Prisma.PurchaseRequestWhereInput = {}
+        await getAuthzUser()
 
-            if (filter?.status?.length) {
-                where.status = { in: filter.status as any }
-            }
-            if (filter?.departments?.length) {
-                where.department = { in: filter.departments }
-            }
-            if (filter?.priority?.length) {
-                where.priority = { in: filter.priority }
-            }
-            if (filter?.dateStart || filter?.dateEnd) {
-                const createdAt: Prisma.DateTimeFilter = {}
-                if (filter.dateStart) createdAt.gte = new Date(filter.dateStart)
-                if (filter.dateEnd) createdAt.lte = new Date(filter.dateEnd)
-                where.createdAt = createdAt
-            }
-            if (filter?.search) {
-                where.OR = [
-                    { number: { contains: filter.search, mode: "insensitive" } },
-                    { department: { contains: filter.search, mode: "insensitive" } },
-                    {
-                        requester: {
-                            OR: [
-                                { firstName: { contains: filter.search, mode: "insensitive" } },
-                                { lastName: { contains: filter.search, mode: "insensitive" } },
-                            ],
-                        },
-                    },
-                ]
-            }
+        const where: Prisma.PurchaseRequestWhereInput = {}
 
-            const requests = await prisma.purchaseRequest.findMany({
-                where,
-                include: {
+        if (filter?.status?.length) {
+            where.status = { in: filter.status as any }
+        }
+        if (filter?.departments?.length) {
+            where.department = { in: filter.departments }
+        }
+        if (filter?.priority?.length) {
+            where.priority = { in: filter.priority }
+        }
+        if (filter?.dateStart || filter?.dateEnd) {
+            const createdAt: Prisma.DateTimeFilter = {}
+            if (filter.dateStart) createdAt.gte = new Date(filter.dateStart)
+            if (filter.dateEnd) createdAt.lte = new Date(filter.dateEnd)
+            where.createdAt = createdAt
+        }
+        if (filter?.search) {
+            where.OR = [
+                { number: { contains: filter.search, mode: "insensitive" } },
+                { department: { contains: filter.search, mode: "insensitive" } },
+                {
                     requester: {
-                        select: { firstName: true, lastName: true, department: true },
+                        OR: [
+                            { firstName: { contains: filter.search, mode: "insensitive" } },
+                            { lastName: { contains: filter.search, mode: "insensitive" } },
+                        ],
                     },
-                    approver: {
-                        select: { firstName: true, lastName: true },
-                    },
-                    items: {
-                        include: {
-                            product: {
-                                select: { name: true, unit: true, costPrice: true },
-                            },
+                },
+            ]
+        }
+
+        const requests = await prisma.purchaseRequest.findMany({
+            where,
+            include: {
+                requester: {
+                    select: { firstName: true, lastName: true, department: true },
+                },
+                approver: {
+                    select: { firstName: true, lastName: true },
+                },
+                items: {
+                    include: {
+                        product: {
+                            select: { name: true, unit: true, costPrice: true },
                         },
                     },
                 },
-                orderBy: { createdAt: "desc" },
-            })
+            },
+            orderBy: { createdAt: "desc" },
+        })
 
-            return requests.map((req: any) => {
-                const requesterName = `${req.requester?.firstName || ""} ${req.requester?.lastName || ""}`.trim()
-                const approverName = req.approver
-                    ? `${req.approver.firstName || ""} ${req.approver.lastName || ""}`.trim()
-                    : null
-                // Estimated total = Σ(qty × costPrice). Item tanpa costPrice dilewati,
-                // dan kalau ada minimal satu item tanpa harga, estimatedTotal jadi
-                // null supaya UI bisa menampilkan "—" + warning, alih-alih angka
-                // setengah jadi yang menyesatkan keputusan approval.
-                const items = (req.items ?? []) as Array<any>
-                let estimatedTotal: number | null = 0
-                let hasMissingPrice = false
-                for (const item of items) {
-                    const rawCost = item.product?.costPrice
-                    const cost = rawCost === null || rawCost === undefined ? null : Number(rawCost)
-                    if (cost === null || !Number.isFinite(cost) || cost <= 0) {
-                        hasMissingPrice = true
-                        continue
-                    }
-                    const qty = Number(item.quantity ?? 0)
-                    estimatedTotal += cost * qty
+        return requests.map((req: any) => {
+            const requesterName = `${req.requester?.firstName || ""} ${req.requester?.lastName || ""}`.trim()
+            const approverName = req.approver
+                ? `${req.approver.firstName || ""} ${req.approver.lastName || ""}`.trim()
+                : null
+            // Estimated total = Σ(qty × costPrice). Item tanpa costPrice dilewati,
+            // dan kalau ada minimal satu item tanpa harga, estimatedTotal jadi
+            // null supaya UI bisa menampilkan "—" + warning, alih-alih angka
+            // setengah jadi yang menyesatkan keputusan approval.
+            const items = (req.items ?? []) as Array<any>
+            let estimatedTotal: number | null = 0
+            let hasMissingPrice = false
+            for (const item of items) {
+                const rawCost = item.product?.costPrice
+                const cost = rawCost === null || rawCost === undefined ? null : Number(rawCost)
+                if (cost === null || !Number.isFinite(cost) || cost <= 0) {
+                    hasMissingPrice = true
+                    continue
                 }
-                if (hasMissingPrice) estimatedTotal = null
-                return {
-                    id: req.id,
-                    number: req.number,
-                    requester: requesterName,
-                    requesterFirstName: req.requester?.firstName ?? "",
-                    requesterLastName: req.requester?.lastName ?? "",
-                    department: req.department || req.requester?.department || "",
-                    status: req.status,
-                    priority: req.priority || "NORMAL",
-                    notes: req.notes,
-                    date: new Date(req.createdAt),
-                    approver: approverName,
-                    estimatedTotal,
-                    hasMissingPrice,
-                    itemCount: req.items?.length || 0,
-                    items: req.items?.map((i: any) => ({
-                        id: i.id,
-                        productName: i.product?.name,
-                        quantity: i.quantity,
-                        unit: i.product?.unit,
-                        status: i.status,
-                    })) || [],
-                }
-            })
+                const qty = Number(item.quantity ?? 0)
+                estimatedTotal += cost * qty
+            }
+            if (hasMissingPrice) estimatedTotal = null
+            return {
+                id: req.id,
+                number: req.number,
+                requester: requesterName,
+                requesterFirstName: req.requester?.firstName ?? "",
+                requesterLastName: req.requester?.lastName ?? "",
+                department: req.department || req.requester?.department || "",
+                status: req.status,
+                priority: req.priority || "NORMAL",
+                notes: req.notes,
+                date: new Date(req.createdAt),
+                approver: approverName,
+                estimatedTotal,
+                hasMissingPrice,
+                itemCount: req.items?.length || 0,
+                items: req.items?.map((i: any) => ({
+                    id: i.id,
+                    productName: i.product?.name,
+                    quantity: i.quantity,
+                    unit: i.product?.unit,
+                    status: i.status,
+                })) || [],
+            }
         })
     } catch (error) {
         console.error("Error fetching requests:", error)
