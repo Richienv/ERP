@@ -8,10 +8,24 @@ export function useDocumentSnapshots(type: string, entityId: string) {
         queryKey: queryKeys.documents.list(type, entityId),
         queryFn: async () => {
             const res = await fetch(`/api/documents/snapshots?type=${type}&entityId=${entityId}`)
+            if (!res.ok) {
+                if (res.status === 403) throw new Error('Anda tidak memiliki akses ke dokumen ini')
+                throw new Error('Gagal memuat dokumen')
+            }
             const json = await res.json()
             return json.data ?? []
         },
         enabled: !!entityId,
+        // Auto-refresh polling: when the list is empty (waiting for an
+        // auto-snapshot to land after PO/PR/GRN approval), poll every 2s
+        // for up to ~30s. Stops as soon as the list has any item.
+        refetchInterval: (query) => {
+            const data = query.state.data as unknown[] | undefined
+            if (!data || data.length === 0) {
+                if (query.state.dataUpdateCount < 15) return 2000
+            }
+            return false
+        },
     })
 }
 
