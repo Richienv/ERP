@@ -31,4 +31,11 @@ describe('document-storage', () => {
     it('deleteDocument is idempotent (no throw on missing)', async () => {
         await expect(deleteDocument('PO/missing/v0.pdf')).resolves.not.toThrow()
     })
+
+    it('uploadDocument accepts custom contentType', async () => {
+        const buffer = Buffer.from('fake-png-bytes')
+        const key = await uploadDocument(buffer, 'test/logo.png', 'image/png')
+        expect(key).toBe('test/logo.png')
+        // Mock returns the key from the from().upload() call — main assertion is no throw
+    })
 })

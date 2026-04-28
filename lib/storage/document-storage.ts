@@ -2,10 +2,14 @@ import { createClient } from '@/lib/supabase/server'
 
 const BUCKET = 'documents'
 
-export async function uploadDocument(buffer: Buffer, key: string): Promise<string> {
+export async function uploadDocument(
+    buffer: Buffer,
+    key: string,
+    contentType: string = 'application/pdf',
+): Promise<string> {
     const supabase = await createClient()
     const { error } = await supabase.storage.from(BUCKET).upload(key, buffer, {
-        contentType: 'application/pdf',
+        contentType,
         upsert: false,
     })
     if (error) throw new Error(`Storage upload failed: ${error.message}`)
