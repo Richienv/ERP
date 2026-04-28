@@ -3,6 +3,7 @@ import { spawn } from "child_process"
 import path from "path"
 import fs from "fs/promises"
 import crypto from "crypto"
+import { Prisma } from "@prisma/client"
 import os from "os"
 
 const DEFAULT_TYPST_BINARY = path.join(process.cwd(), "bin", "typst")
@@ -55,13 +56,11 @@ export class DocumentService {
             throw new Error(`Template not found: ${templateName} (looked in ${templatePath})`)
         }
 
-        // Normalize Prisma Decimal (and other non-JSON-friendly types) before stringify.
-        // Decimal.toJSON returns a string; without this replacer, nested Decimals serialize
-        // as "{}" and templates show empty values.
+        // Normalize Prisma Decimal before stringify. Without this, nested Decimals
+        // serialize as "{}" and templates show empty values. Use the Prisma-provided
+        // type guard (robust to bundler minification, unlike constructor.name check).
         const jsonData = JSON.stringify(data, (_k, v) => {
-            if (v && typeof v === "object" && typeof (v as any).toString === "function" && (v as any).constructor?.name === "Decimal") {
-                return (v as any).toString()
-            }
+            if (Prisma.Decimal.isDecimal(v)) return v.toString()
             return v
         })
 
