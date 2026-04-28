@@ -1,9 +1,7 @@
 "use client"
-import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Printer, Download, Mail, RotateCw } from 'lucide-react'
+import { Printer, Download, RotateCw } from 'lucide-react'
 import { DocumentVersionPill } from './document-version-pill'
-import { DistributionDialog } from './distribution-dialog'
 import { useLogDistribution, useRegenerateSnapshot, fetchSignedUrl } from '@/hooks/use-document-snapshots'
 
 interface Snapshot {
@@ -22,7 +20,6 @@ interface Props {
 }
 
 export function DocumentVersionRow({ snapshot, isLatest, type, entityId }: Props) {
-    const [emailOpen, setEmailOpen] = useState(false)
     const logDist = useLogDistribution()
     const regen = useRegenerateSnapshot(type, entityId)
 
@@ -42,26 +39,16 @@ export function DocumentVersionRow({ snapshot, isLatest, type, entityId }: Props
                 </div>
             </div>
             <div className="flex gap-1">
-                <Button size="sm" variant="ghost" onClick={() => handleOpen('PRINT')}>
+                <Button size="sm" variant="ghost" title="Cetak" onClick={() => handleOpen('PRINT')}>
                     <Printer className="h-3.5 w-3.5" />
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => handleOpen('DOWNLOAD')}>
+                <Button size="sm" variant="ghost" title="Unduh PDF" onClick={() => handleOpen('DOWNLOAD')}>
                     <Download className="h-3.5 w-3.5" />
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setEmailOpen(true)}>
-                    <Mail className="h-3.5 w-3.5" />
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => regen.mutate(snapshot.id)} disabled={regen.isPending}>
+                <Button size="sm" variant="ghost" title="Buat Versi Baru" onClick={() => regen.mutate(snapshot.id)} disabled={regen.isPending}>
                     <RotateCw className="h-3.5 w-3.5" />
                 </Button>
             </div>
-            <DistributionDialog
-                open={emailOpen}
-                onClose={() => setEmailOpen(false)}
-                onSubmit={async (email, notes) => {
-                    await logDist.mutateAsync({ snapshotId: snapshot.id, action: 'EMAIL', recipientEmail: email, notes })
-                }}
-            />
         </div>
     )
 }

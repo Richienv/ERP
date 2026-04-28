@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db'
 import { getAuthzUser } from '@/lib/authz'
 import { canViewEntity } from '@/lib/documents/entity-authz'
 
-const VALID_ACTIONS = ['PRINT', 'DOWNLOAD', 'EMAIL'] as const  // P2-5 will drop EMAIL
+const VALID_ACTIONS = ['PRINT', 'DOWNLOAD'] as const
 
 export async function GET(req: NextRequest) {
     try {
@@ -49,14 +49,8 @@ export async function POST(req: NextRequest) {
             snapshotId: body.snapshotId,
             action: body.action,
             actorId: user.id,
-            recipientEmail: body.recipientEmail,
             notes: body.notes,
         })
-
-        // EMAIL stub kept for now — P2-5 drops it entirely
-        if (body.action === 'EMAIL') {
-            console.log(`[EMAIL STUB] snapshot=${body.snapshotId} → ${body.recipientEmail}`)
-        }
 
         return NextResponse.json({ data: dist })
     } catch (e: any) {
