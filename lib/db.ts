@@ -4,7 +4,7 @@ import { PrismaClient } from '@prisma/client'
 
 // Singleton pattern for Prisma Client with optimized settings
 // Version tag: bump after running prisma generate to invalidate stale singletons in dev
-const PRISMA_CLIENT_VERSION = "2026-04-06-recon-stamp"
+const PRISMA_CLIENT_VERSION = "2026-04-28-document-system-brand-fields"
 const globalForPrisma = globalThis as unknown as {
     prisma: PrismaClient | undefined
     prismaVersion: string | undefined
