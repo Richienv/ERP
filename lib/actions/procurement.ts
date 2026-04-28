@@ -1138,19 +1138,25 @@ export async function submitPOForApproval(poId: string) {
 }
 
 export async function approvePurchaseOrder(poId: string, _approverId?: string) {
+    let originalStatus: ProcurementStatus | null = null
+    let user: Awaited<ReturnType<typeof getAuthzUser>> | null = null
     try {
-        const user = await getAuthzUser()
+        user = await getAuthzUser()
         assertRole(user, APPROVER_ROLES)
 
         const po = await withPrismaAuth(async (prisma) => {
-            await requireActiveProcurementActor(prisma, user)
+            await requireActiveProcurementActor(prisma, user!)
             const current = await prisma.purchaseOrder.findUnique({ where: { id: poId } })
             if (!current) throw new Error("Purchase Order not found")
+
+            // Capture the pre-approval status so we can roll back if the
+            // post-commit Bill creation fails (P2-4).
+            originalStatus = current.status as ProcurementStatus
 
             // SoD (Segregation of Duties): same user can't both create AND
             // approve a PO. Mirrors the GRN's pattern (override w/ reason
             // can be added later if a small SME workflow needs it).
-            if ((current as any).createdBy && (current as any).createdBy === user.id) {
+            if ((current as any).createdBy && (current as any).createdBy === user!.id) {
                 throw new Error('SoD: Anda yang membuat PO ini. Minta persetujuan dari pengguna lain.')
             }
 
@@ -1163,7 +1169,7 @@ export async function approvePurchaseOrder(poId: string, _approverId?: string) {
                 data: {
                     previousStatus: current.status as any,
                     status: 'APPROVED',
-                    approvedBy: user.id,
+                    approvedBy: user!.id,
                 },
             })
             if (updateRes.count === 0) {
@@ -1177,7 +1183,7 @@ export async function approvePurchaseOrder(poId: string, _approverId?: string) {
             await createPurchaseOrderEvent(prisma as any, {
                 purchaseOrderId: poId,
                 status: "APPROVED",
-                changedBy: user.id,
+                changedBy: user!.id,
                 action: "APPROVE",
                 metadata: { source: "MANUAL_ENTRY" },
             })
@@ -1185,8 +1191,31 @@ export async function approvePurchaseOrder(poId: string, _approverId?: string) {
             return updated
         })
 
-        // TRIGGER FINANCE (Bill Creation)
-        await recordPendingBillFromPO(po)
+        // POST-COMMIT WORK (could throw — wrap with rollback).
+        try {
+            await recordPendingBillFromPO(po)
+        } catch (billErr: any) {
+            console.error('[approvePO] recordPendingBillFromPO failed, rolling back PO status:', billErr)
+            if (originalStatus && user) {
+                const rollbackUserId = user.id
+                const restoredStatus = originalStatus as ProcurementStatus
+                await prisma.purchaseOrder.update({
+                    where: { id: poId },
+                    data: { status: restoredStatus, previousStatus: null, approvedBy: null },
+                }).catch((rollbackErr) => {
+                    console.error('[approvePO] ROLLBACK FAILED — manual intervention needed:', rollbackErr)
+                })
+                await createPurchaseOrderEvent(prisma as any, {
+                    purchaseOrderId: poId,
+                    status: restoredStatus,
+                    changedBy: rollbackUserId,
+                    action: "TRANSITION_FAILED",
+                    notes: `Bill creation failed: ${billErr.message}`,
+                    metadata: { source: "AUTO_ROLLBACK", reason: billErr.message },
+                }).catch(() => {})
+            }
+            throw billErr
+        }
 
         // TRIGGER DOCUMENT SNAPSHOT (fire-and-forget — never blocks approval).
         void fireTrigger('PO_APPROVED', poId, user.id)
