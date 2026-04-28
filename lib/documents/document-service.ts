@@ -23,17 +23,14 @@ export async function generateSnapshot(input: GenerateInput): Promise<DocumentSn
     // 2. Resolve brand inputs from TenantConfig
     const brand = await resolveBrandInputs()
 
-    // 3. Render PDF with brand merged into template inputs.
-    //    NOTE: known limitation — Typst service currently passes a single
-    //    `--input data=<json>` flag, so brand fields land at
-    //    `sys.inputs.data.company_name` (not `sys.inputs.company_name`).
-    //    Brand templates currently expect the latter. Follow-up task needed
-    //    to extend Typst service with multi `--input` flag support before
-    //    Phase E demos. Tracked in Phase C3 limitations.
-    const pdfBuffer = await TypstService.generatePDF(target.templateName, {
-        ...target.payload,
-        ...brand, // merged so templates can read sys.inputs.company_name etc.
-    })
+    // 3. Render PDF — brand fields passed as separate --input flags so templates
+    //    can read them via sys.inputs.company_name (matches the shared brand
+    //    module from Phase B).
+    const pdfBuffer = await TypstService.generatePDF(
+        target.templateName,
+        target.payload,
+        brand as unknown as Record<string, string>,
+    )
 
     // 4. Compute next version (race-safe via @@unique constraint + retry)
     let version = (await prisma.documentSnapshot.count({ where: { type, entityId } })) + 1

@@ -39,7 +39,8 @@ export class DocumentService {
 
     static async generatePDF(
         templateName: string,
-        data: any
+        data: any,
+        extraInputs: Record<string, string> = {},
     ): Promise<Buffer> {
 
         // Ensure cache dir exists
@@ -54,7 +55,15 @@ export class DocumentService {
             throw new Error(`Template not found: ${templateName} (looked in ${templatePath})`)
         }
 
-        const jsonData = JSON.stringify(data)
+        // Normalize Prisma Decimal (and other non-JSON-friendly types) before stringify.
+        // Decimal.toJSON returns a string; without this replacer, nested Decimals serialize
+        // as "{}" and templates show empty values.
+        const jsonData = JSON.stringify(data, (_k, v) => {
+            if (v && typeof v === "object" && typeof (v as any).toString === "function" && (v as any).constructor?.name === "Decimal") {
+                return (v as any).toString()
+            }
+            return v
+        })
 
         // Generate unique ID for this generation request to avoid collision
         const id = crypto.randomUUID()
@@ -72,11 +81,19 @@ export class DocumentService {
                 () => [],
             )
 
+            // Each extraInputs key becomes one --input k=v flag (used by the shared
+            // brand module to read sys.inputs.company_name etc. — see Task C3).
+            const extraInputArgs: string[] = []
+            for (const [k, v] of Object.entries(extraInputs)) {
+                extraInputArgs.push("--input", `${k}=${v}`)
+            }
+
             const args = [
                 "compile",
                 "--root", TEMPLATE_DIR,
                 ...fontArgs,
                 "--input", `data=${jsonData}`,
+                ...extraInputArgs,
                 templatePath,
                 outputPath,
             ]
