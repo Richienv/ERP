@@ -1027,6 +1027,7 @@ export default function VendorsPage() {
                             rows={pageRows}
                             rowKey={(r) => r.id}
                             onRowClick={(r) => router.push(`/procurement/vendors/${r.id}`)}
+                            onRowMouseEnter={(r) => router.prefetch(`/procurement/vendors/${r.id}`)}
                             rowClassName={(_r, idx) =>
                                 idx === highlightedIndex
                                     ? "bg-[var(--integra-liren-blue)]/10 outline outline-2 outline-[var(--integra-liren-blue)]/40 outline-offset-[-2px]"

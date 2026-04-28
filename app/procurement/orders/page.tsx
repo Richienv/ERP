@@ -1312,6 +1312,7 @@ export default function PurchaseOrdersPage() {
                             rows={pageRows}
                             rowKey={(r) => r.dbId}
                             onRowClick={(r) => router.push(`/procurement/orders/${r.dbId}`)}
+                            onRowMouseEnter={(r) => router.prefetch(`/procurement/orders/${r.dbId}`)}
                             rowClassName={(_r, idx) =>
                                 idx === highlightedIndex
                                     ? "bg-[var(--integra-liren-blue)]/10 outline outline-2 outline-[var(--integra-liren-blue)]/40 outline-offset-[-2px]"
