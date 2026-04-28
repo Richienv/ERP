@@ -16,7 +16,9 @@ export async function uploadDocument(
     return key
 }
 
-export async function getDocumentSignedUrl(key: string, expiresInSeconds = 60 * 60): Promise<string> {
+export const DEFAULT_SIGNED_URL_TTL = 60 * 5  // 5 minutes — sensitive PDF docs, re-issue per click
+
+export async function getDocumentSignedUrl(key: string, expiresInSeconds: number = DEFAULT_SIGNED_URL_TTL): Promise<string> {
     const supabase = await createClient()
     const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(key, expiresInSeconds)
     if (error || !data) throw new Error(`Signed URL failed: ${error?.message ?? 'unknown'}`)
