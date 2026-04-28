@@ -18,6 +18,7 @@ import { assertPeriodOpen } from "@/lib/period-helpers"
 import { TAX_RATES } from "@/lib/tax-rates"
 import { getNextDocNumber } from "@/lib/document-numbering"
 import { revalidatePath } from "next/cache"
+import { fireTrigger } from "@/lib/documents/triggers"
 
 /*
  * Procurement Role Matrix (H10):
@@ -1183,6 +1184,9 @@ export async function approvePurchaseOrder(poId: string, _approverId?: string) {
         // TRIGGER FINANCE (Bill Creation)
         await recordPendingBillFromPO(po)
 
+        // TRIGGER DOCUMENT SNAPSHOT (fire-and-forget — never blocks approval).
+        void fireTrigger('PO_APPROVED', poId, user.id)
+
         revalidateProcurementPaths()
 
         return { success: true }
@@ -1347,6 +1351,9 @@ export async function markAsOrdered(poId: string) {
                 metadata: { source: "MANUAL_ENTRY" },
             })
         })
+
+        // TRIGGER DOCUMENT SNAPSHOT — captures PO at the "sent to vendor" moment.
+        void fireTrigger('PO_ORDERED', poId, user.id)
 
         revalidateProcurementPaths()
 
