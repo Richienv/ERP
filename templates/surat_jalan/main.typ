@@ -48,7 +48,7 @@
 #set page(
   paper: "a4",
   margin: (top: 2cm, bottom: 2.5cm, left: 2cm, right: 2cm),
-  footer: footer(),
+  footer: footer(label: "Surat Jalan " + get-field(data, "number", default: "")),
 )
 
 #set text(font: "Inter", size: 10pt, fill: colors.text)

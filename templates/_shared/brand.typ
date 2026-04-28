@@ -44,12 +44,23 @@
   )
 }
 
-#let footer() = {
-  align(center)[
-    #text(size: 7pt, fill: brand-muted)[
-      #brand-inputs.company_name
-      #if brand-inputs.company_email != "" [• #brand-inputs.company_email]
-      #if brand-inputs.company_phone != "" [• #brand-inputs.company_phone]
-    ]
-  ]
+// footer() — left: company info, center: doc label (e.g. "PO-2026-0042"), right: page X of Y
+#let footer(label: none) = {
+  context {
+    grid(
+      columns: (1fr, 1fr, 1fr),
+      align: (left, center, right),
+      text(size: 7pt, fill: brand-muted)[
+        #brand-inputs.company_name
+        #if brand-inputs.company_email != "" [• #brand-inputs.company_email]
+        #if brand-inputs.company_phone != "" [• #brand-inputs.company_phone]
+      ],
+      text(size: 7pt, fill: brand-muted)[
+        #if label != none [#label]
+      ],
+      text(size: 7pt, fill: brand-muted)[
+        Halaman #counter(page).display() dari #counter(page).final().first()
+      ],
+    )
+  }
 }

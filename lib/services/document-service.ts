@@ -63,22 +63,23 @@ export class DocumentService {
         try {
             const typstBinary = await resolveTypstBinary()
 
+            // --root needed so templates can #import "../_shared/brand.typ" (Task B2).
+            // Build args via composition — avoids splice index coupling that previously
+            // corrupted the --root flag when --font-path was inserted at index 2.
+            const fontsDir = path.join(TEMPLATE_DIR, "../fonts")
+            const fontArgs: string[] = await fs.access(fontsDir).then(
+                () => ["--font-path", fontsDir],
+                () => [],
+            )
+
             const args = [
                 "compile",
                 "--root", TEMPLATE_DIR,
+                ...fontArgs,
                 "--input", `data=${jsonData}`,
                 templatePath,
-                outputPath
+                outputPath,
             ]
-
-            // Only add --font-path if the fonts directory exists
-            const fontsDir = path.join(TEMPLATE_DIR, "../fonts")
-            try {
-                await fs.access(fontsDir)
-                args.splice(2, 0, "--font-path", fontsDir)
-            } catch {
-                // No fonts dir, skip — Typst will use system/bundled fonts
-            }
 
             console.log(`[DocumentService] Generating PDF: ${templateName} (binary: ${typstBinary})`)
 

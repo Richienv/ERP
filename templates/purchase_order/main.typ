@@ -70,7 +70,7 @@
   paper: "a4",
   margin: if print-decoration { (top: 1.5cm, bottom: 2cm, left: 1.5cm, right: 1.5cm) } else { (top: 5cm, bottom: 2cm, left: 1.5cm, right: 1.5cm) },
   
-  footer: if print-decoration { footer() } else { none }
+  footer: if print-decoration { footer(label: get-field(data, "po_number", default: "")) } else { none }
 )
 
 #set text(size: 10pt, fill: brand-colors.text, lang: "en")
