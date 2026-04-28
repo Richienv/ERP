@@ -14,9 +14,12 @@ export type { GRNFilter } from "@/lib/types/grn-filters"
  */
 export function useReceiving(filter?: GRNFilter) {
     return useQuery({
-        queryKey: filter
-            ? ([...queryKeys.receiving.list(), filter] as const)
-            : queryKeys.receiving.list(),
+        queryKey: (() => {
+            const hasFilter = filter && Object.values(filter).some(v => v !== undefined && v !== null && v !== '')
+            return hasFilter
+                ? ([...queryKeys.receiving.list(), filter] as const)
+                : queryKeys.receiving.list()
+        })(),
         queryFn: async () => {
             const [grns, pendingPOs, warehouses, employees] = await Promise.all([
                 getAllGRNs(filter),

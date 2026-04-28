@@ -18,9 +18,12 @@ export type { POFilter } from "@/lib/types/procurement-filters"
  */
 export function usePurchaseOrders(filter?: POFilter) {
     return useQuery({
-        queryKey: filter
-            ? ([...queryKeys.purchaseOrders.list(), filter] as const)
-            : queryKeys.purchaseOrders.list(),
+        queryKey: (() => {
+            const hasFilter = filter && Object.values(filter).some(v => v !== undefined && v !== null && v !== '')
+            return hasFilter
+                ? ([...queryKeys.purchaseOrders.list(), filter] as const)
+                : queryKeys.purchaseOrders.list()
+        })(),
         queryFn: async () => {
             const [orders, vendorsRaw] = await Promise.all([
                 getAllPurchaseOrders(filter),
