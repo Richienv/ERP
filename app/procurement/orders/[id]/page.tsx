@@ -1,6 +1,7 @@
 "use client"
 import { use } from "react"
 import Link from "next/link"
+import dynamic from "next/dynamic"
 import { IconPrinter } from "@tabler/icons-react"
 import { usePurchaseOrderDetail } from "@/hooks/use-purchase-order-detail"
 import { DetailPage } from "@/components/integra/detail-page"
@@ -8,11 +9,21 @@ import { DetailPageSkeleton } from "@/components/integra/detail-page-skeleton"
 import { TypstPdfButton } from "@/components/integra/typst-pdf-button"
 import { EmptyState } from "@/components/integra"
 import { HeaderTab } from "./_tabs/header-tab"
-import { ItemTab } from "./_tabs/item-tab"
-import { ApprovalTab } from "./_tabs/approval-tab"
-import { HistoryTab } from "./_tabs/history-tab"
-import { LampiranTab } from "./_tabs/lampiran-tab"
-import { KomunikasiTab } from "./_tabs/komunikasi-tab"
+
+// Lazy-load non-default tabs so their bundles + data fetches don't run on detail page open.
+const ItemTab = dynamic(() => import("./_tabs/item-tab").then((m) => ({ default: m.ItemTab })))
+const ApprovalTab = dynamic(() =>
+    import("./_tabs/approval-tab").then((m) => ({ default: m.ApprovalTab })),
+)
+const HistoryTab = dynamic(() =>
+    import("./_tabs/history-tab").then((m) => ({ default: m.HistoryTab })),
+)
+const LampiranTab = dynamic(() =>
+    import("./_tabs/lampiran-tab").then((m) => ({ default: m.LampiranTab })),
+)
+const KomunikasiTab = dynamic(() =>
+    import("./_tabs/komunikasi-tab").then((m) => ({ default: m.KomunikasiTab })),
+)
 
 export default function PoDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
