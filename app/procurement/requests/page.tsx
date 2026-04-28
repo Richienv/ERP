@@ -43,7 +43,11 @@ import type { PRFilter } from "@/lib/types/procurement-filters"
 import { queryKeys } from "@/lib/query-keys"
 import { INT, fmtIDRJt, fmtDateTime } from "@/lib/integra-tokens"
 import { exportPRsToXlsx, exportPRsToCsv, type PRExportRow } from "@/lib/exports/pr-xlsx"
-import { ImportPRsDialog } from "@/components/procurement/import-prs-dialog"
+import dynamic from "next/dynamic"
+const ImportPRsDialog = dynamic(
+    () => import("@/components/procurement/import-prs-dialog").then(m => ({ default: m.ImportPRsDialog })),
+    { ssr: false },
+)
 
 type Period = "1H" | "7H" | "30H" | "TTD" | "12B"
 type StatusTab = "ALL" | "PENDING" | "APPROVED" | "PO_CREATED" | "REJECTED"
@@ -1430,12 +1434,14 @@ export default function PurchaseRequestsPage() {
                 </div>
             )}
 
-            {/* Import PRs Dialog (XLSX 2-sheet bulk import) */}
-            <ImportPRsDialog
-                open={importOpen}
-                onOpenChange={setImportOpen}
-                hideTrigger
-            />
+            {/* Import PRs Dialog (XLSX 2-sheet bulk import — lazy-loaded) */}
+            {importOpen && (
+                <ImportPRsDialog
+                    open={importOpen}
+                    onOpenChange={setImportOpen}
+                    hideTrigger
+                />
+            )}
         </>
     )
 }

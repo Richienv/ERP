@@ -43,7 +43,11 @@ import type { GRNFilter } from "@/lib/types/grn-filters"
 import { queryKeys } from "@/lib/query-keys"
 import { INT, fmtDateTime } from "@/lib/integra-tokens"
 import { exportGRNsToXlsx, exportGRNsToCsv, type GRNExportRow } from "@/lib/exports/grn-xlsx"
-import { ImportGRNsDialog } from "@/components/procurement/import-grns-dialog"
+import dynamic from "next/dynamic"
+const ImportGRNsDialog = dynamic(
+    () => import("@/components/procurement/import-grns-dialog").then(m => ({ default: m.ImportGRNsDialog })),
+    { ssr: false },
+)
 
 type Period = "1H" | "7H" | "30H" | "TTD" | "12B"
 type StatusTab = "ALL" | "INSPECTING" | "PARTIAL_ACCEPTED" | "ACCEPTED" | "REJECTED"
@@ -1300,12 +1304,14 @@ export default function ReceivingPage() {
                 }
             />
 
-            {/* Import GRNs Dialog (XLSX bulk import — 2 sheets: Header + Items) */}
-            <ImportGRNsDialog
-                open={importOpen}
-                onOpenChange={setImportOpen}
-                hideTrigger
-            />
+            {/* Import GRNs Dialog (XLSX bulk import — lazy-loaded) */}
+            {importOpen && (
+                <ImportGRNsDialog
+                    open={importOpen}
+                    onOpenChange={setImportOpen}
+                    hideTrigger
+                />
+            )}
 
             {/* Keyboard shortcuts cheatsheet */}
             {showShortcuts && (

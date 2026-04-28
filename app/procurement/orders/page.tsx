@@ -17,7 +17,11 @@ import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 
 import { usePurchaseOrders } from "@/hooks/use-purchase-orders"
-import { ImportPOsDialog } from "@/components/procurement/import-pos-dialog"
+import dynamic from "next/dynamic"
+const ImportPOsDialog = dynamic(
+    () => import("@/components/procurement/import-pos-dialog").then(m => ({ default: m.ImportPOsDialog })),
+    { ssr: false },
+)
 import { FlagshipListSkeleton } from "@/components/integra/flagship-list-skeleton"
 import {
     DropdownMenu,
@@ -1657,12 +1661,14 @@ export default function PurchaseOrdersPage() {
                 </div>
             )}
 
-            {/* Import POs Dialog (XLSX bulk import — 2 sheets: Header + Items) */}
-            <ImportPOsDialog
-                open={importOpen}
-                onOpenChange={setImportOpen}
-                hideTrigger
-            />
+            {/* Import POs Dialog (XLSX bulk import — lazy-loaded; only mounts when opened) */}
+            {importOpen && (
+                <ImportPOsDialog
+                    open={importOpen}
+                    onOpenChange={setImportOpen}
+                    hideTrigger
+                />
+            )}
         </>
     )
 }
