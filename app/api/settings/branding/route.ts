@@ -61,6 +61,8 @@ export async function PATCH(req: NextRequest) {
     } catch (e: any) {
         if (e.message === 'Unauthorized') return NextResponse.json({ error: e.message }, { status: 401 })
         if (e.message === 'Forbidden') return NextResponse.json({ error: e.message }, { status: 403 })
-        return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+        console.error('[PATCH /api/settings/branding] error:', e)
+        const detail = process.env.NODE_ENV === 'production' ? undefined : e?.message
+        return NextResponse.json({ error: 'Internal error', detail }, { status: 500 })
     }
 }
