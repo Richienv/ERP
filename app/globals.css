@@ -647,4 +647,13 @@ textarea.nb-input:not(:placeholder-shown) {
     font-feature-settings: "tnum";
     letter-spacing: -0.01em;
   }
+
+  /* Page fade-in transition (replaces framer-motion PageTransition for perf) */
+  @keyframes pageFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .page-fade-in {
+    animation: pageFadeIn 80ms ease-out;
+  }
 }
