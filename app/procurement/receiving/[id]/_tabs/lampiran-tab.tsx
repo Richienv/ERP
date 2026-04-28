@@ -1,9 +1,9 @@
 "use client"
-import { Camera, FileText, Paperclip, Plus } from "lucide-react"
-import { TypstPdfButton } from "@/components/integra/typst-pdf-button"
+import { Camera, Paperclip, Plus } from "lucide-react"
 import { LinkedDocsPanel } from "@/components/integra/linked-docs-panel"
 import { EmptyState } from "@/components/integra"
 import { buildLinkedDocs } from "../_helpers/build-linked-docs"
+import { DocumentSnapshotList } from "@/components/documents/document-snapshot-list"
 
 export function LampiranTab({ data }: { data: any }) {
     const trail = buildLinkedDocs(data)
@@ -11,27 +11,12 @@ export function LampiranTab({ data }: { data: any }) {
 
     return (
         <div className="space-y-6">
-            {/* Generated PDF: Surat Jalan Masuk */}
+            {/* Versioned PDF snapshots — Surat Jalan Masuk */}
             <section>
                 <h3 className="text-[11px] font-medium uppercase tracking-wider text-[var(--integra-muted)] mb-3">
-                    Dokumen Otomatis
+                    Dokumen PDF (versi tercatat)
                 </h3>
-                <div className="border border-[var(--integra-hairline)] rounded-[3px] p-3 flex items-center gap-3">
-                    <div className="w-10 h-10 bg-[#F1EFE8] rounded-[3px] grid place-items-center">
-                        <FileText className="size-5 text-[var(--integra-ink-soft)]" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="text-[12.5px] text-[var(--integra-ink)]">{data.number}.pdf</div>
-                        <div className="text-[10.5px] text-[var(--integra-muted)]">
-                            Surat Jalan Masuk · Generated dari template Typst
-                        </div>
-                    </div>
-                    <TypstPdfButton
-                        endpoint={`/api/documents/surat-jalan-masuk/${data.id}`}
-                        filename={`${data.number}.pdf`}
-                        label="Download PDF"
-                    />
-                </div>
+                <DocumentSnapshotList type="GRN" entityId={data.id} />
             </section>
 
             {/* Vendor delivery docket placeholder */}

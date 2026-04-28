@@ -7,6 +7,7 @@ import { assertRole, getAuthzUser } from "@/lib/authz"
 import { assertPOTransition, allowedNextStatuses } from "@/lib/po-state-machine"
 import { postInventoryGLEntry } from "@/lib/actions/inventory-gl"
 import { revalidatePath } from "next/cache"
+import { fireTrigger } from "@/lib/documents/triggers"
 import {
     FALLBACK_PENDING_POS,
     FALLBACK_GRNS,
@@ -710,6 +711,9 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
             recalculateVendorRating(grnId).catch((err) =>
                 console.error("[acceptGRN] Vendor rating recalc failed (non-blocking):", err)
             )
+
+            // Fire-and-forget: capture immutable PDF snapshot of accepted GRN.
+            void fireTrigger('GRN_ACCEPTED', grnId, user.id)
 
             // Revalidate all affected pages
             revalidatePath("/inventory")
