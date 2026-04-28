@@ -5,9 +5,7 @@ import { queryKeys } from "@/lib/query-keys"
 
 export function useProcurementDashboard(searchParams?: string) {
     return useQuery({
-        queryKey: searchParams
-            ? [...queryKeys.procurementDashboard.list(), searchParams]
-            : queryKeys.procurementDashboard.list(),
+        queryKey: queryKeys.procurementDashboard.list(),
         queryFn: async () => {
             const url = searchParams
                 ? `/api/procurement/dashboard?${searchParams}`
