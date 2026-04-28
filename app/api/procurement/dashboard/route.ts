@@ -38,26 +38,28 @@ export async function GET(request: NextRequest) {
         // Fetch pending items for inline approval
         let pendingItemsForApproval: any[] = []
         try {
-            const pendingPOsRaw = await prisma.purchaseOrder.findMany({
-                where: { status: ProcurementStatus.PENDING_APPROVAL },
-                select: {
-                    id: true, number: true, totalAmount: true, netAmount: true,
-                    supplier: { select: { name: true } },
-                    items: { select: { product: { select: { name: true, code: true } }, quantity: true } },
-                },
-                orderBy: { createdAt: "desc" },
-                take: 10,
-            })
-            const pendingPRsRaw = await prisma.purchaseRequest.findMany({
-                where: { status: PRStatus.PENDING },
-                select: {
-                    id: true, number: true, department: true, priority: true,
-                    requester: { select: { firstName: true, lastName: true } },
-                    items: { select: { product: { select: { name: true, code: true } }, quantity: true } },
-                },
-                orderBy: { createdAt: "desc" },
-                take: 10,
-            })
+            const [pendingPOsRaw, pendingPRsRaw] = await Promise.all([
+                prisma.purchaseOrder.findMany({
+                    where: { status: ProcurementStatus.PENDING_APPROVAL },
+                    select: {
+                        id: true, number: true, totalAmount: true, netAmount: true,
+                        supplier: { select: { name: true } },
+                        items: { select: { product: { select: { name: true, code: true } }, quantity: true } },
+                    },
+                    orderBy: { createdAt: "desc" },
+                    take: 10,
+                }),
+                prisma.purchaseRequest.findMany({
+                    where: { status: PRStatus.PENDING },
+                    select: {
+                        id: true, number: true, department: true, priority: true,
+                        requester: { select: { firstName: true, lastName: true } },
+                        items: { select: { product: { select: { name: true, code: true } }, quantity: true } },
+                    },
+                    orderBy: { createdAt: "desc" },
+                    take: 10,
+                }),
+            ])
             pendingItemsForApproval = [
                 ...pendingPOsRaw.map((po) => ({
                     id: po.id, type: "PO" as const, number: po.number || "—",
