@@ -19,10 +19,13 @@ export async function buildRenderTarget(type: DocType, entityId: string): Promis
         case 'PR': {
             const pr = await prisma.purchaseRequest.findUnique({
                 where: { id: entityId },
-                include: { items: true },
+                include: {
+                    items: { include: { product: true } } as any,
+                    requester: true as any,
+                },
             })
             if (!pr) throw new Error(`PR not found: ${entityId}`)
-            return { templateName: 'purchase_order', payload: pr } // reuse PO template for now
+            return { templateName: 'purchase_request', payload: pr }
         }
         case 'GRN': {
             const grn = await prisma.goodsReceivedNote.findUnique({
