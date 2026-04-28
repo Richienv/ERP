@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
+import { LogoUploader } from './logo-uploader'
 
 export function BrandingForm() {
     const [form, setForm] = useState({
@@ -58,6 +59,13 @@ export function BrandingForm() {
             <div>
                 <Label>Email</Label>
                 <Input value={form.companyEmail ?? ''} onChange={e => setForm({ ...form, companyEmail: e.target.value })} />
+            </div>
+            <div>
+                <Label>Logo Perusahaan</Label>
+                <LogoUploader
+                    currentKey={form.logoStorageKey}
+                    onChange={(newKey) => setForm({ ...form, logoStorageKey: newKey ?? '' })}
+                />
             </div>
             <div>
                 <Label>Brand Color</Label>
