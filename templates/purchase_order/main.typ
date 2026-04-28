@@ -37,6 +37,11 @@
 }
 
 // ============================================
+// SHARED BRAND MODULE
+// ============================================
+#import "../_shared/brand.typ": header, footer, brand-color, brand-muted
+
+// ============================================
 // BRAND COLORS
 // ============================================
 #let brand-colors = (
@@ -65,20 +70,7 @@
   paper: "a4",
   margin: if print-decoration { (top: 1.5cm, bottom: 2cm, left: 1.5cm, right: 1.5cm) } else { (top: 5cm, bottom: 2cm, left: 1.5cm, right: 1.5cm) },
   
-  footer: if print-decoration {
-    context {
-      box(width: 100%, stroke: (top: 0.5pt + brand-colors.border), inset: (top: 8pt))[
-        #grid(
-          columns: (1fr, 1fr, 1fr),
-          align(left)[#text(size: 7pt, fill: brand-colors.text-light)[Generated: #datetime.today().display("[year]-[month]-[day]")]],
-          align(center)[#text(size: 7pt, fill: brand-colors.text-light)[Page #counter(page).display("1 of 1", both: true)]],
-          align(right)[#text(size: 7pt, fill: brand-colors.text-light)[CONFIDENTIAL]]
-        )
-      ]
-    }
-  } else {
-    none
-  }
+  footer: if print-decoration { footer() } else { none }
 )
 
 #set text(size: 10pt, fill: brand-colors.text, lang: "en")
@@ -123,6 +115,8 @@
 // DOCUMENT HEADER
 // ============================================
 #if print-decoration [
+  #header()
+  #v(12pt)
   #box(width: 100%, inset: (bottom: 16pt), stroke: (bottom: 2pt + brand-colors.primary))[
     #grid(
       columns: (1fr, auto),

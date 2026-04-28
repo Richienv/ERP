@@ -65,6 +65,7 @@ export class DocumentService {
 
             const args = [
                 "compile",
+                "--root", TEMPLATE_DIR,
                 "--input", `data=${jsonData}`,
                 templatePath,
                 outputPath
