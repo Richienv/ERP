@@ -24,6 +24,18 @@ export async function middleware(request: NextRequest) {
         },
     })
 
+    // Skip full auth round-trip for RSC prefetches — these are speculative
+    // fetches fired on hover (sidebar nav) and add 50-300ms TTFB each time.
+    // The actual page render still hits middleware with a real navigation,
+    // where auth runs normally. The downstream RSC/!user guard at line ~103
+    // already handles the case where prefetched routes hit a protected page.
+    if (
+        request.headers.get('next-router-prefetch') === '1' ||
+        request.headers.get('purpose') === 'prefetch'
+    ) {
+        return response
+    }
+
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
