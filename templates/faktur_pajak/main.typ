@@ -28,11 +28,17 @@
 }
 
 // ============================================
+// SHARED BRAND MODULE
+// ============================================
+#import "../_shared/brand.typ": header, footer, brand-color, brand-muted
+
+// ============================================
 // PAGE SETUP
 // ============================================
 #set page(
   paper: "a4",
-  margin: (top: 2cm, bottom: 2cm, left: 2cm, right: 2cm),
+  margin: (top: 2cm, bottom: 2.5cm, left: 2cm, right: 2cm),
+  footer: footer(label: "Faktur " + get-field(data, "number", default: "")),
 )
 
 #set text(font: "Inter", size: 9pt, fill: rgb("#1a202c"))
@@ -47,6 +53,9 @@
 // ============================================
 // HEADER
 // ============================================
+#header()
+#v(12pt)
+
 #align(center)[
   #text(size: 16pt, weight: "black", fill: colors.primary)[FAKTUR PAJAK]
   #v(4pt)

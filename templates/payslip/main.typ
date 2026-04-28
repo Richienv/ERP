@@ -46,13 +46,23 @@
 #let total-deductions = get-field(payroll, "total_deductions", default: 0)
 #let net-salary = get-field(payroll, "net_salary", default: 0)
 
-#set page(paper: "a4", margin: (top: 1.6cm, bottom: 1.6cm, left: 1.8cm, right: 1.8cm))
+// ============================================
+// SHARED BRAND MODULE
+// ============================================
+#import "../_shared/brand.typ": header, footer, brand-color, brand-muted
+
+#set page(
+  paper: "a4",
+  margin: (top: 1.6cm, bottom: 1.6cm, left: 1.8cm, right: 1.8cm),
+  footer: footer(label: get-field(employee, "name", default: "") + " — " + get-field(data, "period_label", default: "")),
+)
 #set text(size: 9pt)
+
+#header()
+#v(8pt)
 
 #align(left)[
   #text(size: 16pt, weight: "bold")[Slip Gaji]
-  #v(4pt)
-  #text(weight: "bold")[#company-name]
 ]
 
 #v(10pt)
