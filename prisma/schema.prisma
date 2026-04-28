@@ -1440,6 +1440,7 @@ model GoodsReceivedNote {
 
   @@index([purchaseOrderId])
   @@index([status])
+  @@index([receivedDate])
   @@map("goods_received_notes")
 }
 
