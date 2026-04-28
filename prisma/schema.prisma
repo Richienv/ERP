@@ -4036,3 +4036,56 @@ enum VehicleStatus {
   WRITTEN_OFF // Disposed / scrapped
   INACTIVE    // Sementara tidak digunakan
 }
+
+// =============================================================================
+// Document System — Snapshot-on-Event PDF Foundation
+// =============================================================================
+
+enum DocType {
+  PO
+  PR
+  GRN
+  VENDOR_PROFILE
+  INVOICE_AR
+  INVOICE_AP
+  FAKTUR_PAJAK
+  PAYSLIP
+  BOM
+  SPK
+}
+
+model DocumentSnapshot {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  type          DocType
+  entityId      String   @db.Uuid
+  version       Int
+  storageKey    String   // path inside "documents" bucket
+  generatedAt   DateTime @default(now())
+  generatedBy   String?  @db.Uuid
+  triggerEvent  String   // e.g. "AUTO_PO_APPROVED" | "MANUAL_REGENERATE" | "BACKFILL"
+  label         String?
+  tags          String[]
+  archivedAt    DateTime?
+  metadata      Json?
+  distributions DocumentDistribution[]
+
+  @@unique([type, entityId, version])
+  @@index([type, entityId])
+  @@index([generatedAt])
+  @@map("document_snapshots")
+}
+
+model DocumentDistribution {
+  id              String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  snapshotId      String           @db.Uuid
+  snapshot        DocumentSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  action          String           // "PRINT" | "DOWNLOAD" | "EMAIL"
+  actorId         String           @db.Uuid
+  recipientEmail  String?
+  timestamp       DateTime         @default(now())
+  notes           String?
+
+  @@index([snapshotId])
+  @@index([timestamp])
+  @@map("document_distributions")
+}
