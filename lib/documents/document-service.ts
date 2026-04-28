@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db'
 import { randomUUID } from 'crypto'
 import type { DocType, DocumentSnapshot, DocumentDistribution } from '@prisma/client'
 import { DocumentService as TypstService } from '@/lib/services/document-service'
-import { uploadDocument } from '@/lib/storage/document-storage'
+import { uploadDocument, deleteDocument } from '@/lib/storage/document-storage'
 import { buildRenderTarget } from '@/lib/documents/render-adapter'
 import { resolveBrandInputs } from '@/lib/documents/brand-resolver'
 
@@ -32,14 +32,33 @@ export async function generateSnapshot(input: GenerateInput): Promise<DocumentSn
         brand as unknown as Record<string, string>,
     )
 
-    // 4. Compute next version (race-safe via @@unique constraint + retry)
-    let version = (await prisma.documentSnapshot.count({ where: { type, entityId } })) + 1
+    return generateWithRetry(type, entityId, trigger, actorId, metadata, pdfBuffer, 0)
+}
+
+async function generateWithRetry(
+    type: DocType,
+    entityId: string,
+    trigger: string,
+    actorId: string | null | undefined,
+    metadata: Record<string, unknown> | undefined,
+    pdfBuffer: Buffer,
+    attempt: number,
+): Promise<DocumentSnapshot> {
+    const MAX_ATTEMPTS = 3
+
+    // Use MAX(version) + 1 instead of count() — handles version gaps from
+    // archived/hard-deleted snapshots without collision.
+    const last = await prisma.documentSnapshot.findFirst({
+        where: { type, entityId },
+        orderBy: { version: 'desc' },
+        select: { version: true },
+    })
+    const version = (last?.version ?? 0) + 1
     const storageKey = `${type}/${entityId}/v${version}-${randomUUID()}.pdf`
 
-    // 5. Upload first — if storage fails, no DB row created
+    // Upload first — if storage fails, no DB row created
     await uploadDocument(pdfBuffer, storageKey)
 
-    // 6. Insert DB row (retry once on race-condition unique violation)
     try {
         return await prisma.documentSnapshot.create({
             data: {
@@ -50,18 +69,14 @@ export async function generateSnapshot(input: GenerateInput): Promise<DocumentSn
             },
         })
     } catch (e: any) {
+        // Cleanup orphan blob — best-effort (deleteDocument swallows internal errors)
+        await deleteDocument(storageKey).catch(() => {})
+
+        if (e.code === 'P2002' && attempt < MAX_ATTEMPTS - 1) {
+            return generateWithRetry(type, entityId, trigger, actorId, metadata, pdfBuffer, attempt + 1)
+        }
         if (e.code === 'P2002') {
-            version = (await prisma.documentSnapshot.count({ where: { type, entityId } })) + 1
-            const retryKey = `${type}/${entityId}/v${version}-${randomUUID()}.pdf`
-            await uploadDocument(pdfBuffer, retryKey)
-            return prisma.documentSnapshot.create({
-                data: {
-                    type, entityId, version, storageKey: retryKey,
-                    triggerEvent: trigger,
-                    generatedBy: actorId ?? null,
-                    metadata: metadata as any,
-                },
-            })
+            throw new Error(`Snapshot create retried ${MAX_ATTEMPTS}x for ${type}/${entityId}: ${e.message}`)
         }
         throw e
     }

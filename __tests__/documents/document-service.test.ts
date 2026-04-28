@@ -9,6 +9,7 @@ vi.mock('@/lib/services/document-service', () => ({
 vi.mock('@/lib/storage/document-storage', () => ({
     uploadDocument: vi.fn((_, key) => Promise.resolve(key)),
     getDocumentSignedUrl: vi.fn(() => Promise.resolve('https://signed')),
+    deleteDocument: vi.fn(() => Promise.resolve()),
 }))
 vi.mock('@/lib/documents/render-adapter', () => ({
     buildRenderTarget: vi.fn(() => Promise.resolve({ templateName: 'purchase_order', payload: { foo: 'bar' } })),
@@ -79,4 +80,27 @@ describe('updateMetadata', () => {
         expect(updated.label).toBe('Final v1')
         expect(updated.storageKey).toBe(snap.storageKey)
     })
+})
+
+describe('versioning resilience', () => {
+    const entityId = randomUUID()
+
+    beforeEach(async () => {
+        await prisma.documentSnapshot.deleteMany({ where: { entityId } })
+    })
+
+    it('uses MAX(version) — handles version gaps correctly', async () => {
+        // Insert v1 and v3 directly (simulating an admin hard-delete of v2 in the
+        // middle). count() would return 2 → next becomes 3 → COLLISION with
+        // existing v3. MAX returns 3 → next becomes 4 (correct).
+        await prisma.documentSnapshot.createMany({
+            data: [
+                { type: 'PO', entityId, version: 1, storageKey: 'k1', triggerEvent: 't' },
+                { type: 'PO', entityId, version: 3, storageKey: 'k3', triggerEvent: 't' },
+            ],
+        })
+
+        const snap = await generateSnapshot({ type: 'PO', entityId, trigger: 't', actorId: randomUUID() })
+        expect(snap.version).toBe(4)
+    }, 30000)
 })
