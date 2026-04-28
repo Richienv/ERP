@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import { getAuthzUser } from "@/lib/authz"
+import { canViewEntity } from "@/lib/documents/entity-authz"
 import { generateSnapshot, logDistribution } from "@/lib/documents/document-service"
 import { downloadDocument } from "@/lib/storage/document-storage"
 
@@ -25,6 +26,9 @@ export async function GET(
     const { id } = await params
     try {
         const user = await getAuthzUser()
+        if (!(await canViewEntity(user, 'PO', id))) {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        }
 
         // 1. Find latest snapshot
         let latest = await prisma.documentSnapshot.findFirst({
