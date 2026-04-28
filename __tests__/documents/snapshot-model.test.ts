@@ -58,5 +58,5 @@ describe('DocumentSnapshot model', () => {
         await prisma.documentSnapshot.delete({ where: { id: snap.id } })
         const dists = await prisma.documentDistribution.findMany({ where: { snapshotId: snap.id } })
         expect(dists).toHaveLength(0)
-    })
+    }, 30000) // remote Supabase round-trips push this past the 5s default
 })
