@@ -108,7 +108,7 @@ model TenantConfig {
 
   // NEW — brand fields used by document templates
   companyAddress String?
-  companyNpwp    String?  // 15-digit Indonesian tax ID
+  companyNpwp    String?  // Indonesian tax ID — 15 digits (legacy) or 16 digits (new NIK-based)
   companyEmail   String?
   companyPhone   String?
   logoStorageKey String?  // path inside "documents" bucket, e.g. "_brand/logo.png"
