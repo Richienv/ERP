@@ -49,7 +49,7 @@
 // ============================================
 // SHARED BRAND MODULE
 // ============================================
-#import "../_shared/brand.typ": header, footer, brand-color, brand-muted
+#import "../_shared/brand.typ": header, footer
 
 #set page(
   paper: "a4",

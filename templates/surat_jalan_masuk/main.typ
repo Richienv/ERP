@@ -29,7 +29,7 @@
 // ============================================
 // SHARED BRAND MODULE
 // ============================================
-#import "../_shared/brand.typ": header, footer, brand-color, brand-muted
+#import "../_shared/brand.typ": header, footer
 
 // ============================================
 // BRAND COLORS
