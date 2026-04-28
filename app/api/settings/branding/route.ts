@@ -1,17 +1,14 @@
+// app/api/settings/branding/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { createClient } from '@/lib/supabase/server'
+import { getAuthzUser, assertRole } from '@/lib/authz'
 
-async function requireAuth() {
-    const supabase = await createClient()
-    const { data: { user }, error } = await supabase.auth.getUser()
-    if (error || !user) throw new Error('Unauthorized')
-    return user
-}
+const BRAND_ADMIN_ROLES = ['ROLE_ADMIN', 'ROLE_CEO', 'ROLE_DIRECTOR']
+const LOGO_KEY_RE = /^_brand\/[a-z0-9-]+\.(png|jpg|jpeg|svg|webp)$/i
 
 export async function GET() {
     try {
-        await requireAuth()
+        await getAuthzUser()  // any authenticated user can READ branding (logo+name shown in UI)
         const config = await prisma.tenantConfig.findFirst()
         return NextResponse.json({ data: config })
     } catch {
@@ -21,8 +18,16 @@ export async function GET() {
 
 export async function PATCH(req: NextRequest) {
     try {
-        await requireAuth()
+        const user = await getAuthzUser()
+        assertRole(user, BRAND_ADMIN_ROLES)  // throws "Forbidden" if not allowed
+
         const body = await req.json()
+
+        // Validate logoStorageKey if provided (defense against arbitrary path injection)
+        if (body.logoStorageKey != null && body.logoStorageKey !== '' && !LOGO_KEY_RE.test(body.logoStorageKey)) {
+            return NextResponse.json({ error: 'Format key logo tidak valid (harus _brand/<nama>.png|jpg|svg|webp)' }, { status: 400 })
+        }
+
         const config = await prisma.tenantConfig.findFirst()
         const id = config?.id
 
@@ -54,6 +59,8 @@ export async function PATCH(req: NextRequest) {
 
         return NextResponse.json({ data: updated })
     } catch (e: any) {
-        return NextResponse.json({ error: e.message }, { status: 400 })
+        if (e.message === 'Unauthorized') return NextResponse.json({ error: e.message }, { status: 401 })
+        if (e.message === 'Forbidden') return NextResponse.json({ error: e.message }, { status: 403 })
+        return NextResponse.json({ error: 'Internal error' }, { status: 500 })
     }
 }
