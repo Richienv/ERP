@@ -796,6 +796,10 @@ export async function approvePurchaseRequest(id: string, _approverId?: string) {
                 data: { status: 'APPROVED' },
             })
         })
+
+        // TRIGGER DOCUMENT SNAPSHOT — PR snapshot at approval moment.
+        void fireTrigger('PR_APPROVED', id, user.id)
+
         revalidateProcurementPaths()
 
         return { success: true }

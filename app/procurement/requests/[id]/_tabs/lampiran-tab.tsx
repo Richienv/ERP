@@ -1,38 +1,22 @@
 "use client"
 import { LinkedDocsPanel } from "@/components/integra/linked-docs-panel"
 import { EmptyState } from "@/components/integra"
-import { Paperclip, FileText, Plus } from "lucide-react"
+import { Paperclip, Plus } from "lucide-react"
 import { buildLinkedDocs } from "../_helpers/build-linked-docs"
+import { DocumentSnapshotList } from "@/components/documents/document-snapshot-list"
 
-/**
- * Lampiran tab — PR doesn't have a formal PDF template (unlike PO). For
- * now we surface the linked docs trail (PR → PO if converted) and a
- * placeholder for manual file uploads.
- */
 export function LampiranTab({ data }: { data: any }) {
     const trail = buildLinkedDocs(data)
     const hasRelated = trail.length > 1
 
     return (
         <div className="space-y-6">
-            {/* Generated PDF placeholder */}
+            {/* Versioned PDF snapshots */}
             <section>
                 <h3 className="text-[11px] font-medium uppercase tracking-wider text-[var(--integra-muted)] mb-3">
-                    Dokumen Otomatis
+                    Dokumen PDF (versi tercatat)
                 </h3>
-                <div className="border border-[var(--integra-hairline)] rounded-[3px] p-3 flex items-center gap-3">
-                    <div className="w-10 h-10 bg-[#F1EFE8] rounded-[3px] grid place-items-center">
-                        <FileText className="size-5 text-[var(--integra-muted)] opacity-60" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="text-[12.5px] text-[var(--integra-ink-soft)]">
-                            Tidak ada PDF PR formal
-                        </div>
-                        <div className="text-[10.5px] text-[var(--integra-muted)]">
-                            PR adalah dokumen internal — PDF formal hanya diterbitkan untuk Purchase Order. Lihat PO terkait di bagian Dokumen Terkait.
-                        </div>
-                    </div>
-                </div>
+                <DocumentSnapshotList type="PR" entityId={data.id} />
             </section>
 
             {/* Uploaded attachments — placeholder */}
