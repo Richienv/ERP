@@ -100,11 +100,18 @@ model TenantConfig {
   id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   tenantSlug     String   @unique
   tenantName     String
-  enabledModules String[] // e.g. ["INVENTORY", "SALES", "PROCUREMENT"]
+  enabledModules String[]
   maxUsers       Int      @default(5)
-  planType       String   @default("STARTER") // STARTER, PRO, ENTERPRISE
+  planType       String   @default("STARTER")
   logoUrl        String?
-  primaryColor   String?  @default("#000000")
+  primaryColor   String?  @default("#18181b")
+
+  // NEW — brand fields used by document templates
+  companyAddress String?
+  companyNpwp    String?  // 15-digit Indonesian tax ID
+  companyEmail   String?
+  companyPhone   String?
+  logoStorageKey String?  // path inside "documents" bucket, e.g. "_brand/logo.png"
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
