@@ -68,4 +68,27 @@ describe('canViewEntity', () => {
     it('unknown DocType denies by default', async () => {
         expect(await canViewEntity(mkUser('ROLE_ADMIN'), 'UNKNOWN_TYPE' as any, 'e1')).toBe(false)
     })
+
+    describe('role normalization', () => {
+        it('legacy unprefixed role "manager" can view PO', async () => {
+            expect(await canViewEntity(mkUser('manager'), 'PO', 'e1')).toBe(true)
+        })
+        it('legacy unprefixed role "admin" can view any DocType (super-grant)', async () => {
+            expect(await canViewEntity(mkUser('admin'), 'PO', 'e1')).toBe(true)
+            expect(await canViewEntity(mkUser('admin'), 'INVOICE_AR', 'e1')).toBe(true)
+            expect(await canViewEntity(mkUser('admin'), 'BOM', 'e1')).toBe(true)
+        })
+        it('canonical ROLE_ADMIN can view any DocType', async () => {
+            expect(await canViewEntity(mkUser('ROLE_ADMIN'), 'PR', 'e1')).toBe(true)
+            expect(await canViewEntity(mkUser('ROLE_ADMIN'), 'FAKTUR_PAJAK', 'e1')).toBe(true)
+        })
+    })
+
+    it('PAYSLIP returns false when prisma.payslip model is undefined', async () => {
+        const { prisma } = await import('@/lib/db')
+        delete (prisma as any).payslip  // simulate model not in schema
+        expect(await canViewEntity(mkUser('ROLE_STAFF', 'emp-1'), 'PAYSLIP', 'pay-1')).toBe(false)
+        // Restore for other tests:
+        ;(prisma as any).payslip = { findUnique: vi.fn() }
+    })
 })
