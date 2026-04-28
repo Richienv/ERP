@@ -123,6 +123,7 @@ export async function getVendors() {
             prisma.supplier.findMany({
                 where: { isActive: true },
                 orderBy: { name: 'asc' },
+                take: 200,
                 include: {
                     _count: {
                         select: { purchaseOrders: true }
@@ -514,6 +515,7 @@ export async function getPurchaseRequests(filter?: PRFilter) {
                 },
             },
             orderBy: { createdAt: "desc" },
+            take: 200,
         })
 
         return requests.map((req: any) => {
@@ -1578,6 +1580,7 @@ export async function getAllPurchaseOrders(filter?: POFilter) {
         const orders = await prisma.purchaseOrder.findMany({
             where,
             orderBy: { createdAt: 'desc' },
+            take: 200,
             include: {
                 supplier: {
                     select: { name: true, email: true, phone: true }

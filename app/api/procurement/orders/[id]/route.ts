@@ -17,6 +17,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
                 },
                 events: {
                     orderBy: { createdAt: "asc" },
+                    take: 100,
                 },
                 purchaseRequests: {
                     take: 5,

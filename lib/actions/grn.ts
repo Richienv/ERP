@@ -88,6 +88,7 @@ export async function getPendingPOsForReceiving() {
                 }
             },
             orderBy: { orderDate: 'desc' },
+            take: 200,
             include: {
                 supplier: true,
                 items: {
@@ -190,6 +191,7 @@ export async function getAllGRNs(filter?: GRNFilter) {
         const grns = await prismaAny.goodsReceivedNote.findMany({
             where,
             orderBy: { createdAt: 'desc' },
+            take: 200,
             include: {
                 purchaseOrder: {
                     include: { supplier: true }
