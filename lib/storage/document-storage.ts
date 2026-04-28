@@ -29,5 +29,6 @@ export async function downloadDocument(key: string): Promise<Buffer> {
 export async function deleteDocument(key: string): Promise<void> {
     const supabase = await createClient()
     await supabase.storage.from(BUCKET).remove([key])
-    // intentionally swallow "not found" — idempotent delete
+    // intentionally swallow ALL errors — delete is best-effort (snapshots are
+    // append-only audit artifacts; failures here don't affect correctness)
 }
