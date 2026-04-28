@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { uploadDocument, getDocumentSignedUrl, deleteDocument } from '@/lib/storage/document-storage'
 
 vi.mock('@/lib/supabase/server', () => ({
-    createClient: vi.fn(() => Promise.resolve({
+    createServiceClient: vi.fn(() => ({
         storage: {
             from: vi.fn(() => ({
                 upload: vi.fn(() => Promise.resolve({ data: { path: 'PO/abc/v1.pdf' }, error: null })),
