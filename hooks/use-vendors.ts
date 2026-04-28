@@ -18,6 +18,7 @@ export function useVendorsList(filter?: VendorFilter) {
             const vendors = await getVendors(filter)
             return vendors
         },
-        refetchInterval: 60_000, // Auto-refresh every 60s — vendor list rarely changes
+        // No refetchInterval — vendor list rarely changes (per the original
+        // comment). staleTime + invalidation on mutation is enough.
     })
 }

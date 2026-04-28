@@ -16,16 +16,10 @@ export function useDocumentSnapshots(type: string, entityId: string) {
             return json.data ?? []
         },
         enabled: !!entityId,
-        // Auto-refresh polling: when the list is empty (waiting for an
-        // auto-snapshot to land after PO/PR/GRN approval), poll every 2s
-        // for up to ~30s. Stops as soon as the list has any item.
-        refetchInterval: (query) => {
-            const data = query.state.data as unknown[] | undefined
-            if (!data || data.length === 0) {
-                if (query.state.dataUpdateCount < 15) return 2000
-            }
-            return false
-        },
+        // No polling — snapshot generation is async but explicit. User can
+        // click "Generate Sekarang" in the empty state, and useGenerateSnapshot
+        // / useRegenerateSnapshot mutations invalidate this query on success.
+        // The previous 2s poll wasted ~1.5 req/s on every PO/PR/GRN detail open.
     })
 }
 
