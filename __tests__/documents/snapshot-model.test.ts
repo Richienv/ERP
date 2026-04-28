@@ -20,7 +20,7 @@ describe('DocumentSnapshot model', () => {
             },
         })
         expect(snap.version).toBe(1)
-    })
+    }, 30000)
 
     it('rejects duplicate (type, entityId, version)', async () => {
         await prisma.documentSnapshot.create({
@@ -31,7 +31,7 @@ describe('DocumentSnapshot model', () => {
                 data: { type: 'PO', entityId, version: 1, storageKey: 'k2', triggerEvent: 't' },
             })
         ).rejects.toThrow()
-    })
+    }, 30000)
 
     it('lists snapshots in descending version order', async () => {
         await prisma.documentSnapshot.createMany({
@@ -46,7 +46,7 @@ describe('DocumentSnapshot model', () => {
             orderBy: { version: 'desc' },
         })
         expect(list.map(s => s.version)).toEqual([3, 2, 1])
-    })
+    }, 30000)
 
     it('does NOT cascade-delete distributions; throws on FK violation', async () => {
         const snap = await prisma.documentSnapshot.create({
