@@ -181,6 +181,8 @@ model Warehouse {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([isActive])
+  @@index([isActive, name])
   @@map("warehouses")
 }
 
@@ -311,6 +313,8 @@ model Product {
 
   @@index([categoryId])
   @@index([updatedAt])
+  @@index([isActive])
+  @@index([isActive, createdAt])
   @@map("products")
 }
 
