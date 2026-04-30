@@ -18,7 +18,6 @@ import {
     ChevronLeft,
     ChevronRight,
 } from "lucide-react";
-import { InventoryPerformanceProvider } from "@/components/inventory/inventory-performance-provider";
 import {
     Dialog,
     DialogContent,
@@ -200,8 +199,7 @@ export default function InventoryAuditPage() {
     };
 
     return (
-        <InventoryPerformanceProvider currentPath="/inventory/audit">
-            <div className="mf-page">
+        <div className="mf-page">
 
                 {/* ═══════════════════════════════════════════ */}
                 {/* COMMAND HEADER                              */}
@@ -554,7 +552,6 @@ export default function InventoryAuditPage() {
                     </DialogContent>
                 </Dialog>
 
-            </div>
-        </InventoryPerformanceProvider>
+        </div>
     );
 }
