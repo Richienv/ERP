@@ -248,9 +248,20 @@ export function ImportMovementsDialog() {
                     description: result.errors[0] ?? "Periksa format file Anda.",
                 })
             }
-        } catch (err: any) {
+        } catch (err) {
             setStep("preview")
-            toast.error("Terjadi kesalahan saat import", { description: err.message })
+            const msg = err instanceof Error ? err.message : ""
+            if (msg.startsWith("Forbidden:")) {
+                toast.error("Akses ditolak", {
+                    description: "Hanya admin, manager, atau staf gudang/pembelian yang dapat melakukan impor massal.",
+                })
+            } else if (msg === "Unauthorized") {
+                toast.error("Sesi habis", { description: "Silakan login ulang." })
+            } else {
+                toast.error("Terjadi kesalahan saat import", {
+                    description: msg || "Silakan coba lagi",
+                })
+            }
         }
     }, [validRows, queryClient])
 
