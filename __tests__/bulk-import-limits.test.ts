@@ -1,32 +1,22 @@
 import { describe, it, expect } from "vitest"
-
-const MAX_BULK_IMPORT_ROWS = 500
-
-function checkBulkImportSize(rows: unknown[]) {
-    if (rows.length > MAX_BULK_IMPORT_ROWS) {
-        return {
-            ok: false,
-            error: `Maksimal ${MAX_BULK_IMPORT_ROWS} baris per impor. Pisahkan file menjadi beberapa bagian.`
-        }
-    }
-    return { ok: true as const }
-}
+import { MAX_BULK_IMPORT_ROWS, checkBulkImportSize } from "@/lib/inventory-helpers"
 
 describe("bulk import row cap", () => {
     it("accepts an empty array", () => {
         expect(checkBulkImportSize([]).ok).toBe(true)
     })
 
-    it("accepts exactly 500 rows", () => {
-        expect(checkBulkImportSize(new Array(500).fill({})).ok).toBe(true)
+    it("accepts exactly MAX_BULK_IMPORT_ROWS rows", () => {
+        expect(checkBulkImportSize(new Array(MAX_BULK_IMPORT_ROWS).fill({})).ok).toBe(true)
     })
 
-    it("rejects 501 rows with Bahasa Indonesia error", () => {
-        const result = checkBulkImportSize(new Array(501).fill({}))
+    it("rejects MAX_BULK_IMPORT_ROWS + 1 rows with Bahasa Indonesia error", () => {
+        const result = checkBulkImportSize(new Array(MAX_BULK_IMPORT_ROWS + 1).fill({}))
         expect(result.ok).toBe(false)
         if (!result.ok) {
-            expect(result.error).toContain("Maksimal 500")
+            expect(result.error).toContain(`Maksimal ${MAX_BULK_IMPORT_ROWS}`)
             expect(result.error).toContain("Pisahkan file")
+            expect(result.error).toContain(`${MAX_BULK_IMPORT_ROWS + 1} baris`)  // includes actual count
         }
     })
 

@@ -17,6 +17,7 @@ import { createProductSchema, createCategorySchema, type CreateProductInput, typ
 import { generateBarcode } from "@/lib/inventory-utils"
 import { logAudit, computeChanges } from "@/lib/audit-helpers"
 import { requireRole } from "@/lib/auth/role-guard"
+import { checkBulkImportSize, BULK_IMPORT_ROLES } from "@/lib/inventory-helpers"
 import { z } from "zod"
 import { revalidatePath } from "next/cache"
 
@@ -2201,14 +2202,15 @@ export async function bulkImportProducts(rows: BulkImportProductRow[]): Promise<
     errors: string[]
 }> {
     // Role guard: only inventory-relevant roles can mass-import.
-    await requireRole(["admin", "manager", "WAREHOUSE", "PURCHASING"])
+    await requireRole([...BULK_IMPORT_ROLES])
 
     // Row cap to prevent self-DOS / mass GL flooding.
-    if (rows.length > 500) {
+    const sizeCheck = checkBulkImportSize(rows)
+    if (!sizeCheck.ok) {
         return {
             success: false,
             imported: 0,
-            errors: ['Maksimal 500 baris per impor. Pisahkan file menjadi beberapa bagian.'],
+            errors: [sizeCheck.error],
         }
     }
 
@@ -2313,14 +2315,15 @@ export async function bulkImportMovements(rows: BulkImportMovementRow[]): Promis
     errors: string[]
 }> {
     // Role guard: only inventory-relevant roles can mass-import.
-    await requireRole(["admin", "manager", "WAREHOUSE", "PURCHASING"])
+    await requireRole([...BULK_IMPORT_ROLES])
 
     // Row cap to prevent self-DOS / mass GL flooding.
-    if (rows.length > 500) {
+    const sizeCheck = checkBulkImportSize(rows)
+    if (!sizeCheck.ok) {
         return {
             success: false,
             imported: 0,
-            errors: ['Maksimal 500 baris per impor. Pisahkan file menjadi beberapa bagian.'],
+            errors: [sizeCheck.error],
         }
     }
 
