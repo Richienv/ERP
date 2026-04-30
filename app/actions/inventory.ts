@@ -1554,6 +1554,7 @@ export async function submitSpotAudit(data: {
     warehouseId: string;
     productId: string;
     actualQty: number;
+    countedSystemQty: number; // System qty displayed when auditor began counting (snapshot)
     auditorName: string;
     notes?: string;
 }) {
@@ -1566,35 +1567,37 @@ export async function submitSpotAudit(data: {
                 where: { productId, warehouseId, locationId: null }
             });
 
-            const systemQty = Number(existingStock?.quantity || 0);
-            const discrepancy = actualQty - systemQty;
+            const currentSystemQty = Number(existingStock?.quantity || 0);
+            // Discrepancy reported by the auditor: actual on shelf vs what they were shown.
+            const discrepancy = actualQty - data.countedSystemQty;
 
-            // 2. Update Stock (Only if discrepancy exists)
+            // 2. Update Stock (Only if discrepancy exists). Use delta-increment so
+            // concurrent movements during the count window are preserved (lost-update fix).
             if (discrepancy !== 0) {
                 if (existingStock) {
-                    // Calculate correct availableQty: newQuantity - reservedQty
-                    const reservedQty = Number(existingStock.reservedQty || 0);
-                    const newAvailableQty = Math.max(0, actualQty - reservedQty);
-
                     await prisma.stockLevel.update({
                         where: { id: existingStock.id },
                         data: {
-                            quantity: actualQty,
-                            availableQty: newAvailableQty,
+                            quantity: { increment: discrepancy },
+                            availableQty: { increment: discrepancy },
                         }
                     });
-                } else {
+                } else if (discrepancy > 0) {
+                    // Only create a new row for positive discrepancies (counting product into a fresh location).
                     await prisma.stockLevel.create({
                         data: {
                             productId,
                             warehouseId,
-                            quantity: actualQty,
-                            availableQty: actualQty,
+                            quantity: discrepancy,
+                            availableQty: discrepancy,
                             locationId: null
                         }
                     });
                 }
             }
+
+            // Preserve `systemQty` for downstream notes/GL (semantic: what the user saw)
+            const systemQty = data.countedSystemQty;
 
             // 3. Record Transaction (Always record audit, even if match)
             // Fetch product for GL description and cost
@@ -1616,7 +1619,7 @@ export async function submitSpotAudit(data: {
                     unitCost: unitCost > 0 ? unitCost : undefined,
                     totalValue: totalValue > 0 ? totalValue : undefined,
                     referenceId: `AUDIT-${Date.now()}`,
-                    notes: `Spot Audit by ${auditorName}. System: ${systemQty}, Actual: ${actualQty}. ${notes || ''}`
+                    notes: `Spot Audit by ${auditorName}. Counted system: ${data.countedSystemQty}, Current system: ${currentSystemQty}, Actual: ${actualQty}. ${notes || ''}`
                 }
             });
 
@@ -1664,7 +1667,8 @@ export async function getRecentAudits() {
 
         return transactions.map(tx => {
             // Parse notes for System/Actual qty if available
-            // Format: "Spot Audit by {name}. System: {sys}, Actual: {act}."
+            // Format (new): "Spot Audit by {name}. Counted system: {csys}, Current system: {cur}, Actual: {act}."
+            // Format (legacy): "Spot Audit by {name}. System: {sys}, Actual: {act}."
             let auditor = 'System';
             let systemQty = 0;
             let actualQty = 0;
@@ -1673,8 +1677,11 @@ export async function getRecentAudits() {
                 const auditorMatch = tx.notes.match(/Spot Audit by (.*?)\./);
                 if (auditorMatch) auditor = auditorMatch[1];
 
-                const sysMatch = tx.notes.match(/System:\s*(\d+)/);
-                if (sysMatch) systemQty = parseInt(sysMatch[1]);
+                // Prefer "Counted system" (new format); fall back to "System" (legacy format)
+                const countedSysMatch = tx.notes.match(/Counted system:\s*(\d+)/i);
+                const legacySysMatch = tx.notes.match(/(?<!Counted |Current )System:\s*(\d+)/i);
+                if (countedSysMatch) systemQty = parseInt(countedSysMatch[1]);
+                else if (legacySysMatch) systemQty = parseInt(legacySysMatch[1]);
 
                 const actMatch = tx.notes.match(/Actual:\s*(\d+)/);
                 if (actMatch) actualQty = parseInt(actMatch[1]);
