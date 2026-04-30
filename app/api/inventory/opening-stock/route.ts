@@ -53,6 +53,7 @@ export async function GET() {
             warehouses,
             existingTransactions: existingTransactions.map(t => ({
                 ...t,
+                quantity: Number(t.quantity),
                 unitCost: t.unitCost ? Number(t.unitCost) : 0,
                 totalValue: t.totalValue ? Number(t.totalValue) : 0,
             })),

@@ -1302,6 +1302,8 @@ export async function getStockMovements(limit = 50) {
         }
     })
 
+    // Decimal fields (quantity, unitCost, totalValue) serialize as strings in
+    // JSON; cast to Number so UI consumers can compare/format safely.
     return movements.map(mv => ({
         id: mv.id,
         productId: mv.productId,
@@ -1310,7 +1312,9 @@ export async function getStockMovements(limit = 50) {
         date: mv.createdAt,
         item: mv.product.name,
         code: mv.product.code,
-        qty: mv.quantity,
+        qty: Number(mv.quantity),
+        unitCost: mv.unitCost ? Number(mv.unitCost) : null,
+        totalValue: mv.totalValue ? Number(mv.totalValue) : null,
         unit: mv.product.unit,
         warehouse: mv.warehouse.name,
         // Determine "entity" (Supplier, Customer, or Target Warehouse) based on type
@@ -1891,11 +1895,15 @@ export async function getProductMovements(productId: string) {
             }
         })
 
+        // Decimal fields serialize as strings in JSON; cast to Number so UI
+        // consumers (product-quick-view) can compare qty < 0 / qty > 0 safely.
         return movements.map(mv => ({
             id: mv.id,
             type: mv.type as string,
             date: mv.createdAt.toISOString(),
-            qty: mv.quantity,
+            qty: Number(mv.quantity),
+            unitCost: mv.unitCost ? Number(mv.unitCost) : null,
+            totalValue: mv.totalValue ? Number(mv.totalValue) : null,
             warehouseId: mv.warehouse.id,
             warehouseName: mv.warehouse.name,
             referenceId: mv.referenceId || undefined,

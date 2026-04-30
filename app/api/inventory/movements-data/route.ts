@@ -25,6 +25,8 @@ export async function GET(request: Request) {
             },
         })
 
+        // Decimal fields (quantity, unitCost, totalValue) serialize as strings in
+        // JSON responses; cast to Number so UI consumers can compare/format safely.
         const data = movements.map((mv) => ({
             id: mv.id,
             productId: mv.productId,
@@ -33,7 +35,9 @@ export async function GET(request: Request) {
             date: mv.createdAt,
             item: mv.product.name,
             code: mv.product.code,
-            qty: mv.quantity,
+            qty: Number(mv.quantity),
+            unitCost: mv.unitCost ? Number(mv.unitCost) : null,
+            totalValue: mv.totalValue ? Number(mv.totalValue) : null,
             unit: mv.product.unit,
             warehouse: mv.warehouse.name,
             entity: mv.purchaseOrder?.supplier.name || mv.salesOrder?.customer.name || mv.notes || "-",
