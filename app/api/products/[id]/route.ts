@@ -1,9 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
 import { deleteProduct } from '@/app/actions/inventory'
 
 import { ApiResponse, ProductWithRelations } from '@/lib/types'
+
+// Matches Prisma enum ProductType { MANUFACTURED, TRADING, RAW_MATERIAL, WIP }
+const PRODUCT_TYPE_VALUES = ['MANUFACTURED', 'TRADING', 'RAW_MATERIAL', 'WIP'] as const
+
+// Matches Prisma enum CostingMethod { AVERAGE, FIFO }
+const COSTING_METHOD_VALUES = ['AVERAGE', 'FIFO'] as const
+
+// PUT validates partial updates — every field optional but each one bounded.
+// Cross-field refine ensures minStock <= maxStock when both are provided so
+// the inventory revaluation can never go negative on bad input.
+const ProductUpdateSchema = z
+  .object({
+    code: z.string().trim().min(1).max(50).optional(),
+    name: z.string().trim().min(1).max(200).optional(),
+    description: z.string().max(2000).optional().nullable(),
+    barcode: z.string().trim().max(100).optional().nullable(),
+    costPrice: z.coerce.number().min(0).max(1e12).optional(),
+    sellingPrice: z
+      .union([z.coerce.number().min(0).max(1e12), z.literal('').transform(() => null), z.null()])
+      .optional(),
+    minStock: z.coerce.number().int().min(0).max(1e9).optional(),
+    maxStock: z.coerce.number().int().min(0).max(1e9).optional(),
+    reorderLevel: z.coerce.number().int().min(0).max(1e9).optional(),
+    productType: z.enum(PRODUCT_TYPE_VALUES).optional(),
+    costingMethod: z.enum(COSTING_METHOD_VALUES).optional(),
+    unit: z.string().trim().min(1).max(20).optional(),
+    categoryId: z.string().uuid().optional().nullable(),
+    isActive: z.boolean().optional(),
+  })
+  .refine(
+    (data) =>
+      data.minStock === undefined ||
+      data.maxStock === undefined ||
+      data.minStock <= data.maxStock,
+    { message: 'minStock harus ≤ maxStock', path: ['minStock'] }
+  )
 
 // GET /api/products/[id] - Get single product
 export async function GET(
@@ -103,7 +140,21 @@ export async function PUT(
     }
 
     const { id } = await params
-    const body = await request.json()
+    const rawBody = await request.json()
+
+    // Validate body — bounds-check numerics, reject NaN, enforce minStock <= maxStock.
+    const parsed = ProductUpdateSchema.safeParse(rawBody)
+    if (!parsed.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Data produk tidak valid',
+          details: parsed.error.flatten().fieldErrors,
+        },
+        { status: 400 }
+      )
+    }
+    const body = parsed.data
 
     // Check if product exists
     const existingProduct = await prisma.product.findUnique({
@@ -114,6 +165,21 @@ export async function PUT(
       return NextResponse.json(
         { success: false, error: 'Product not found' },
         { status: 404 }
+      )
+    }
+
+    // Cross-field check against persisted state: if only one of minStock/maxStock
+    // is being updated, ensure it stays consistent with the existing value.
+    const nextMinStock = body.minStock ?? existingProduct.minStock
+    const nextMaxStock = body.maxStock ?? existingProduct.maxStock
+    if (nextMinStock > nextMaxStock) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Data produk tidak valid',
+          details: { minStock: ['minStock harus ≤ maxStock'] },
+        },
+        { status: 400 }
       )
     }
 
@@ -135,18 +201,20 @@ export async function PUT(
     const updatedProduct = await prisma.product.update({
       where: { id },
       data: {
-        ...(body.code && { code: body.code }),
-        ...(body.name && { name: body.name }),
+        ...(body.code !== undefined && { code: body.code }),
+        ...(body.name !== undefined && { name: body.name }),
         ...(body.description !== undefined && { description: body.description }),
-        ...(body.unit && { unit: body.unit }),
-        ...(body.costPrice !== undefined && { costPrice: parseFloat(body.costPrice) }),
-        ...(body.sellingPrice !== undefined && { sellingPrice: body.sellingPrice === null || body.sellingPrice === "" ? null : parseFloat(body.sellingPrice) }),
-        ...(body.minStock !== undefined && { minStock: parseInt(body.minStock) }),
-        ...(body.maxStock !== undefined && { maxStock: parseInt(body.maxStock) }),
-        ...(body.reorderLevel !== undefined && { reorderLevel: parseInt(body.reorderLevel) }),
+        ...(body.unit !== undefined && { unit: body.unit }),
+        ...(body.costPrice !== undefined && { costPrice: body.costPrice }),
+        ...(body.sellingPrice !== undefined && { sellingPrice: body.sellingPrice }),
+        ...(body.minStock !== undefined && { minStock: body.minStock }),
+        ...(body.maxStock !== undefined && { maxStock: body.maxStock }),
+        ...(body.reorderLevel !== undefined && { reorderLevel: body.reorderLevel }),
         ...(body.barcode !== undefined && { barcode: body.barcode }),
         ...(body.isActive !== undefined && { isActive: body.isActive }),
-        ...(body.costingMethod && { costingMethod: body.costingMethod }),
+        ...(body.costingMethod !== undefined && { costingMethod: body.costingMethod }),
+        ...(body.productType !== undefined && { productType: body.productType }),
+        ...(body.categoryId !== undefined && { categoryId: body.categoryId }),
         updatedAt: new Date(),
       },
       include: {
