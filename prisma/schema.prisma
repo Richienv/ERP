@@ -378,6 +378,18 @@ model Color {
   @@map("colors")
 }
 
+model AdjustmentReason {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code      String   @unique // SELISIH_AUDIT, BARANG_RUSAK, KENA_TIKUS, LAINNYA
+  name      String // Selisih Audit / Stok Opname, Barang Rusak / Cacat
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("adjustment_reasons")
+}
+
 // ================================
 // Stock Management
 // ================================

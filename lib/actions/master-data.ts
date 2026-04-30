@@ -161,6 +161,27 @@ export async function deleteUomConversion(id: string) {
     return { success: true }
 }
 
+// ─── Adjustment Reasons ─────────────────────────────────
+
+export async function getAdjustmentReasons() {
+    await requireAuth()
+    return prisma.adjustmentReason.findMany({
+        where: { isActive: true },
+        orderBy: { name: 'asc' },
+        select: { id: true, code: true, name: true },
+        take: 200,
+    })
+}
+
+export async function createAdjustmentReason(code: string, name: string) {
+    await requireAuth()
+    const reason = await prisma.adjustmentReason.create({
+        data: { code: code.toUpperCase(), name },
+        select: { id: true, code: true, name: true },
+    })
+    return reason
+}
+
 // ─── Suppliers (existing model) ──────────────────────────
 
 export async function getSuppliers() {

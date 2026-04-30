@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
-import { getUnits, getBrands, getColors, getCategories, getSuppliers, getUomConversions } from "@/lib/actions/master-data"
+import { getUnits, getBrands, getColors, getCategories, getSuppliers, getUomConversions, getAdjustmentReasons } from "@/lib/actions/master-data"
 
 export function useUnits() {
     return useQuery({
@@ -46,6 +46,13 @@ export function useUomConversions() {
     })
 }
 
+export function useAdjustmentReasons() {
+    return useQuery({
+        queryKey: queryKeys.adjustmentReasons.list(),
+        queryFn: getAdjustmentReasons,
+    })
+}
+
 export function useInvalidateMasterData() {
     const queryClient = useQueryClient()
     return {
@@ -55,5 +62,6 @@ export function useInvalidateMasterData() {
         invalidateCategories: () => queryClient.invalidateQueries({ queryKey: queryKeys.categories.all }),
         invalidateSuppliers: () => queryClient.invalidateQueries({ queryKey: queryKeys.suppliers.all }),
         invalidateUomConversions: () => queryClient.invalidateQueries({ queryKey: queryKeys.uomConversions.all }),
+        invalidateAdjustmentReasons: () => queryClient.invalidateQueries({ queryKey: queryKeys.adjustmentReasons.all }),
     }
 }
