@@ -1,8 +1,23 @@
 import { NextResponse } from "next/server"
+import { z } from "zod"
 import { prisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 
 export const dynamic = "force-dynamic"
+
+const MovementsQuerySchema = z.object({
+    limit: z
+        .string()
+        .optional()
+        .transform((v) => (v ? Number(v) : 100))
+        .pipe(
+            z
+                .number()
+                .int("limit harus berupa bilangan bulat")
+                .min(1, "limit minimal 1")
+                .max(500, "limit maksimal 500")
+        ),
+})
 
 export async function GET(request: Request) {
     try {
@@ -11,7 +26,17 @@ export async function GET(request: Request) {
         if (error || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
         const { searchParams } = new URL(request.url)
-        const limit = Math.min(Number(searchParams.get("limit")) || 100, 500)
+        const parsed = MovementsQuerySchema.safeParse(Object.fromEntries(searchParams))
+        if (!parsed.success) {
+            return NextResponse.json(
+                {
+                    error: "Parameter pencarian tidak valid",
+                    details: parsed.error.flatten().fieldErrors,
+                },
+                { status: 400 }
+            )
+        }
+        const { limit } = parsed.data
 
         const movements = await prisma.inventoryTransaction.findMany({
             take: limit,
