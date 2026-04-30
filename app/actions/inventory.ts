@@ -1573,26 +1573,47 @@ export async function submitSpotAudit(data: {
 
             // 2. Update Stock (Only if discrepancy exists). Use delta-increment so
             // concurrent movements during the count window are preserved (lost-update fix).
+            // Upsert keyed on @@unique([productId, warehouseId, locationId]) so two
+            // concurrent audits against a missing row don't race on create (P2002).
             if (discrepancy !== 0) {
-                if (existingStock) {
-                    await prisma.stockLevel.update({
-                        where: { id: existingStock.id },
-                        data: {
+                if (existingStock || discrepancy > 0) {
+                    // Prisma typings require non-null on compound unique keys, but the
+                    // @@unique([productId, warehouseId, locationId]) accepts NULL at the DB
+                    // level (and the partial-unique migration pins it). Cast the where to
+                    // satisfy TS while keeping the runtime semantics correct.
+                    await prisma.stockLevel.upsert({
+                        where: {
+                            productId_warehouseId_locationId: {
+                                productId,
+                                warehouseId,
+                                locationId: null,
+                            },
+                        } as any,
+                        update: {
                             quantity: { increment: discrepancy },
                             availableQty: { increment: discrepancy },
-                        }
-                    });
-                } else if (discrepancy > 0) {
-                    // Only create a new row for positive discrepancies (counting product into a fresh location).
-                    await prisma.stockLevel.create({
-                        data: {
+                        },
+                        create: {
                             productId,
                             warehouseId,
-                            quantity: discrepancy,
+                            locationId: null,
+                            quantity: discrepancy, // only positive when creating
                             availableQty: discrepancy,
-                            locationId: null
-                        }
+                        },
                     });
+
+                    // Clamp availableQty at 0 — the increment path doesn't preserve
+                    // the Math.max(0, ...) floor that the absolute-set path used to apply.
+                    // Inside the same transaction so it's atomic with the upsert.
+                    const after = await prisma.stockLevel.findFirst({
+                        where: { productId, warehouseId, locationId: null }
+                    });
+                    if (after && Number(after.availableQty) < 0) {
+                        await prisma.stockLevel.update({
+                            where: { id: after.id },
+                            data: { availableQty: 0 }
+                        });
+                    }
                 }
             }
 

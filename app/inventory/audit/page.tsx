@@ -101,12 +101,16 @@ export default function InventoryAuditPage() {
     const [countedSystemQty, setCountedSystemQty] = useState<number | null>(null);
 
     // Compute the displayed system qty for the current warehouse+product selection.
+    // Filter to locationId === null to match server's submitSpotAudit predicate
+    // (it only operates on the default/null-location row). Without this filter,
+    // multi-location warehouses would show a sum across all bins while the server
+    // only adjusts the default row, corrupting the discrepancy math.
     const liveSystemQty = useMemo(() => {
         if (!formWarehouse || !formProduct) return null;
         const product = products.find((p: any) => p.id === formProduct);
         if (!product?.stockLevels) return 0;
         return product.stockLevels
-            .filter((sl: any) => sl.warehouseId === formWarehouse)
+            .filter((sl: any) => sl.warehouseId === formWarehouse && sl.locationId === null)
             .reduce((sum: number, sl: any) => sum + Number(sl.quantity || 0), 0);
     }, [formWarehouse, formProduct, products]);
 
