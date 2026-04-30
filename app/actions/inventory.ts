@@ -58,6 +58,11 @@ export async function getProductsNotInCategory(categoryId: string) {
 }
 
 export async function assignProductToCategory(productId: string, categoryId: string) {
+    try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat mengubah kategori produk" }
+    }
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) throw new Error("Unauthorized")
@@ -76,6 +81,11 @@ export async function assignProductToCategory(productId: string, categoryId: str
 }
 
 export async function removeProductFromCategory(productId: string) {
+    try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat mengubah kategori produk" }
+    }
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) throw new Error("Unauthorized")
@@ -124,6 +134,11 @@ export async function getProductsByCategory(categoryId: string) {
 }
 
 export async function updateCategory(id: string, data: { name?: string; code?: string; description?: string }) {
+    try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat memperbarui kategori" }
+    }
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) throw new Error("Unauthorized")
@@ -148,6 +163,11 @@ export async function updateCategory(id: string, data: { name?: string; code?: s
 }
 
 export async function createCategory(input: CreateCategoryInput) {
+    try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat membuat kategori" }
+    }
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) throw new Error("Unauthorized")
@@ -174,6 +194,11 @@ export async function createCategory(input: CreateCategoryInput) {
 }
 
 export async function deleteCategory(categoryId: string) {
+    try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat menghapus kategori" }
+    }
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) throw new Error("Unauthorized")
