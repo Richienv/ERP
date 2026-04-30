@@ -2,9 +2,48 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 import { prismaMock } from '../test-setup'
 
-// The test-setup already mocks './lib/prisma' via setupFiles.
-// Import the route handler - the mock is already active.
+// The route handler imports `prisma` from '@/lib/prisma' (already mocked
+// in test-setup), but the underlying `deleteProduct` server action
+// imports from '@/lib/db' — also mock that path so both share the same
+// prismaMock instance.
+vi.mock('../lib/db', () => ({
+    __esModule: true,
+    prisma: prismaMock,
+    withPrismaAuth: (cb: any) => cb(prismaMock),
+    safeQuery: (cb: any) => cb(),
+    withRetry: (cb: any) => cb(),
+}))
+
+// The auth-helpers and audit-helpers also need to no-op so we don't hit
+// real prisma during the deleteProduct flow.
+vi.mock('../lib/audit-helpers', () => ({
+    logAudit: vi.fn().mockResolvedValue(undefined),
+    computeChanges: vi.fn().mockReturnValue({}),
+}))
+
+// Import the route handler — all mocks are active by the time it loads.
 import { DELETE } from '../app/api/products/[id]/route'
+
+/**
+ * Helper that sets every FK probe inside `deleteProduct` to "no
+ * dependency found", so the action falls through to the soft-delete
+ * branch. Individual tests can override one specific probe to assert
+ * that the action blocks correctly when that relation has data.
+ */
+function mockNoDependencies() {
+    prismaMock.bOMItem.findFirst.mockResolvedValue(null as any)
+    prismaMock.billOfMaterials.findFirst.mockResolvedValue(null as any)
+    prismaMock.workOrder.findFirst.mockResolvedValue(null as any)
+    prismaMock.quotationItem.findFirst.mockResolvedValue(null as any)
+    prismaMock.salesOrderItem.findFirst.mockResolvedValue(null as any)
+    prismaMock.purchaseOrderItem.findFirst.mockResolvedValue(null as any)
+    prismaMock.inventoryTransaction.findFirst.mockResolvedValue(null as any)
+    prismaMock.qualityInspection.findFirst.mockResolvedValue(null as any)
+    prismaMock.priceListItem.findFirst.mockResolvedValue(null as any)
+    prismaMock.stockLevel.findMany.mockResolvedValue([] as any)
+    prismaMock.stockReservation.findFirst.mockResolvedValue(null as any)
+    prismaMock.fabricRoll.findFirst.mockResolvedValue(null as any)
+}
 
 describe('Product DELETE /api/products/[id]', () => {
     beforeEach(() => {
@@ -27,156 +66,127 @@ describe('Product DELETE /api/products/[id]', () => {
         expect(body.error).toBeDefined()
     })
 
-    it('should hard-delete a product with zero dependencies', async () => {
-        prismaMock.product.findUnique.mockResolvedValue({
-            id: 'prod-clean',
-            name: 'Clean Product',
-            _count: {
-                stockLevels: 0,
-                transactions: 0,
-                quotationItems: 0,
-                salesOrderItems: 0,
-                purchaseOrderItems: 0,
-                BOMItem: 0,
-                workOrders: 0,
-            },
-        } as any)
-        prismaMock.product.delete.mockResolvedValue({} as any)
+    it('should soft-delete a product with zero dependencies', async () => {
+        prismaMock.product.findUnique.mockResolvedValue({ id: 'prod-clean' } as any)
+        mockNoDependencies()
+        prismaMock.product.update.mockResolvedValue({} as any)
 
         const response = await DELETE(makeRequest(), makeParams('prod-clean'))
         const body = await response.json()
 
         expect(body.success).toBe(true)
-        expect(prismaMock.product.delete).toHaveBeenCalledWith({ where: { id: 'prod-clean' } })
-        expect(prismaMock.product.update).not.toHaveBeenCalled()
-    })
-
-    it('should soft-delete (deactivate) a product with stock levels', async () => {
-        prismaMock.product.findUnique.mockResolvedValue({
-            id: 'prod-stock',
-            name: 'Stocked Product',
-            _count: {
-                stockLevels: 3,
-                transactions: 0,
-                quotationItems: 0,
-                salesOrderItems: 0,
-                purchaseOrderItems: 0,
-                BOMItem: 0,
-                workOrders: 0,
-            },
-        } as any)
-        prismaMock.product.update.mockResolvedValue({} as any)
-
-        const response = await DELETE(makeRequest(), makeParams('prod-stock'))
-        const body = await response.json()
-
-        expect(body.success).toBe(true)
-        expect(body.message).toContain('dinonaktifkan')
+        // We always soft-delete now (no hard delete) to preserve audit history.
         expect(prismaMock.product.update).toHaveBeenCalledWith(
             expect.objectContaining({
-                where: { id: 'prod-stock' },
+                where: { id: 'prod-clean' },
                 data: expect.objectContaining({ isActive: false }),
             })
         )
         expect(prismaMock.product.delete).not.toHaveBeenCalled()
     })
 
-    it('should soft-delete a product referenced by sales orders', async () => {
-        prismaMock.product.findUnique.mockResolvedValue({
-            id: 'prod-sales',
-            name: 'Sales Product',
-            _count: {
-                stockLevels: 0,
-                transactions: 0,
-                quotationItems: 2,
-                salesOrderItems: 5,
-                purchaseOrderItems: 0,
-                BOMItem: 0,
-                workOrders: 0,
-            },
+    it('should block delete when product has stock', async () => {
+        prismaMock.product.findUnique.mockResolvedValue({ id: 'prod-stock' } as any)
+        mockNoDependencies()
+        // Override stockLevel to return non-zero stock.
+        prismaMock.stockLevel.findMany.mockResolvedValue([{ quantity: 10 }] as any)
+
+        const response = await DELETE(makeRequest(), makeParams('prod-stock'))
+        const body = await response.json()
+
+        expect(response.status).toBe(409)
+        expect(body.success).toBe(false)
+        expect(body.error).toContain('stok')
+        expect(prismaMock.product.update).not.toHaveBeenCalled()
+    })
+
+    it('should block delete when product is in an active Sales Order', async () => {
+        prismaMock.product.findUnique.mockResolvedValue({ id: 'prod-sales' } as any)
+        mockNoDependencies()
+        prismaMock.salesOrderItem.findFirst.mockResolvedValue({
+            salesOrder: { number: 'SO-001' },
         } as any)
-        prismaMock.product.update.mockResolvedValue({} as any)
 
         const response = await DELETE(makeRequest(), makeParams('prod-sales'))
         const body = await response.json()
 
-        expect(body.success).toBe(true)
-        expect(body.message).toContain('penjualan')
-        expect(prismaMock.product.delete).not.toHaveBeenCalled()
+        expect(response.status).toBe(409)
+        expect(body.success).toBe(false)
+        expect(body.error).toContain('Sales Order')
+        expect(body.error).toContain('SO-001')
     })
 
-    it('should soft-delete a product referenced by purchase orders', async () => {
-        prismaMock.product.findUnique.mockResolvedValue({
-            id: 'prod-po',
-            name: 'PO Product',
-            _count: {
-                stockLevels: 0,
-                transactions: 0,
-                quotationItems: 0,
-                salesOrderItems: 0,
-                purchaseOrderItems: 3,
-                BOMItem: 0,
-                workOrders: 0,
-            },
+    it('should block delete when product is in an active Purchase Order', async () => {
+        prismaMock.product.findUnique.mockResolvedValue({ id: 'prod-po' } as any)
+        mockNoDependencies()
+        prismaMock.purchaseOrderItem.findFirst.mockResolvedValue({
+            purchaseOrder: { number: 'PO-099' },
         } as any)
-        prismaMock.product.update.mockResolvedValue({} as any)
 
         const response = await DELETE(makeRequest(), makeParams('prod-po'))
         const body = await response.json()
 
-        expect(body.success).toBe(true)
-        expect(body.message).toContain('pengadaan')
-        expect(prismaMock.product.delete).not.toHaveBeenCalled()
+        expect(response.status).toBe(409)
+        expect(body.success).toBe(false)
+        expect(body.error).toContain('Purchase Order')
+        expect(body.error).toContain('PO-099')
     })
 
-    it('should soft-delete a product referenced by BOMs or work orders', async () => {
-        prismaMock.product.findUnique.mockResolvedValue({
-            id: 'prod-mfg',
-            name: 'Manufacturing Product',
-            _count: {
-                stockLevels: 0,
-                transactions: 0,
-                quotationItems: 0,
-                salesOrderItems: 0,
-                purchaseOrderItems: 0,
-                BOMItem: 2,
-                workOrders: 1,
-            },
-        } as any)
-        prismaMock.product.update.mockResolvedValue({} as any)
+    it('should block delete when product has a BOMItem reference', async () => {
+        prismaMock.product.findUnique.mockResolvedValue({ id: 'prod-bom' } as any)
+        mockNoDependencies()
+        prismaMock.bOMItem.findFirst.mockResolvedValueOnce(null as any)
+        // Second findFirst (anyBomItem, no `bom: { isActive: true }` filter) returns a hit.
+        prismaMock.bOMItem.findFirst.mockResolvedValueOnce({ id: 'bomi-1' } as any)
 
-        const response = await DELETE(makeRequest(), makeParams('prod-mfg'))
+        const response = await DELETE(makeRequest(), makeParams('prod-bom'))
         const body = await response.json()
 
-        expect(body.success).toBe(true)
-        expect(body.message).toContain('manufaktur')
-        expect(prismaMock.product.delete).not.toHaveBeenCalled()
+        expect(response.status).toBe(409)
+        expect(body.success).toBe(false)
+        expect(body.error).toContain('BOMItem')
     })
 
-    it('should include multiple reasons when product has dependencies across modules', async () => {
-        prismaMock.product.findUnique.mockResolvedValue({
-            id: 'prod-multi',
-            name: 'Multi-Ref Product',
-            _count: {
-                stockLevels: 5,
-                transactions: 10,
-                quotationItems: 0,
-                salesOrderItems: 3,
-                purchaseOrderItems: 2,
-                BOMItem: 0,
-                workOrders: 0,
-            },
-        } as any)
-        prismaMock.product.update.mockResolvedValue({} as any)
+    it('should block delete when product has Inventory Transactions (audit trail)', async () => {
+        prismaMock.product.findUnique.mockResolvedValue({ id: 'prod-tx' } as any)
+        mockNoDependencies()
+        prismaMock.inventoryTransaction.findFirst.mockResolvedValue({ id: 'tx-1' } as any)
 
-        const response = await DELETE(makeRequest(), makeParams('prod-multi'))
+        const response = await DELETE(makeRequest(), makeParams('prod-tx'))
         const body = await response.json()
 
-        expect(body.success).toBe(true)
-        // Should mention multiple reasons
-        expect(body.message).toContain('stok aktif')
-        expect(body.message).toContain('riwayat pergerakan')
-        expect(body.message).toContain('penjualan')
-        expect(body.message).toContain('pengadaan')
+        expect(response.status).toBe(409)
+        expect(body.success).toBe(false)
+        expect(body.error).toContain('audit')
+    })
+
+    it('should block delete when product is in a Price List', async () => {
+        prismaMock.product.findUnique.mockResolvedValue({ id: 'prod-pl' } as any)
+        mockNoDependencies()
+        prismaMock.priceListItem.findFirst.mockResolvedValue({
+            priceList: { name: 'Tier-A' },
+        } as any)
+
+        const response = await DELETE(makeRequest(), makeParams('prod-pl'))
+        const body = await response.json()
+
+        expect(response.status).toBe(409)
+        expect(body.success).toBe(false)
+        expect(body.error).toContain('Price List')
+        expect(body.error).toContain('Tier-A')
+    })
+
+    it('should block delete when product has active Fabric Rolls', async () => {
+        prismaMock.product.findUnique.mockResolvedValue({ id: 'prod-roll' } as any)
+        mockNoDependencies()
+        prismaMock.fabricRoll.findFirst.mockResolvedValue({ rollNumber: 'R-2024-001' } as any)
+
+        const response = await DELETE(makeRequest(), makeParams('prod-roll'))
+        const body = await response.json()
+
+        expect(response.status).toBe(409)
+        expect(body.success).toBe(false)
+        expect(body.error).toContain('fabric roll')
+        expect(body.error).toContain('R-2024-001')
     })
 })

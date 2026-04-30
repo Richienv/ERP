@@ -874,6 +874,22 @@ export async function deleteWarehouse(warehouseId: string) {
             return { success: false, error: "Gudang masih memiliki stok. Pindahkan stok terlebih dahulu." }
         }
 
+        // Check if warehouse has active fabric rolls (greige / WIP textile inventory).
+        // StockLevel only tracks the aggregate quantity for non-trackable items;
+        // FabricRolls are tracked individually and would be orphaned if we soft-delete.
+        const activeRolls = await prisma.fabricRoll.count({
+            where: {
+                warehouseId,
+                status: { in: ["AVAILABLE", "RESERVED", "IN_USE"] },
+            },
+        })
+        if (activeRolls > 0) {
+            return {
+                success: false,
+                error: `Gudang masih memiliki ${activeRolls} fabric roll aktif. Pindahkan rol ke gudang lain terlebih dahulu.`,
+            }
+        }
+
         // Check if warehouse has pending stock transfers (as source or target)
         const pendingTransfer = await prisma.stockTransfer.findFirst({
             where: {
@@ -1991,7 +2007,13 @@ export async function updateProduct(productId: string, data: {
     }
 }
 
-/** Soft-delete a product (set isActive = false) */
+/** Soft-delete a product (set isActive = false).
+ *
+ * Checks every FK relation that references Product before allowing the
+ * delete. If any active reference exists, the product is left untouched
+ * (no soft-delete) and a Bahasa Indonesia error is returned. Otherwise
+ * the product is soft-deleted via `isActive = false` to preserve audit
+ * trails (transactions, inspections) without orphaning data. */
 export async function deleteProduct(productId: string) {
     try {
         // Auth check
@@ -2013,6 +2035,54 @@ export async function deleteProduct(productId: string) {
             return {
                 success: false,
                 error: `Tidak dapat menghapus produk karena masih digunakan sebagai material di BOM "${bomProduct}" (${bomVersion})`,
+            }
+        }
+
+        // Check ALL BOMItem links (including inactive BOM versions) — would orphan a BOMItem row
+        const anyBomItem = await prisma.bOMItem.findFirst({
+            where: { materialId: productId },
+            select: { id: true },
+        })
+        if (anyBomItem) {
+            return {
+                success: false,
+                error: "Tidak dapat menghapus produk: masih direferensikan oleh BOMItem (termasuk versi BOM lama)",
+            }
+        }
+
+        // Check if product is the output of any BOM (BillOfMaterials.productId)
+        const bomAsProduct = await prisma.billOfMaterials.findFirst({
+            where: { productId },
+            select: { version: true },
+        })
+        if (bomAsProduct) {
+            return {
+                success: false,
+                error: `Tidak dapat menghapus produk: masih memiliki BOM (${bomAsProduct.version})`,
+            }
+        }
+
+        // Check Work Orders referencing this product
+        const workOrder = await prisma.workOrder.findFirst({
+            where: { productId },
+            select: { number: true },
+        })
+        if (workOrder) {
+            return {
+                success: false,
+                error: `Tidak dapat menghapus produk: masih ada Work Order (${workOrder.number})`,
+            }
+        }
+
+        // Check Quotation Items
+        const quotationItem = await prisma.quotationItem.findFirst({
+            where: { productId },
+            include: { quotation: { select: { number: true } } },
+        })
+        if (quotationItem) {
+            return {
+                success: false,
+                error: `Tidak dapat menghapus produk: masih terdapat di Quotation (${quotationItem.quotation.number})`,
             }
         }
 
@@ -2047,6 +2117,42 @@ export async function deleteProduct(productId: string) {
             return {
                 success: false,
                 error: `Tidak dapat menghapus produk karena masih terdapat di Purchase Order aktif (${activePurchaseOrderItem.purchaseOrder.number})`,
+            }
+        }
+
+        // Check Inventory Transactions (audit trail) — block to preserve history
+        const transaction = await prisma.inventoryTransaction.findFirst({
+            where: { productId },
+            select: { id: true },
+        })
+        if (transaction) {
+            return {
+                success: false,
+                error: "Tidak dapat menghapus produk: masih ada riwayat pergerakan stok (audit trail). Nonaktifkan produk dari halaman edit jika ingin disembunyikan.",
+            }
+        }
+
+        // Check Quality Inspections (audit trail) — relation field is `materialId`
+        const inspection = await prisma.qualityInspection.findFirst({
+            where: { materialId: productId },
+            select: { id: true },
+        })
+        if (inspection) {
+            return {
+                success: false,
+                error: "Tidak dapat menghapus produk: masih ada riwayat inspeksi kualitas",
+            }
+        }
+
+        // Check Price List Items — would orphan a price tier
+        const priceListItem = await prisma.priceListItem.findFirst({
+            where: { productId },
+            include: { priceList: { select: { name: true } } },
+        })
+        if (priceListItem) {
+            return {
+                success: false,
+                error: `Tidak dapat menghapus produk: masih terdapat di Price List "${priceListItem.priceList.name}"`,
             }
         }
 
@@ -2095,6 +2201,17 @@ export async function deleteProduct(productId: string) {
             where: { id: productId },
             data: { isActive: false },
         })
+
+        // Audit trail
+        try {
+            await logAudit(prisma, {
+                entityType: "Product",
+                entityId: productId,
+                action: "DELETE",
+                userId: user.id,
+                userName: user.email || undefined,
+            })
+        } catch { /* audit is best-effort */ }
 
         revalidatePath("/inventory")
         return { success: true }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
+import { deleteProduct } from '@/app/actions/inventory'
 
 import { ApiResponse, ProductWithRelations } from '@/lib/types'
 
@@ -169,7 +170,14 @@ export async function PUT(
   }
 }
 
-// DELETE /api/products/[id] - Delete (or deactivate) product
+// DELETE /api/products/[id] - Delete (or deactivate) product.
+//
+// Delegates to the `deleteProduct` server action so a single source of
+// truth checks every FK relation that references Product (stockLevels,
+// transactions, quotationItems, salesOrderItems, purchaseOrderItems,
+// BOMItem, workOrders, stockReservations, fabricRolls, priceListItems,
+// inspections). Returns the action's `{success, error}` shape mirrored
+// into HTTP status codes.
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -183,24 +191,12 @@ export async function DELETE(
 
     const { id } = await params
 
-    // Check if product exists and count all dependent records
+    // Confirm the product exists so we can return a clean 404 instead of
+    // funneling "not found" through the action's generic error surface.
     const existingProduct = await prisma.product.findUnique({
       where: { id },
-      include: {
-        _count: {
-          select: {
-            stockLevels: true,
-            transactions: true,
-            quotationItems: true,
-            salesOrderItems: true,
-            purchaseOrderItems: true,
-            BOMItem: true,
-            workOrders: true,
-          },
-        },
-      },
+      select: { id: true },
     })
-
     if (!existingProduct) {
       return NextResponse.json(
         { success: false, error: 'Product not found' },
@@ -208,51 +204,23 @@ export async function DELETE(
       )
     }
 
-    // Check for ANY dependent records across all referencing tables
-    const counts = existingProduct._count
-    const hasStock = counts.stockLevels > 0
-    const hasMovements = counts.transactions > 0
-    const hasSalesRefs = counts.quotationItems > 0 || counts.salesOrderItems > 0
-    const hasProcurementRefs = counts.purchaseOrderItems > 0
-    const hasManufacturingRefs = (counts.BOMItem || 0) > 0 || counts.workOrders > 0
-    const hasDependencies = hasStock || hasMovements || hasSalesRefs || hasProcurementRefs || hasManufacturingRefs
+    // Delegate to the canonical deleteProduct server action.
+    const result = await deleteProduct(id)
 
-    if (hasDependencies) {
-      // Always soft-delete when any dependencies exist to avoid FK violations
-      await prisma.product.update({
-        where: { id },
-        data: {
-          isActive: false,
-          updatedAt: new Date(),
-        },
-      })
-
-      const reasons: string[] = []
-      if (hasStock) reasons.push('stok aktif')
-      if (hasMovements) reasons.push('riwayat pergerakan')
-      if (hasSalesRefs) reasons.push('referensi penjualan')
-      if (hasProcurementRefs) reasons.push('referensi pengadaan')
-      if (hasManufacturingRefs) reasons.push('referensi manufaktur')
-
-      const response: ApiResponse = {
-        success: true,
-        message: `Produk dinonaktifkan (memiliki ${reasons.join(', ')})`,
-      }
-
-      return NextResponse.json(response)
-    } else {
-      // Hard delete only when no references exist anywhere
-      await prisma.product.delete({
-        where: { id },
-      })
-
-      const response: ApiResponse = {
-        success: true,
-        message: 'Produk berhasil dihapus',
-      }
-
-      return NextResponse.json(response)
+    if (!result.success) {
+      // Soft-conflict: product has FK references that block deletion.
+      // Use 409 (Conflict) so the client can surface the message verbatim.
+      return NextResponse.json(
+        { success: false, error: result.error },
+        { status: 409 }
+      )
     }
+
+    const response: ApiResponse = {
+      success: true,
+      message: 'Produk berhasil dinonaktifkan',
+    }
+    return NextResponse.json(response)
   } catch (error) {
     console.error('Error deleting product:', error)
     return NextResponse.json(
