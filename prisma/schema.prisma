@@ -139,6 +139,7 @@ model Category {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([isActive])
   @@map("categories")
 }
 
@@ -427,10 +428,14 @@ model InventoryTransaction {
   locationId  String? @db.Uuid // Optional: Specific Bin/Rack location
 
   // Transaction Details
-  type       TransactionType
-  quantity   Int // Positive for IN, Negative for OUT
-  unitCost   Decimal?        @db.Decimal(20, 2) // FIFO/Average Cost Tracking
-  totalValue Decimal?        @db.Decimal(20, 2)
+  type TransactionType
+  /// Decimal(18,4) — must match StockLevel.quantity precision so fractional
+  /// fabric/yarn movements (2.5m, 1.5kg) are not silently truncated.
+  /// Migration 20260430..._inventorytx_quantity_decimal_plus_category_index
+  /// converts from Int.
+  quantity   Decimal  @db.Decimal(18, 4) // Positive for IN, Negative for OUT
+  unitCost   Decimal? @db.Decimal(20, 2) // FIFO/Average Cost Tracking
+  totalValue Decimal? @db.Decimal(20, 2)
 
   // Strict Audit Links (The "Professional" Connection)
   referenceId     String? // Fallback
