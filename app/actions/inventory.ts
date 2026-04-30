@@ -311,6 +311,7 @@ export async function getInventoryKPIs() {
     const products = await prisma.product.findMany({
         where: { isActive: true },
         include: { stockLevels: true },
+        orderBy: { createdAt: 'desc' },
         take: 500,
     })
 
@@ -443,6 +444,7 @@ export async function getMaterialGapAnalysis() {
             },
             // TODO(perf): bounded to prevent dashboard slowdown on large catalogs.
             // Long-term: replace with DB-side aggregation (groupBy / raw SQL) to compute gaps without scanning all products.
+            orderBy: { createdAt: 'desc' },
             take: 500,
         }),
         prisma.employeeTask.findMany({
@@ -450,6 +452,7 @@ export async function getMaterialGapAnalysis() {
             select: { relatedId: true },
             // TODO(perf): bounded for safety. If >500 pending PR tasks ever exist,
             // some products will incorrectly show isPendingRequest=false. Consider DB-side join.
+            orderBy: { createdAt: 'desc' },
             take: 500,
         })
     ])
@@ -734,6 +737,7 @@ export async function getProductsForKanban() {
             category: true,
             stockLevels: true
         },
+        orderBy: { createdAt: 'desc' },
         take: 500,
     })
 

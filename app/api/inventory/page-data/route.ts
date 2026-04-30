@@ -23,6 +23,7 @@ export async function GET() {
                     category: true,
                     stockLevels: true,
                 },
+                orderBy: { createdAt: 'desc' },
                 take: 500,
             }),
             prisma.category.findMany({
@@ -40,6 +41,7 @@ export async function GET() {
                     },
                     _count: { select: { stockLevels: true } },
                 },
+                orderBy: { name: 'asc' },
                 take: 500,
             }),
             // ALL non-cancelled/rejected PR items (for Planning column + status tracking)
@@ -62,6 +64,7 @@ export async function GET() {
                         },
                     },
                 },
+                orderBy: { createdAt: 'desc' },
                 take: 500,
             }),
             // Active PO items (for Incoming column — products with orders in progress)
@@ -86,6 +89,7 @@ export async function GET() {
                         },
                     },
                 },
+                orderBy: { createdAt: 'desc' },
                 take: 500,
             }),
         ])
