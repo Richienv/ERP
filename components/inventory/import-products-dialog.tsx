@@ -1,7 +1,6 @@
 "use client"
 
 import { useRef, useState, useCallback } from "react"
-import * as XLSX from "xlsx"
 import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, X, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
@@ -67,7 +66,8 @@ interface ParsedRow extends BulkImportProductRow {
 }
 
 // ─── Parser ──────────────────────────────────────────────────────────────────
-function parseFileToRows(file: File): Promise<{ rows: ParsedRow[]; parseError?: string }> {
+async function parseFileToRows(file: File): Promise<{ rows: ParsedRow[]; parseError?: string }> {
+    const XLSX = await import("xlsx")
     return new Promise((resolve) => {
         const reader = new FileReader()
         reader.onload = (e) => {
@@ -245,7 +245,8 @@ export function ImportProductsDialog({
     }, [validRows, queryClient])
 
     // ── Template download ────────────────────────────────────────────────────
-    const handleDownloadTemplate = useCallback(() => {
+    const handleDownloadTemplate = useCallback(async () => {
+        const XLSX = await import("xlsx")
         const ws = XLSX.utils.aoa_to_sheet([
             ["Nama Produk", "Kode Produk", "Kategori", "Satuan", "HPP", "Harga Jual", "Deskripsi"],
             ["Kaos Polos Hitam", "KAO-001", "Pakaian", "PCS", 45000, 75000, "Kaos polos bahan cotton combed 30s"],

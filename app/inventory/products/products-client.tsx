@@ -2,7 +2,6 @@
 
 import { useMemo, useState, useEffect, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import * as XLSX from "xlsx"
 import {
     IconFilter,
     IconDownload,
@@ -93,7 +92,8 @@ type CardData = {
 // Helpers
 // ─────────────────────────────────────────────────────────────────
 
-function exportProducts(products: any[]) {
+async function exportProducts(products: any[]) {
+    const XLSX = await import("xlsx")
     const rows = products.map((p: any) => ({
         Kode: p.code || "",
         Nama: p.name || "",
