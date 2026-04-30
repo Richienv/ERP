@@ -305,9 +305,13 @@ export async function getInventoryKPIs() {
 
     // Use the same query & status logic as the product table / kanban
     // so KPI numbers match what users see in the product list.
+    // TODO(perf): KPIs are aggregations over all active products. Cap at 500 to
+    // protect dashboard load time on large catalogs; revisit with DB-side
+    // aggregation (groupBy / raw SQL) when SKU count exceeds this limit.
     const products = await prisma.product.findMany({
         where: { isActive: true },
         include: { stockLevels: true },
+        take: 500,
     })
 
     let lowStock = 0
@@ -436,11 +440,13 @@ export async function getMaterialGapAnalysis() {
                         }
                     }
                 }
-            }
+            },
+            take: 500,
         }),
         prisma.employeeTask.findMany({
             where: { type: 'PURCHASE_REQUEST', status: 'PENDING' },
-            select: { relatedId: true }
+            select: { relatedId: true },
+            take: 500,
         })
     ])
 
@@ -723,7 +729,8 @@ export async function getProductsForKanban() {
         include: {
             category: true,
             stockLevels: true
-        }
+        },
+        take: 500,
     })
 
     return products.map(p => {

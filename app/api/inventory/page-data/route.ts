@@ -23,11 +23,13 @@ export async function GET() {
                     category: true,
                     stockLevels: true,
                 },
+                take: 500,
             }),
             prisma.category.findMany({
                 where: { isActive: true },
                 select: { id: true, name: true, code: true },
                 orderBy: { name: "asc" },
+                take: 500,
             }),
             prisma.warehouse.findMany({
                 include: {
@@ -38,8 +40,11 @@ export async function GET() {
                     },
                     _count: { select: { stockLevels: true } },
                 },
+                take: 500,
             }),
             // ALL non-cancelled/rejected PR items (for Planning column + status tracking)
+            // 500 open PR items is unrealistic in practice — beyond that signals
+            // a data hygiene issue (stale PRs not cancelled). Cap to protect load time.
             prisma.purchaseRequestItem.findMany({
                 where: {
                     purchaseRequest: {
@@ -57,8 +62,11 @@ export async function GET() {
                         },
                     },
                 },
+                take: 500,
             }),
             // Active PO items (for Incoming column — products with orders in progress)
+            // 500 open PO items is unrealistic in practice — beyond that signals
+            // a data hygiene issue (stale POs not received/closed). Cap to protect load time.
             prisma.purchaseOrderItem.findMany({
                 where: {
                     purchaseOrder: {
@@ -78,6 +86,7 @@ export async function GET() {
                         },
                     },
                 },
+                take: 500,
             }),
         ])
 
