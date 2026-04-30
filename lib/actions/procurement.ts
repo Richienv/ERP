@@ -8,6 +8,8 @@ export type { POFilter, PRFilter } from "@/lib/types/procurement-filters"
 import { recordPendingBillFromPO } from "@/lib/actions/finance-invoices"
 import { FALLBACK_PURCHASE_ORDERS, FALLBACK_VENDORS } from "@/lib/db-fallbacks"
 import { assertRole, getAuthzUser } from "@/lib/authz"
+import { requireRole } from "@/lib/auth/role-guard"
+import { checkBulkImportSize, BULK_IMPORT_ROLES } from "@/lib/inventory-helpers"
 import { assertPOTransition } from "@/lib/po-state-machine"
 import { canApproveForDepartment, resolveEmployeeContext } from "@/lib/employee-context"
 import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
@@ -3334,6 +3336,22 @@ export async function bulkImportPurchaseRequests(
     itemRows: BulkImportPRItemRow[],
 ): Promise<BulkImportPRResult> {
     const result: BulkImportPRResult = { imported: 0, errors: [] }
+
+    // Role guard: only relevant roles can mass-import.
+    try {
+        await requireRole([...BULK_IMPORT_ROLES])
+    } catch (e: unknown) {
+        const reason = e instanceof Error ? e.message : "Tidak terautentikasi"
+        result.errors.push({ row: 0, reason })
+        return result
+    }
+
+    // Row cap to prevent self-DOS / GL flooding.
+    const sizeCheck = checkBulkImportSize(headerRows)
+    if (!sizeCheck.ok) {
+        result.errors.push({ row: 0, reason: sizeCheck.error })
+        return result
+    }
 
     // ── Auth (sekali untuk seluruh batch)
     try {
