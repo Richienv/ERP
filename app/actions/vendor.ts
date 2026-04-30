@@ -6,6 +6,8 @@ import { PaymentTermLegacy, type Prisma } from "@prisma/client"
 import { isLegacyPaymentTerm } from "@/lib/payment-term-options"
 import type { VendorFilter } from "@/lib/types/vendor-filters"
 import { getAuthzUser, assertRole } from "@/lib/authz"
+import { requireRole } from "@/lib/auth/role-guard"
+import { checkBulkImportSize, BULK_IMPORT_ROLES } from "@/lib/inventory-helpers"
 
 export type { VendorFilter } from "@/lib/types/vendor-filters"
 
@@ -552,13 +554,19 @@ export async function bulkImportVendors(
 ): Promise<BulkImportVendorResult> {
     const result: BulkImportVendorResult = { imported: 0, errors: [] }
 
+    // Role guard: only relevant roles can mass-import.
     try {
-        await requireAuth()
-    } catch {
-        // Single auth-error covers the whole batch.
-        for (let i = 0; i < rows.length; i++) {
-            result.errors.push({ row: i + 2, reason: "Tidak terautentikasi" })
-        }
+        await requireRole([...BULK_IMPORT_ROLES])
+    } catch (e: unknown) {
+        const reason = e instanceof Error ? e.message : "Tidak terautentikasi"
+        result.errors.push({ row: 0, reason })
+        return result
+    }
+
+    // Row cap to prevent self-DOS / GL flooding.
+    const sizeCheck = checkBulkImportSize(rows)
+    if (!sizeCheck.ok) {
+        result.errors.push({ row: 0, reason: sizeCheck.error })
         return result
     }
 

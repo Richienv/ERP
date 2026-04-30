@@ -4,6 +4,8 @@ import { prisma, safeQuery, withRetry, withPrismaAuth } from "@/lib/db"
 
 import { ProcurementStatus } from "@prisma/client"
 import { assertRole, getAuthzUser } from "@/lib/authz"
+import { requireRole } from "@/lib/auth/role-guard"
+import { checkBulkImportSize, BULK_IMPORT_ROLES } from "@/lib/inventory-helpers"
 import { assertPOTransition, allowedNextStatuses } from "@/lib/po-state-machine"
 import { postInventoryGLEntry } from "@/lib/actions/inventory-gl"
 import { revalidatePath } from "next/cache"
@@ -1081,6 +1083,22 @@ export async function bulkImportGRNs(
     itemRows: BulkImportGRNItemRow[],
 ): Promise<BulkImportGRNResult> {
     const result: BulkImportGRNResult = { imported: 0, errors: [] }
+
+    // Role guard: only relevant roles can mass-import.
+    try {
+        await requireRole([...BULK_IMPORT_ROLES])
+    } catch (e: unknown) {
+        const reason = e instanceof Error ? e.message : "Tidak terautentikasi"
+        result.errors.push({ row: 0, reason })
+        return result
+    }
+
+    // Row cap to prevent self-DOS / GL flooding.
+    const sizeCheck = checkBulkImportSize(headerRows)
+    if (!sizeCheck.ok) {
+        result.errors.push({ row: 0, reason: sizeCheck.error })
+        return result
+    }
 
     // ── Auth + actor (sekali untuk seluruh batch)
     let actorUser: { id: string; role: string; email?: string | null }
