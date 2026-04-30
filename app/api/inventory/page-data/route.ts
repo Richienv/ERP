@@ -281,13 +281,13 @@ export async function GET() {
             totalValue: products.reduce((sum, p) => sum + (p.totalStock * p.costPrice), 0),
         }
 
-        // Fire-and-forget: auto-clear manualAlert for products that are now healthy
-        if (idsToResetAlert.length > 0) {
-            prisma.product.updateMany({
-                where: { id: { in: idsToResetAlert } },
-                data: { manualAlert: false },
-            }).catch(() => { })
-        }
+        // Note: previously cleared stale manualAlert flags here on every GET.
+        // Removed because:
+        //   1. write-in-read-handler blocks caching of this hot endpoint
+        //   2. fire-and-forget swallowed errors silently
+        // manualAlert is now only changed at the call sites that set/unset it
+        // (e.g., setProductManualAlert, stock movement that resolves the alert).
+        // If stale flags accumulate, run a one-off cleanup script or a cron job.
 
         return NextResponse.json({
             success: true,
