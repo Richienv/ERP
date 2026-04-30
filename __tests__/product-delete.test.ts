@@ -21,6 +21,14 @@ vi.mock('../lib/audit-helpers', () => ({
     computeChanges: vi.fn().mockReturnValue({}),
 }))
 
+// Role guard added in Round-5 (Task 34). Bypass it in tests so we can
+// exercise the FK-check logic directly.
+vi.mock('../lib/auth/role-guard', () => ({
+    requireRole: vi.fn().mockResolvedValue({ id: 'test-user', email: 'test@example.com' }),
+    requireUser: vi.fn().mockResolvedValue({ id: 'test-user', email: 'test@example.com' }),
+    getCurrentUserRole: vi.fn().mockResolvedValue('admin'),
+}))
+
 // Import the route handler — all mocks are active by the time it loads.
 import { DELETE } from '../app/api/products/[id]/route'
 
