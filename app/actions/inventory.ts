@@ -387,69 +387,118 @@ export async function getMaterialGapAnalysis() {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) throw new Error("Unauthorized")
 
-    const [products, pendingTasks] = await Promise.all([
-        prisma.product.findMany({
-            where: { isActive: true },
-            include: {
-                stockLevels: {
-                    include: { warehouse: true }
+    // 1. Lean product query — only fields we need + light relations.
+    // Replaces a single monster findMany with deep-nested includes (PO+supplier,
+    // supplierItems, workOrders, BOMItem→bom→product→workOrders, PR items, etc.)
+    // which produced hundreds of joins for 500 products.
+    // TODO(perf): bounded to prevent dashboard slowdown on large catalogs.
+    // Long-term: replace with DB-side aggregation (groupBy / raw SQL) to compute gaps without scanning all products.
+    const products = await prisma.product.findMany({
+        where: { isActive: true },
+        select: {
+            id: true,
+            code: true,
+            name: true,
+            unit: true,
+            costPrice: true,
+            minStock: true,
+            leadTime: true,
+            safetyStock: true,
+            manualBurnRate: true,
+            manualAlert: true,
+            category: { select: { id: true, name: true } },
+            stockLevels: {
+                select: {
+                    quantity: true,
+                    warehouse: { select: { id: true, name: true } },
                 },
-                category: true,
-                purchaseOrderItems: {
-                    where: {
-                        purchaseOrder: { status: { in: ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED'] } }
-                    },
-                    include: {
-                        purchaseOrder: {
-                            include: { supplier: true }
-                        }
-                    },
-                    orderBy: {
-                        purchaseOrder: { expectedDate: 'asc' }
-                    }
-                },
-                supplierItems: {
-                    where: { isPreferred: true },
-                    include: { supplier: { select: { name: true, contactName: true } } },
-                    take: 1
-                },
-                workOrders: {
-                    where: { status: { in: ['PLANNED', 'IN_PROGRESS'] } }
-                },
-                alternativeProduct: true,
-                // 5. Pending Purchase Requests (restock demand)
-                purchaseRequestItems: {
-                    where: {
-                        status: 'PENDING',
-                        purchaseRequest: { status: { in: ['PENDING', 'APPROVED'] } }
-                    },
-                    select: {
-                        quantity: true,
-                        purchaseRequest: { select: { number: true, status: true } }
-                    }
-                },
-                // 6. BOM & Demand (Critical for loop)
-                BOMItem: {
-                    include: {
-                        bom: {
-                            include: {
-                                product: {
-                                    include: {
-                                        workOrders: {
-                                            where: { status: { in: ['PLANNED', 'IN_PROGRESS'] } }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
             },
-            // TODO(perf): bounded to prevent dashboard slowdown on large catalogs.
-            // Long-term: replace with DB-side aggregation (groupBy / raw SQL) to compute gaps without scanning all products.
-            orderBy: { createdAt: 'desc' },
-            take: 500,
+            alternativeProduct: { select: { name: true, code: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 500,
+    })
+
+    const productIds = products.map(p => p.id)
+
+    if (productIds.length === 0) {
+        return []
+    }
+
+    // 2. Batched lookups, each keyed on productId / materialId. All bounded.
+    // Run in parallel — Postgres handles `IN (...)` predicates with index scans,
+    // which is far cheaper than the original nested-loop joins.
+    const [
+        poItems,
+        supplierItems,
+        bomItems,
+        prItems,
+        pendingTasks,
+    ] = await Promise.all([
+        // Open PO line items for these products
+        prisma.purchaseOrderItem.findMany({
+            where: {
+                productId: { in: productIds },
+                purchaseOrder: { status: { in: ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED'] } },
+            },
+            select: {
+                productId: true,
+                quantity: true,
+                receivedQty: true,
+                unitPrice: true,
+                purchaseOrder: {
+                    select: {
+                        id: true,
+                        number: true,
+                        expectedDate: true,
+                        supplier: { select: { name: true } },
+                    },
+                },
+            },
+            orderBy: { purchaseOrder: { expectedDate: 'asc' } },
+            take: 2000,
         }),
+        // Preferred supplier per product
+        prisma.supplierProduct.findMany({
+            where: { productId: { in: productIds }, isPreferred: true },
+            select: {
+                productId: true,
+                price: true,
+                leadTime: true,
+                supplier: { select: { name: true, contactName: true } },
+            },
+            take: 2000,
+        }),
+        // BOM rows where these products are used as raw materials
+        prisma.bOMItem.findMany({
+            where: { materialId: { in: productIds } },
+            select: {
+                materialId: true,
+                quantity: true,
+                bom: {
+                    select: {
+                        productId: true, // Finished good
+                        product: { select: { name: true } },
+                    },
+                },
+            },
+            take: 2000,
+        }),
+        // Pending PR items (restock demand signal)
+        prisma.purchaseRequestItem.findMany({
+            where: {
+                productId: { in: productIds },
+                status: 'PENDING',
+                purchaseRequest: { status: { in: ['PENDING', 'APPROVED'] } },
+            },
+            select: {
+                productId: true,
+                quantity: true,
+                purchaseRequest: { select: { number: true, status: true } },
+            },
+            take: 2000,
+        }),
+        // Pending PR-typed employee tasks (used to mark isPendingRequest)
         prisma.employeeTask.findMany({
             where: { type: 'PURCHASE_REQUEST', status: 'PENDING' },
             select: { relatedId: true },
@@ -457,86 +506,128 @@ export async function getMaterialGapAnalysis() {
             // some products will incorrectly show isPendingRequest=false. Consider DB-side join.
             orderBy: { createdAt: 'desc' },
             take: 500,
-        })
+        }),
     ])
 
+    // 3. Active work orders for the finished goods that consume these materials.
+    // We can only know which finished goods to query AFTER bomItems resolves —
+    // hence this is a follow-up query (still a single index scan, not a join blow-up).
+    const finishedGoodIds = Array.from(new Set(bomItems.map(bi => bi.bom.productId)))
+    const workOrders = finishedGoodIds.length > 0
+        ? await prisma.workOrder.findMany({
+            where: {
+                productId: { in: finishedGoodIds },
+                status: { in: ['PLANNED', 'IN_PROGRESS'] },
+            },
+            select: {
+                id: true,
+                number: true,
+                productId: true,
+                plannedQty: true,
+                startDate: true,
+            },
+            take: 2000,
+        })
+        : []
+
+    // 4. Group lookups by key for O(1) merge.
+    const groupBy = <T>(rows: T[], keyFn: (r: T) => string | null | undefined): Record<string, T[]> => {
+        const out: Record<string, T[]> = {}
+        for (const row of rows) {
+            const k = keyFn(row)
+            if (!k) continue
+            if (!out[k]) out[k] = []
+            out[k].push(row)
+        }
+        return out
+    }
+
+    const poByProduct = groupBy(poItems, (r) => r.productId)
+    const supplierByProduct = groupBy(supplierItems, (r) => r.productId)
+    const bomByMaterial = groupBy(bomItems, (r) => r.materialId)
+    const prByProduct = groupBy(prItems, (r) => r.productId)
+    const woByFinishedGood = groupBy(workOrders, (r) => r.productId)
     const pendingSet = new Set(pendingTasks.map(t => t.relatedId))
 
+    // 5. Merge — preserves original return shape exactly so consumers don't break.
     return products.map(p => {
-        const currentStock = p.stockLevels.reduce((sum, sl) => sum + Number(sl.quantity), 0)
-        const pendingRestockQty = p.purchaseRequestItems.reduce((sum, pri) => sum + pri.quantity, 0)
+        const stockLevels = p.stockLevels ?? []
+        const currentStock = stockLevels.reduce((sum, sl) => sum + Number(sl.quantity), 0)
 
-        // 1. Calculate Real Demand from Active Work Orders
-        // Logic: Iterate through BOM items where this material is used
+        const productPRItems = prByProduct[p.id] ?? []
+        const pendingRestockQty = productPRItems.reduce((sum, pri) => sum + Number(pri.quantity), 0)
+
+        // 1. Calculate real demand from active Work Orders via BOM
         let woDemandQty = 0
-        const activeWOs: any[] = []
+        const activeWOs: Array<{ id: string; number: string; date: Date | null; qty: number; productName: string }> = []
+        const productBomRows = bomByMaterial[p.id] ?? []
 
-        p.BOMItem.forEach(bomItem => {
-            const fg = bomItem.bom.product
-            if (fg && fg.workOrders.length > 0) {
-                fg.workOrders.forEach(wo => {
-                    const requiredForWO = Number(bomItem.quantity) * wo.plannedQty
-                    woDemandQty += requiredForWO
-                    activeWOs.push({
-                        id: wo.id,
-                        number: wo.number,
-                        date: wo.startDate,
-                        qty: requiredForWO,
-                        productName: fg.name
-                    })
+        for (const bomItem of productBomRows) {
+            const fgId = bomItem.bom.productId
+            const fgName = bomItem.bom.product?.name ?? ''
+            const fgWOs = woByFinishedGood[fgId] ?? []
+            for (const wo of fgWOs) {
+                const requiredForWO = Number(bomItem.quantity) * wo.plannedQty
+                woDemandQty += requiredForWO
+                activeWOs.push({
+                    id: wo.id,
+                    number: wo.number,
+                    date: wo.startDate,
+                    qty: requiredForWO,
+                    productName: fgName,
                 })
             }
-        })
+        }
 
-        // 2. Supply Chain Data
-        const incomingPO = p.purchaseOrderItems[0] // Just take the first one for now
-        const incomingQty = p.purchaseOrderItems.reduce((sum, item) => sum + Number(item.quantity), 0)
+        // 2. Supply chain data
+        const productPOItems = poByProduct[p.id] ?? []
+        const incomingPO = productPOItems[0] // first by expectedDate ASC
+        const incomingQty = productPOItems.reduce((sum, item) => sum + Number(item.quantity), 0)
 
-        const preferredSupplier = p.supplierItems[0]
+        const preferredSupplier = (supplierByProduct[p.id] ?? [])[0]
 
-        // 3. Planning Parameters (Real Data)
+        // 3. Planning parameters
         const leadTime = preferredSupplier?.leadTime || p.leadTime || 7
         const safetyStock = p.safetyStock || 0
         const burnRate = Number(p.manualBurnRate) || 0 // Per day
         const cost = preferredSupplier?.price ? Number(preferredSupplier.price) : Number(p.costPrice)
 
         // 4. Calculations
-        // How many days until we run out?
         const stockEndsInDays = burnRate > 0 ? (currentStock / burnRate) : 999
 
-        // Reorder Point = Max of ((Average Daily Usage * Lead Time) + Safety Stock) OR MinStock
         const calculatedROP = (burnRate * leadTime) + safetyStock
         const reorderPoint = Math.max(calculatedROP, p.minStock || 0)
 
-        // Gap = (Demand + Reorder Point) - (Current Stock)
-        // WE EXCLUDE INCOMING QTY from Gap calculation to ensure "Receive Goods" button stays visible until physically received.
         const totalProjectedNeed = woDemandQty + reorderPoint
-        const totalProjectedStock = currentStock // + incomingQty (removed to keep gap > 0 until receipt)
+        const totalProjectedStock = currentStock // + incomingQty intentionally excluded
 
         let gap = totalProjectedNeed - totalProjectedStock
 
-        // If Manual Alert is ON, force gap to be positive to show in Alert Tab
         if (p.manualAlert && gap <= 0) {
             gap = 1 // Artificial gap to trigger visibility
         }
 
         // Map all open POs for the dialog
-        const openPOs = p.purchaseOrderItems.map(poi => ({
-            id: poi.purchaseOrder.id,
-            number: poi.purchaseOrder.number,
-            supplierName: poi.purchaseOrder.supplier.name,
-            expectedDate: poi.purchaseOrder.expectedDate,
-            orderedQty: poi.quantity,
-            receivedQty: (poi as any).receivedQty || 0,
-            remainingQty: poi.quantity - ((poi as any).receivedQty || 0),
-            unitPrice: Number(poi.unitPrice)
-        })).filter(po => po.remainingQty > 0)
+        const openPOs = productPOItems.map(poi => {
+            const orderedQty = Number(poi.quantity)
+            const receivedQty = Number(poi.receivedQty || 0)
+            return {
+                id: poi.purchaseOrder.id,
+                number: poi.purchaseOrder.number,
+                supplierName: poi.purchaseOrder.supplier?.name ?? '',
+                expectedDate: poi.purchaseOrder.expectedDate,
+                orderedQty,
+                receivedQty,
+                remainingQty: orderedQty - receivedQty,
+                unitPrice: Number(poi.unitPrice),
+            }
+        }).filter(po => po.remainingQty > 0)
 
-        // Status Logic
+        // Status logic
         let status = 'OK'
         if (gap > 0) {
             if (currentStock <= 0) status = 'OUT_OF_STOCK'
-            else if (woDemandQty > currentStock) status = 'CRITICAL_WO_SHORTAGE' // Cannot fulfill active WO
+            else if (woDemandQty > currentStock) status = 'CRITICAL_WO_SHORTAGE'
             else status = 'RESTOCK_NEEDED'
         }
 
@@ -551,10 +642,10 @@ export async function getMaterialGapAnalysis() {
             currentStock,
             pendingRestockQty,
             incomingQty,
-            warehouses: p.stockLevels.map(sl => ({
+            warehouses: stockLevels.map(sl => ({
                 id: sl.warehouse.id,
                 name: sl.warehouse.name,
-                qty: sl.quantity
+                qty: sl.quantity,
             })),
 
             // Planning
@@ -569,8 +660,8 @@ export async function getMaterialGapAnalysis() {
             status,
             isPendingRequest: pendingSet.has(p.id),
             gap: gap > 0 ? gap : 0,
-            manualAlert: p.manualAlert, // Pass to frontend for badge
-            demandSources: activeWOs, // Detailed breakdown
+            manualAlert: p.manualAlert,
+            demandSources: activeWOs,
 
             // Financials
             cost,
@@ -581,21 +672,21 @@ export async function getMaterialGapAnalysis() {
             activePO: incomingPO ? {
                 number: incomingPO.purchaseOrder.number,
                 qty: incomingQty,
-                eta: incomingPO.purchaseOrder.expectedDate
+                eta: incomingPO.purchaseOrder.expectedDate,
             } : null,
             supplier: preferredSupplier ? {
                 name: preferredSupplier.supplier.name,
-                isPreferred: true
+                isPreferred: true,
             } : null,
 
             // Alternatives
             alternative: p.alternativeProduct ? {
                 name: p.alternativeProduct.name,
-                code: p.alternativeProduct.code
+                code: p.alternativeProduct.code,
             } : null,
 
             // Open POs for Goods Receipt
-            openPOs
+            openPOs,
         }
     })
 }
