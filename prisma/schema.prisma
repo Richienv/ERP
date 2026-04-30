@@ -2701,7 +2701,7 @@ model StockTransfer {
   fromWarehouseId String         @db.Uuid
   toWarehouseId   String         @db.Uuid
   productId       String         @db.Uuid
-  quantity        Int
+  quantity        Decimal        @db.Decimal(18, 4)
   status          TransferStatus @default(DRAFT)
 
   requestedBy String  @db.Uuid
@@ -3223,7 +3223,7 @@ model ProductionBOMAllocation {
   step        ProductionBOMStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
   stationId   String            @db.Uuid
   station     ProcessStation    @relation(fields: [stationId], references: [id])
-  quantity    Int
+  quantity    Decimal           @db.Decimal(18, 4)
   pricePerPcs Decimal?          @db.Decimal(12, 2) // Harga subkon per pcs
   notes       String?
 
