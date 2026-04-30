@@ -1,21 +1,34 @@
 import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { createClient } from "@/lib/supabase/server"
+import { requireRole } from "@/lib/auth/role-guard"
 import { postInventoryGLEntry } from "@/lib/actions/inventory-gl"
 
-interface PriceUpdate {
-    productId: string
-    newCostPrice?: number | null
-    newSellingPrice?: number | null
-}
-
-interface BatchPriceRequest {
-    updates: PriceUpdate[]
-}
+const BatchPriceUpdateSchema = z.object({
+    updates: z.array(z.object({
+        productId: z.string().uuid(),
+        newCostPrice: z.coerce.number().min(0).max(1e12).optional(),
+        newSellingPrice: z.coerce.number().min(0).max(1e12).optional(),
+    }).refine(
+        (u) => u.newCostPrice !== undefined || u.newSellingPrice !== undefined,
+        { message: "Setiap baris harus mengisi newCostPrice atau newSellingPrice" }
+    )).min(1).max(500),
+})
 
 // POST /api/products/batch-price — Batch update product prices
 export async function POST(request: NextRequest) {
     try {
+        // Role guard: only admin/manager can mass-update prices (triggers GL revaluation)
+        try {
+            await requireRole(["admin", "manager"])
+        } catch {
+            return NextResponse.json(
+                { error: "Akses ditolak: hanya admin/manager yang dapat memperbarui harga massal" },
+                { status: 403 }
+            )
+        }
+
         const supabase = await createClient()
         const {
             data: { user },
@@ -25,17 +38,42 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }
 
-        const body: BatchPriceRequest = await request.json()
-
-        if (!body.updates || !Array.isArray(body.updates) || body.updates.length === 0) {
+        // Reject if no Employee record exists for the auth user (consistent with Task 11/14/22)
+        const employee = user.email
+            ? await prisma.employee.findFirst({
+                  where: { email: user.email },
+                  select: { id: true },
+              })
+            : null
+        if (!employee) {
             return NextResponse.json(
-                { success: false, error: "Tidak ada perubahan harga yang dikirim" },
+                { error: "Akun pengguna tidak terhubung ke data karyawan — hubungi admin" },
+                { status: 403 }
+            )
+        }
+
+        const body = await request.json().catch(() => null)
+        if (!body) {
+            return NextResponse.json(
+                { error: "Body permintaan tidak valid" },
                 { status: 400 }
             )
         }
 
+        const parsed = BatchPriceUpdateSchema.safeParse(body)
+        if (!parsed.success) {
+            return NextResponse.json(
+                {
+                    error: "Data tidak valid",
+                    details: parsed.error.flatten().fieldErrors,
+                },
+                { status: 400 }
+            )
+        }
+        const { updates } = parsed.data
+
         // Validate all product IDs exist and collect old prices
-        const productIds = body.updates.map((u) => u.productId)
+        const productIds = updates.map((u) => u.productId)
         const existingProducts = await prisma.product.findMany({
             where: { id: { in: productIds } },
             select: { id: true, code: true, name: true, costPrice: true, sellingPrice: true },
@@ -50,18 +88,8 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // Filter to only updates where price actually changed
-        const validUpdates = body.updates.filter((u) => {
-            return u.newCostPrice !== null && u.newCostPrice !== undefined
-                || u.newSellingPrice !== null && u.newSellingPrice !== undefined
-        })
-
-        if (validUpdates.length === 0) {
-            return NextResponse.json(
-                { success: false, error: "Tidak ada perubahan harga yang valid" },
-                { status: 400 }
-            )
-        }
+        // Schema already enforces at least one of newCostPrice/newSellingPrice per row
+        const validUpdates = updates
 
         // Perform all updates + inventory revaluation in a single interactive
         // transaction. For every product whose costPrice changes AND has stock
