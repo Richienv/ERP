@@ -23,11 +23,16 @@
 }
 
 // ============================================
+// SHARED BRAND MODULE
+// ============================================
+#import "../_shared/brand.typ": header, footer
+
+// ============================================
 // PAGE SETUP
 // ============================================
 #set page(
   paper: "a4",
-  margin: (top: 2.5cm, bottom: 2cm, left: 2cm, right: 2cm),
+  margin: (top: 2.5cm, bottom: 2.5cm, left: 2cm, right: 2cm),
   header: context {
     if counter(page).get().first() > 1 [
       #set text(8pt, fill: gray)
@@ -36,10 +41,7 @@
       Halaman #counter(page).display()
     ]
   },
-  footer: [
-    #set text(7pt, fill: gray)
-    #h(1fr) Dicetak dari ERP System — #get-field(data, "print_date") #h(1fr)
-  ]
+  footer: footer(label: "SPK " + get-field(data, "spk_number", default: "")),
 )
 
 #set text(size: 10pt)
@@ -49,17 +51,9 @@
 // ============================================
 #let company = get-field(data, "company", default: (:))
 
-#align(center)[
-  #text(14pt, weight: "bold")[#get-field(company, "name", default: "PT PERUSAHAAN")]
-  #v(0.1cm)
-  #text(9pt, fill: gray)[#get-field(company, "address", default: "")]
-  #v(0.05cm)
-  #text(9pt, fill: gray)[#get-field(company, "contact", default: "")]
-]
+#header()
 
 #v(0.3cm)
-#line(length: 100%, stroke: 2pt + black)
-#v(0.1cm)
 #line(length: 100%, stroke: 0.5pt + black)
 #v(0.4cm)
 

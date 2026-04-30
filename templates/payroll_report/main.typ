@@ -32,13 +32,23 @@
 
 #let rows = get-field(data, "rows", default: ())
 
-#set page(paper: "a4", margin: (top: 1.5cm, bottom: 1.5cm, left: 1.5cm, right: 1.5cm))
+// ============================================
+// SHARED BRAND MODULE
+// ============================================
+#import "../_shared/brand.typ": header, footer
+
+#set page(
+  paper: "a4",
+  margin: (top: 1.5cm, bottom: 1.5cm, left: 1.5cm, right: 1.5cm),
+  footer: footer(label: get-field(data, "period_label", default: "")),
+)
 #set text(size: 9pt)
+
+#header()
+#v(8pt)
 
 #align(left)[
   #text(size: 16pt, weight: "bold")[Laporan Payroll]
-  #v(4pt)
-  #text(weight: "bold")[#company-name]
 ]
 
 #v(10pt)

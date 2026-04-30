@@ -49,6 +49,10 @@ export const queryKeys = {
         list: () => [...queryKeys.categories.all, "list"] as const,
         master: () => [...queryKeys.categories.all, "master"] as const,
     },
+    adjustmentReasons: {
+        all: ["adjustmentReasons"] as const,
+        list: () => [...queryKeys.adjustmentReasons.all, "list"] as const,
+    },
     bom: {
         all: ["bom"] as const,
         list: () => [...queryKeys.bom.all, "list"] as const,
@@ -246,7 +250,11 @@ export const queryKeys = {
     },
     documents: {
         all: ["documents"] as const,
-        list: () => [...queryKeys.documents.all, "list"] as const,
+        overview: () => [...queryKeys.documents.all, "overview"] as const,
+        list: (type: string, entityId: string) =>
+            [...queryKeys.documents.all, type, entityId] as const,
+        distributions: (snapshotId: string) =>
+            [...queryKeys.documents.all, "distributions", snapshotId] as const,
     },
     salesPage: {
         all: ["salesPage"] as const,

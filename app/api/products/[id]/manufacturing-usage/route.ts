@@ -117,7 +117,7 @@ export async function GET(
     })
 
     const onOrder = poItems.reduce(
-      (sum: number, item: typeof poItems[number]) => sum + (item.quantity - item.receivedQty), 0
+      (sum: number, item: typeof poItems[number]) => sum + (Number(item.quantity) - Number(item.receivedQty)), 0
     )
 
     // 5. Active demand from work orders

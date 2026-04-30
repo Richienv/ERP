@@ -27,6 +27,11 @@
 }
 
 // ============================================
+// SHARED BRAND MODULE
+// ============================================
+#import "../_shared/brand.typ": header, footer
+
+// ============================================
 // BRAND COLORS
 // ============================================
 #let colors = (
@@ -43,15 +48,7 @@
 #set page(
   paper: "a4",
   margin: (top: 2cm, bottom: 2.5cm, left: 2cm, right: 2cm),
-  footer: [
-    #line(length: 100%, stroke: 0.5pt + colors.border)
-    #v(4pt)
-    #text(size: 7pt, fill: colors.text-light)[
-      Surat Jalan #safe-text(get-field(data, "number")) — Dicetak otomatis oleh sistem ERP
-      #h(1fr)
-      Halaman #counter(page).display() dari #locate(loc => counter(page).final(loc).first())
-    ]
-  ]
+  footer: footer(label: "Surat Jalan " + get-field(data, "number", default: "")),
 )
 
 #set text(font: "Inter", size: 10pt, fill: colors.text)
@@ -62,26 +59,14 @@
 #let company = get-field(data, "company", default: (:))
 #let customer = get-field(data, "customer", default: (:))
 
-#grid(
-  columns: (1fr, auto),
-  gutter: 20pt,
-  [
-    #text(size: 14pt, weight: "black", fill: colors.primary)[
-      #safe-text(get-field(company, "name"), default: "PT. Textile ERP")
-    ]
-    #v(2pt)
-    #text(size: 8pt, fill: colors.text-light)[
-      #safe-text(get-field(company, "address"))
-    ]
-  ],
-  [
-    #align(right)[
-      #text(size: 18pt, weight: "black", fill: colors.primary)[SURAT JALAN]
-      #v(2pt)
-      #text(size: 10pt, weight: "bold")[#safe-text(get-field(data, "number"))]
-    ]
-  ]
-)
+#header()
+#v(12pt)
+
+#align(right)[
+  #text(size: 18pt, weight: "black", fill: colors.primary)[SURAT JALAN]
+  #v(2pt)
+  #text(size: 10pt, weight: "bold")[#safe-text(get-field(data, "number"))]
+]
 
 #v(8pt)
 #line(length: 100%, stroke: 2pt + colors.primary)

@@ -31,7 +31,8 @@ const formSchema = z.object({
   items: z.array(itemSchema).min(1, "At least one item is required"),
 });
 
-type FormValues = z.infer<typeof formSchema>;
+type FormValues = z.input<typeof formSchema>;
+type FormValuesOutput = z.output<typeof formSchema>;
 
 interface Props {
   products: { id: string; name: string; unit: string; code: string }[];
@@ -49,7 +50,7 @@ export function CreateRequestForm({ products, employees }: Props) {
     notes: "",
   });
 
-  const form = useForm<FormValues>({
+  const form = useForm<FormValues, any, FormValuesOutput>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       requesterId: "",
@@ -86,7 +87,7 @@ export function CreateRequestForm({ products, employees }: Props) {
     );
   };
 
-  const onSubmit = async (values: FormValues) => {
+  const onSubmit = async (values: FormValuesOutput) => {
     setIsSubmitting(true);
     try {
       const result = await createPurchaseRequest(values);
@@ -230,10 +231,11 @@ export function CreateRequestForm({ products, employees }: Props) {
                     </label>
                     <Input
                       type="number"
-                      min={1}
+                      step="0.01"
+                      min={0}
                       className="border font-mono font-bold h-8 text-sm rounded-none text-center transition-colors border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
                       value={newItem.quantity}
-                      onChange={(e) => setNewItem({ ...newItem, quantity: parseInt(e.target.value) || 0 })}
+                      onChange={(e) => setNewItem({ ...newItem, quantity: parseFloat(e.target.value) || 0 })}
                     />
                   </div>
 

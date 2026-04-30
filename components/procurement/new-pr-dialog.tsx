@@ -237,10 +237,11 @@ export function NewPRDialog() {
                                         <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">Qty</label>
                                         <Input
                                             type="number"
-                                            min={1}
+                                            step="0.01"
+                                            min={0}
                                             className={NB.inputMono + " text-center bg-white"}
                                             value={newItem.quantity}
-                                            onChange={(e) => setNewItem({ ...newItem, quantity: parseInt(e.target.value) || 0 })}
+                                            onChange={(e) => setNewItem({ ...newItem, quantity: parseFloat(e.target.value) || 0 })}
                                         />
                                     </div>
                                     <div className="text-sm min-w-[40px] h-8 flex items-center font-mono text-zinc-400 font-bold">

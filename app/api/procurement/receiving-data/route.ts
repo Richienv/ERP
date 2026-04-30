@@ -43,16 +43,17 @@ export async function GET() {
         // Map pending POs with remaining quantities
         const pendingPOs = rawOrders.map(po => {
             const itemsWithRemaining = po.items.map(item => {
-                const totalReceived = item.grnItems.reduce((sum: number, grn: { quantityAccepted: number }) => sum + grn.quantityAccepted, 0)
+                const totalReceived = item.grnItems.reduce((sum: number, grn: { quantityAccepted: unknown }) => sum + Number(grn.quantityAccepted), 0)
+                const orderedQty = Number(item.quantity)
                 return {
                     id: item.id,
                     productId: item.productId,
                     productName: item.product.name,
                     productCode: item.product.code,
                     unit: item.product.unit,
-                    orderedQty: item.quantity,
+                    orderedQty,
                     receivedQty: totalReceived,
-                    remainingQty: item.quantity - totalReceived,
+                    remainingQty: orderedQty - totalReceived,
                     unitPrice: Number(item.unitPrice),
                 }
             })
@@ -84,16 +85,16 @@ export async function GET() {
             status: grn.status,
             notes: grn.notes,
             itemCount: grn.items.length,
-            totalAccepted: grn.items.reduce((sum: number, i: { quantityAccepted: number }) => sum + i.quantityAccepted, 0),
-            totalRejected: grn.items.reduce((sum: number, i: { quantityRejected: number }) => sum + i.quantityRejected, 0),
+            totalAccepted: grn.items.reduce((sum: number, i: { quantityAccepted: unknown }) => sum + Number(i.quantityAccepted), 0),
+            totalRejected: grn.items.reduce((sum: number, i: { quantityRejected: unknown }) => sum + Number(i.quantityRejected), 0),
             items: grn.items.map(item => ({
                 id: item.id,
                 productName: item.product.name,
                 productCode: item.product.code,
-                quantityOrdered: item.quantityOrdered,
-                quantityReceived: item.quantityReceived,
-                quantityAccepted: item.quantityAccepted,
-                quantityRejected: item.quantityRejected,
+                quantityOrdered: Number(item.quantityOrdered),
+                quantityReceived: Number(item.quantityReceived),
+                quantityAccepted: Number(item.quantityAccepted),
+                quantityRejected: Number(item.quantityRejected),
                 unitCost: Number(item.unitCost),
                 inspectionNotes: item.inspectionNotes,
             })),

@@ -1,7 +1,6 @@
 "use client"
 
 import { useRef, useState, useCallback } from "react"
-import * as XLSX from "xlsx"
 import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, X, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
@@ -64,7 +63,8 @@ interface ParsedRow extends BulkImportMovementRow {
 const VALID_TYPES = new Set(["ADJUSTMENT_IN", "ADJUSTMENT_OUT", "TRANSFER", "SCRAP"])
 
 // ─── Parser ──────────────────────────────────────────────────────────────────
-function parseFileToRows(file: File): Promise<{ rows: ParsedRow[]; parseError?: string }> {
+async function parseFileToRows(file: File): Promise<{ rows: ParsedRow[]; parseError?: string }> {
+    const XLSX = await import("xlsx")
     return new Promise((resolve) => {
         const reader = new FileReader()
         reader.onload = (e) => {
@@ -248,13 +248,25 @@ export function ImportMovementsDialog() {
                     description: result.errors[0] ?? "Periksa format file Anda.",
                 })
             }
-        } catch (err: any) {
+        } catch (err) {
             setStep("preview")
-            toast.error("Terjadi kesalahan saat import", { description: err.message })
+            const msg = err instanceof Error ? err.message : ""
+            if (msg.startsWith("Forbidden:")) {
+                toast.error("Akses ditolak", {
+                    description: "Hanya admin, manager, atau staf gudang/pembelian yang dapat melakukan impor massal.",
+                })
+            } else if (msg === "Unauthorized") {
+                toast.error("Sesi habis", { description: "Silakan login ulang." })
+            } else {
+                toast.error("Terjadi kesalahan saat import", {
+                    description: msg || "Silakan coba lagi",
+                })
+            }
         }
     }, [validRows, queryClient])
 
-    const handleDownloadTemplate = useCallback(() => {
+    const handleDownloadTemplate = useCallback(async () => {
+        const XLSX = await import("xlsx")
         const ws = XLSX.utils.aoa_to_sheet([
             ["Kode Produk", "Gudang", "Tipe", "Jumlah", "Gudang Tujuan", "Catatan"],
             ["KAO-001", "Gudang Utama", "ADJUSTMENT_IN", 50, "", "Stok opname selisih lebih"],

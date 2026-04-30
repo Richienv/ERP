@@ -193,7 +193,6 @@ export function WarehousesClient({ warehouses }: WarehousesClientProps) {
                                             <Avatar className="h-6 w-6 border border-zinc-200 rounded-none"><AvatarFallback className="text-[9px] bg-white text-black font-black rounded-none">{wh.manager.charAt(0)}</AvatarFallback></Avatar>
                                             <div className="overflow-hidden">
                                                 <p className="text-xs font-bold leading-none truncate">{wh.manager}</p>
-                                                <p className="text-[9px] text-zinc-400 mt-0.5 truncate">{wh.phone}</p>
                                             </div>
                                         </div>
                                     </div>

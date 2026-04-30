@@ -1,0 +1,66 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { prisma } from '@/lib/db'
+import { randomUUID } from 'crypto'
+
+describe('DocumentSnapshot model', () => {
+    const entityId = randomUUID()
+
+    afterEach(async () => {
+        await prisma.documentSnapshot.deleteMany({ where: { entityId } })
+    })
+
+    it('inserts v1 successfully', async () => {
+        const snap = await prisma.documentSnapshot.create({
+            data: {
+                type: 'PO',
+                entityId,
+                version: 1,
+                storageKey: `PO/${entityId}/v1.pdf`,
+                triggerEvent: 'AUTO_PO_APPROVED',
+            },
+        })
+        expect(snap.version).toBe(1)
+    }, 30000)
+
+    it('rejects duplicate (type, entityId, version)', async () => {
+        await prisma.documentSnapshot.create({
+            data: { type: 'PO', entityId, version: 1, storageKey: 'k1', triggerEvent: 't' },
+        })
+        await expect(
+            prisma.documentSnapshot.create({
+                data: { type: 'PO', entityId, version: 1, storageKey: 'k2', triggerEvent: 't' },
+            })
+        ).rejects.toThrow()
+    }, 30000)
+
+    it('lists snapshots in descending version order', async () => {
+        await prisma.documentSnapshot.createMany({
+            data: [
+                { type: 'PO', entityId, version: 1, storageKey: 'v1', triggerEvent: 't' },
+                { type: 'PO', entityId, version: 2, storageKey: 'v2', triggerEvent: 't' },
+                { type: 'PO', entityId, version: 3, storageKey: 'v3', triggerEvent: 't' },
+            ],
+        })
+        const list = await prisma.documentSnapshot.findMany({
+            where: { type: 'PO', entityId },
+            orderBy: { version: 'desc' },
+        })
+        expect(list.map(s => s.version)).toEqual([3, 2, 1])
+    }, 30000)
+
+    it('does NOT cascade-delete distributions; throws on FK violation', async () => {
+        const snap = await prisma.documentSnapshot.create({
+            data: { type: 'PO', entityId, version: 1, storageKey: 'k', triggerEvent: 't' },
+        })
+        await prisma.documentDistribution.create({
+            data: { snapshotId: snap.id, action: 'PRINT', actorId: randomUUID() },
+        })
+        await expect(
+            prisma.documentSnapshot.delete({ where: { id: snap.id } })
+        ).rejects.toThrow(/foreign key|constraint/i)
+
+        // cleanup
+        await prisma.documentDistribution.deleteMany({ where: { snapshotId: snap.id } })
+        await prisma.documentSnapshot.delete({ where: { id: snap.id } })
+    }, 30000)
+})

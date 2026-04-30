@@ -20,6 +20,7 @@ import {
     Server,
     Clock,
     Factory,
+    Palette,
 } from "lucide-react";
 import {
     Select,
@@ -29,6 +30,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { mockSystemSettings, systemInfo } from "@/components/settings/data";
+import { BrandingForm } from "@/components/settings/branding-form";
 import { useWorkingHours, useSaveWorkingHours } from "@/hooks/use-working-hours";
 import { toast } from "sonner";
 
@@ -183,6 +185,10 @@ export default function SystemSettingsPage() {
                         <Factory className="mr-2 h-4 w-4" />
                         Manufaktur
                     </TabsTrigger>
+                    <TabsTrigger value="Branding" className="flex items-center">
+                        <Palette className="mr-2 h-4 w-4" />
+                        Branding
+                    </TabsTrigger>
                     {categories.map((category) => (
                         <TabsTrigger key={category} value={category} className="flex items-center">
                             {category === 'Umum' && <Settings className="mr-2 h-4 w-4" />}
@@ -238,6 +244,20 @@ export default function SystemSettingsPage() {
                                     Biaya TK/pcs = Gaji Bulanan × Durasi (menit) ÷ ({effectiveHours} jam × 60)
                                 </div>
                             </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="Branding" className="space-y-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Branding Perusahaan</CardTitle>
+                            <CardDescription>
+                                Nama, logo, NPWP dan brand color yang muncul di semua dokumen PDF.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <BrandingForm />
                         </CardContent>
                     </Card>
                 </TabsContent>

@@ -115,8 +115,6 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
     })
 
     const handlePurchaseSuccess = (itemId: string, result: any) => {
-        console.log("[DetailedMaterialTable] handlePurchaseSuccess triggered for:", itemId, result)
-
         // Handle Pending Request (New Flow)
         if (result.pendingTask) {
             setOptimisticPendingRequests(prev => new Set(prev).add(itemId))
@@ -126,7 +124,6 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
             setOptimisticPOs(prev => {
                 const currentList = prev[itemId] || []
                 const neWList = [...currentList, result.newPO]
-                console.log("[DetailedMaterialTable] New optimistic state for item:", neWList)
                 return {
                     ...prev,
                     [itemId]: neWList
@@ -138,7 +135,6 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
     }
 
     const handleReceiptSuccess = (itemId: string) => {
-        console.log("[DetailedMaterialTable] handleReceiptSuccess triggered for:", itemId)
         setOptimisticResolvedItems(prev => new Set(prev).add(itemId))
     }
 

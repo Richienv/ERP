@@ -67,7 +67,7 @@ export async function getStockTransfers(filters?: {
             toWarehouse: t.toWarehouse.name,
             productName: t.product.name,
             productCode: t.product.code,
-            quantity: t.quantity,
+            quantity: Number(t.quantity),
             status: t.status,
             requesterName: [t.requester.firstName, t.requester.lastName].filter(Boolean).join(' '),
             approverName: t.approver
@@ -218,9 +218,9 @@ export async function transitionStockTransfer(
                     },
                 })
 
-                if (!sourceStock || Number(sourceStock.quantity) < transfer.quantity) {
+                if (!sourceStock || Number(sourceStock.quantity) < Number(transfer.quantity)) {
                     throw new Error(
-                        `Stok tidak mencukupi di gudang asal. Tersedia: ${sourceStock ? Number(sourceStock.quantity) : 0}, dibutuhkan: ${transfer.quantity}`
+                        `Stok tidak mencukupi di gudang asal. Tersedia: ${sourceStock ? Number(sourceStock.quantity) : 0}, dibutuhkan: ${Number(transfer.quantity)}`
                     )
                 }
 

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Outfit } from "next/font/google";
+import { Inter, Inter_Tight, JetBrains_Mono } from "next/font/google";
 import { GlobalLayout } from "@/components/global-layout";
 import { ThemeProvider } from "next-themes";
 import { WorkflowConfigProvider } from "@/components/workflow/workflow-config-context";
@@ -7,14 +7,23 @@ import { QueryProvider } from "@/lib/query-client";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Integra design system fonts (Bloomberg-lite corporate look)
+const inter = Inter({
+  variable: "--font-body",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
 });
 
-const outfit = Outfit({
-  variable: "--font-outfit",
+const interTight = Inter_Tight({
+  variable: "--font-display",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-mono",
+  subsets: ["latin"],
+  weight: ["400", "500"],
 });
 
 export const metadata: Metadata = {
@@ -64,7 +73,7 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://qundyzibdhggwhxgtlus.supabase.co" />
       </head>
       <body
-        className={`${geistSans.variable} ${outfit.variable} antialiased`}
+        className={`${inter.variable} ${interTight.variable} ${jetbrainsMono.variable} antialiased`}
       >
         <ThemeProvider
           attribute="class"

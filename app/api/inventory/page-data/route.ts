@@ -23,11 +23,14 @@ export async function GET() {
                     category: true,
                     stockLevels: true,
                 },
+                orderBy: { createdAt: 'desc' },
+                take: 500,
             }),
             prisma.category.findMany({
                 where: { isActive: true },
                 select: { id: true, name: true, code: true },
                 orderBy: { name: "asc" },
+                take: 500,
             }),
             prisma.warehouse.findMany({
                 include: {
@@ -38,8 +41,12 @@ export async function GET() {
                     },
                     _count: { select: { stockLevels: true } },
                 },
+                orderBy: { name: 'asc' },
+                take: 500,
             }),
             // ALL non-cancelled/rejected PR items (for Planning column + status tracking)
+            // 500 open PR items is unrealistic in practice — beyond that signals
+            // a data hygiene issue (stale PRs not cancelled). Cap to protect load time.
             prisma.purchaseRequestItem.findMany({
                 where: {
                     purchaseRequest: {
@@ -57,8 +64,12 @@ export async function GET() {
                         },
                     },
                 },
+                orderBy: { createdAt: 'desc' },
+                take: 500,
             }),
             // Active PO items (for Incoming column — products with orders in progress)
+            // 500 open PO items is unrealistic in practice — beyond that signals
+            // a data hygiene issue (stale POs not received/closed). Cap to protect load time.
             prisma.purchaseOrderItem.findMany({
                 where: {
                     purchaseOrder: {
@@ -78,6 +89,8 @@ export async function GET() {
                         },
                     },
                 },
+                orderBy: { createdAt: 'desc' },
+                take: 500,
             }),
         ])
 
@@ -97,7 +110,7 @@ export async function GET() {
                 prId: item.purchaseRequest.id,
                 prNumber: item.purchaseRequest.number,
                 prStatus: item.purchaseRequest.status,
-                quantity: item.quantity,
+                quantity: Number(item.quantity),
                 createdAt: item.purchaseRequest.createdAt,
             })
             prByProduct.set(item.productId, arr)
@@ -122,8 +135,8 @@ export async function GET() {
                 poStatus: item.purchaseOrder.status,
                 expectedDate: item.purchaseOrder.expectedDate,
                 supplierName: item.purchaseOrder.supplier.name,
-                orderedQty: item.quantity,
-                receivedQty: item.receivedQty,
+                orderedQty: Number(item.quantity),
+                receivedQty: Number(item.receivedQty),
             })
             poByProduct.set(item.productId, arr)
         }
@@ -268,13 +281,13 @@ export async function GET() {
             totalValue: products.reduce((sum, p) => sum + (p.totalStock * p.costPrice), 0),
         }
 
-        // Fire-and-forget: auto-clear manualAlert for products that are now healthy
-        if (idsToResetAlert.length > 0) {
-            prisma.product.updateMany({
-                where: { id: { in: idsToResetAlert } },
-                data: { manualAlert: false },
-            }).catch(() => { })
-        }
+        // Note: previously cleared stale manualAlert flags here on every GET.
+        // Removed because:
+        //   1. write-in-read-handler blocks caching of this hot endpoint
+        //   2. fire-and-forget swallowed errors silently
+        // manualAlert is now only changed at the call sites that set/unset it
+        // (e.g., setProductManualAlert, stock movement that resolves the alert).
+        // If stale flags accumulate, run a one-off cleanup script or a cron job.
 
         return NextResponse.json({
             success: true,

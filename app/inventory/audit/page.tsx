@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,6 @@ import {
     ChevronLeft,
     ChevronRight,
 } from "lucide-react";
-import { InventoryPerformanceProvider } from "@/components/inventory/inventory-performance-provider";
 import {
     Dialog,
     DialogContent,
@@ -95,6 +94,37 @@ export default function InventoryAuditPage() {
     const [formQty, setFormQty] = useState("");
     const [formAuditor, setFormAuditor] = useState("");
     const [submitting, setSubmitting] = useState(false);
+    // Snapshot of system qty at the time the auditor started counting (for delta-based update).
+    // Locked when both warehouse and product are first selected, so concurrent movements
+    // between count-time and submit-time are preserved server-side.
+    const [countedSystemQty, setCountedSystemQty] = useState<number | null>(null);
+
+    // Compute the displayed system qty for the current warehouse+product selection.
+    // Filter to locationId === null to match server's submitSpotAudit predicate
+    // (it only operates on the default/null-location row). Without this filter,
+    // multi-location warehouses would show a sum across all bins while the server
+    // only adjusts the default row, corrupting the discrepancy math.
+    const liveSystemQty = useMemo(() => {
+        if (!formWarehouse || !formProduct) return null;
+        const product = products.find((p: any) => p.id === formProduct);
+        if (!product?.stockLevels) return 0;
+        return product.stockLevels
+            .filter((sl: any) => sl.warehouseId === formWarehouse && sl.locationId === null)
+            .reduce((sum: number, sl: any) => sum + Number(sl.quantity || 0), 0);
+    }, [formWarehouse, formProduct, products]);
+
+    // Lock the snapshot the first time the auditor sees a system qty for this selection.
+    // Re-snapshots if the user changes warehouse or product (counts a different item).
+    useEffect(() => {
+        // Reset snapshot whenever selection changes; will re-lock below if both are set.
+        setCountedSystemQty(null);
+    }, [formWarehouse, formProduct]);
+
+    useEffect(() => {
+        if (liveSystemQty !== null && countedSystemQty === null) {
+            setCountedSystemQty(liveSystemQty);
+        }
+    }, [liveSystemQty, countedSystemQty]);
 
     // Stats
     const matchCount = auditLogs.filter(l => l.status === "MATCH").length;
@@ -130,10 +160,15 @@ export default function InventoryAuditPage() {
 
         setSubmitting(true);
         try {
+            // The counted-system snapshot was locked when the auditor first opened
+            // the form for this selection. If for any reason it wasn't set, fall back
+            // to the live value (still safer than the old absolute-overwrite behavior).
+            const snapshotQty = countedSystemQty ?? liveSystemQty ?? 0;
             const result = await submitSpotAudit({
                 warehouseId: formWarehouse,
                 productId: formProduct,
                 actualQty: Number(formQty),
+                countedSystemQty: snapshotQty,
                 auditorName: formAuditor || 'System',
                 notes: 'Manual Input from Audit Page'
             });
@@ -146,6 +181,7 @@ export default function InventoryAuditPage() {
                 setFormProduct("");
                 setFormQty("");
                 setFormAuditor("");
+                setCountedSystemQty(null);
                 // Invalidate query so the table refreshes with new audit log
                 queryClient.invalidateQueries({ queryKey: queryKeys.inventoryAudit.all });
                 queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all });
@@ -163,8 +199,7 @@ export default function InventoryAuditPage() {
     };
 
     return (
-        <InventoryPerformanceProvider currentPath="/inventory/audit">
-            <div className="mf-page">
+        <div className="mf-page">
 
                 {/* ═══════════════════════════════════════════ */}
                 {/* COMMAND HEADER                              */}
@@ -475,6 +510,11 @@ export default function InventoryAuditPage() {
                                         <span className={NB.sectionTitle}>Penghitungan</span>
                                     </div>
                                     <div className={NB.sectionBody}>
+                                        {countedSystemQty !== null && (
+                                            <div className="mb-3 text-[11px] font-mono text-zinc-600 bg-zinc-50 border border-zinc-200 px-2 py-1.5">
+                                                Stok sistem saat opname dibuka: <span className="font-bold text-zinc-900">{countedSystemQty}</span>
+                                            </div>
+                                        )}
                                         <div className="grid grid-cols-2 gap-3">
                                             <div>
                                                 <label className={NB.label}>Jumlah Fisik <span className={NB.labelRequired}>*</span></label>
@@ -512,7 +552,6 @@ export default function InventoryAuditPage() {
                     </DialogContent>
                 </Dialog>
 
-            </div>
-        </InventoryPerformanceProvider>
+        </div>
     );
 }

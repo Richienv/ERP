@@ -15,6 +15,15 @@ async function requireAuth() {
     return user
 }
 
+async function getEmployeeForUserEmail(email?: string | null) {
+    if (!email) return null
+    const employee = await prisma.employee.findFirst({
+        where: { email },
+        select: { id: true, firstName: true, lastName: true },
+    })
+    return employee || null
+}
+
 // Re-export types for consumers (type exports are allowed in "use server" files)
 export type { FabricDefectEntry, FabricInspectionResult } from "@/lib/fabric-inspection-helpers"
 
@@ -22,16 +31,29 @@ export type { FabricDefectEntry, FabricInspectionResult } from "@/lib/fabric-ins
 // Server Actions
 // ==============================================================================
 
+// SECURITY: inspectorId is intentionally NOT in this input shape. The QC sign-off
+// inspector is derived server-side from the authenticated user's linked Employee
+// record. Accepting it from the client allowed a clerk to attribute a failing
+// batch to a senior inspector by spoofing the field.
 export async function createFabricInspection(data: {
     batchNumber: string
     productId: string
-    inspectorId: string
     metersInspected: number
     defects: FabricDefectEntry[]
     purchaseOrderId?: string
     notes?: string
 }): Promise<{ success: boolean; result?: ReturnType<typeof calculate4PointScore>; error?: string }> {
     try {
+        // Derive inspector identity from the authenticated session, not the client payload.
+        const user = await requireAuth()
+        const inspector = await getEmployeeForUserEmail(user.email)
+        if (!inspector) {
+            return {
+                success: false,
+                error: "Akun tidak terhubung ke data karyawan — hubungi admin",
+            }
+        }
+
         const result = calculate4PointScore(data.metersInspected, data.defects)
 
         await withPrismaAuth(async (prisma: PrismaClient) => {
@@ -39,7 +61,7 @@ export async function createFabricInspection(data: {
                 data: {
                     batchNumber: data.batchNumber,
                     materialId: data.productId,
-                    inspectorId: data.inspectorId,
+                    inspectorId: inspector.id,
                     status: result.passed ? 'PASS' : 'FAIL',
                     score: result.pointsPer100Yards,
                     notes: [

@@ -67,7 +67,7 @@ export async function GET(
 
         const txInputs = transactions.map((tx) => ({
             productId: tx.productId,
-            quantity: tx.quantity,
+            quantity: Number(tx.quantity),
             unitCost: Number(tx.unitCost),
             totalValue: Number(tx.totalValue),
         }))

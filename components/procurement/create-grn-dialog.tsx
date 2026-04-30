@@ -279,10 +279,11 @@ export function CreateGRNDialog({ purchaseOrder, warehouses, employees: _employe
                                                     </button>
                                                     <input
                                                         type="number"
+                                                        step="0.01"
                                                         min={0}
                                                         max={item.remainingQty}
                                                         value={item.receivingQty}
-                                                        onChange={(e) => updateItem(index, 'receivingQty', Math.min(item.remainingQty, parseInt(e.target.value) || 0))}
+                                                        onChange={(e) => updateItem(index, 'receivingQty', Math.min(item.remainingQty, parseFloat(e.target.value) || 0))}
                                                         className={item.receivingQty > 0 ? QTY_INPUT_ACTIVE : QTY_INPUT_EMPTY}
                                                     />
                                                     <button
@@ -301,10 +302,11 @@ export function CreateGRNDialog({ purchaseOrder, warehouses, employees: _employe
                                                     <div className="text-center">
                                                         <input
                                                             type="number"
+                                                            step="0.01"
                                                             min={0}
                                                             max={item.receivingQty}
                                                             value={item.acceptedQty}
-                                                            onChange={(e) => updateItem(index, 'acceptedQty', Math.min(item.receivingQty, parseInt(e.target.value) || 0))}
+                                                            onChange={(e) => updateItem(index, 'acceptedQty', Math.min(item.receivingQty, parseFloat(e.target.value) || 0))}
                                                             className={ACC_INPUT}
                                                         />
                                                         <div className="text-[9px] text-emerald-600 font-black uppercase mt-0.5">Acc</div>

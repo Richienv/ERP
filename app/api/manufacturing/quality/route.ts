@@ -233,36 +233,57 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/manufacturing/quality - Create new quality inspection
+//
+// SECURITY: inspectorId is intentionally NOT accepted from the request body.
+// The QC sign-off inspector is derived server-side from the authenticated
+// user's linked Employee record. Accepting it from the client allowed a
+// clerk to attribute a failing batch to a senior inspector by spoofing the
+// field. Sibling fix to commit 8540f70 (lib/actions/fabric-inspection.ts).
 export async function POST(request: NextRequest) {
     try {
-        await assertAuthenticatedRequest()
+        const supabase = await createClient()
+        const {
+            data: { user },
+        } = await supabase.auth.getUser()
+        if (!user) {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+        }
+
         const actorUser = await getAuthzUser()
         const body = await request.json()
 
-        const { batchNumber, materialId, inspectorId, workOrderId, status, score, notes, defects } = body
+        const { batchNumber, materialId, workOrderId, status, score, notes, defects } = body
 
-        if (!batchNumber || !materialId || !inspectorId) {
+        if (!batchNumber || !materialId) {
             return NextResponse.json(
-                { success: false, error: 'Missing required fields: batchNumber, materialId, inspectorId' },
+                { success: false, error: 'Missing required fields: batchNumber, materialId' },
                 { status: 400 }
             )
         }
 
-        const [inspector, actorContext] = await Promise.all([
-            prisma.employee.findUnique({
-                where: { id: inspectorId },
-                select: { id: true, status: true, department: true, position: true },
-            }),
-            resolveEmployeeContext(prisma as any, actorUser),
-        ])
+        // Derive inspector identity from the authenticated session, not the client payload.
+        const inspector = user.email
+            ? await prisma.employee.findFirst({
+                  where: { email: user.email },
+                  select: { id: true, status: true, department: true, position: true },
+              })
+            : null
 
-        if (!inspector || inspector.status !== 'ACTIVE' || !isQualityEmployee(inspector)) {
+        if (!inspector) {
             return NextResponse.json(
-                { success: false, error: 'Inspector tidak valid. Pilih employee QC/Quality yang aktif.' },
-                { status: 400 }
+                { success: false, error: 'Akun tidak terhubung ke data karyawan — hubungi admin' },
+                { status: 403 }
             )
         }
 
+        if (inspector.status !== 'ACTIVE' || !isQualityEmployee(inspector)) {
+            return NextResponse.json(
+                { success: false, error: 'Akun login bukan employee QC/Quality aktif.' },
+                { status: 403 }
+            )
+        }
+
+        const actorContext = await resolveEmployeeContext(prisma as any, actorUser)
         if (!actorContext && !isSuperRole(actorUser.role)) {
             return NextResponse.json(
                 { success: false, error: 'Akun belum terhubung ke employee aktif.' },
@@ -274,7 +295,7 @@ export async function POST(request: NextRequest) {
             data: {
                 batchNumber,
                 materialId,
-                inspectorId,
+                inspectorId: inspector.id,
                 workOrderId: workOrderId || null,
                 status: status || 'PASS',
                 score: parseFloat(score || 100),

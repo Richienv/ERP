@@ -23,11 +23,16 @@ import {
 
 interface FabricInspectionDialogProps {
     products: { id: string; name: string; code: string }[]
-    inspectors: { id: string; name: string }[]
+    /**
+     * @deprecated Inspector is now derived from the logged-in user's Employee
+     * record on the server. This prop is kept for backward compatibility but
+     * its value is ignored — the dropdown has been removed from the UI.
+     */
+    inspectors?: { id: string; name: string }[]
     trigger?: React.ReactNode
 }
 
-export function FabricInspectionDialog({ products, inspectors, trigger }: FabricInspectionDialogProps) {
+export function FabricInspectionDialog({ products, trigger }: FabricInspectionDialogProps) {
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const [preview, setPreview] = useState<FabricInspectionResult | null>(null)
@@ -37,15 +42,10 @@ export function FabricInspectionDialog({ products, inspectors, trigger }: Fabric
         () => products.map((p) => ({ value: p.id, label: p.name, subtitle: p.code })),
         [products]
     )
-    const inspectorOptions = useMemo(
-        () => inspectors.map((i) => ({ value: i.id, label: i.name })),
-        [inspectors]
-    )
 
     // Form fields
     const [batchNumber, setBatchNumber] = useState("")
     const [productId, setProductId] = useState("")
-    const [inspectorId, setInspectorId] = useState("")
     const [metersInspected, setMetersInspected] = useState("")
     const [notes, setNotes] = useState("")
     const [defects, setDefects] = useState<FabricDefectEntry[]>([])
@@ -83,16 +83,17 @@ export function FabricInspectionDialog({ products, inspectors, trigger }: Fabric
     }
 
     const handleSubmit = async () => {
-        if (!batchNumber || !productId || !inspectorId || !metersInspected) {
+        if (!batchNumber || !productId || !metersInspected) {
             toast.error("Lengkapi semua field wajib")
             return
         }
 
         setLoading(true)
+        // SECURITY: inspectorId is NOT sent — the server derives it from the
+        // authenticated user's Employee record to prevent QC sign-off spoofing.
         const result = await createFabricInspection({
             batchNumber,
             productId,
-            inspectorId,
             metersInspected: parseFloat(metersInspected),
             defects,
             notes: notes || undefined,
@@ -112,7 +113,6 @@ export function FabricInspectionDialog({ products, inspectors, trigger }: Fabric
     const resetForm = () => {
         setBatchNumber("")
         setProductId("")
-        setInspectorId("")
         setMetersInspected("")
         setNotes("")
         setDefects([])
@@ -158,7 +158,7 @@ export function FabricInspectionDialog({ products, inspectors, trigger }: Fabric
                                 onChange={updatePreview}
                                 placeholder="100"
                             />
-                            <div>
+                            <div className="col-span-2">
                                 <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">
                                     Produk Kain <span className="text-red-500">*</span>
                                 </label>
@@ -171,20 +171,10 @@ export function FabricInspectionDialog({ products, inspectors, trigger }: Fabric
                                     emptyMessage="Produk kain tidak ditemukan."
                                 />
                             </div>
-                            <div>
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">
-                                    Inspektor <span className="text-red-500">*</span>
-                                </label>
-                                <ComboboxWithCreate
-                                    options={inspectorOptions}
-                                    value={inspectorId}
-                                    onChange={setInspectorId}
-                                    placeholder="Pilih inspektor..."
-                                    searchPlaceholder="Cari inspektor..."
-                                    emptyMessage="Inspektor tidak ditemukan."
-                                />
-                            </div>
                         </div>
+                        <p className="mt-2 text-[10px] uppercase tracking-wider text-zinc-500">
+                            Inspektor: otomatis tercatat dari akun yang login
+                        </p>
                     </NBSection>
 
                     {/* Defect Entry - complex, stays as-is */}

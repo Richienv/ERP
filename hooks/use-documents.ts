@@ -6,7 +6,7 @@ import { getDocumentSystemOverview } from "@/app/actions/documents-system"
 
 export function useDocuments() {
     return useQuery({
-        queryKey: queryKeys.documents.list(),
+        queryKey: queryKeys.documents.overview(),
         queryFn: async () => {
             const result = await getDocumentSystemOverview({ registryQuery: {} })
             if (!result.success || !("data" in result) || !result.data) {

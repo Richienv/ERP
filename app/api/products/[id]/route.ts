@@ -1,8 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
+import { deleteProduct } from '@/app/actions/inventory'
 
 import { ApiResponse, ProductWithRelations } from '@/lib/types'
+
+// Matches Prisma enum ProductType { MANUFACTURED, TRADING, RAW_MATERIAL, WIP }
+const PRODUCT_TYPE_VALUES = ['MANUFACTURED', 'TRADING', 'RAW_MATERIAL', 'WIP'] as const
+
+// Matches Prisma enum CostingMethod { AVERAGE, FIFO }
+const COSTING_METHOD_VALUES = ['AVERAGE', 'FIFO'] as const
+
+// PUT validates partial updates — every field optional but each one bounded.
+// Cross-field refine ensures minStock <= maxStock when both are provided so
+// the inventory revaluation can never go negative on bad input.
+const ProductUpdateSchema = z
+  .object({
+    code: z.string().trim().min(1).max(50).optional(),
+    name: z.string().trim().min(1).max(200).optional(),
+    description: z.string().max(2000).optional().nullable(),
+    barcode: z.string().trim().max(100).optional().nullable(),
+    costPrice: z.coerce.number().min(0).max(1e12).optional(),
+    sellingPrice: z
+      .union([z.coerce.number().min(0).max(1e12), z.literal('').transform(() => null), z.null()])
+      .optional(),
+    minStock: z.coerce.number().int().min(0).max(1e9).optional(),
+    maxStock: z.coerce.number().int().min(0).max(1e9).optional(),
+    reorderLevel: z.coerce.number().int().min(0).max(1e9).optional(),
+    productType: z.enum(PRODUCT_TYPE_VALUES).optional(),
+    costingMethod: z.enum(COSTING_METHOD_VALUES).optional(),
+    unit: z.string().trim().min(1).max(20).optional(),
+    categoryId: z.string().uuid().optional().nullable(),
+    isActive: z.boolean().optional(),
+  })
+  .refine(
+    (data) =>
+      data.minStock === undefined ||
+      data.maxStock === undefined ||
+      data.minStock <= data.maxStock,
+    { message: 'minStock harus ≤ maxStock', path: ['minStock'] }
+  )
 
 // GET /api/products/[id] - Get single product
 export async function GET(
@@ -102,7 +140,21 @@ export async function PUT(
     }
 
     const { id } = await params
-    const body = await request.json()
+    const rawBody = await request.json()
+
+    // Validate body — bounds-check numerics, reject NaN, enforce minStock <= maxStock.
+    const parsed = ProductUpdateSchema.safeParse(rawBody)
+    if (!parsed.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Data produk tidak valid',
+          details: parsed.error.flatten().fieldErrors,
+        },
+        { status: 400 }
+      )
+    }
+    const body = parsed.data
 
     // Check if product exists
     const existingProduct = await prisma.product.findUnique({
@@ -113,6 +165,21 @@ export async function PUT(
       return NextResponse.json(
         { success: false, error: 'Product not found' },
         { status: 404 }
+      )
+    }
+
+    // Cross-field check against persisted state: if only one of minStock/maxStock
+    // is being updated, ensure it stays consistent with the existing value.
+    const nextMinStock = body.minStock ?? existingProduct.minStock
+    const nextMaxStock = body.maxStock ?? existingProduct.maxStock
+    if (nextMinStock > nextMaxStock) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Data produk tidak valid',
+          details: { minStock: ['minStock harus ≤ maxStock'] },
+        },
+        { status: 400 }
       )
     }
 
@@ -134,18 +201,20 @@ export async function PUT(
     const updatedProduct = await prisma.product.update({
       where: { id },
       data: {
-        ...(body.code && { code: body.code }),
-        ...(body.name && { name: body.name }),
+        ...(body.code !== undefined && { code: body.code }),
+        ...(body.name !== undefined && { name: body.name }),
         ...(body.description !== undefined && { description: body.description }),
-        ...(body.unit && { unit: body.unit }),
-        ...(body.costPrice !== undefined && { costPrice: parseFloat(body.costPrice) }),
-        ...(body.sellingPrice !== undefined && { sellingPrice: body.sellingPrice === null || body.sellingPrice === "" ? null : parseFloat(body.sellingPrice) }),
-        ...(body.minStock !== undefined && { minStock: parseInt(body.minStock) }),
-        ...(body.maxStock !== undefined && { maxStock: parseInt(body.maxStock) }),
-        ...(body.reorderLevel !== undefined && { reorderLevel: parseInt(body.reorderLevel) }),
+        ...(body.unit !== undefined && { unit: body.unit }),
+        ...(body.costPrice !== undefined && { costPrice: body.costPrice }),
+        ...(body.sellingPrice !== undefined && { sellingPrice: body.sellingPrice }),
+        ...(body.minStock !== undefined && { minStock: body.minStock }),
+        ...(body.maxStock !== undefined && { maxStock: body.maxStock }),
+        ...(body.reorderLevel !== undefined && { reorderLevel: body.reorderLevel }),
         ...(body.barcode !== undefined && { barcode: body.barcode }),
         ...(body.isActive !== undefined && { isActive: body.isActive }),
-        ...(body.costingMethod && { costingMethod: body.costingMethod }),
+        ...(body.costingMethod !== undefined && { costingMethod: body.costingMethod }),
+        ...(body.productType !== undefined && { productType: body.productType }),
+        ...(body.categoryId !== undefined && { categoryId: body.categoryId }),
         updatedAt: new Date(),
       },
       include: {
@@ -169,7 +238,14 @@ export async function PUT(
   }
 }
 
-// DELETE /api/products/[id] - Delete (or deactivate) product
+// DELETE /api/products/[id] - Delete (or deactivate) product.
+//
+// Delegates to the `deleteProduct` server action so a single source of
+// truth checks every FK relation that references Product (stockLevels,
+// transactions, quotationItems, salesOrderItems, purchaseOrderItems,
+// BOMItem, workOrders, stockReservations, fabricRolls, priceListItems,
+// inspections). Returns the action's `{success, error}` shape mirrored
+// into HTTP status codes.
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -183,24 +259,12 @@ export async function DELETE(
 
     const { id } = await params
 
-    // Check if product exists and count all dependent records
+    // Confirm the product exists so we can return a clean 404 instead of
+    // funneling "not found" through the action's generic error surface.
     const existingProduct = await prisma.product.findUnique({
       where: { id },
-      include: {
-        _count: {
-          select: {
-            stockLevels: true,
-            transactions: true,
-            quotationItems: true,
-            salesOrderItems: true,
-            purchaseOrderItems: true,
-            BOMItem: true,
-            workOrders: true,
-          },
-        },
-      },
+      select: { id: true },
     })
-
     if (!existingProduct) {
       return NextResponse.json(
         { success: false, error: 'Product not found' },
@@ -208,51 +272,23 @@ export async function DELETE(
       )
     }
 
-    // Check for ANY dependent records across all referencing tables
-    const counts = existingProduct._count
-    const hasStock = counts.stockLevels > 0
-    const hasMovements = counts.transactions > 0
-    const hasSalesRefs = counts.quotationItems > 0 || counts.salesOrderItems > 0
-    const hasProcurementRefs = counts.purchaseOrderItems > 0
-    const hasManufacturingRefs = (counts.BOMItem || 0) > 0 || counts.workOrders > 0
-    const hasDependencies = hasStock || hasMovements || hasSalesRefs || hasProcurementRefs || hasManufacturingRefs
+    // Delegate to the canonical deleteProduct server action.
+    const result = await deleteProduct(id)
 
-    if (hasDependencies) {
-      // Always soft-delete when any dependencies exist to avoid FK violations
-      await prisma.product.update({
-        where: { id },
-        data: {
-          isActive: false,
-          updatedAt: new Date(),
-        },
-      })
-
-      const reasons: string[] = []
-      if (hasStock) reasons.push('stok aktif')
-      if (hasMovements) reasons.push('riwayat pergerakan')
-      if (hasSalesRefs) reasons.push('referensi penjualan')
-      if (hasProcurementRefs) reasons.push('referensi pengadaan')
-      if (hasManufacturingRefs) reasons.push('referensi manufaktur')
-
-      const response: ApiResponse = {
-        success: true,
-        message: `Produk dinonaktifkan (memiliki ${reasons.join(', ')})`,
-      }
-
-      return NextResponse.json(response)
-    } else {
-      // Hard delete only when no references exist anywhere
-      await prisma.product.delete({
-        where: { id },
-      })
-
-      const response: ApiResponse = {
-        success: true,
-        message: 'Produk berhasil dihapus',
-      }
-
-      return NextResponse.json(response)
+    if (!result.success) {
+      // Soft-conflict: product has FK references that block deletion.
+      // Use 409 (Conflict) so the client can surface the message verbatim.
+      return NextResponse.json(
+        { success: false, error: result.error },
+        { status: 409 }
+      )
     }
+
+    const response: ApiResponse = {
+      success: true,
+      message: 'Produk berhasil dinonaktifkan',
+    }
+    return NextResponse.json(response)
   } catch (error) {
     console.error('Error deleting product:', error)
     return NextResponse.json(

@@ -14,8 +14,11 @@ import {
     FALLBACK_WAREHOUSES
 } from "@/lib/db-fallbacks"
 import { createProductSchema, createCategorySchema, type CreateProductInput, type CreateCategoryInput } from "@/lib/validations"
-import { generateBarcode } from "@/lib/inventory-utils"
+import { generateBarcode, checkStockAvailability } from "@/lib/inventory-utils"
+import { getNegativeStockPolicy } from "@/lib/inventory-settings"
 import { logAudit, computeChanges } from "@/lib/audit-helpers"
+import { requireRole } from "@/lib/auth/role-guard"
+import { checkBulkImportSize, BULK_IMPORT_ROLES } from "@/lib/inventory-helpers"
 import { z } from "zod"
 import { revalidatePath } from "next/cache"
 
@@ -55,6 +58,11 @@ export async function getProductsNotInCategory(categoryId: string) {
 }
 
 export async function assignProductToCategory(productId: string, categoryId: string) {
+    try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat mengubah kategori produk" }
+    }
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) throw new Error("Unauthorized")
@@ -73,6 +81,11 @@ export async function assignProductToCategory(productId: string, categoryId: str
 }
 
 export async function removeProductFromCategory(productId: string) {
+    try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat mengubah kategori produk" }
+    }
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) throw new Error("Unauthorized")
@@ -121,6 +134,11 @@ export async function getProductsByCategory(categoryId: string) {
 }
 
 export async function updateCategory(id: string, data: { name?: string; code?: string; description?: string }) {
+    try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat memperbarui kategori" }
+    }
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) throw new Error("Unauthorized")
@@ -145,6 +163,11 @@ export async function updateCategory(id: string, data: { name?: string; code?: s
 }
 
 export async function createCategory(input: CreateCategoryInput) {
+    try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat membuat kategori" }
+    }
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) throw new Error("Unauthorized")
@@ -171,6 +194,11 @@ export async function createCategory(input: CreateCategoryInput) {
 }
 
 export async function deleteCategory(categoryId: string) {
+    try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat menghapus kategori" }
+    }
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) throw new Error("Unauthorized")
@@ -305,9 +333,14 @@ export async function getInventoryKPIs() {
 
     // Use the same query & status logic as the product table / kanban
     // so KPI numbers match what users see in the product list.
+    // TODO(perf): KPIs are aggregations over all active products. Cap at 500 to
+    // protect dashboard load time on large catalogs; revisit with DB-side
+    // aggregation (groupBy / raw SQL) when SKU count exceeds this limit.
     const products = await prisma.product.findMany({
         where: { isActive: true },
         include: { stockLevels: true },
+        orderBy: { createdAt: 'desc' },
+        take: 500,
     })
 
     let lowStock = 0
@@ -379,148 +412,247 @@ export async function getMaterialGapAnalysis() {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) throw new Error("Unauthorized")
 
-    const [products, pendingTasks] = await Promise.all([
-        prisma.product.findMany({
-            where: { isActive: true },
-            include: {
-                stockLevels: {
-                    include: { warehouse: true }
+    // 1. Lean product query — only fields we need + light relations.
+    // Replaces a single monster findMany with deep-nested includes (PO+supplier,
+    // supplierItems, workOrders, BOMItem→bom→product→workOrders, PR items, etc.)
+    // which produced hundreds of joins for 500 products.
+    // TODO(perf): bounded to prevent dashboard slowdown on large catalogs.
+    // Long-term: replace with DB-side aggregation (groupBy / raw SQL) to compute gaps without scanning all products.
+    const products = await prisma.product.findMany({
+        where: { isActive: true },
+        select: {
+            id: true,
+            code: true,
+            name: true,
+            unit: true,
+            costPrice: true,
+            minStock: true,
+            leadTime: true,
+            safetyStock: true,
+            manualBurnRate: true,
+            manualAlert: true,
+            category: { select: { id: true, name: true } },
+            stockLevels: {
+                select: {
+                    quantity: true,
+                    warehouse: { select: { id: true, name: true } },
                 },
-                category: true,
-                purchaseOrderItems: {
-                    where: {
-                        purchaseOrder: { status: { in: ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED'] } }
-                    },
-                    include: {
-                        purchaseOrder: {
-                            include: { supplier: true }
-                        }
-                    },
-                    orderBy: {
-                        purchaseOrder: { expectedDate: 'asc' }
-                    }
-                },
-                supplierItems: {
-                    where: { isPreferred: true },
-                    include: { supplier: { select: { name: true, contactName: true } } },
-                    take: 1
-                },
-                workOrders: {
-                    where: { status: { in: ['PLANNED', 'IN_PROGRESS'] } }
-                },
-                alternativeProduct: true,
-                // 5. Pending Purchase Requests (restock demand)
-                purchaseRequestItems: {
-                    where: {
-                        status: 'PENDING',
-                        purchaseRequest: { status: { in: ['PENDING', 'APPROVED'] } }
-                    },
+            },
+            alternativeProduct: { select: { name: true, code: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 500,
+    })
+
+    const productIds = products.map(p => p.id)
+
+    if (productIds.length === 0) {
+        return []
+    }
+
+    // 2. Batched lookups, each keyed on productId / materialId. All bounded.
+    // Run in parallel — Postgres handles `IN (...)` predicates with index scans,
+    // which is far cheaper than the original nested-loop joins.
+    const [
+        poItems,
+        supplierItems,
+        bomItems,
+        prItems,
+        pendingTasks,
+    ] = await Promise.all([
+        // Open PO line items for these products
+        prisma.purchaseOrderItem.findMany({
+            where: {
+                productId: { in: productIds },
+                purchaseOrder: { status: { in: ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED'] } },
+            },
+            select: {
+                productId: true,
+                quantity: true,
+                receivedQty: true,
+                unitPrice: true,
+                purchaseOrder: {
                     select: {
-                        quantity: true,
-                        purchaseRequest: { select: { number: true, status: true } }
-                    }
+                        id: true,
+                        number: true,
+                        expectedDate: true,
+                        supplier: { select: { name: true } },
+                    },
                 },
-                // 6. BOM & Demand (Critical for loop)
-                BOMItem: {
-                    include: {
-                        bom: {
-                            include: {
-                                product: {
-                                    include: {
-                                        workOrders: {
-                                            where: { status: { in: ['PLANNED', 'IN_PROGRESS'] } }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            },
+            orderBy: { purchaseOrder: { expectedDate: 'asc' } },
+            take: 2000,
         }),
+        // Preferred supplier per product
+        prisma.supplierProduct.findMany({
+            where: { productId: { in: productIds }, isPreferred: true },
+            select: {
+                productId: true,
+                price: true,
+                leadTime: true,
+                supplier: { select: { name: true, contactName: true } },
+            },
+            take: 2000,
+        }),
+        // BOM rows where these products are used as raw materials
+        prisma.bOMItem.findMany({
+            where: { materialId: { in: productIds } },
+            select: {
+                materialId: true,
+                quantity: true,
+                bom: {
+                    select: {
+                        productId: true, // Finished good
+                        product: { select: { name: true } },
+                    },
+                },
+            },
+            take: 2000,
+        }),
+        // Pending PR items (restock demand signal)
+        prisma.purchaseRequestItem.findMany({
+            where: {
+                productId: { in: productIds },
+                status: 'PENDING',
+                purchaseRequest: { status: { in: ['PENDING', 'APPROVED'] } },
+            },
+            select: {
+                productId: true,
+                quantity: true,
+                purchaseRequest: { select: { number: true, status: true } },
+            },
+            take: 2000,
+        }),
+        // Pending PR-typed employee tasks (used to mark isPendingRequest)
         prisma.employeeTask.findMany({
             where: { type: 'PURCHASE_REQUEST', status: 'PENDING' },
-            select: { relatedId: true }
-        })
+            select: { relatedId: true },
+            // TODO(perf): bounded for safety. If >500 pending PR tasks ever exist,
+            // some products will incorrectly show isPendingRequest=false. Consider DB-side join.
+            orderBy: { createdAt: 'desc' },
+            take: 500,
+        }),
     ])
 
+    // 3. Active work orders for the finished goods that consume these materials.
+    // We can only know which finished goods to query AFTER bomItems resolves —
+    // hence this is a follow-up query (still a single index scan, not a join blow-up).
+    const finishedGoodIds = Array.from(new Set(bomItems.map(bi => bi.bom.productId)))
+    const workOrders = finishedGoodIds.length > 0
+        ? await prisma.workOrder.findMany({
+            where: {
+                productId: { in: finishedGoodIds },
+                status: { in: ['PLANNED', 'IN_PROGRESS'] },
+            },
+            select: {
+                id: true,
+                number: true,
+                productId: true,
+                plannedQty: true,
+                startDate: true,
+            },
+            take: 2000,
+        })
+        : []
+
+    // 4. Group lookups by key for O(1) merge.
+    const groupBy = <T>(rows: T[], keyFn: (r: T) => string | null | undefined): Record<string, T[]> => {
+        const out: Record<string, T[]> = {}
+        for (const row of rows) {
+            const k = keyFn(row)
+            if (!k) continue
+            if (!out[k]) out[k] = []
+            out[k].push(row)
+        }
+        return out
+    }
+
+    const poByProduct = groupBy(poItems, (r) => r.productId)
+    const supplierByProduct = groupBy(supplierItems, (r) => r.productId)
+    const bomByMaterial = groupBy(bomItems, (r) => r.materialId)
+    const prByProduct = groupBy(prItems, (r) => r.productId)
+    const woByFinishedGood = groupBy(workOrders, (r) => r.productId)
     const pendingSet = new Set(pendingTasks.map(t => t.relatedId))
 
+    // 5. Merge — preserves original return shape exactly so consumers don't break.
     return products.map(p => {
-        const currentStock = p.stockLevels.reduce((sum, sl) => sum + Number(sl.quantity), 0)
-        const pendingRestockQty = p.purchaseRequestItems.reduce((sum, pri) => sum + pri.quantity, 0)
+        const stockLevels = p.stockLevels ?? []
+        const currentStock = stockLevels.reduce((sum, sl) => sum + Number(sl.quantity), 0)
 
-        // 1. Calculate Real Demand from Active Work Orders
-        // Logic: Iterate through BOM items where this material is used
+        const productPRItems = prByProduct[p.id] ?? []
+        const pendingRestockQty = productPRItems.reduce((sum, pri) => sum + Number(pri.quantity), 0)
+
+        // 1. Calculate real demand from active Work Orders via BOM
         let woDemandQty = 0
-        const activeWOs: any[] = []
+        const activeWOs: Array<{ id: string; number: string; date: Date | null; qty: number; productName: string }> = []
+        const productBomRows = bomByMaterial[p.id] ?? []
 
-        p.BOMItem.forEach(bomItem => {
-            const fg = bomItem.bom.product
-            if (fg && fg.workOrders.length > 0) {
-                fg.workOrders.forEach(wo => {
-                    const requiredForWO = Number(bomItem.quantity) * wo.plannedQty
-                    woDemandQty += requiredForWO
-                    activeWOs.push({
-                        id: wo.id,
-                        number: wo.number,
-                        date: wo.startDate,
-                        qty: requiredForWO,
-                        productName: fg.name
-                    })
+        for (const bomItem of productBomRows) {
+            const fgId = bomItem.bom.productId
+            const fgName = bomItem.bom.product?.name ?? ''
+            const fgWOs = woByFinishedGood[fgId] ?? []
+            for (const wo of fgWOs) {
+                const requiredForWO = Number(bomItem.quantity) * wo.plannedQty
+                woDemandQty += requiredForWO
+                activeWOs.push({
+                    id: wo.id,
+                    number: wo.number,
+                    date: wo.startDate,
+                    qty: requiredForWO,
+                    productName: fgName,
                 })
             }
-        })
+        }
 
-        // 2. Supply Chain Data
-        const incomingPO = p.purchaseOrderItems[0] // Just take the first one for now
-        const incomingQty = p.purchaseOrderItems.reduce((sum, item) => sum + Number(item.quantity), 0)
+        // 2. Supply chain data
+        const productPOItems = poByProduct[p.id] ?? []
+        const incomingPO = productPOItems[0] // first by expectedDate ASC
+        const incomingQty = productPOItems.reduce((sum, item) => sum + Number(item.quantity), 0)
 
-        const preferredSupplier = p.supplierItems[0]
+        const preferredSupplier = (supplierByProduct[p.id] ?? [])[0]
 
-        // 3. Planning Parameters (Real Data)
+        // 3. Planning parameters
         const leadTime = preferredSupplier?.leadTime || p.leadTime || 7
         const safetyStock = p.safetyStock || 0
         const burnRate = Number(p.manualBurnRate) || 0 // Per day
         const cost = preferredSupplier?.price ? Number(preferredSupplier.price) : Number(p.costPrice)
 
         // 4. Calculations
-        // How many days until we run out?
         const stockEndsInDays = burnRate > 0 ? (currentStock / burnRate) : 999
 
-        // Reorder Point = Max of ((Average Daily Usage * Lead Time) + Safety Stock) OR MinStock
         const calculatedROP = (burnRate * leadTime) + safetyStock
         const reorderPoint = Math.max(calculatedROP, p.minStock || 0)
 
-        // Gap = (Demand + Reorder Point) - (Current Stock)
-        // WE EXCLUDE INCOMING QTY from Gap calculation to ensure "Receive Goods" button stays visible until physically received.
         const totalProjectedNeed = woDemandQty + reorderPoint
-        const totalProjectedStock = currentStock // + incomingQty (removed to keep gap > 0 until receipt)
+        const totalProjectedStock = currentStock // + incomingQty intentionally excluded
 
         let gap = totalProjectedNeed - totalProjectedStock
 
-        // If Manual Alert is ON, force gap to be positive to show in Alert Tab
         if (p.manualAlert && gap <= 0) {
             gap = 1 // Artificial gap to trigger visibility
         }
 
         // Map all open POs for the dialog
-        const openPOs = p.purchaseOrderItems.map(poi => ({
-            id: poi.purchaseOrder.id,
-            number: poi.purchaseOrder.number,
-            supplierName: poi.purchaseOrder.supplier.name,
-            expectedDate: poi.purchaseOrder.expectedDate,
-            orderedQty: poi.quantity,
-            receivedQty: (poi as any).receivedQty || 0,
-            remainingQty: poi.quantity - ((poi as any).receivedQty || 0),
-            unitPrice: Number(poi.unitPrice)
-        })).filter(po => po.remainingQty > 0)
+        const openPOs = productPOItems.map(poi => {
+            const orderedQty = Number(poi.quantity)
+            const receivedQty = Number(poi.receivedQty || 0)
+            return {
+                id: poi.purchaseOrder.id,
+                number: poi.purchaseOrder.number,
+                supplierName: poi.purchaseOrder.supplier?.name ?? '',
+                expectedDate: poi.purchaseOrder.expectedDate,
+                orderedQty,
+                receivedQty,
+                remainingQty: orderedQty - receivedQty,
+                unitPrice: Number(poi.unitPrice),
+            }
+        }).filter(po => po.remainingQty > 0)
 
-        // Status Logic
+        // Status logic
         let status = 'OK'
         if (gap > 0) {
             if (currentStock <= 0) status = 'OUT_OF_STOCK'
-            else if (woDemandQty > currentStock) status = 'CRITICAL_WO_SHORTAGE' // Cannot fulfill active WO
+            else if (woDemandQty > currentStock) status = 'CRITICAL_WO_SHORTAGE'
             else status = 'RESTOCK_NEEDED'
         }
 
@@ -535,10 +667,10 @@ export async function getMaterialGapAnalysis() {
             currentStock,
             pendingRestockQty,
             incomingQty,
-            warehouses: p.stockLevels.map(sl => ({
+            warehouses: stockLevels.map(sl => ({
                 id: sl.warehouse.id,
                 name: sl.warehouse.name,
-                qty: sl.quantity
+                qty: sl.quantity,
             })),
 
             // Planning
@@ -553,8 +685,8 @@ export async function getMaterialGapAnalysis() {
             status,
             isPendingRequest: pendingSet.has(p.id),
             gap: gap > 0 ? gap : 0,
-            manualAlert: p.manualAlert, // Pass to frontend for badge
-            demandSources: activeWOs, // Detailed breakdown
+            manualAlert: p.manualAlert,
+            demandSources: activeWOs,
 
             // Financials
             cost,
@@ -565,27 +697,45 @@ export async function getMaterialGapAnalysis() {
             activePO: incomingPO ? {
                 number: incomingPO.purchaseOrder.number,
                 qty: incomingQty,
-                eta: incomingPO.purchaseOrder.expectedDate
+                eta: incomingPO.purchaseOrder.expectedDate,
             } : null,
             supplier: preferredSupplier ? {
                 name: preferredSupplier.supplier.name,
-                isPreferred: true
+                isPreferred: true,
             } : null,
 
             // Alternatives
             alternative: p.alternativeProduct ? {
                 name: p.alternativeProduct.name,
-                code: p.alternativeProduct.code
+                code: p.alternativeProduct.code,
             } : null,
 
             // Open POs for Goods Receipt
-            openPOs
+            openPOs,
         }
     })
 }
 
 export async function getProcurementInsights() {
     try {
+        // Auth guard: only authenticated users may view procurement insights.
+        const supabase = await createClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) {
+            return {
+                activePOs: [],
+                restockItems: [],
+                summary: {
+                    totalIncoming: 0,
+                    totalRestockCost: 0,
+                    itemsCriticalCount: 0,
+                    itemsCriticalList: [],
+                    totalPending: 0,
+                    pendingApproval: 0,
+                }
+            }
+        }
+
         // 1. Get Active Purchase Orders (Actual Inbound Data)
         const activePOs = await prisma.purchaseOrder.findMany({
             where: {
@@ -637,6 +787,8 @@ export async function getProcurementInsights() {
         })
 
         // 2. Calculate Required Restock Cost (Gap Analysis)
+        // TODO(perf): bounded to prevent dashboard slowdown on large catalogs.
+        // Long-term: replace with DB-side aggregation (groupBy / raw SQL) to compute gaps.
         const lowStockProducts = await prisma.product.findMany({
             where: { isActive: true },
             include: {
@@ -646,7 +798,9 @@ export async function getProcurementInsights() {
                     orderBy: { createdAt: 'desc' },
                     take: 1
                 }
-            }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 500,
         })
 
         // Calculate Gap & Cost
@@ -723,7 +877,9 @@ export async function getProductsForKanban() {
         include: {
             category: true,
             stockLevels: true
-        }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 500,
     })
 
     return products.map(p => {
@@ -752,13 +908,46 @@ export async function getProductsForKanban() {
 
 export async function setProductManualAlert(productId: string, isAlert: boolean) {
     try {
-        return await withPrismaAuth(async (prisma) => {
+        // Auth guard: only authenticated users may flip the manual-alert flag.
+        const supabase = await createClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) {
+            return { success: false, error: "Unauthorized" }
+        }
+
+        // Validate the product exists and capture the previous flag for audit.
+        const product = await prisma.product.findUnique({
+            where: { id: productId },
+            select: { id: true, manualAlert: true }
+        })
+        if (!product) {
+            return { success: false, error: "Produk tidak ditemukan" }
+        }
+
+        const result = await withPrismaAuth(async (prisma) => {
             await prisma.product.update({
                 where: { id: productId },
                 data: { manualAlert: isAlert }
             })
-            return { success: true }
+            return { success: true as const }
         })
+
+        // Audit trail — manualAlert decides whether the product surfaces in the
+        // critical-stock list, so every flip must be traceable.
+        try {
+            await logAudit(prisma, {
+                entityType: "Product",
+                entityId: productId,
+                action: "UPDATE",
+                userId: user.id,
+                userName: user.email || undefined,
+                changes: {
+                    manualAlert: { from: product.manualAlert, to: isAlert }
+                }
+            })
+        } catch { /* audit is best-effort */ }
+
+        return result
     } catch (e) {
         console.error("Failed to set manual alert", e)
         return { success: false, error: "Database Error" }
@@ -818,6 +1007,12 @@ export async function getWarehouseDetails(id: string) {
 // ==========================================
 export async function createWarehouse(data: { name: string, code: string, address: string, capacity: number, warehouseType?: string }) {
     try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat membuat gudang" }
+    }
+
+    try {
         return await withPrismaAuth(async (prisma) => {
             await prisma.warehouse.create({
                 data: {
@@ -843,6 +1038,12 @@ export async function createWarehouse(data: { name: string, code: string, addres
 // ==========================================
 export async function deleteWarehouse(warehouseId: string) {
     try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat menghapus gudang" }
+    }
+
+    try {
         const supabase = await createClient()
         const { data: { user }, error: authError } = await supabase.auth.getUser()
         if (authError || !user) {
@@ -855,6 +1056,22 @@ export async function deleteWarehouse(warehouseId: string) {
         })
         if (hasStock) {
             return { success: false, error: "Gudang masih memiliki stok. Pindahkan stok terlebih dahulu." }
+        }
+
+        // Check if warehouse has active fabric rolls (greige / WIP textile inventory).
+        // StockLevel only tracks the aggregate quantity for non-trackable items;
+        // FabricRolls are tracked individually and would be orphaned if we soft-delete.
+        const activeRolls = await prisma.fabricRoll.count({
+            where: {
+                warehouseId,
+                status: { in: ["AVAILABLE", "RESERVED", "IN_USE"] },
+            },
+        })
+        if (activeRolls > 0) {
+            return {
+                success: false,
+                error: `Gudang masih memiliki ${activeRolls} fabric roll aktif. Pindahkan rol ke gudang lain terlebih dahulu.`,
+            }
         }
 
         // Check if warehouse has pending stock transfers (as source or target)
@@ -907,11 +1124,17 @@ export async function createRestockRequest(data: {
     notes?: string
 }) {
     try {
-        const supabase = await createClient()
-        const { data: { session } } = await supabase.auth.getSession()
+        await requireRole(["admin", "manager", "PURCHASING"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin, manager, atau purchasing yang dapat membuat permintaan restock" }
+    }
 
-        if (!session?.user) {
-            throw new Error("Unauthorized: Invalid user session")
+    try {
+        const supabase = await createClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+        if (authError || !user) {
+            return { success: false, error: "Unauthorized: Invalid user session" }
         }
 
         const result = await withRetry(async () => {
@@ -921,36 +1144,19 @@ export async function createRestockRequest(data: {
                 // RESOLVE REQUESTER (EMPLOYEE)
                 // ---------------------------------------------------------
                 // PurchaseRequest requires an Employee ID (Foreign Key).
-                // We try to find the employee linking to this user, or fallback.
+                // Derive the requester strictly from the auth user's email.
+                // No fallback to "any employee" or "System Admin" — that would
+                // attribute purchase requests to an arbitrary user and break
+                // the audit trail.
 
-                const userEmail = session.user.email
-                let employee = userEmail ? await prisma.employee.findUnique({
-                    where: { email: userEmail }
-                }) : null
+                const userEmail = user.email
+                const employee = userEmail
+                    ? await prisma.employee.findFirst({ where: { email: userEmail } })
+                    : null
 
                 if (!employee) {
-                    // Fallback 1: Try to find ANY employee (e.g. for dev/testing environment)
-                    employee = await prisma.employee.findFirst()
-
-                    if (!employee) {
-                        // Fallback 2: Create a System Employee if none exist
-                        console.log("No employees found. Creating System Admin employee.")
-                        employee = await prisma.employee.create({
-                            data: {
-                                employeeId: `SYS-${Date.now().toString().slice(-6)}`,
-                                firstName: "System",
-                                lastName: "Admin",
-                                email: userEmail || `admin-${Date.now()}@system.local`,
-                                department: "IT",
-                                position: "System Administrator",
-                                joinDate: new Date(),
-                                status: "ACTIVE"
-                            }
-                        })
-                    }
+                    return { success: false, error: "Akun tidak terhubung ke data karyawan — hubungi admin" }
                 }
-
-                if (!employee) throw new Error("Failed to resolve Requester (Employee)")
 
                 // ---------------------------------------------------------
                 // TRANSACTION LOGIC
@@ -1014,6 +1220,12 @@ export async function receiveGoodsFromPO(data: {
     receivedQty: number
 }) {
     try {
+        await requireRole(["admin", "manager", "WAREHOUSE"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin, manager, atau warehouse yang dapat menerima barang dari PO" }
+    }
+
+    try {
         console.log("Receiving Goods:", data)
 
         return await withPrismaAuth(async (prisma) => {
@@ -1040,8 +1252,8 @@ export async function receiveGoodsFromPO(data: {
             const totalGrnAccepted = Number(grnAccepted._sum?.quantityAccepted || 0)
 
             // Guard: total received (from GRN + this request) must not exceed ordered qty
-            const totalAfterReceive = poItem.receivedQty + data.receivedQty
-            if (totalAfterReceive > poItem.quantity) {
+            const totalAfterReceive = Number(poItem.receivedQty) + data.receivedQty
+            if (totalAfterReceive > Number(poItem.quantity)) {
                 return {
                     success: false,
                     error: "Jumlah penerimaan melebihi jumlah pesanan. Kemungkinan barang sudah diterima melalui Surat Jalan Masuk (GRN)."
@@ -1049,8 +1261,8 @@ export async function receiveGoodsFromPO(data: {
             }
 
             // Also guard against GRN-accepted quantities that haven't synced to receivedQty yet
-            const effectiveReceived = Math.max(poItem.receivedQty, totalGrnAccepted)
-            const remainingQty = poItem.quantity - effectiveReceived
+            const effectiveReceived = Math.max(Number(poItem.receivedQty), totalGrnAccepted)
+            const remainingQty = Number(poItem.quantity) - effectiveReceived
             if (data.receivedQty > remainingQty) {
                 return {
                     success: false,
@@ -1182,6 +1394,12 @@ export async function requestPurchase(data: {
     notes?: string
 }) {
     try {
+        await requireRole(["admin", "manager", "PURCHASING"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin, manager, atau purchasing yang dapat membuat permintaan pembelian" }
+    }
+
+    try {
         console.log("Requesting Purchase (PR):", data)
 
         return await withPrismaAuth(async (prisma) => {
@@ -1285,6 +1503,8 @@ export async function getStockMovements(limit = 50) {
         }
     })
 
+    // Decimal fields (quantity, unitCost, totalValue) serialize as strings in
+    // JSON; cast to Number so UI consumers can compare/format safely.
     return movements.map(mv => ({
         id: mv.id,
         productId: mv.productId,
@@ -1293,7 +1513,9 @@ export async function getStockMovements(limit = 50) {
         date: mv.createdAt,
         item: mv.product.name,
         code: mv.product.code,
-        qty: mv.quantity,
+        qty: Number(mv.quantity),
+        unitCost: mv.unitCost ? Number(mv.unitCost) : null,
+        totalValue: mv.totalValue ? Number(mv.totalValue) : null,
         unit: mv.product.unit,
         warehouse: mv.warehouse.name,
         // Determine "entity" (Supplier, Customer, or Target Warehouse) based on type
@@ -1313,6 +1535,12 @@ export async function createManualMovement(data: {
     userId?: string, // Deprecated: ignored, user is resolved from auth context
 }) {
     try {
+        await requireRole(["admin", "manager", "WAREHOUSE"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin, manager, atau warehouse yang dapat membuat pergerakan stok" }
+    }
+
+    try {
         if (data.quantity <= 0) throw new Error("Quantity must be positive")
         if (data.type === 'TRANSFER' && !data.targetWarehouseId) throw new Error("Target warehouse required for transfer")
         if (data.type === 'TRANSFER' && data.warehouseId === data.targetWarehouseId) throw new Error("Cannot transfer to same warehouse")
@@ -1327,6 +1555,11 @@ export async function createManualMovement(data: {
         const { data: { user }, error: authError } = await supabase.auth.getUser()
         if (authError || !user) throw new Error("Unauthorized")
         const authenticatedUserId = user.id
+
+        // Read negative-stock policy from system settings.
+        // When false (default), outbound transactions that would drive stock
+        // below zero are rejected. When true (pre-selling mode), they are allowed.
+        const allowNegativeStock = await getNegativeStockPolicy()
 
         const result = await withPrismaAuth(async (tx) => {
             // Determine DB Type & Sign
@@ -1347,14 +1580,26 @@ export async function createManualMovement(data: {
                 qtyChange = -data.quantity // Source decreases
             }
 
-            // 0. Validate Source Stock for Outbound/Transfer
+            // 0. Validate Source Stock for Outbound/Transfer using the
+            //    system-wide negative-stock policy (configurable in
+            //    /inventory/settings). For ADJUSTMENT_OUT and TRANSFER we
+            //    honor the policy; SCRAP always strictly rejects negative
+            //    (you cannot scrap stock you don't have).
             if (qtyChange < 0) {
                 const strictSource = await tx.stockLevel.findFirst({
                     where: { productId: data.productId, warehouseId: data.warehouseId }
                 })
+                const currentStock = strictSource ? Number(strictSource.quantity) : 0
+                const honorPolicy = data.type === 'ADJUSTMENT_OUT' || data.type === 'TRANSFER'
+                const effectiveAllowNegative = honorPolicy ? allowNegativeStock : false
 
-                if (!strictSource || Number(strictSource.quantity) < Math.abs(qtyChange)) {
-                    throw new Error(`Insufficient stock in source warehouse. Available: ${strictSource ? Number(strictSource.quantity) : 0}`)
+                const stockCheck = checkStockAvailability(
+                    currentStock,
+                    Math.abs(qtyChange),
+                    effectiveAllowNegative,
+                )
+                if (!stockCheck.allowed) {
+                    throw new Error(stockCheck.message ?? `Insufficient stock in source warehouse. Available: ${currentStock}`)
                 }
             }
 
@@ -1383,13 +1628,22 @@ export async function createManualMovement(data: {
 
             // 2. Update Source Stock Level (Atomic — no read-then-write race)
             if (qtyChange < 0) {
-                // For outbound: use updateMany with a WHERE guard to prevent negative stock
+                // For outbound: use updateMany with a WHERE guard to prevent
+                // negative stock — but only when the policy disallows it.
+                // SCRAP always strictly rejects negative; ADJUSTMENT_OUT and
+                // TRANSFER honor the configurable policy (already validated
+                // above via checkStockAvailability).
+                const honorPolicy = data.type === 'ADJUSTMENT_OUT' || data.type === 'TRANSFER'
+                const effectiveAllowNegative = honorPolicy ? allowNegativeStock : false
+
                 const updated = await tx.stockLevel.updateMany({
                     where: {
                         productId: data.productId,
                         warehouseId: data.warehouseId,
                         locationId: null,
-                        quantity: { gte: Math.abs(qtyChange) },
+                        ...(effectiveAllowNegative
+                            ? {}
+                            : { quantity: { gte: Math.abs(qtyChange) } }),
                     },
                     data: {
                         quantity: { increment: qtyChange },
@@ -1397,7 +1651,21 @@ export async function createManualMovement(data: {
                     },
                 })
                 if (updated.count === 0) {
-                    throw new Error("Stok tidak mencukupi")
+                    // If the row didn't exist at all and negative is allowed,
+                    // create it with negative quantity (pre-selling mode).
+                    if (effectiveAllowNegative) {
+                        await tx.stockLevel.create({
+                            data: {
+                                productId: data.productId,
+                                warehouseId: data.warehouseId,
+                                quantity: qtyChange,
+                                availableQty: qtyChange,
+                                reservedQty: 0,
+                            }
+                        })
+                    } else {
+                        throw new Error("Stok tidak mencukupi")
+                    }
                 }
             } else {
                 // For inbound: findFirst + create/update (Prisma can't handle null in composite unique for upsert)
@@ -1513,6 +1781,12 @@ export async function createManualMovement(data: {
 
 export async function updateWarehouse(id: string, data: { name: string, code: string, address: string, capacity: number, warehouseType?: string }) {
     try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat mengubah gudang" }
+    }
+
+    try {
         return await withPrismaAuth(async (prisma) => {
             await prisma.warehouse.update({
                 where: { id },
@@ -1539,9 +1813,16 @@ export async function submitSpotAudit(data: {
     warehouseId: string;
     productId: string;
     actualQty: number;
+    countedSystemQty: number; // System qty displayed when auditor began counting (snapshot)
     auditorName: string;
     notes?: string;
 }) {
+    try {
+        await requireRole(["admin", "manager", "WAREHOUSE"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin, manager, atau warehouse yang dapat melakukan spot audit" }
+    }
+
     try {
         const { warehouseId, productId, actualQty, auditorName, notes } = data;
 
@@ -1551,35 +1832,58 @@ export async function submitSpotAudit(data: {
                 where: { productId, warehouseId, locationId: null }
             });
 
-            const systemQty = Number(existingStock?.quantity || 0);
-            const discrepancy = actualQty - systemQty;
+            const currentSystemQty = Number(existingStock?.quantity || 0);
+            // Discrepancy reported by the auditor: actual on shelf vs what they were shown.
+            const discrepancy = actualQty - data.countedSystemQty;
 
-            // 2. Update Stock (Only if discrepancy exists)
+            // 2. Update Stock (Only if discrepancy exists). Use delta-increment so
+            // concurrent movements during the count window are preserved (lost-update fix).
+            // Upsert keyed on @@unique([productId, warehouseId, locationId]) so two
+            // concurrent audits against a missing row don't race on create (P2002).
             if (discrepancy !== 0) {
-                if (existingStock) {
-                    // Calculate correct availableQty: newQuantity - reservedQty
-                    const reservedQty = Number(existingStock.reservedQty || 0);
-                    const newAvailableQty = Math.max(0, actualQty - reservedQty);
-
-                    await prisma.stockLevel.update({
-                        where: { id: existingStock.id },
-                        data: {
-                            quantity: actualQty,
-                            availableQty: newAvailableQty,
-                        }
-                    });
-                } else {
-                    await prisma.stockLevel.create({
-                        data: {
+                if (existingStock || discrepancy > 0) {
+                    // Prisma typings require non-null on compound unique keys, but the
+                    // @@unique([productId, warehouseId, locationId]) accepts NULL at the DB
+                    // level (and the partial-unique migration pins it). Cast the where to
+                    // satisfy TS while keeping the runtime semantics correct.
+                    await prisma.stockLevel.upsert({
+                        where: {
+                            productId_warehouseId_locationId: {
+                                productId,
+                                warehouseId,
+                                locationId: null,
+                            },
+                        } as any,
+                        update: {
+                            quantity: { increment: discrepancy },
+                            availableQty: { increment: discrepancy },
+                        },
+                        create: {
                             productId,
                             warehouseId,
-                            quantity: actualQty,
-                            availableQty: actualQty,
-                            locationId: null
-                        }
+                            locationId: null,
+                            quantity: discrepancy, // only positive when creating
+                            availableQty: discrepancy,
+                        },
                     });
+
+                    // Clamp availableQty at 0 — the increment path doesn't preserve
+                    // the Math.max(0, ...) floor that the absolute-set path used to apply.
+                    // Inside the same transaction so it's atomic with the upsert.
+                    const after = await prisma.stockLevel.findFirst({
+                        where: { productId, warehouseId, locationId: null }
+                    });
+                    if (after && Number(after.availableQty) < 0) {
+                        await prisma.stockLevel.update({
+                            where: { id: after.id },
+                            data: { availableQty: 0 }
+                        });
+                    }
                 }
             }
+
+            // Preserve `systemQty` for downstream notes/GL (semantic: what the user saw)
+            const systemQty = data.countedSystemQty;
 
             // 3. Record Transaction (Always record audit, even if match)
             // Fetch product for GL description and cost
@@ -1601,7 +1905,7 @@ export async function submitSpotAudit(data: {
                     unitCost: unitCost > 0 ? unitCost : undefined,
                     totalValue: totalValue > 0 ? totalValue : undefined,
                     referenceId: `AUDIT-${Date.now()}`,
-                    notes: `Spot Audit by ${auditorName}. System: ${systemQty}, Actual: ${actualQty}. ${notes || ''}`
+                    notes: `Spot Audit by ${auditorName}. Counted system: ${data.countedSystemQty}, Current system: ${currentSystemQty}, Actual: ${actualQty}. ${notes || ''}`
                 }
             });
 
@@ -1649,7 +1953,8 @@ export async function getRecentAudits() {
 
         return transactions.map(tx => {
             // Parse notes for System/Actual qty if available
-            // Format: "Spot Audit by {name}. System: {sys}, Actual: {act}."
+            // Format (new): "Spot Audit by {name}. Counted system: {csys}, Current system: {cur}, Actual: {act}."
+            // Format (legacy): "Spot Audit by {name}. System: {sys}, Actual: {act}."
             let auditor = 'System';
             let systemQty = 0;
             let actualQty = 0;
@@ -1658,8 +1963,11 @@ export async function getRecentAudits() {
                 const auditorMatch = tx.notes.match(/Spot Audit by (.*?)\./);
                 if (auditorMatch) auditor = auditorMatch[1];
 
-                const sysMatch = tx.notes.match(/System:\s*(\d+)/);
-                if (sysMatch) systemQty = parseInt(sysMatch[1]);
+                // Prefer "Counted system" (new format); fall back to "System" (legacy format)
+                const countedSysMatch = tx.notes.match(/Counted system:\s*(\d+)/i);
+                const legacySysMatch = tx.notes.match(/(?<!Counted |Current )System:\s*(\d+)/i);
+                if (countedSysMatch) systemQty = parseInt(countedSysMatch[1]);
+                else if (legacySysMatch) systemQty = parseInt(legacySysMatch[1]);
 
                 const actMatch = tx.notes.match(/Actual:\s*(\d+)/);
                 if (actMatch) actualQty = parseInt(actMatch[1]);
@@ -1706,6 +2014,12 @@ export async function generateNextSequence(prefix: string): Promise<number> {
 }
 
 export async function createProduct(input: CreateProductInput) {
+    try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat membuat produk" }
+    }
+
     try {
         const supabase = await createClient()
         const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -1806,11 +2120,15 @@ export async function getProductMovements(productId: string) {
             }
         })
 
+        // Decimal fields serialize as strings in JSON; cast to Number so UI
+        // consumers (product-quick-view) can compare qty < 0 / qty > 0 safely.
         return movements.map(mv => ({
             id: mv.id,
             type: mv.type as string,
             date: mv.createdAt.toISOString(),
-            qty: mv.quantity,
+            qty: Number(mv.quantity),
+            unitCost: mv.unitCost ? Number(mv.unitCost) : null,
+            totalValue: mv.totalValue ? Number(mv.totalValue) : null,
             warehouseId: mv.warehouse.id,
             warehouseName: mv.warehouse.name,
             referenceId: mv.referenceId || undefined,
@@ -1888,6 +2206,12 @@ export async function updateProduct(productId: string, data: {
     equipmentType?: string | null
 }) {
     try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat mengubah produk" }
+    }
+
+    try {
         const supabase = await createClient()
         const { data: { user }, error: authError } = await supabase.auth.getUser()
         if (authError || !user) throw new Error("Unauthorized")
@@ -1946,8 +2270,20 @@ export async function updateProduct(productId: string, data: {
     }
 }
 
-/** Soft-delete a product (set isActive = false) */
+/** Soft-delete a product (set isActive = false).
+ *
+ * Checks every FK relation that references Product before allowing the
+ * delete. If any active reference exists, the product is left untouched
+ * (no soft-delete) and a Bahasa Indonesia error is returned. Otherwise
+ * the product is soft-deleted via `isActive = false` to preserve audit
+ * trails (transactions, inspections) without orphaning data. */
 export async function deleteProduct(productId: string) {
+    try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat menghapus produk" }
+    }
+
     try {
         // Auth check
         const supabase = await createClient()
@@ -1968,6 +2304,54 @@ export async function deleteProduct(productId: string) {
             return {
                 success: false,
                 error: `Tidak dapat menghapus produk karena masih digunakan sebagai material di BOM "${bomProduct}" (${bomVersion})`,
+            }
+        }
+
+        // Check ALL BOMItem links (including inactive BOM versions) — would orphan a BOMItem row
+        const anyBomItem = await prisma.bOMItem.findFirst({
+            where: { materialId: productId },
+            select: { id: true },
+        })
+        if (anyBomItem) {
+            return {
+                success: false,
+                error: "Tidak dapat menghapus produk: masih direferensikan oleh BOMItem (termasuk versi BOM lama)",
+            }
+        }
+
+        // Check if product is the output of any BOM (BillOfMaterials.productId)
+        const bomAsProduct = await prisma.billOfMaterials.findFirst({
+            where: { productId },
+            select: { version: true },
+        })
+        if (bomAsProduct) {
+            return {
+                success: false,
+                error: `Tidak dapat menghapus produk: masih memiliki BOM (${bomAsProduct.version})`,
+            }
+        }
+
+        // Check Work Orders referencing this product
+        const workOrder = await prisma.workOrder.findFirst({
+            where: { productId },
+            select: { number: true },
+        })
+        if (workOrder) {
+            return {
+                success: false,
+                error: `Tidak dapat menghapus produk: masih ada Work Order (${workOrder.number})`,
+            }
+        }
+
+        // Check Quotation Items
+        const quotationItem = await prisma.quotationItem.findFirst({
+            where: { productId },
+            include: { quotation: { select: { number: true } } },
+        })
+        if (quotationItem) {
+            return {
+                success: false,
+                error: `Tidak dapat menghapus produk: masih terdapat di Quotation (${quotationItem.quotation.number})`,
             }
         }
 
@@ -2002,6 +2386,42 @@ export async function deleteProduct(productId: string) {
             return {
                 success: false,
                 error: `Tidak dapat menghapus produk karena masih terdapat di Purchase Order aktif (${activePurchaseOrderItem.purchaseOrder.number})`,
+            }
+        }
+
+        // Check Inventory Transactions (audit trail) — block to preserve history
+        const transaction = await prisma.inventoryTransaction.findFirst({
+            where: { productId },
+            select: { id: true },
+        })
+        if (transaction) {
+            return {
+                success: false,
+                error: "Tidak dapat menghapus produk: masih ada riwayat pergerakan stok (audit trail). Nonaktifkan produk dari halaman edit jika ingin disembunyikan.",
+            }
+        }
+
+        // Check Quality Inspections (audit trail) — relation field is `materialId`
+        const inspection = await prisma.qualityInspection.findFirst({
+            where: { materialId: productId },
+            select: { id: true },
+        })
+        if (inspection) {
+            return {
+                success: false,
+                error: "Tidak dapat menghapus produk: masih ada riwayat inspeksi kualitas",
+            }
+        }
+
+        // Check Price List Items — would orphan a price tier
+        const priceListItem = await prisma.priceListItem.findFirst({
+            where: { productId },
+            include: { priceList: { select: { name: true } } },
+        })
+        if (priceListItem) {
+            return {
+                success: false,
+                error: `Tidak dapat menghapus produk: masih terdapat di Price List "${priceListItem.priceList.name}"`,
             }
         }
 
@@ -2050,6 +2470,17 @@ export async function deleteProduct(productId: string) {
             where: { id: productId },
             data: { isActive: false },
         })
+
+        // Audit trail
+        try {
+            await logAudit(prisma, {
+                entityType: "Product",
+                entityId: productId,
+                action: "DELETE",
+                userId: user.id,
+                userName: user.email || undefined,
+            })
+        } catch { /* audit is best-effort */ }
 
         revalidatePath("/inventory")
         return { success: true }
@@ -2123,6 +2554,27 @@ export async function getWarehouseStaffing(warehouseId: string) {
 
 export async function assignWarehouseManager(warehouseId: string, managerId: string) {
     try {
+        // Role guard: only admin/manager/WAREHOUSE roles may reassign a warehouse manager.
+        const user = await requireRole(["admin", "manager", "WAREHOUSE"])
+
+        // Validate the warehouse exists and capture the previous manager for audit.
+        const warehouse = await prisma.warehouse.findUnique({
+            where: { id: warehouseId },
+            select: { id: true, managerId: true }
+        })
+        if (!warehouse) {
+            return { success: false, error: "Gudang tidak ditemukan" }
+        }
+
+        // Validate the managerId points to a real Employee — prevent planting arbitrary UUIDs.
+        const manager = await prisma.employee.findUnique({
+            where: { id: managerId },
+            select: { id: true }
+        })
+        if (!manager) {
+            return { success: false, error: "Manajer tidak ditemukan" }
+        }
+
         await withPrismaAuth(async (prisma) => {
             await prisma.warehouse.update({
                 where: { id: warehouseId },
@@ -2130,9 +2582,29 @@ export async function assignWarehouseManager(warehouseId: string, managerId: str
             })
         })
 
+        // Audit trail
+        try {
+            await logAudit(prisma, {
+                entityType: "Warehouse",
+                entityId: warehouseId,
+                action: "UPDATE",
+                userId: user.id,
+                userName: user.email || undefined,
+                changes: {
+                    managerId: { from: warehouse.managerId, to: managerId }
+                }
+            })
+        } catch { /* audit is best-effort */ }
+
         return { success: true }
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to assign warehouse manager:", error)
+        if (typeof error?.message === "string" && error.message.startsWith("Forbidden")) {
+            return { success: false, error: "Akses ditolak" }
+        }
+        if (typeof error?.message === "string" && error.message.startsWith("Unauthorized")) {
+            return { success: false, error: "Belum login" }
+        }
         return { success: false, error: "Gagal assign manager gudang" }
     }
 }
@@ -2156,6 +2628,19 @@ export async function bulkImportProducts(rows: BulkImportProductRow[]): Promise<
     imported: number
     errors: string[]
 }> {
+    // Role guard: only inventory-relevant roles can mass-import.
+    await requireRole([...BULK_IMPORT_ROLES])
+
+    // Row cap to prevent self-DOS / mass GL flooding.
+    const sizeCheck = checkBulkImportSize(rows)
+    if (!sizeCheck.ok) {
+        return {
+            success: false,
+            imported: 0,
+            errors: [sizeCheck.error],
+        }
+    }
+
     const errors: string[] = []
     let imported = 0
 
@@ -2256,6 +2741,19 @@ export async function bulkImportMovements(rows: BulkImportMovementRow[]): Promis
     imported: number
     errors: string[]
 }> {
+    // Role guard: only inventory-relevant roles can mass-import.
+    await requireRole([...BULK_IMPORT_ROLES])
+
+    // Row cap to prevent self-DOS / mass GL flooding.
+    const sizeCheck = checkBulkImportSize(rows)
+    if (!sizeCheck.ok) {
+        return {
+            success: false,
+            imported: 0,
+            errors: [sizeCheck.error],
+        }
+    }
+
     const errors: string[] = []
     let imported = 0
 
@@ -2393,9 +2891,11 @@ export async function createWarehouseLocation(data: {
     aisle?: string
     capacity?: number
 }) {
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) throw new Error("Unauthorized")
+    try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat membuat lokasi gudang" }
+    }
 
     try {
         const location = await prisma.location.create({
@@ -2426,9 +2926,11 @@ export async function updateWarehouseLocation(id: string, data: {
     aisle?: string
     capacity?: number
 }) {
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) throw new Error("Unauthorized")
+    try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat mengubah lokasi gudang" }
+    }
 
     try {
         await prisma.location.update({
@@ -2452,9 +2954,11 @@ export async function updateWarehouseLocation(id: string, data: {
 }
 
 export async function deleteWarehouseLocation(id: string) {
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) throw new Error("Unauthorized")
+    try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat menghapus lokasi gudang" }
+    }
 
     // Check if any stock levels reference this location
     const stockCount = await prisma.stockLevel.count({ where: { locationId: id } })

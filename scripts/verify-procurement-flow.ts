@@ -86,7 +86,7 @@ async function main() {
         include: { items: true }
     })
     if (!po) throw new Error("PO not found in DB")
-    if (po.items[0].quantity !== 50) throw new Error("PO Quantity mismatch")
+    if (Number(po.items[0].quantity) !== 50) throw new Error("PO Quantity mismatch")
     console.log("PO Verified. Number:", po.number)
 
     // 7. Verify PR Status Updated to PO_CREATED

@@ -62,6 +62,7 @@ import { toast } from "sonner"
 import { CreateInvoiceDialog } from "@/components/finance/create-invoice-dialog"
 import { AuditLogTimeline } from "@/components/audit-log-timeline"
 import { InvoiceAttachmentSection } from "@/components/finance/invoice-attachments"
+import { DocumentSnapshotList } from "@/components/documents/document-snapshot-list"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { exportToExcel } from "@/lib/table-export"
@@ -1264,6 +1265,16 @@ export function InvoicesPageClient() {
                                         )
                                     })()}
                                 </motion.div>
+
+                                {/* Versioned PDF snapshots (auto-generated on issue) */}
+                                {activeInvoice && (
+                                    <motion.div variants={fadeUp} className="border-t-2 border-zinc-200 dark:border-zinc-700 pt-4 space-y-2">
+                                        <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+                                            Dokumen PDF (versi tercatat)
+                                        </h3>
+                                        <DocumentSnapshotList type={activeInvoice.type === 'INV_IN' ? 'INVOICE_AP' : 'INVOICE_AR'} entityId={activeInvoice.id} />
+                                    </motion.div>
+                                )}
 
                                 {/* Attachments */}
                                 {activeInvoice && (

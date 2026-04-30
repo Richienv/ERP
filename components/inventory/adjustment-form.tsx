@@ -19,22 +19,13 @@ import { queryKeys } from "@/lib/query-keys"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { useTransition, useMemo } from "react"
 import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
+import { useAdjustmentReasons, useInvalidateMasterData } from "@/hooks/use-master-data"
+import { createAdjustmentReason } from "@/lib/actions/master-data"
 
 interface AdjustmentFormProps {
     products: { id: string, name: string, code: string, unit: string }[]
     warehouses: { id: string, name: string }[]
 }
-
-const ADJUSTMENT_REASONS = [
-    "Stok Opname (Selisih)",
-    "Barang Rusak / Cacat",
-    "Barang Kadaluarsa",
-    "Hadiah / Promosi",
-    "Retur dari Pelanggan",
-    "Kesalahan Input Sebelumnya",
-    "Sample / Testing",
-    "Lainnya",
-]
 
 export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
     const [loading, setLoading] = useState(false)
@@ -42,8 +33,14 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
 
     const [isPending, startTransition] = useTransition()
 
+    const { data: reasons = [] } = useAdjustmentReasons()
+    const { invalidateAdjustmentReasons } = useInvalidateMasterData()
+
     const productOptions = useMemo(() =>
         products.map(p => ({ value: p.id, label: p.name, subtitle: p.code })), [products])
+
+    const reasonOptions = useMemo(() =>
+        reasons.map(r => ({ value: r.name, label: r.name, subtitle: r.code })), [reasons])
 
     // Form States
     const [type, setType] = useState<'ADJUSTMENT_IN' | 'ADJUSTMENT_OUT' | 'TRANSFER'>('ADJUSTMENT_IN')
@@ -100,11 +97,11 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
 
                 startTransition(() => {
                     queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
-                    queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
-                    queryClient.invalidateQueries({ queryKey: queryKeys.adjustments.all })
                     queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.all })
-                    queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all })
-                    queryClient.invalidateQueries({ queryKey: queryKeys.stockTransfers.all })
+                    queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
+                    if (type === 'TRANSFER') {
+                        queryClient.invalidateQueries({ queryKey: queryKeys.stockTransfers.all })
+                    }
                 })
             } else {
                 toast.error("Gagal menyimpan", { description: ("error" in result && result.error) ? String(result.error) : "Kesalahan tidak diketahui" })
@@ -232,16 +229,21 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
                 <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
                     Alasan <span className="text-red-500">*</span>
                 </label>
-                <Select value={reason} onValueChange={setReason}>
-                    <SelectTrigger className="border-2 border-black font-bold h-10 w-full rounded-none">
-                        <SelectValue placeholder="Pilih alasan..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {ADJUSTMENT_REASONS.map(r => (
-                            <SelectItem key={r} value={r}>{r}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                <ComboboxWithCreate
+                    options={reasonOptions}
+                    value={reason}
+                    onChange={setReason}
+                    placeholder="Pilih atau ketik alasan..."
+                    searchPlaceholder="Cari alasan..."
+                    emptyMessage="Alasan tidak ditemukan."
+                    createLabel="+ Buat Alasan Baru"
+                    onCreate={async (label: string) => {
+                        const code = label.toUpperCase().replace(/[^A-Z0-9]+/g, "_").slice(0, 30) || `R_${Date.now()}`
+                        await createAdjustmentReason(code, label)
+                        await invalidateAdjustmentReasons()
+                        return label
+                    }}
+                />
             </div>
 
             {/* Notes */}

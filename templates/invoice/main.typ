@@ -28,11 +28,17 @@
 }
 
 // ============================================
+// SHARED BRAND MODULE
+// ============================================
+#import "../_shared/brand.typ": header, footer
+
+// ============================================
 // PAGE SETUP
 // ============================================
 #set page(
   paper: "a4",
-  margin: (top: 1.5cm, bottom: 1.5cm, left: 1.5cm, right: 1.5cm),
+  margin: (top: 2cm, bottom: 2.5cm, left: 1.5cm, right: 1.5cm),
+  footer: footer(label: get-field(data, "number", default: "")),
 )
 
 #set text(font: "Inter", size: 9pt, fill: rgb("#1a202c"))
@@ -64,6 +70,9 @@
 // ============================================
 // HEADER
 // ============================================
+#header()
+#v(12pt)
+
 #align(center)[
   #text(size: 18pt, weight: "black", fill: colors.primary)[FAKTUR]
   #v(6pt)

@@ -14,7 +14,6 @@ import {
     X,
 } from "lucide-react"
 import Link from "next/link"
-import * as XLSX from "xlsx"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ManualMovementDialog } from "@/components/inventory/manual-movement-dialog"
@@ -110,7 +109,8 @@ function matchesFilter(move: any, filter: FilterTab): boolean {
     return true
 }
 
-function exportMovements(movements: any[], format: "csv" | "xlsx") {
+async function exportMovements(movements: any[], format: "csv" | "xlsx") {
+    const XLSX = await import("xlsx")
     const rows = movements.map((m: any) => ({
         Tanggal: new Date(m.date).toLocaleDateString("id-ID"),
         Waktu: new Date(m.date).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),

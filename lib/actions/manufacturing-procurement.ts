@@ -40,7 +40,7 @@ export async function detectWorkOrderShortages(workOrderId: string) {
         where: { productId: { in: materialIds } },
         _sum: { availableQty: true },
     })
-    const stockMap = new Map(stockLevels.map((s) => [s.productId, s._sum.availableQty ?? 0]))
+    const stockMap = new Map(stockLevels.map((s) => [s.productId, Number(s._sum.availableQty ?? 0)]))
 
     // Get on-order quantities — only count POs actually committed to vendor
     // (DRAFT/PENDING_APPROVAL/APPROVED may never be sent and shouldn't suppress

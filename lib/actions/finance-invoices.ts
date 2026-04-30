@@ -20,6 +20,8 @@ import { getExchangeRate, convertToIDR } from "@/lib/currency-helpers"
 import { TAX_RATES } from "@/lib/tax-rates"
 import { toNum } from "@/lib/utils"
 import * as dueDateUtils from "@/lib/due-date-utils"
+import { fireTrigger } from "@/lib/documents/triggers"
+import { getAuthzUser } from "@/lib/authz"
 
 export interface InvoiceKanbanItem {
     id: string
@@ -1289,6 +1291,16 @@ export async function moveInvoiceToSent(invoiceId: string, _message?: string, _m
             return { dueDate, status: nextStatus }
         })
 
+        // TRIGGER DOCUMENT SNAPSHOT — fire-and-forget, never blocks send.
+        // Auth lookup is best-effort (caller already authenticated to reach here).
+        try {
+            const user = await getAuthzUser()
+            void fireTrigger('INVOICE_ISSUED', invoiceId, user.id)
+        } catch {
+            // If user lookup fails (very unlikely at this point), skip the trigger
+            // — the invoice is still ISSUED. Manual snapshot generation always available.
+        }
+
         return { success: true, dueDate: result.dueDate, status: result.status }
     } catch (error: any) {
         console.error("Failed to move invoice to sent:", error)
@@ -1583,7 +1595,7 @@ export async function createBillFromPR(
             // Calculate totals from PR items using product.costPrice
             const invoiceItems = pr.items.map(item => {
                 const unitPrice = Number(item.product.costPrice) || 0
-                const quantity = item.quantity
+                const quantity = Number(item.quantity)
                 const amount = quantity * unitPrice
                 return {
                     description: item.product.name || 'Unknown Item',

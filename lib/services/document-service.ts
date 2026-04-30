@@ -3,6 +3,7 @@ import { spawn } from "child_process"
 import path from "path"
 import fs from "fs/promises"
 import crypto from "crypto"
+import { Prisma } from "@prisma/client"
 import os from "os"
 
 const DEFAULT_TYPST_BINARY = path.join(process.cwd(), "bin", "typst")
@@ -39,7 +40,8 @@ export class DocumentService {
 
     static async generatePDF(
         templateName: string,
-        data: any
+        data: any,
+        extraInputs: Record<string, string> = {},
     ): Promise<Buffer> {
 
         // Ensure cache dir exists
@@ -54,7 +56,13 @@ export class DocumentService {
             throw new Error(`Template not found: ${templateName} (looked in ${templatePath})`)
         }
 
-        const jsonData = JSON.stringify(data)
+        // Normalize Prisma Decimal before stringify. Without this, nested Decimals
+        // serialize as "{}" and templates show empty values. Use the Prisma-provided
+        // type guard (robust to bundler minification, unlike constructor.name check).
+        const jsonData = JSON.stringify(data, (_k, v) => {
+            if (Prisma.Decimal.isDecimal(v)) return v.toString()
+            return v
+        })
 
         // Generate unique ID for this generation request to avoid collision
         const id = crypto.randomUUID()
@@ -63,21 +71,31 @@ export class DocumentService {
         try {
             const typstBinary = await resolveTypstBinary()
 
+            // --root needed so templates can #import "../_shared/brand.typ" (Task B2).
+            // Build args via composition — avoids splice index coupling that previously
+            // corrupted the --root flag when --font-path was inserted at index 2.
+            const fontsDir = path.join(TEMPLATE_DIR, "../fonts")
+            const fontArgs: string[] = await fs.access(fontsDir).then(
+                () => ["--font-path", fontsDir],
+                () => [],
+            )
+
+            // Each extraInputs key becomes one --input k=v flag (used by the shared
+            // brand module to read sys.inputs.company_name etc. — see Task C3).
+            const extraInputArgs: string[] = []
+            for (const [k, v] of Object.entries(extraInputs)) {
+                extraInputArgs.push("--input", `${k}=${v}`)
+            }
+
             const args = [
                 "compile",
+                "--root", TEMPLATE_DIR,
+                ...fontArgs,
                 "--input", `data=${jsonData}`,
+                ...extraInputArgs,
                 templatePath,
-                outputPath
+                outputPath,
             ]
-
-            // Only add --font-path if the fonts directory exists
-            const fontsDir = path.join(TEMPLATE_DIR, "../fonts")
-            try {
-                await fs.access(fontsDir)
-                args.splice(2, 0, "--font-path", fontsDir)
-            } catch {
-                // No fonts dir, skip — Typst will use system/bundled fonts
-            }
 
             console.log(`[DocumentService] Generating PDF: ${templateName} (binary: ${typstBinary})`)
 

@@ -276,10 +276,11 @@ export function PurchaseReturnDialog({ warehouses }: Props) {
                                                         <td className={NB.tableCell + " text-center"}>
                                                             <Input
                                                                 type="number"
+                                                                step="0.01"
                                                                 min={0}
                                                                 max={item.maxQty}
                                                                 value={item.quantity || ""}
-                                                                onChange={(e) => updateItemQty(idx, parseInt(e.target.value) || 0)}
+                                                                onChange={(e) => updateItemQty(idx, parseFloat(e.target.value) || 0)}
                                                                 className="border-2 border-black font-bold h-8 w-20 text-center rounded-none mx-auto"
                                                                 placeholder="0"
                                                             />

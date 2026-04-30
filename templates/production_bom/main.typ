@@ -28,11 +28,16 @@
 }
 
 // ============================================
+// SHARED BRAND MODULE
+// ============================================
+#import "../_shared/brand.typ": header, footer
+
+// ============================================
 // PAGE SETUP
 // ============================================
 #set page(
   paper: "a4",
-  margin: (top: 2cm, bottom: 2cm, left: 2cm, right: 2cm),
+  margin: (top: 2cm, bottom: 2.5cm, left: 2cm, right: 2cm),
   header: context {
     if counter(page).get().first() > 1 [
       #set text(8pt, fill: gray)
@@ -41,13 +46,13 @@
       Halaman #counter(page).display()
     ]
   },
-  footer: [
-    #set text(7pt, fill: gray)
-    #h(1fr) Dicetak dari ERP System #h(1fr)
-  ]
+  footer: footer(label: "BOM " + get-field(data, "product_code", default: "") + " " + get-field(data, "version", default: "")),
 )
 
 #set text(font: "Inter", size: 10pt)
+
+#header()
+#v(12pt)
 
 // ============================================
 // COVER

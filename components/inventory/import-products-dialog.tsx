@@ -1,7 +1,6 @@
 "use client"
 
 import { useRef, useState, useCallback } from "react"
-import * as XLSX from "xlsx"
 import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, X, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
@@ -67,7 +66,8 @@ interface ParsedRow extends BulkImportProductRow {
 }
 
 // ─── Parser ──────────────────────────────────────────────────────────────────
-function parseFileToRows(file: File): Promise<{ rows: ParsedRow[]; parseError?: string }> {
+async function parseFileToRows(file: File): Promise<{ rows: ParsedRow[]; parseError?: string }> {
+    const XLSX = await import("xlsx")
     return new Promise((resolve) => {
         const reader = new FileReader()
         reader.onload = (e) => {
@@ -138,11 +138,24 @@ function parseFileToRows(file: File): Promise<{ rows: ParsedRow[]; parseError?: 
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export function ImportProductsDialog() {
+export function ImportProductsDialog({
+    open: controlledOpen,
+    onOpenChange,
+    hideTrigger,
+}: {
+    open?: boolean
+    onOpenChange?: (open: boolean) => void
+    hideTrigger?: boolean
+} = {}) {
     const queryClient = useQueryClient()
     const fileInputRef = useRef<HTMLInputElement>(null)
 
-    const [open, setOpen] = useState(false)
+    const [internalOpen, setInternalOpen] = useState(false)
+    const open = controlledOpen ?? internalOpen
+    const setOpen = (v: boolean) => {
+        if (onOpenChange) onOpenChange(v)
+        else setInternalOpen(v)
+    }
     const [step, setStep] = useState<"idle" | "preview" | "importing" | "done">("idle")
     const [fileName, setFileName] = useState("")
     const [parseError, setParseError] = useState<string | null>(null)
@@ -225,14 +238,26 @@ export function ImportProductsDialog() {
                     description: result.errors[0] ?? "Periksa format file Anda.",
                 })
             }
-        } catch (err: any) {
+        } catch (err) {
             setStep("preview")
-            toast.error("Terjadi kesalahan saat import", { description: err.message })
+            const msg = err instanceof Error ? err.message : ""
+            if (msg.startsWith("Forbidden:")) {
+                toast.error("Akses ditolak", {
+                    description: "Hanya admin, manager, atau staf gudang/pembelian yang dapat melakukan impor massal.",
+                })
+            } else if (msg === "Unauthorized") {
+                toast.error("Sesi habis", { description: "Silakan login ulang." })
+            } else {
+                toast.error("Terjadi kesalahan saat import", {
+                    description: msg || "Silakan coba lagi",
+                })
+            }
         }
     }, [validRows, queryClient])
 
     // ── Template download ────────────────────────────────────────────────────
-    const handleDownloadTemplate = useCallback(() => {
+    const handleDownloadTemplate = useCallback(async () => {
+        const XLSX = await import("xlsx")
         const ws = XLSX.utils.aoa_to_sheet([
             ["Nama Produk", "Kode Produk", "Kategori", "Satuan", "HPP", "Harga Jual", "Deskripsi"],
             ["Kaos Polos Hitam", "KAO-001", "Pakaian", "PCS", 45000, 75000, "Kaos polos bahan cotton combed 30s"],
@@ -245,15 +270,17 @@ export function ImportProductsDialog() {
 
     return (
         <>
-            {/* ── Trigger Button ── */}
-            <Button
-                variant="outline"
-                onClick={() => setOpen(true)}
-                className="border-2 border-black font-black uppercase text-xs tracking-wider rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all bg-white text-black"
-            >
-                <Upload className="h-3.5 w-3.5 mr-1.5" />
-                Import
-            </Button>
+            {/* ── Trigger Button (hidden when controlled externally) ── */}
+            {!hideTrigger && (
+                <Button
+                    variant="outline"
+                    onClick={() => setOpen(true)}
+                    className="border-2 border-black font-black uppercase text-xs tracking-wider rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all bg-white text-black"
+                >
+                    <Upload className="h-3.5 w-3.5 mr-1.5" />
+                    Import
+                </Button>
+            )}
 
             {/* ── Dialog ── */}
             <NBDialog open={open} onOpenChange={handleOpenChange} size="wide">

@@ -275,9 +275,10 @@ export function DirectPurchaseDialog({ vendors, products, warehouses, trigger }:
                                             <td className={NB.tableCell}>
                                                 <Input
                                                     type="number"
-                                                    min={1}
+                                                    step="0.01"
+                                                    min={0}
                                                     value={item.quantity}
-                                                    onChange={(e) => updateItem(item.key, "quantity", parseInt(e.target.value) || 0)}
+                                                    onChange={(e) => updateItem(item.key, "quantity", parseFloat(e.target.value) || 0)}
                                                     className="border-2 border-zinc-300 h-8 text-xs font-bold text-right rounded-none w-full"
                                                 />
                                             </td>
