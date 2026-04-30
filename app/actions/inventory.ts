@@ -770,13 +770,46 @@ export async function getProductsForKanban() {
 
 export async function setProductManualAlert(productId: string, isAlert: boolean) {
     try {
-        return await withPrismaAuth(async (prisma) => {
+        // Auth guard: only authenticated users may flip the manual-alert flag.
+        const supabase = await createClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) {
+            return { success: false, error: "Unauthorized" }
+        }
+
+        // Validate the product exists and capture the previous flag for audit.
+        const product = await prisma.product.findUnique({
+            where: { id: productId },
+            select: { id: true, manualAlert: true }
+        })
+        if (!product) {
+            return { success: false, error: "Produk tidak ditemukan" }
+        }
+
+        const result = await withPrismaAuth(async (prisma) => {
             await prisma.product.update({
                 where: { id: productId },
                 data: { manualAlert: isAlert }
             })
-            return { success: true }
+            return { success: true as const }
         })
+
+        // Audit trail — manualAlert decides whether the product surfaces in the
+        // critical-stock list, so every flip must be traceable.
+        try {
+            await logAudit(prisma, {
+                entityType: "Product",
+                entityId: productId,
+                action: "UPDATE",
+                userId: user.id,
+                userName: user.email || undefined,
+                changes: {
+                    manualAlert: { from: product.manualAlert, to: isAlert }
+                }
+            })
+        } catch { /* audit is best-effort */ }
+
+        return result
     } catch (e) {
         console.error("Failed to set manual alert", e)
         return { success: false, error: "Database Error" }
@@ -2317,6 +2350,27 @@ export async function getWarehouseStaffing(warehouseId: string) {
 
 export async function assignWarehouseManager(warehouseId: string, managerId: string) {
     try {
+        // Role guard: only admin/manager/WAREHOUSE roles may reassign a warehouse manager.
+        const user = await requireRole(["admin", "manager", "WAREHOUSE"])
+
+        // Validate the warehouse exists and capture the previous manager for audit.
+        const warehouse = await prisma.warehouse.findUnique({
+            where: { id: warehouseId },
+            select: { id: true, managerId: true }
+        })
+        if (!warehouse) {
+            return { success: false, error: "Gudang tidak ditemukan" }
+        }
+
+        // Validate the managerId points to a real Employee — prevent planting arbitrary UUIDs.
+        const manager = await prisma.employee.findUnique({
+            where: { id: managerId },
+            select: { id: true }
+        })
+        if (!manager) {
+            return { success: false, error: "Manajer tidak ditemukan" }
+        }
+
         await withPrismaAuth(async (prisma) => {
             await prisma.warehouse.update({
                 where: { id: warehouseId },
@@ -2324,9 +2378,29 @@ export async function assignWarehouseManager(warehouseId: string, managerId: str
             })
         })
 
+        // Audit trail
+        try {
+            await logAudit(prisma, {
+                entityType: "Warehouse",
+                entityId: warehouseId,
+                action: "UPDATE",
+                userId: user.id,
+                userName: user.email || undefined,
+                changes: {
+                    managerId: { from: warehouse.managerId, to: managerId }
+                }
+            })
+        } catch { /* audit is best-effort */ }
+
         return { success: true }
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to assign warehouse manager:", error)
+        if (typeof error?.message === "string" && error.message.startsWith("Forbidden")) {
+            return { success: false, error: "Akses ditolak" }
+        }
+        if (typeof error?.message === "string" && error.message.startsWith("Unauthorized")) {
+            return { success: false, error: "Belum login" }
+        }
         return { success: false, error: "Gagal assign manager gudang" }
     }
 }
