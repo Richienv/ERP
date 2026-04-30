@@ -693,6 +693,24 @@ export async function getMaterialGapAnalysis() {
 
 export async function getProcurementInsights() {
     try {
+        // Auth guard: only authenticated users may view procurement insights.
+        const supabase = await createClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) {
+            return {
+                activePOs: [],
+                restockItems: [],
+                summary: {
+                    totalIncoming: 0,
+                    totalRestockCost: 0,
+                    itemsCriticalCount: 0,
+                    itemsCriticalList: [],
+                    totalPending: 0,
+                    pendingApproval: 0,
+                }
+            }
+        }
+
         // 1. Get Active Purchase Orders (Actual Inbound Data)
         const activePOs = await prisma.purchaseOrder.findMany({
             where: {
@@ -744,6 +762,8 @@ export async function getProcurementInsights() {
         })
 
         // 2. Calculate Required Restock Cost (Gap Analysis)
+        // TODO(perf): bounded to prevent dashboard slowdown on large catalogs.
+        // Long-term: replace with DB-side aggregation (groupBy / raw SQL) to compute gaps.
         const lowStockProducts = await prisma.product.findMany({
             where: { isActive: true },
             include: {
@@ -753,7 +773,9 @@ export async function getProcurementInsights() {
                     orderBy: { createdAt: 'desc' },
                     take: 1
                 }
-            }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 500,
         })
 
         // Calculate Gap & Cost
@@ -960,6 +982,12 @@ export async function getWarehouseDetails(id: string) {
 // ==========================================
 export async function createWarehouse(data: { name: string, code: string, address: string, capacity: number, warehouseType?: string }) {
     try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat membuat gudang" }
+    }
+
+    try {
         return await withPrismaAuth(async (prisma) => {
             await prisma.warehouse.create({
                 data: {
@@ -984,6 +1012,12 @@ export async function createWarehouse(data: { name: string, code: string, addres
 // DELETE (SOFT) WAREHOUSE
 // ==========================================
 export async function deleteWarehouse(warehouseId: string) {
+    try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat menghapus gudang" }
+    }
+
     try {
         const supabase = await createClient()
         const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -1064,6 +1098,12 @@ export async function createRestockRequest(data: {
     quantity: number
     notes?: string
 }) {
+    try {
+        await requireRole(["admin", "manager", "PURCHASING"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin, manager, atau purchasing yang dapat membuat permintaan restock" }
+    }
+
     try {
         const supabase = await createClient()
         const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -1154,6 +1194,12 @@ export async function receiveGoodsFromPO(data: {
     warehouseId: string,
     receivedQty: number
 }) {
+    try {
+        await requireRole(["admin", "manager", "WAREHOUSE"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin, manager, atau warehouse yang dapat menerima barang dari PO" }
+    }
+
     try {
         console.log("Receiving Goods:", data)
 
@@ -1323,6 +1369,12 @@ export async function requestPurchase(data: {
     notes?: string
 }) {
     try {
+        await requireRole(["admin", "manager", "PURCHASING"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin, manager, atau purchasing yang dapat membuat permintaan pembelian" }
+    }
+
+    try {
         console.log("Requesting Purchase (PR):", data)
 
         return await withPrismaAuth(async (prisma) => {
@@ -1457,6 +1509,12 @@ export async function createManualMovement(data: {
     notes?: string,
     userId?: string, // Deprecated: ignored, user is resolved from auth context
 }) {
+    try {
+        await requireRole(["admin", "manager", "WAREHOUSE"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin, manager, atau warehouse yang dapat membuat pergerakan stok" }
+    }
+
     try {
         if (data.quantity <= 0) throw new Error("Quantity must be positive")
         if (data.type === 'TRANSFER' && !data.targetWarehouseId) throw new Error("Target warehouse required for transfer")
@@ -1698,6 +1756,12 @@ export async function createManualMovement(data: {
 
 export async function updateWarehouse(id: string, data: { name: string, code: string, address: string, capacity: number, warehouseType?: string }) {
     try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat mengubah gudang" }
+    }
+
+    try {
         return await withPrismaAuth(async (prisma) => {
             await prisma.warehouse.update({
                 where: { id },
@@ -1728,6 +1792,12 @@ export async function submitSpotAudit(data: {
     auditorName: string;
     notes?: string;
 }) {
+    try {
+        await requireRole(["admin", "manager", "WAREHOUSE"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin, manager, atau warehouse yang dapat melakukan spot audit" }
+    }
+
     try {
         const { warehouseId, productId, actualQty, auditorName, notes } = data;
 
@@ -1920,6 +1990,12 @@ export async function generateNextSequence(prefix: string): Promise<number> {
 
 export async function createProduct(input: CreateProductInput) {
     try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat membuat produk" }
+    }
+
+    try {
         const supabase = await createClient()
         const { data: { user }, error: authError } = await supabase.auth.getUser()
         if (authError || !user) throw new Error("Unauthorized")
@@ -2105,6 +2181,12 @@ export async function updateProduct(productId: string, data: {
     equipmentType?: string | null
 }) {
     try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat mengubah produk" }
+    }
+
+    try {
         const supabase = await createClient()
         const { data: { user }, error: authError } = await supabase.auth.getUser()
         if (authError || !user) throw new Error("Unauthorized")
@@ -2171,6 +2253,12 @@ export async function updateProduct(productId: string, data: {
  * the product is soft-deleted via `isActive = false` to preserve audit
  * trails (transactions, inspections) without orphaning data. */
 export async function deleteProduct(productId: string) {
+    try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat menghapus produk" }
+    }
+
     try {
         // Auth check
         const supabase = await createClient()
@@ -2778,9 +2866,11 @@ export async function createWarehouseLocation(data: {
     aisle?: string
     capacity?: number
 }) {
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) throw new Error("Unauthorized")
+    try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat membuat lokasi gudang" }
+    }
 
     try {
         const location = await prisma.location.create({
@@ -2811,9 +2901,11 @@ export async function updateWarehouseLocation(id: string, data: {
     aisle?: string
     capacity?: number
 }) {
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) throw new Error("Unauthorized")
+    try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat mengubah lokasi gudang" }
+    }
 
     try {
         await prisma.location.update({
@@ -2837,9 +2929,11 @@ export async function updateWarehouseLocation(id: string, data: {
 }
 
 export async function deleteWarehouseLocation(id: string) {
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) throw new Error("Unauthorized")
+    try {
+        await requireRole(["admin", "manager"])
+    } catch {
+        return { success: false, error: "Akses ditolak: hanya admin atau manager yang dapat menghapus lokasi gudang" }
+    }
 
     // Check if any stock levels reference this location
     const stockCount = await prisma.stockLevel.count({ where: { locationId: id } })
