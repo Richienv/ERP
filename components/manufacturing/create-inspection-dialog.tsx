@@ -46,6 +46,13 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated?: () => Promise<void> | void;
+  /**
+   * @deprecated Inspector is now derived from the logged-in user's Employee
+   * record on the server. This prop is kept for backward compatibility but
+   * its value is ignored — the dropdown has been removed from the UI.
+   * Sibling fix to commit 8540f70.
+   */
+  inspectors?: InspectorOption[];
 }
 
 const makeDefaultBatch = () => {
@@ -61,14 +68,12 @@ const makeDefaultBatch = () => {
 export function CreateInspectionDialog({ open, onOpenChange, onCreated }: Props) {
   const queryClient = useQueryClient();
   const [materials, setMaterials] = useState<ProductOption[]>([]);
-  const [inspectors, setInspectors] = useState<InspectorOption[]>([]);
   const [workOrders, setWorkOrders] = useState<WorkOrderOption[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const [batchNumber, setBatchNumber] = useState("");
   const [materialId, setMaterialId] = useState("");
-  const [inspectorId, setInspectorId] = useState("");
   const [workOrderId, setWorkOrderId] = useState("none");
   const [status, setStatus] = useState("PASS");
   const [score, setScore] = useState("100");
@@ -87,7 +92,6 @@ export function CreateInspectionDialog({ open, onOpenChange, onCreated }: Props)
         if (payload.success) {
           const options = payload.options || {};
           setMaterials(options.materials || []);
-          setInspectors(options.inspectors || []);
           setWorkOrders(options.workOrders || []);
         }
       } catch (error) {
@@ -100,7 +104,6 @@ export function CreateInspectionDialog({ open, onOpenChange, onCreated }: Props)
 
     setBatchNumber(makeDefaultBatch());
     setMaterialId("");
-    setInspectorId("");
     setWorkOrderId("none");
     setStatus("PASS");
     setScore("100");
@@ -123,8 +126,8 @@ export function CreateInspectionDialog({ open, onOpenChange, onCreated }: Props)
   };
 
   const handleSubmit = async () => {
-    if (!batchNumber.trim() || !materialId || !inspectorId) {
-      toast.error("Batch number, material, and inspector are required");
+    if (!batchNumber.trim() || !materialId) {
+      toast.error("Batch number and material are required");
       return;
     }
 
@@ -144,13 +147,14 @@ export function CreateInspectionDialog({ open, onOpenChange, onCreated }: Props)
 
     setSubmitting(true);
     try {
+      // SECURITY: inspectorId is NOT sent — the server derives it from the
+      // authenticated user's Employee record to prevent QC sign-off spoofing.
       const response = await fetch("/api/manufacturing/quality", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           batchNumber: batchNumber.trim(),
           materialId,
-          inspectorId,
           workOrderId: workOrderId === "none" ? null : workOrderId,
           status,
           score: numericScore,
@@ -208,7 +212,7 @@ export function CreateInspectionDialog({ open, onOpenChange, onCreated }: Props)
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <NBSelect
               label="Material/Product"
               required
@@ -220,20 +224,6 @@ export function CreateInspectionDialog({ open, onOpenChange, onCreated }: Props)
               {materials.map((material) => (
                 <SelectItem key={material.id} value={material.id}>
                   {material.code} - {material.name}
-                </SelectItem>
-              ))}
-            </NBSelect>
-            <NBSelect
-              label="Inspector"
-              required
-              value={inspectorId}
-              onValueChange={setInspectorId}
-              placeholder="Select inspector"
-              disabled={loadingOptions}
-            >
-              {inspectors.map((inspector) => (
-                <SelectItem key={inspector.id} value={inspector.id}>
-                  {inspector.firstName} {inspector.lastName || ""}
                 </SelectItem>
               ))}
             </NBSelect>
@@ -251,6 +241,9 @@ export function CreateInspectionDialog({ open, onOpenChange, onCreated }: Props)
               ))}
             </NBSelect>
           </div>
+          <p className="mt-1 text-[10px] uppercase tracking-wider text-zinc-500">
+            Inspektor: otomatis tercatat dari akun yang login
+          </p>
 
           <div className="grid grid-cols-2 gap-3">
             <NBInput
