@@ -231,10 +231,11 @@ export function CreateRequestForm({ products, employees }: Props) {
                     </label>
                     <Input
                       type="number"
-                      min={1}
+                      step="0.01"
+                      min={0}
                       className="border font-mono font-bold h-8 text-sm rounded-none text-center transition-colors border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
                       value={newItem.quantity}
-                      onChange={(e) => setNewItem({ ...newItem, quantity: parseInt(e.target.value) || 0 })}
+                      onChange={(e) => setNewItem({ ...newItem, quantity: parseFloat(e.target.value) || 0 })}
                     />
                   </div>
 
