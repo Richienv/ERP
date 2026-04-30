@@ -517,11 +517,13 @@ function KanbanLane({
 // ─────────────────────────────────────────────────────────────────
 
 function ReplenishCard({ card, variant }: { card: CardData; variant: LaneKey }) {
+    const router = useRouter()
     return (
         <div
             className="flex flex-col gap-1.5 px-3 py-2.5 bg-[var(--integra-canvas-pure)] border border-[var(--integra-hairline)] rounded-[3px] text-[12.5px] hover:border-[var(--integra-ink)] cursor-pointer transition-colors"
             draggable
             onDragStart={() => { /* noop drag handler */ }}
+            onClick={() => router.push(`/inventory/products/${card.id}`)}
         >
             <CardHead card={card} variant={variant} />
             <div className="font-medium text-[var(--integra-ink)] leading-[1.3]">
@@ -854,7 +856,8 @@ function StatusCellPill({ status }: { status: RowStatus }) {
     return <StatusPill kind={kind}>{rowStatusLabel(status)}</StatusPill>
 }
 
-function ActionCellPill({ action }: { action: RowAction }) {
+function ActionCellPill({ action, productId }: { action: RowAction; productId: string }) {
+    const router = useRouter()
     const label = rowActionLabel(action)
     let cls = "inline-flex items-center justify-center h-[26px] px-2.5 text-[11px] font-medium rounded-[2px] border bg-transparent transition-colors"
     if (action === "PO_DARURAT" || action === "STOCKOUT") {
@@ -864,7 +867,29 @@ function ActionCellPill({ action }: { action: RowAction }) {
     } else {
         cls = cn(cls, "border-[var(--integra-hairline-strong)] text-[var(--integra-ink-soft)] hover:border-[var(--integra-ink)] hover:text-[var(--integra-ink)]")
     }
-    return <button type="button" className={cls}>{label}</button>
+    const handleClick = (e: React.MouseEvent) => {
+        e.stopPropagation()
+        switch (action) {
+            case "LIHAT":
+                router.push(`/inventory/products/${productId}`)
+                break
+            case "PO_DARURAT":
+            case "STOCKOUT":
+                router.push(`/procurement/requests/new?productId=${productId}&urgent=1`)
+                break
+            case "BUAT_PR":
+                router.push(`/procurement/requests/new?productId=${productId}`)
+                break
+            case "PR_AKTIF":
+            case "REVIEW_PR":
+                router.push(`/procurement/requests?productId=${productId}`)
+                break
+            case "LACAK":
+                router.push(`/inventory/movements?productId=${productId}`)
+                break
+        }
+    }
+    return <button type="button" className={cls} onClick={handleClick}>{label}</button>
 }
 
 function ReplenishTableView({
@@ -896,6 +921,7 @@ function ReplenishTableView({
     totalValueJt: number
     outstandingPoJt: number
 }) {
+    const router = useRouter()
     // Header glyph indicator
     const Th = ({ glyph, label, num = false }: { glyph: string; label: string; num?: boolean }) => (
         <th
@@ -994,9 +1020,17 @@ function ReplenishTableView({
                                         ? "text-[var(--integra-amber)]"
                                         : "text-[var(--integra-ink)]"
                                 return (
-                                    <tr key={r.id} className="hover:bg-[#FBFAF5] transition-colors">
+                                    <tr
+                                        key={r.id}
+                                        onClick={() => router.push(`/inventory/products/${r.id}`)}
+                                        className="hover:bg-[#FBFAF5] transition-colors cursor-pointer"
+                                    >
                                         <td className={cn(cellBase, "border-b border-[var(--integra-hairline)]")}>
-                                            <input type="checkbox" aria-label={`Pilih ${r.sku}`} />
+                                            <input
+                                                type="checkbox"
+                                                aria-label={`Pilih ${r.sku}`}
+                                                onClick={(e) => e.stopPropagation()}
+                                            />
                                         </td>
                                         <td
                                             className={cn(cellBase, "border-b border-[var(--integra-hairline)] font-mono text-[11px] text-[var(--integra-muted)] text-center")}
@@ -1079,7 +1113,7 @@ function ReplenishTableView({
                                             className={cn(cellBase, "border-b border-[var(--integra-hairline)]")}
                                             style={cellBorder}
                                         >
-                                            <ActionCellPill action={r.action} />
+                                            <ActionCellPill action={r.action} productId={r.id} />
                                         </td>
                                     </tr>
                                 )
