@@ -1,8 +1,66 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
 
-import { ProductFilters, ApiResponse, PaginatedResponse, ProductWithRelations } from '@/lib/types'
+import { ApiResponse, PaginatedResponse, ProductWithRelations } from '@/lib/types'
+
+// Allowed sort columns — explicit allowlist to prevent column enumeration via Prisma
+const SORTABLE_COLUMNS = [
+  'name',
+  'code',
+  'createdAt',
+  'updatedAt',
+  'costPrice',
+  'sellingPrice',
+  'minStock',
+  'maxStock',
+] as const
+
+// Matches Prisma enum ProductType { MANUFACTURED, TRADING, RAW_MATERIAL, WIP }
+const PRODUCT_TYPE_VALUES = ['MANUFACTURED', 'TRADING', 'RAW_MATERIAL', 'WIP'] as const
+
+// Matches Prisma enum CostingMethod { AVERAGE, FIFO }
+const COSTING_METHOD_VALUES = ['AVERAGE', 'FIFO'] as const
+
+const ProductGetQuerySchema = z.object({
+  search: z.string().trim().max(200).optional(),
+  categoryId: z.string().uuid().optional(),
+  status: z.enum(['active', 'inactive']).optional(),
+  stockStatus: z.enum(['normal', 'low', 'critical', 'out']).optional(),
+  sortBy: z.enum(SORTABLE_COLUMNS).default('name'),
+  sortOrder: z.enum(['asc', 'desc']).default('asc'),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(10),
+  productType: z
+    .string()
+    .optional()
+    .transform((v) =>
+      v
+        ? v
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : []
+    )
+    .pipe(z.array(z.enum(PRODUCT_TYPE_VALUES))),
+})
+
+const ProductCreateSchema = z.object({
+  code: z.string().trim().min(1).max(50),
+  name: z.string().trim().min(1).max(200),
+  description: z.string().max(2000).optional().nullable(),
+  categoryId: z.string().uuid().optional().nullable(),
+  productType: z.enum(PRODUCT_TYPE_VALUES).optional(),
+  unit: z.string().trim().min(1).max(20),
+  costPrice: z.coerce.number().min(0).max(1e12).default(0),
+  sellingPrice: z.coerce.number().min(0).max(1e12).optional().nullable(),
+  costingMethod: z.enum(COSTING_METHOD_VALUES).optional(),
+  minStock: z.coerce.number().int().min(0).max(1e9).default(0),
+  maxStock: z.coerce.number().int().min(0).max(1e9).default(0),
+  reorderLevel: z.coerce.number().int().min(0).max(1e9).default(0),
+  barcode: z.string().trim().max(100).optional().nullable(),
+})
 
 // GET /api/products - Fetch products with filtering and pagination
 export async function GET(request: NextRequest) {
@@ -14,16 +72,18 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
-    const filters: ProductFilters = {
-      search: searchParams.get('search') || undefined,
-      categoryId: searchParams.get('categoryId') || undefined,
-      status: (searchParams.get('status') as 'active' | 'inactive') || undefined,
-      stockStatus: (searchParams.get('stockStatus') as any) || undefined,
-      sortBy: (searchParams.get('sortBy') as any) || 'name',
-      sortOrder: (searchParams.get('sortOrder') as 'asc' | 'desc') || 'asc',
-      page: parseInt(searchParams.get('page') || '1'),
-      limit: Math.min(parseInt(searchParams.get('limit') || '10'), 100),
+    const parsed = ProductGetQuerySchema.safeParse(Object.fromEntries(searchParams))
+    if (!parsed.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Parameter pencarian tidak valid',
+          details: parsed.error.flatten().fieldErrors,
+        },
+        { status: 400 }
+      )
     }
+    const filters = parsed.data
 
     // Build where clause
     const whereClause: any = {}
@@ -46,17 +106,14 @@ export async function GET(request: NextRequest) {
       whereClause.isActive = false
     }
 
-    const productType = searchParams.get('productType')
-    if (productType) {
-      if (productType.includes(',')) {
-        whereClause.productType = { in: productType.split(',') }
-      } else {
-        whereClause.productType = productType
-      }
+    if (filters.productType.length === 1) {
+      whereClause.productType = filters.productType[0]
+    } else if (filters.productType.length > 1) {
+      whereClause.productType = { in: filters.productType }
     }
 
     // Calculate offset for pagination
-    const offset = ((filters.page || 1) - 1) * (filters.limit || 10)
+    const offset = (filters.page - 1) * filters.limit
 
     // Fetch products with relations
     const [products, totalCount] = await Promise.all([
@@ -77,10 +134,10 @@ export async function GET(request: NextRequest) {
           },
         },
         orderBy: {
-          [filters.sortBy || 'name']: filters.sortOrder || 'asc',
+          [filters.sortBy]: filters.sortOrder,
         },
         skip: offset,
-        take: filters.limit || 10,
+        take: filters.limit,
       }),
       prisma.product.count({ where: whereClause }),
     ])
@@ -113,14 +170,14 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const totalPages = Math.ceil(totalCount / (filters.limit || 10))
+    const totalPages = Math.ceil(totalCount / filters.limit)
 
     const response: PaginatedResponse<ProductWithRelations> = {
       success: true,
       data: filteredProducts,
       pagination: {
-        page: filters.page || 1,
-        limit: filters.limit || 10,
+        page: filters.page,
+        limit: filters.limit,
         total: totalCount,
         totalPages,
       },
@@ -145,26 +202,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await request.json()
-
-    // Validate required fields
-    const { code, name, unit, costPrice, sellingPrice, minStock, maxStock, reorderLevel } = body
-
-    if (!code || !name || !unit) {
+    const body = await request.json().catch(() => null)
+    if (!body || typeof body !== 'object') {
       return NextResponse.json(
-        { success: false, error: 'Missing required fields: code, name, unit' },
+        { success: false, error: 'Body permintaan tidak valid' },
         { status: 400 }
       )
     }
 
+    const parsed = ProductCreateSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Data produk tidak valid',
+          details: parsed.error.flatten().fieldErrors,
+        },
+        { status: 400 }
+      )
+    }
+    const data = parsed.data
+
     // Check if product code already exists
     const existingProduct = await prisma.product.findUnique({
-      where: { code },
+      where: { code: data.code },
     })
 
     if (existingProduct) {
       return NextResponse.json(
-        { success: false, error: 'Product code already exists' },
+        { success: false, error: 'Kode produk sudah digunakan' },
         { status: 409 }
       )
     }
@@ -172,19 +238,19 @@ export async function POST(request: NextRequest) {
     // Create new product
     const product = await prisma.product.create({
       data: {
-        code,
-        name,
-        description: body.description || null,
-        categoryId: body.categoryId || null,
-        productType: body.productType || undefined,
-        unit,
-        costPrice: parseFloat(costPrice || 0),
-        sellingPrice: sellingPrice === null || sellingPrice === undefined || sellingPrice === "" ? null : parseFloat(sellingPrice),
-        minStock: parseInt(minStock || 0),
-        maxStock: parseInt(maxStock || 0),
-        reorderLevel: parseInt(reorderLevel || 0),
-        barcode: body.barcode || null,
-        costingMethod: body.costingMethod || undefined,
+        code: data.code,
+        name: data.name,
+        description: data.description ?? null,
+        categoryId: data.categoryId ?? null,
+        productType: data.productType,
+        unit: data.unit,
+        costPrice: data.costPrice,
+        sellingPrice: data.sellingPrice ?? null,
+        minStock: data.minStock,
+        maxStock: data.maxStock,
+        reorderLevel: data.reorderLevel,
+        barcode: data.barcode ?? null,
+        costingMethod: data.costingMethod,
         isActive: true,
       },
       include: {
