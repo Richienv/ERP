@@ -14,7 +14,8 @@ import {
     FALLBACK_WAREHOUSES
 } from "@/lib/db-fallbacks"
 import { createProductSchema, createCategorySchema, type CreateProductInput, type CreateCategoryInput } from "@/lib/validations"
-import { generateBarcode } from "@/lib/inventory-utils"
+import { generateBarcode, checkStockAvailability } from "@/lib/inventory-utils"
+import { getNegativeStockPolicy } from "@/lib/inventory-settings"
 import { logAudit, computeChanges } from "@/lib/audit-helpers"
 import { requireRole } from "@/lib/auth/role-guard"
 import { checkBulkImportSize, BULK_IMPORT_ROLES } from "@/lib/inventory-helpers"
@@ -941,10 +942,10 @@ export async function createRestockRequest(data: {
 }) {
     try {
         const supabase = await createClient()
-        const { data: { session } } = await supabase.auth.getSession()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-        if (!session?.user) {
-            throw new Error("Unauthorized: Invalid user session")
+        if (authError || !user) {
+            return { success: false, error: "Unauthorized: Invalid user session" }
         }
 
         const result = await withRetry(async () => {
@@ -954,36 +955,19 @@ export async function createRestockRequest(data: {
                 // RESOLVE REQUESTER (EMPLOYEE)
                 // ---------------------------------------------------------
                 // PurchaseRequest requires an Employee ID (Foreign Key).
-                // We try to find the employee linking to this user, or fallback.
+                // Derive the requester strictly from the auth user's email.
+                // No fallback to "any employee" or "System Admin" — that would
+                // attribute purchase requests to an arbitrary user and break
+                // the audit trail.
 
-                const userEmail = session.user.email
-                let employee = userEmail ? await prisma.employee.findUnique({
-                    where: { email: userEmail }
-                }) : null
+                const userEmail = user.email
+                const employee = userEmail
+                    ? await prisma.employee.findFirst({ where: { email: userEmail } })
+                    : null
 
                 if (!employee) {
-                    // Fallback 1: Try to find ANY employee (e.g. for dev/testing environment)
-                    employee = await prisma.employee.findFirst()
-
-                    if (!employee) {
-                        // Fallback 2: Create a System Employee if none exist
-                        console.log("No employees found. Creating System Admin employee.")
-                        employee = await prisma.employee.create({
-                            data: {
-                                employeeId: `SYS-${Date.now().toString().slice(-6)}`,
-                                firstName: "System",
-                                lastName: "Admin",
-                                email: userEmail || `admin-${Date.now()}@system.local`,
-                                department: "IT",
-                                position: "System Administrator",
-                                joinDate: new Date(),
-                                status: "ACTIVE"
-                            }
-                        })
-                    }
+                    return { success: false, error: "Akun tidak terhubung ke data karyawan — hubungi admin" }
                 }
-
-                if (!employee) throw new Error("Failed to resolve Requester (Employee)")
 
                 // ---------------------------------------------------------
                 // TRANSACTION LOGIC
@@ -1361,6 +1345,11 @@ export async function createManualMovement(data: {
         if (authError || !user) throw new Error("Unauthorized")
         const authenticatedUserId = user.id
 
+        // Read negative-stock policy from system settings.
+        // When false (default), outbound transactions that would drive stock
+        // below zero are rejected. When true (pre-selling mode), they are allowed.
+        const allowNegativeStock = await getNegativeStockPolicy()
+
         const result = await withPrismaAuth(async (tx) => {
             // Determine DB Type & Sign
             let dbType = 'ADJUSTMENT'
@@ -1380,14 +1369,26 @@ export async function createManualMovement(data: {
                 qtyChange = -data.quantity // Source decreases
             }
 
-            // 0. Validate Source Stock for Outbound/Transfer
+            // 0. Validate Source Stock for Outbound/Transfer using the
+            //    system-wide negative-stock policy (configurable in
+            //    /inventory/settings). For ADJUSTMENT_OUT and TRANSFER we
+            //    honor the policy; SCRAP always strictly rejects negative
+            //    (you cannot scrap stock you don't have).
             if (qtyChange < 0) {
                 const strictSource = await tx.stockLevel.findFirst({
                     where: { productId: data.productId, warehouseId: data.warehouseId }
                 })
+                const currentStock = strictSource ? Number(strictSource.quantity) : 0
+                const honorPolicy = data.type === 'ADJUSTMENT_OUT' || data.type === 'TRANSFER'
+                const effectiveAllowNegative = honorPolicy ? allowNegativeStock : false
 
-                if (!strictSource || Number(strictSource.quantity) < Math.abs(qtyChange)) {
-                    throw new Error(`Insufficient stock in source warehouse. Available: ${strictSource ? Number(strictSource.quantity) : 0}`)
+                const stockCheck = checkStockAvailability(
+                    currentStock,
+                    Math.abs(qtyChange),
+                    effectiveAllowNegative,
+                )
+                if (!stockCheck.allowed) {
+                    throw new Error(stockCheck.message ?? `Insufficient stock in source warehouse. Available: ${currentStock}`)
                 }
             }
 
@@ -1416,13 +1417,22 @@ export async function createManualMovement(data: {
 
             // 2. Update Source Stock Level (Atomic — no read-then-write race)
             if (qtyChange < 0) {
-                // For outbound: use updateMany with a WHERE guard to prevent negative stock
+                // For outbound: use updateMany with a WHERE guard to prevent
+                // negative stock — but only when the policy disallows it.
+                // SCRAP always strictly rejects negative; ADJUSTMENT_OUT and
+                // TRANSFER honor the configurable policy (already validated
+                // above via checkStockAvailability).
+                const honorPolicy = data.type === 'ADJUSTMENT_OUT' || data.type === 'TRANSFER'
+                const effectiveAllowNegative = honorPolicy ? allowNegativeStock : false
+
                 const updated = await tx.stockLevel.updateMany({
                     where: {
                         productId: data.productId,
                         warehouseId: data.warehouseId,
                         locationId: null,
-                        quantity: { gte: Math.abs(qtyChange) },
+                        ...(effectiveAllowNegative
+                            ? {}
+                            : { quantity: { gte: Math.abs(qtyChange) } }),
                     },
                     data: {
                         quantity: { increment: qtyChange },
@@ -1430,7 +1440,21 @@ export async function createManualMovement(data: {
                     },
                 })
                 if (updated.count === 0) {
-                    throw new Error("Stok tidak mencukupi")
+                    // If the row didn't exist at all and negative is allowed,
+                    // create it with negative quantity (pre-selling mode).
+                    if (effectiveAllowNegative) {
+                        await tx.stockLevel.create({
+                            data: {
+                                productId: data.productId,
+                                warehouseId: data.warehouseId,
+                                quantity: qtyChange,
+                                availableQty: qtyChange,
+                                reservedQty: 0,
+                            }
+                        })
+                    } else {
+                        throw new Error("Stok tidak mencukupi")
+                    }
                 }
             } else {
                 // For inbound: findFirst + create/update (Prisma can't handle null in composite unique for upsert)
