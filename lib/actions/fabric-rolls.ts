@@ -4,6 +4,7 @@ import { prisma, withPrismaAuth } from "@/lib/db"
 import { PrismaClient, FabricRollStatus } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
 import { calculateRemainingMeters, determineRollStatus } from "@/lib/fabric-roll-helpers"
+import { postInventoryGLEntry } from "@/lib/actions/inventory-gl"
 
 async function requireAuth() {
     const supabase = await createClient()
@@ -222,6 +223,12 @@ export async function receiveFabricRoll(data: {
             })
             if (existing) throw new Error(`Roll number ${data.rollNumber} sudah ada`)
 
+            // Lookup product for GL valuation (fallback cost) + naming
+            const product = await prisma.product.findUniqueOrThrow({
+                where: { id: data.productId },
+                select: { name: true, costPrice: true },
+            })
+
             const roll = await prisma.fabricRoll.create({
                 data: {
                     rollNumber: data.rollNumber,
@@ -239,7 +246,7 @@ export async function receiveFabricRoll(data: {
             })
 
             // Create initial receive transaction
-            await prisma.fabricRollTransaction.create({
+            const fabricRollTransaction = await prisma.fabricRollTransaction.create({
                 data: {
                     fabricRollId: roll.id,
                     type: 'FR_RECEIVE',
@@ -247,6 +254,27 @@ export async function receiveFabricRoll(data: {
                     reference: data.reference ?? `Terima roll ${data.rollNumber}`,
                 },
             })
+
+            // Post GL: DR Inventory Asset / CR GR-IR Clearing
+            // Cross-module GL connectivity (CLAUDE.md Layer 5): every stock
+            // movement with financial impact must hit the balance sheet.
+            // FabricRoll has no per-roll cost field, so we value the receipt
+            // at Product.costPrice. If costPrice is 0 (not yet set),
+            // postInventoryGLEntry skips the journal automatically.
+            const unitCost = Number(product.costPrice ?? 0)
+            const totalValue = data.lengthMeters * unitCost
+            if (totalValue > 0) {
+                await postInventoryGLEntry(prisma, {
+                    transactionId: fabricRollTransaction.id,
+                    type: 'PO_RECEIVE',
+                    productName: product.name,
+                    quantity: data.lengthMeters,
+                    unitCost,
+                    totalValue,
+                    warehouseFrom: data.warehouseId,
+                    reference: `Penerimaan Fabric Roll ${data.rollNumber}`,
+                })
+            }
 
             return roll.id
         })
