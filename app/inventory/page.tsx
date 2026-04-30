@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import Link from "next/link"
 import {
     Panel,
@@ -8,7 +7,6 @@ import {
     IntegraButton,
     PageHead,
     LiveDot,
-    SegmentedButtons,
     DataTable,
     UtilBar,
     EmptyState,
@@ -27,8 +25,6 @@ import {
 } from "@tabler/icons-react"
 import { useInventoryDashboard } from "@/hooks/use-inventory-dashboard"
 import { CardPageSkeleton } from "@/components/ui/page-skeleton"
-
-type Period = "1H" | "7H" | "30H" | "TTD" | "12B"
 
 type Warehouse = {
     id: string
@@ -82,7 +78,6 @@ function getRowUrgencyDays(r: MaterialGapRow): number | null {
 }
 
 export default function InventoryPage() {
-    const [period, setPeriod] = useState<Period>("30H")
     const { data, isLoading } = useInventoryDashboard()
 
     if (isLoading || !data) {
@@ -229,17 +224,6 @@ export default function InventoryPage() {
                     <span className={INT.breadcrumbCurrent}>Inventori</span>
                 </div>
                 <div className="ml-auto flex items-center gap-2">
-                    <SegmentedButtons<Period>
-                        options={[
-                            { value: "1H", label: "1H" },
-                            { value: "7H", label: "7H" },
-                            { value: "30H", label: "30H" },
-                            { value: "TTD", label: "TTD" },
-                            { value: "12B", label: "12B" },
-                        ]}
-                        value={period}
-                        onChange={setPeriod}
-                    />
                     <IntegraButton variant="secondary" icon={<IconFilter className="w-3.5 h-3.5" />}>
                         Filter
                     </IntegraButton>
