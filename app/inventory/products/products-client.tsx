@@ -3,11 +3,9 @@
 import { useMemo, useState, useEffect, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
-    IconFilter,
     IconDownload,
     IconUpload,
     IconPlus,
-    IconDots,
 } from "@tabler/icons-react"
 import { useActionSignal } from "@/hooks/use-action-signal"
 import {
@@ -485,18 +483,11 @@ function KanbanLane({
                 {demoLabel && (
                     <span
                         title="Data simulasi — backend join PR/PO belum tersedia"
-                        className="inline-flex items-center font-mono text-[9.5px] uppercase tracking-[0.08em] text-[var(--integra-muted)] border border-[var(--integra-hairline)] px-1 py-[1px] rounded-[2px]"
+                        className="ml-auto inline-flex items-center font-mono text-[9.5px] uppercase tracking-[0.08em] text-[var(--integra-muted)] border border-[var(--integra-hairline)] px-1 py-[1px] rounded-[2px]"
                     >
                         {demoLabel}
                     </span>
                 )}
-                <button
-                    type="button"
-                    className="ml-auto inline-flex items-center justify-center w-[22px] h-[22px] text-[var(--integra-muted)] hover:text-[var(--integra-ink)] hover:border hover:border-[var(--integra-hairline)] rounded-[3px]"
-                    aria-label="Aksi lane"
-                >
-                    <IconDots className="w-3.5 h-3.5" />
-                </button>
             </div>
             <div
                 className="flex flex-col gap-2 p-2 overflow-auto"
@@ -739,17 +730,6 @@ function CardFoot({ card, variant }: { card: CardData; variant: LaneKey }) {
 // Replenishment Table View — corporate, light, structured grid
 // ─────────────────────────────────────────────────────────────────
 
-const TOOL_BTN = "inline-flex items-center gap-1.5 h-[26px] px-2.5 bg-transparent border-0 rounded-[3px] text-[12px] text-[var(--integra-ink-soft)] hover:bg-[#FAF9F5] hover:text-[var(--integra-ink)] transition-colors"
-const TOOL_ICO = "w-[13px] h-[13px] opacity-75"
-
-function ToolbarIcon({ children }: { children: React.ReactNode }) {
-    return (
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className={TOOL_ICO}>
-            {children}
-        </svg>
-    )
-}
-
 function ReplenishToolbar({
     filterTab,
     setFilterTab,
@@ -767,61 +747,6 @@ function ReplenishToolbar({
         <div
             className="flex items-center gap-1 flex-wrap bg-[var(--integra-canvas-pure)] border border-[var(--integra-hairline)] rounded-[3px] px-2 py-1.5 mb-2.5"
         >
-            <button type="button" className={TOOL_BTN}>
-                <ToolbarIcon>
-                    <rect x="2" y="3" width="5" height="4" />
-                    <rect x="9" y="3" width="5" height="4" />
-                    <rect x="2" y="9" width="5" height="4" />
-                    <rect x="9" y="9" width="5" height="4" />
-                </ToolbarIcon>
-                Grup
-            </button>
-            <button type="button" className={TOOL_BTN}>
-                <ToolbarIcon>
-                    <path d="M2 8s2-4 6-4 6 4 6 4-2 4-6 4-6-4-6-4z" />
-                    <circle cx="8" cy="8" r="1.6" />
-                    <path d="M3 13L13 3" />
-                </ToolbarIcon>
-                Sembunyikan
-            </button>
-            <button type="button" className={TOOL_BTN}>
-                <ToolbarIcon>
-                    <path d="M2 4h12L10 9v4l-4 1V9z" />
-                </ToolbarIcon>
-                Filter
-                <span className="font-mono text-[10.5px] bg-[var(--integra-liren-blue-soft)] text-[var(--integra-liren-blue)] px-[5px] rounded-[2px] leading-[16px]">
-                    2
-                </span>
-            </button>
-            <button type="button" className={TOOL_BTN}>
-                <ToolbarIcon>
-                    <path d="M3 5h10M3 8h7M3 11h4" />
-                    <path d="M11 9l2 2 2-2M13 6v5" />
-                </ToolbarIcon>
-                Urutkan
-            </button>
-            <span className="w-px h-4 bg-[var(--integra-hairline)] mx-1" />
-            <button type="button" className={TOOL_BTN}>
-                <ToolbarIcon>
-                    <path d="M3 9v3h10V9M8 2v8M5 5l3-3 3 3" />
-                </ToolbarIcon>
-                Bagikan
-            </button>
-            <button type="button" className={TOOL_BTN}>
-                <ToolbarIcon>
-                    <rect x="3" y="3" width="10" height="10" />
-                    <path d="M8 6v4M6 8h4" />
-                </ToolbarIcon>
-                Catatan Baru
-            </button>
-            <button type="button" className={TOOL_BTN}>
-                <ToolbarIcon>
-                    <rect x="2" y="3" width="12" height="10" />
-                    <path d="M2 7h12" />
-                    <path d="M9 5v6" />
-                </ToolbarIcon>
-                Kolom Baru
-            </button>
             <div className="flex-1 min-w-2" />
             {/* Segmented filter tabs */}
             <div className="inline-flex items-center bg-[var(--integra-canvas)] rounded-[3px] p-[2px] gap-0">
@@ -1298,12 +1223,6 @@ export function ProductsPageClient({ products, categories, warehouses, stats }: 
                     <span className={INT.breadcrumbCurrent}>Kelola Produk</span>
                 </div>
                 <div className="ml-auto flex items-center gap-2">
-                    <IntegraButton
-                        variant="secondary"
-                        icon={<IconFilter className="w-3.5 h-3.5" />}
-                    >
-                        Filter · 2
-                    </IntegraButton>
                     <IntegraButton
                         variant="secondary"
                         onClick={() => setBatchPriceOpen(true)}
