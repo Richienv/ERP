@@ -441,11 +441,15 @@ export async function getMaterialGapAnalysis() {
                     }
                 }
             },
+            // TODO(perf): bounded to prevent dashboard slowdown on large catalogs.
+            // Long-term: replace with DB-side aggregation (groupBy / raw SQL) to compute gaps without scanning all products.
             take: 500,
         }),
         prisma.employeeTask.findMany({
             where: { type: 'PURCHASE_REQUEST', status: 'PENDING' },
             select: { relatedId: true },
+            // TODO(perf): bounded for safety. If >500 pending PR tasks ever exist,
+            // some products will incorrectly show isPendingRequest=false. Consider DB-side join.
             take: 500,
         })
     ])
