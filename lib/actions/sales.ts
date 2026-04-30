@@ -974,10 +974,14 @@ export async function recordPartialShipment(
 
                 const ordered = Number(item.quantity)
                 const alreadyDelivered = Number(item.qtyDelivered)
-                const newDelivered = alreadyDelivered + qtyShipped
 
-                if (newDelivered > ordered) {
-                    throw new Error(`Qty kirim (${newDelivered}) melebihi qty order (${ordered})`)
+                // Pre-flight validation against current DB state. The atomic
+                // {increment} below is what actually prevents the lost-update,
+                // but this check rejects obvious over-shipment with a friendly
+                // Bahasa error before we touch stock / GL.
+                if (alreadyDelivered + qtyShipped > ordered) {
+                    const remaining = ordered - alreadyDelivered
+                    throw new Error(`Pengiriman melebihi sisa pesanan. Sisa: ${remaining}`)
                 }
 
                 // Find stock and deduct atomically within same transaction
@@ -1044,9 +1048,13 @@ export async function recordPartialShipment(
                     })
                 }
 
+                // Atomic increment via SQL: UPDATE ... SET qtyDelivered = qtyDelivered + $delta.
+                // This closes the lost-update race where two concurrent partial
+                // shipments read the same alreadyDelivered snapshot and both
+                // wrote oldValue+qtyShipped, double-counting one delivery.
                 await prisma.salesOrderItem.update({
                     where: { id: salesOrderItemId },
-                    data: { qtyDelivered: newDelivered },
+                    data: { qtyDelivered: { increment: qtyShipped } },
                 })
 
                 const allItems = await prisma.salesOrderItem.findMany({

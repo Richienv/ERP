@@ -569,36 +569,40 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
                     })
                     console.log("[acceptGRN] Inventory TX created:", invTx.id, "qty=", grnItem.quantityAccepted, "value=", totalValue)
 
-                    // 5. Update stock levels (findFirst + create/update to avoid Prisma null-in-composite-key issue)
-                    const existingStock = await prisma.stockLevel.findFirst({
+                    // 5. Update stock levels via upsert keyed on the @@unique
+                    // [productId, warehouseId, locationId]. The previous
+                    // findFirst → branch (update existing OR create new) had
+                    // a TOCTOU race: two concurrent acceptGRNs for the same
+                    // (product, warehouse) tuple with no existing row both
+                    // missed findFirst, both called create, second hit P2002.
+                    // Same fix pattern as 5424f20 (submitSpotAudit upsert).
+                    //
+                    // Prisma typings require non-null values on compound unique
+                    // keys, but the partial-unique migration
+                    // (20260423140000_stock_level_partial_unique) makes the DB
+                    // accept NULL locationId. Cast to `any` to satisfy TS.
+                    await prisma.stockLevel.upsert({
                         where: {
+                            productId_warehouseId_locationId: {
+                                productId: grnItem.productId,
+                                warehouseId: grn.warehouseId,
+                                locationId: null,
+                            },
+                        } as any,
+                        update: {
+                            quantity: { increment: grnItem.quantityAccepted },
+                            availableQty: { increment: grnItem.quantityAccepted },
+                        },
+                        create: {
                             productId: grnItem.productId,
                             warehouseId: grn.warehouseId,
                             locationId: null,
-                        }
+                            quantity: grnItem.quantityAccepted,
+                            availableQty: grnItem.quantityAccepted,
+                            reservedQty: 0,
+                        },
                     })
-
-                    if (existingStock) {
-                        await prisma.stockLevel.update({
-                            where: { id: existingStock.id },
-                            data: {
-                                quantity: { increment: grnItem.quantityAccepted },
-                                availableQty: { increment: grnItem.quantityAccepted },
-                            }
-                        })
-                        console.log("[acceptGRN] Stock updated:", existingStock.id, "+", grnItem.quantityAccepted)
-                    } else {
-                        await prisma.stockLevel.create({
-                            data: {
-                                productId: grnItem.productId,
-                                warehouseId: grn.warehouseId,
-                                quantity: grnItem.quantityAccepted,
-                                availableQty: grnItem.quantityAccepted,
-                                reservedQty: 0,
-                            }
-                        })
-                        console.log("[acceptGRN] Stock created for product=", grnItem.productId)
-                    }
+                    console.log("[acceptGRN] Stock upserted product=", grnItem.productId, "+", grnItem.quantityAccepted)
 
                     // 6. Post GL entry: DR Inventory Asset (1300) / CR GR/IR Clearing (2150)
                     // BLOCKING: if GL posting fails, the surrounding $transaction
