@@ -93,7 +93,13 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Minimal 1 item diperlukan" }, { status: 400 })
         }
 
-        // Validate all items
+        // Validate all items.
+        // MAX_QTY/MAX_UNIT_COST cap each input at 1e9 — already absurdly large
+        // for any real factory — so totalValue (qty * unitCost) is bounded by
+        // 1e18, well under Decimal(20,2) max (~10^18). Without these bounds,
+        // Prisma would error mid-loop on overflow and leave partial state.
+        const MAX_QTY = 1e9
+        const MAX_UNIT_COST = 1e9
         for (let i = 0; i < items.length; i++) {
             const item = items[i]
             if (!item.productId || !item.warehouseId) {
@@ -104,6 +110,12 @@ export async function POST(req: NextRequest) {
             }
             if (item.unitCost < 0) {
                 return NextResponse.json({ error: `Baris ${i + 1}: Harga satuan tidak boleh negatif` }, { status: 400 })
+            }
+            if (item.quantity > MAX_QTY) {
+                return NextResponse.json({ error: `Baris ${i + 1}: Kuantitas terlalu besar (max ${MAX_QTY.toLocaleString('id-ID')})` }, { status: 400 })
+            }
+            if (item.unitCost > MAX_UNIT_COST) {
+                return NextResponse.json({ error: `Baris ${i + 1}: Harga satuan terlalu besar (max ${MAX_UNIT_COST.toLocaleString('id-ID')})` }, { status: 400 })
             }
         }
 
