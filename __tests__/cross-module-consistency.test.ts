@@ -296,7 +296,7 @@ describe('Cross-Module: Stock quantity consistency', () => {
     it('Zero stock triggers CRITICAL in inventory and positive gap in procurement', () => {
         const zeroStockProduct = {
             ...SHARED_PRODUCT,
-            stockLevels: [],
+            stockLevels: [] as typeof SHARED_PRODUCT.stockLevels,
         }
 
         const totalStock = zeroStockProduct.stockLevels.reduce(

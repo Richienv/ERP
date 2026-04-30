@@ -146,7 +146,7 @@ export async function GET() {
 
         const onOrderMap = new Map<string, number>()
         for (const poi of poItems) {
-            const remaining = poi.quantity - poi.receivedQty
+            const remaining = Number(poi.quantity) - Number(poi.receivedQty)
             if (remaining > 0) {
                 onOrderMap.set(poi.productId, (onOrderMap.get(poi.productId) ?? 0) + remaining)
             }

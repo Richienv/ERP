@@ -1595,7 +1595,7 @@ export async function createBillFromPR(
             // Calculate totals from PR items using product.costPrice
             const invoiceItems = pr.items.map(item => {
                 const unitPrice = Number(item.product.costPrice) || 0
-                const quantity = item.quantity
+                const quantity = Number(item.quantity)
                 const amount = quantity * unitPrice
                 return {
                     description: item.product.name || 'Unknown Item',

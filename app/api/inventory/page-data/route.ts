@@ -110,7 +110,7 @@ export async function GET() {
                 prId: item.purchaseRequest.id,
                 prNumber: item.purchaseRequest.number,
                 prStatus: item.purchaseRequest.status,
-                quantity: item.quantity,
+                quantity: Number(item.quantity),
                 createdAt: item.purchaseRequest.createdAt,
             })
             prByProduct.set(item.productId, arr)
@@ -135,8 +135,8 @@ export async function GET() {
                 poStatus: item.purchaseOrder.status,
                 expectedDate: item.purchaseOrder.expectedDate,
                 supplierName: item.purchaseOrder.supplier.name,
-                orderedQty: item.quantity,
-                receivedQty: item.receivedQty,
+                orderedQty: Number(item.quantity),
+                receivedQty: Number(item.receivedQty),
             })
             poByProduct.set(item.productId, arr)
         }

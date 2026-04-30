@@ -232,8 +232,8 @@ export async function getProcurementStats(input?: ProcurementStatsInput) {
             safe("vendors-health", prisma.supplier.findMany({ where: { isActive: true }, select: { rating: true, onTimeRate: true } }), [] as Array<{ rating: number | null; onTimeRate: number | null }>),
             safe("urgent-needs", prisma.$queryRaw<[{ count: bigint }]>`
                     SELECT COUNT(DISTINCT p.id)::bigint as count
-                    FROM public."Product" p
-                    LEFT JOIN (SELECT "productId", SUM(quantity) as total_qty FROM public."StockLevel" GROUP BY "productId") sl ON sl."productId" = p.id
+                    FROM public.products p
+                    LEFT JOIN (SELECT "productId", SUM(quantity) as total_qty FROM public.stock_levels GROUP BY "productId") sl ON sl."productId" = p.id
                     WHERE p."isActive" = true AND p."minStock" > 0 AND COALESCE(sl.total_qty, 0) <= p."minStock"
                 `.then(rows => Number(rows[0]?.count || 0)), 0),
             safe("po-filtered-total", prisma.purchaseOrder.count({ where: poWhere }), 0),
@@ -1005,9 +1005,9 @@ export async function convertPRToPO(prId: string, itemIds: string[], _creatorId?
 
                 poMap.get(supplierId)!.items.push({
                     productId: item.productId,
-                    quantity: item.quantity,
+                    quantity: Number(item.quantity),
                     unitPrice: unitPrice,
-                    totalPrice: unitPrice * item.quantity,
+                    totalPrice: unitPrice * Number(item.quantity),
                     prItemId: item.id
                 })
             }
@@ -1771,7 +1771,7 @@ export async function getPendingApprovalPOs() {
                     id: item.id,
                     productName: item.product.name,
                     productCode: item.product.code,
-                    quantity: item.quantity,
+                    quantity: Number(item.quantity),
                     unitPrice: Number(item.unitPrice),
                     totalPrice: Number(item.totalPrice)
                 })),
@@ -1969,11 +1969,11 @@ export async function getPOTemplates(): Promise<POTemplate[]> {
                     supplierCode: po.supplier.code,
                     itemCount: po.items.length,
                     lastUsed: po.orderDate.toISOString(),
-                    items: po.items.map((i: { productId: string; product: { name: string; code: string }; quantity: number; unitPrice: unknown }) => ({
+                    items: po.items.map((i: { productId: string; product: { name: string; code: string }; quantity: unknown; unitPrice: unknown }) => ({
                         productId: i.productId,
                         productName: i.product.name,
                         productCode: i.product.code,
-                        quantity: i.quantity,
+                        quantity: Number(i.quantity),
                         unitPrice: Number(i.unitPrice),
                     })),
                 })
@@ -2115,14 +2115,15 @@ export async function saveLandedCost(
 
                     const oldUnitCost = Number(poItem.unitPrice)
                     const newUnitCost = alloc.landedUnitCost
-                    const receivedQty = poItem.receivedQty ?? 0
+                    const receivedQty = Number(poItem.receivedQty ?? 0)
+                    const orderedQty = Number(poItem.quantity)
 
                     // Update PO item to reflect landed unit cost (qty stays, total recomputed)
                     await prisma.purchaseOrderItem.update({
                         where: { id: alloc.poItemId },
                         data: {
                             unitPrice: newUnitCost,
-                            totalPrice: newUnitCost * poItem.quantity,
+                            totalPrice: newUnitCost * orderedQty,
                         },
                     })
 
@@ -2273,8 +2274,8 @@ export async function getSupplierScorecard(supplierId: string): Promise<{
                 _sum: { quantityReceived: true, quantityRejected: true },
             })
 
-            const totalReceived = grnStats._sum.quantityReceived || 0
-            const totalRejected = grnStats._sum.quantityRejected || 0
+            const totalReceived = Number(grnStats._sum.quantityReceived || 0)
+            const totalRejected = Number(grnStats._sum.quantityRejected || 0)
             const defectRate = totalReceived > 0
                 ? Math.round((totalRejected / totalReceived) * 10000) / 100
                 : 0
@@ -2589,9 +2590,9 @@ export async function createDirectPurchase(input: DirectPurchaseInput) {
                         productId: poItem.productId,
                         warehouseId: input.warehouseId,
                         type: 'PO_RECEIVE',
-                        quantity: poItem.quantity,
+                        quantity: Number(poItem.quantity),
                         unitCost: poItem.unitPrice,
-                        totalValue: Number(poItem.unitPrice) * poItem.quantity,
+                        totalValue: Number(poItem.unitPrice) * Number(poItem.quantity),
                         purchaseOrderId: po.id,
                         referenceId: grnNumber,
                         performedBy: user.id,

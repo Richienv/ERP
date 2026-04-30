@@ -43,7 +43,7 @@ export async function GET() {
                     return {
                         id: item.id,
                         productName: item.product?.name ?? "Produk tidak diketahui",
-                        quantity: item.quantity,
+                        quantity: Number(item.quantity),
                         unit: item.product?.unit ?? "pcs",
                         estimatedPrice: hasValidCost ? (cost as number) : 0,
                     }

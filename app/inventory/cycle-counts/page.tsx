@@ -337,14 +337,14 @@ export default function CycleCountsPage() {
                             <TableBody>
                                 {activeSession?.items.map((item) => {
                                     const actual = counts[item.id]
-                                    const variance = actual !== undefined && actual !== "" ? Number(actual) - item.expectedQty : null
+                                    const variance = actual !== undefined && actual !== "" ? Number(actual) - Number(item.expectedQty) : null
                                     return (
                                         <TableRow key={item.id} className="border-b border-zinc-100">
                                             <TableCell>
                                                 <div className="font-bold text-sm">{item.productName}</div>
                                                 <div className="text-[10px] font-mono text-zinc-400">{item.productCode} &middot; {item.unit}</div>
                                             </TableCell>
-                                            <TableCell className="text-right font-mono font-bold">{item.expectedQty.toLocaleString()}</TableCell>
+                                            <TableCell className="text-right font-mono font-bold">{Number(item.expectedQty).toLocaleString()}</TableCell>
                                             <TableCell className="text-right">
                                                 <Input
                                                     type="number"

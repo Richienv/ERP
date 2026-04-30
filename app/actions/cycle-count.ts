@@ -168,7 +168,7 @@ export async function finalizeCycleCount(sessionId: string): Promise<{
             }
 
             for (const item of session.items) {
-                const variance = item.actualQty! - item.expectedQty
+                const variance = Number(item.actualQty!) - Number(item.expectedQty)
                 if (variance === 0) continue
 
                 adjustmentCount++

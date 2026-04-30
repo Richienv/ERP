@@ -527,13 +527,13 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
                 })
                 if (!poItem) continue
 
-                const maxAdditional = poItem.quantity - poItem.receivedQty
+                const maxAdditional = Number(poItem.quantity) - Number(poItem.receivedQty)
                 const updated = await prisma.purchaseOrderItem.updateMany({
                     where: {
                         id: grnItem.poItemId,
                         // Re-check at write time using the SAME ceiling: only
                         // succeeds if no other tx has incremented in between.
-                        receivedQty: { lte: poItem.quantity - grnItem.quantityAccepted },
+                        receivedQty: { lte: Number(poItem.quantity) - Number(grnItem.quantityAccepted) },
                     },
                     data: {
                         receivedQty: { increment: grnItem.quantityAccepted },
@@ -1307,7 +1307,7 @@ export async function bulkImportGRNs(
                 itemsToCreate.push({
                     poItemId: poItem.id,
                     productId: product.id,
-                    quantityOrdered: poItem.quantity,
+                    quantityOrdered: Number(poItem.quantity),
                     quantityReceived: qtyInt,
                     quantityAccepted: isMatched ? qtyInt : qtyInt, // both cases: accepted = received
                     quantityRejected: 0,

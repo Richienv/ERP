@@ -284,7 +284,7 @@ export async function amendPurchaseOrder(input: AmendPurchaseOrderInput): Promis
                     productId: item.productId,
                     productName: item.product.name,
                     productCode: item.product.code,
-                    quantity: item.quantity,
+                    quantity: Number(item.quantity),
                     unitPrice: Number(item.unitPrice),
                     lineTotal: Number(item.totalPrice),
                 })),

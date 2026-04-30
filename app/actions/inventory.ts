@@ -1181,8 +1181,8 @@ export async function receiveGoodsFromPO(data: {
             const totalGrnAccepted = Number(grnAccepted._sum?.quantityAccepted || 0)
 
             // Guard: total received (from GRN + this request) must not exceed ordered qty
-            const totalAfterReceive = poItem.receivedQty + data.receivedQty
-            if (totalAfterReceive > poItem.quantity) {
+            const totalAfterReceive = Number(poItem.receivedQty) + data.receivedQty
+            if (totalAfterReceive > Number(poItem.quantity)) {
                 return {
                     success: false,
                     error: "Jumlah penerimaan melebihi jumlah pesanan. Kemungkinan barang sudah diterima melalui Surat Jalan Masuk (GRN)."
@@ -1190,8 +1190,8 @@ export async function receiveGoodsFromPO(data: {
             }
 
             // Also guard against GRN-accepted quantities that haven't synced to receivedQty yet
-            const effectiveReceived = Math.max(poItem.receivedQty, totalGrnAccepted)
-            const remainingQty = poItem.quantity - effectiveReceived
+            const effectiveReceived = Math.max(Number(poItem.receivedQty), totalGrnAccepted)
+            const remainingQty = Number(poItem.quantity) - effectiveReceived
             if (data.receivedQty > remainingQty) {
                 return {
                     success: false,

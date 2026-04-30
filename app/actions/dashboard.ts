@@ -69,12 +69,13 @@ async function fetchSnapshot(prisma: PrismaClient) {
 async function fetchFinancialChartData(prisma: PrismaClient) {
     const today = startOfDay(new Date())
     const start7d = addDays(today, -6)
+    const start30d = addDays(today, -29)
     const start6m = new Date(today)
     start6m.setMonth(start6m.getMonth() - 4)
     start6m.setDate(1)
     start6m.setHours(0, 0, 0, 0)
 
-    const [cashAccounts, journalLines, arInvoices, apInvoices] = await Promise.all([
+    const [cashAccounts, journalLines, arInvoices, apInvoices, revenue30dInvoices] = await Promise.all([
         // Query all ASSET accounts starting with '1' (cash/bank accounts)
         prisma.gLAccount.findMany({
             where: { type: 'ASSET', code: { startsWith: '1' } },
@@ -109,6 +110,15 @@ async function fetchFinancialChartData(prisma: PrismaClient) {
                 status: { notIn: ['PAID', 'VOID', 'CANCELLED'] }
             },
             select: { dueDate: true, balanceDue: true }
+        }),
+        // Revenue per day for the chart — last 30 days, customer invoices only
+        prisma.invoice.findMany({
+            where: {
+                type: 'INV_OUT',
+                issueDate: { gte: start30d, lte: addDays(today, 1) },
+                status: { notIn: ['CANCELLED', 'VOID'] }
+            },
+            select: { issueDate: true, totalAmount: true }
         }),
     ])
 
@@ -204,7 +214,32 @@ async function fetchFinancialChartData(prisma: PrismaClient) {
         }
     })
 
-    return { dataCash7d, dataReceivables, dataPayables, dataProfit }
+    // Daily revenue series for the last 30 days (in Rp juta).
+    // `plan` is the rolling daily average — gives a baseline so the chart compares
+    // each day against expected throughput. When real budget data lands, replace.
+    const revenueDailyMap = new Map<string, number>()
+    let totalRevenue30d = 0
+    for (const inv of revenue30dInvoices) {
+        const d = startOfDay(inv.issueDate)
+        const key = d.toISOString().slice(0, 10)
+        const amt = Number(inv.totalAmount) / 1_000_000
+        revenueDailyMap.set(key, (revenueDailyMap.get(key) || 0) + amt)
+        totalRevenue30d += amt
+    }
+    const dailyPlan = Number((totalRevenue30d / 30).toFixed(2))
+    const revenueByDay: Array<{ day: number; actual: number; plan: number }> = []
+    for (let i = 0; i < 30; i++) {
+        const d = addDays(start30d, i)
+        const key = d.toISOString().slice(0, 10)
+        const actual = revenueDailyMap.get(key) || 0
+        revenueByDay.push({
+            day: d.getDate(),
+            actual: Number(actual.toFixed(2)),
+            plan: dailyPlan,
+        })
+    }
+
+    return { dataCash7d, dataReceivables, dataPayables, dataProfit, revenueByDay }
 }
 
 async function fetchDeadStockValue(prisma: PrismaClient) {
@@ -723,12 +758,12 @@ async function fetchTotalInventoryValue(prisma: PrismaClient) {
     const stockLevels = await prisma.stockLevel.findMany({
         include: {
             product: { select: { costPrice: true, sellingPrice: true, isActive: true, name: true } },
-            warehouse: { select: { id: true, name: true, code: true, isActive: true } }
+            warehouse: { select: { id: true, name: true, code: true, isActive: true, capacity: true } }
         }
     })
     let value = 0
     let itemCount = 0
-    const warehouseMap = new Map<string, { name: string; code: string; value: number; itemCount: number; productCount: number }>()
+    const warehouseMap = new Map<string, { name: string; code: string; value: number; itemCount: number; productCount: number; capacity: number; utilization: number }>()
 
     for (const sl of stockLevels) {
         const slQty = Number(sl.quantity)
@@ -757,15 +792,34 @@ async function fetchTotalInventoryValue(prisma: PrismaClient) {
                 code: sl.warehouse.code,
                 value: lineValue,
                 itemCount: slQty,
-                productCount: 1
+                productCount: 1,
+                capacity: sl.warehouse.capacity ?? 0,
+                utilization: 0,
             })
         }
     }
 
+    // Compute per-warehouse utilization (0..1, capped at 1.0)
+    let totalItems = 0
+    let totalCapacity = 0
+    for (const wh of warehouseMap.values()) {
+        wh.utilization = wh.capacity > 0 ? Math.min(1, wh.itemCount / wh.capacity) : 0
+        if (wh.capacity > 0) {
+            totalItems += wh.itemCount
+            totalCapacity += wh.capacity
+        }
+    }
+
+    // Weighted average utilization across warehouses with declared capacity.
+    // Null when no warehouse has capacity set — page renders "—" instead of fake 0.
+    const avgUtilization: number | null = totalCapacity > 0
+        ? Math.min(1, totalItems / totalCapacity)
+        : null
+
     const warehouses = Array.from(warehouseMap.values())
         .sort((a, b) => b.value - a.value)
 
-    return { value, itemCount, warehouses }
+    return { value, itemCount, warehouses, avgUtilization }
 }
 
 async function fetchTaxMetrics(prisma: PrismaClient) {
@@ -799,17 +853,19 @@ async function fetchInventorySummary(prisma: PrismaClient) {
 }
 
 async function fetchSalesFulfillment(prisma: PrismaClient) {
-    const startOfMonth = new Date()
-    startOfMonth.setDate(1)
-    startOfMonth.setHours(0, 0, 0, 0)
+    // Rolling 30 days, not "this month" — avoids dropping to 0 on the 1st of the
+    // month and lets the dashboard reflect activity for fresh installs / sparse data.
+    const start30d = new Date()
+    start30d.setDate(start30d.getDate() - 30)
+    start30d.setHours(0, 0, 0, 0)
 
     const [totalOrders, deliveredOrders] = await Promise.all([
         prisma.salesOrder.count({
-            where: { orderDate: { gte: startOfMonth }, status: { not: 'CANCELLED' } }
+            where: { orderDate: { gte: start30d }, status: { not: 'CANCELLED' } }
         }),
         prisma.salesOrder.count({
             where: {
-                orderDate: { gte: startOfMonth },
+                orderDate: { gte: start30d },
                 status: { in: ['DELIVERED', 'COMPLETED', 'INVOICED'] }
             }
         }),
@@ -955,7 +1011,7 @@ async function fetchProfitability(prisma: PrismaClient) {
     for (const item of topProductRows) {
         const name = item.product?.name ?? 'Unknown'
         const lineRevenue = Number(item.lineTotal)
-        const lineCost = item.quantity * Number(item.product?.costPrice ?? 0)
+        const lineCost = Number(item.quantity) * Number(item.product?.costPrice ?? 0)
         const existing = productMap.get(name)
         if (existing) {
             existing.revenue += lineRevenue
@@ -1079,7 +1135,7 @@ export async function getDashboardData() {
             executiveAlerts,
             inventoryValue
         ] = await Promise.all([
-            fetchFinancialChartData(prisma).catch(() => ({ dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] })),
+            fetchFinancialChartData(prisma).catch(() => ({ dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [], revenueByDay: [] })),
             fetchDeadStockValue(prisma).catch(() => 0),
             fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, totalPRValue: 0, poByStatus: {} as Record<string, number> })),
             fetchHRMetrics(prisma).catch(() => ({ totalSalary: 0, lateEmployees: [] })),
@@ -1092,7 +1148,7 @@ export async function getDashboardData() {
             fetchWorkforceStatus(prisma).catch(() => ({ attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] })),
             fetchActivityFeed(prisma).catch(() => []),
             fetchExecutiveAlerts(prisma).catch(() => []),
-            fetchTotalInventoryValue(prisma).catch(() => ({ value: 0, itemCount: 0 }))
+            fetchTotalInventoryValue(prisma).catch(() => ({ value: 0, itemCount: 0, warehouses: [] as any[], avgUtilization: null as number | null }))
         ])
 
         return {
@@ -1115,7 +1171,7 @@ export async function getDashboardData() {
         console.error("Failed to fetch dashboard aggregated data:", error)
         // Ensure graceful fallback structure matches expected return
         return {
-            financialChart: { dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] },
+            financialChart: { dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [], revenueByDay: [] },
             deadStock: 0,
             procurement: { activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, totalPRValue: 0, poByStatus: {} as Record<string, number> },
             hr: { totalSalary: 0, lateEmployees: [] },
@@ -1128,7 +1184,7 @@ export async function getDashboardData() {
             workforceStatus: { attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] },
             activityFeed: [],
             executiveAlerts: [],
-            inventoryValue: { value: 0, itemCount: 0 }
+            inventoryValue: { value: 0, itemCount: 0, warehouses: [] as any[], avgUtilization: null as number | null }
         }
     }
 }
@@ -1160,10 +1216,12 @@ async function fetchRecentInvoices(prisma: PrismaClient) {
     }))
 }
 
-/** Group A: Financial snapshot — uses Supabase directly (no Prisma tx needed) */
+/** Group A: Financial snapshot — uses Supabase directly (no Prisma tx needed).
+ * Auth is enforced at the /api/dashboard route level. Calling requireAuth() here
+ * would re-check the session against the same cookies (which middleware doesn't
+ * refresh for /api/* routes), causing silent zero-fallback responses. */
 export async function getDashboardFinancials() {
     try {
-        await requireAuth()
         // Fetch financial metrics from Supabase + recent invoices from Prisma in parallel
         const [metrics, recentInvoices] = await Promise.all([
             getFinancialMetrics(),
@@ -1181,6 +1239,7 @@ export async function getDashboardFinancials() {
             burnRate: metrics.burnRate,
             receivables: metrics.receivables,
             payables: metrics.payables,
+            dso: metrics.dso,
             overdueInvoices: metrics.overdueInvoices,
             upcomingPayables: metrics.upcomingPayables,
             recentInvoices,
@@ -1190,17 +1249,18 @@ export async function getDashboardFinancials() {
         console.error("getDashboardFinancials failed:", error)
         return {
             cashBalance: 0, revenue: 0, netMargin: 0, burnRate: 0,
-            receivables: 0, payables: 0, overdueInvoices: [], upcomingPayables: [],
+            receivables: 0, payables: 0, dso: null as number | null,
+            overdueInvoices: [], upcomingPayables: [],
             recentInvoices: [] as Array<{ id: string; number: string; customer: string; date: string; total: number; status: string }>,
             netCashIn: 0,
         }
     }
 }
 
-/** Group B: Operations data (Prisma) — read-only, no transaction needed */
+/** Group B: Operations data (Prisma) — read-only, no transaction needed.
+ * Auth enforced at the /api/dashboard route level (see comment on getDashboardFinancials). */
 export async function getDashboardOperations() {
     try {
-        await requireAuth()
         const prisma = basePrisma
         const [procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue, hr, tax, inventorySummary, salesFulfillment, cashFlow, profitability, customerInsights, compliance] = await Promise.all([
             fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, totalPRValue: 0, poByStatus: {} as Record<string, number> })),
@@ -1209,7 +1269,7 @@ export async function getDashboardOperations() {
             fetchQualityStatus(prisma).catch(() => ({ passRate: -1, totalInspections: 0, recentInspections: [] })),
             fetchWorkforceStatus(prisma).catch(() => ({ attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] })),
             fetchPendingLeaves(prisma).catch(() => 0),
-            fetchTotalInventoryValue(prisma).catch(() => ({ value: 0, itemCount: 0, warehouses: [] })),
+            fetchTotalInventoryValue(prisma).catch(() => ({ value: 0, itemCount: 0, warehouses: [], avgUtilization: null as number | null })),
             fetchHRMetrics(prisma).catch(() => ({ totalSalary: 0, lateEmployees: [] })),
             fetchTaxMetrics(prisma).catch(() => ({ ppnOut: 0, ppnIn: 0, ppnNet: 0 })),
             fetchInventorySummary(prisma).catch(() => ({ productCount: 0, warehouseCount: 0 })),
@@ -1229,7 +1289,7 @@ export async function getDashboardOperations() {
             qualityStatus: { passRate: -1, totalInspections: 0, recentInspections: [] },
             workforceStatus: { attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] },
             leaves: 0,
-            inventoryValue: { value: 0, itemCount: 0, warehouses: [] },
+            inventoryValue: { value: 0, itemCount: 0, warehouses: [], avgUtilization: null as number | null },
             hr: { totalSalary: 0, lateEmployees: [] },
             tax: { ppnOut: 0, ppnIn: 0, ppnNet: 0 },
             inventorySummary: { productCount: 0, warehouseCount: 0 },
@@ -1242,10 +1302,10 @@ export async function getDashboardOperations() {
     }
 }
 
-/** Group C: Activity feed + alerts (Prisma, read-only) */
+/** Group C: Activity feed + alerts (Prisma, read-only).
+ * Auth enforced at the /api/dashboard route level. */
 export async function getDashboardActivity() {
     try {
-        await requireAuth()
         const prisma = basePrisma
         const [activityFeed, executiveAlerts] = await Promise.all([
             fetchActivityFeed(prisma).catch(() => []),
@@ -1258,14 +1318,14 @@ export async function getDashboardActivity() {
     }
 }
 
-/** Group D: Chart data (Prisma, read-only) */
+/** Group D: Chart data (Prisma, read-only).
+ * Auth enforced at the /api/dashboard route level. */
 export async function getDashboardCharts() {
     try {
-        await requireAuth()
         return await fetchFinancialChartData(basePrisma)
     } catch (error) {
         console.error("getDashboardCharts failed:", error)
-        return { dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] }
+        return { dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [], revenueByDay: [] }
     }
 }
 
@@ -1283,7 +1343,7 @@ export async function getFinancialChartData() {
         return await fetchFinancialChartData(basePrisma)
     } catch (error) {
         console.error("Failed to fetch financial chart data:", error)
-        return { dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] }
+        return { dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [], revenueByDay: [] }
     }
 }
 
