@@ -6,6 +6,8 @@ import {
     IconDownload,
     IconUpload,
     IconPlus,
+    IconSearch,
+    IconX,
 } from "@tabler/icons-react"
 import { useActionSignal } from "@/hooks/use-action-signal"
 import {
@@ -846,6 +848,7 @@ function ReplenishTableView({
     filterCounts,
     totalValueJt,
     outstandingPoJt,
+    onAddRow,
 }: {
     rows: ReplenishRow[]
     totalRows: number
@@ -860,6 +863,7 @@ function ReplenishTableView({
     filterCounts: { all: number; critical: number; low: number; healthy: number; incoming: number; planning: number }
     totalValueJt: number
     outstandingPoJt: number
+    onAddRow: () => void
 }) {
     const router = useRouter()
     // Header glyph indicator
@@ -1067,10 +1071,19 @@ function ReplenishTableView({
                                     </tr>
                                 )
                             })}
-                            {/* + Tambah baris */}
+                            {/* + Tambah baris — opens the create-product dialog */}
                             <tr
-                                className="cursor-pointer group hover:bg-[#FBFAF5]"
-                                onClick={() => { /* stub */ }}
+                                role="button"
+                                tabIndex={0}
+                                aria-label="Tambah produk baru"
+                                className="cursor-pointer group hover:bg-[#FBFAF5] focus:outline-2 focus:outline-orange-500 focus:outline-offset-[-2px]"
+                                onClick={onAddRow}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault()
+                                        onAddRow()
+                                    }
+                                }}
                             >
                                 <td
                                     colSpan={14}
@@ -1153,6 +1166,7 @@ export function ProductsPageClient({ products, categories, warehouses, stats }: 
     const [createOpen, setCreateOpen] = useState(false)
     const [filterTab, setFilterTab] = useState<FilterTab>("all")
     const [tablePage, setTablePage] = useState(1)
+    const [searchQuery, setSearchQuery] = useState("")
     const PAGE_SIZE = 10
 
     // Suppress unused var warnings (kept in props for parent compatibility)
@@ -1167,11 +1181,22 @@ export function ProductsPageClient({ products, categories, warehouses, stats }: 
         router.replace(`?${params.toString()}`, { scroll: false })
     }, [router, searchParams])
 
-    // Reset paginator when filter changes
-    useEffect(() => { setTablePage(1) }, [filterTab])
+    // Reset paginator when filter or search changes
+    useEffect(() => { setTablePage(1) }, [filterTab, searchQuery])
 
-    const lanes = useMemo(() => assignLanes(products, stats), [products, stats])
-    const tableRows = useMemo(() => buildReplenishRows(products, lanes), [products, lanes])
+    // Filter products by SKU (code) or name — drives both kanban lanes and table rows
+    const searchedProducts = useMemo(() => {
+        if (!searchQuery.trim()) return products
+        const q = searchQuery.trim().toLowerCase()
+        return products.filter((p) =>
+            p?.name?.toLowerCase().includes(q) ||
+            p?.code?.toLowerCase().includes(q) ||
+            p?.sku?.toLowerCase().includes(q)
+        )
+    }, [products, searchQuery])
+
+    const lanes = useMemo(() => assignLanes(searchedProducts, stats), [searchedProducts, stats])
+    const tableRows = useMemo(() => buildReplenishRows(searchedProducts, lanes), [searchedProducts, lanes])
 
     // Filter counts for segmented tabs
     const filterCounts = useMemo(() => {
@@ -1261,6 +1286,30 @@ export function ProductsPageClient({ products, categories, warehouses, stats }: 
                     subtitle="Monitor stok, nilai inventori, dan kebutuhan pengisian ulang"
                     metaRight={
                         <div className="flex items-center gap-4">
+                            {/* Search products by name or SKU */}
+                            <div className="relative" style={{ width: "260px" }}>
+                                <IconSearch
+                                    className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--integra-muted)] pointer-events-none"
+                                />
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Cari produk (nama atau SKU)..."
+                                    aria-label="Cari produk"
+                                    className="w-full h-[26px] pl-7 pr-7 text-[12px] bg-[var(--integra-canvas-pure)] border border-[var(--integra-hairline-strong)] rounded-[3px] text-[var(--integra-ink)] placeholder:text-[var(--integra-muted)] focus:outline-none focus:border-[var(--integra-ink)] transition-colors"
+                                />
+                                {searchQuery && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setSearchQuery("")}
+                                        aria-label="Bersihkan pencarian"
+                                        className="absolute right-1.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] flex items-center justify-center text-[var(--integra-muted)] hover:text-[var(--integra-ink)] rounded-[2px] hover:bg-[var(--integra-canvas)]"
+                                    >
+                                        <IconX className="w-3 h-3" />
+                                    </button>
+                                )}
+                            </div>
                             <div
                                 className="inline-flex items-center border border-[var(--integra-hairline-strong)] rounded-[3px] overflow-hidden"
                                 style={{ height: "26px" }}
@@ -1387,6 +1436,7 @@ export function ProductsPageClient({ products, categories, warehouses, stats }: 
                         filterCounts={filterCounts}
                         totalValueJt={totalValueJt}
                         outstandingPoJt={outstandingPo / 1_000_000}
+                        onAddRow={() => setCreateOpen(true)}
                     />
                 )}
 
