@@ -520,10 +520,19 @@ function ReplenishCard({ card, variant }: { card: CardData; variant: LaneKey }) 
     const router = useRouter()
     return (
         <div
-            className="flex flex-col gap-1.5 px-3 py-2.5 bg-[var(--integra-canvas-pure)] border border-[var(--integra-hairline)] rounded-[3px] text-[12.5px] hover:border-[var(--integra-ink)] cursor-pointer transition-colors"
+            role="button"
+            tabIndex={0}
+            aria-label={`Buka detail produk ${card.sku ?? card.title ?? card.id}`}
+            className="flex flex-col gap-1.5 px-3 py-2.5 bg-[var(--integra-canvas-pure)] border border-[var(--integra-hairline)] rounded-[3px] text-[12.5px] hover:border-[var(--integra-ink)] cursor-pointer transition-colors focus:outline-2 focus:outline-orange-500 focus:outline-offset-[-2px]"
             draggable
             onDragStart={() => { /* noop drag handler */ }}
             onClick={() => router.push(`/inventory/products/${card.id}`)}
+            onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    router.push(`/inventory/products/${card.id}`)
+                }
+            }}
         >
             <CardHead card={card} variant={variant} />
             <div className="font-medium text-[var(--integra-ink)] leading-[1.3]">
@@ -887,6 +896,12 @@ function ActionCellPill({ action, productId }: { action: RowAction; productId: s
             case "LACAK":
                 router.push(`/inventory/movements?productId=${productId}`)
                 break
+            default: {
+                // Exhaustiveness check — TS will error if a new RowAction is added
+                // without a case here, preventing silently-dead pills.
+                const _exhaustive: never = action
+                void _exhaustive
+            }
         }
     }
     return <button type="button" className={cls} onClick={handleClick}>{label}</button>
@@ -1022,8 +1037,17 @@ function ReplenishTableView({
                                 return (
                                     <tr
                                         key={r.id}
+                                        role="button"
+                                        tabIndex={0}
+                                        aria-label={`Buka detail produk ${r.sku ?? r.title ?? r.id}`}
                                         onClick={() => router.push(`/inventory/products/${r.id}`)}
-                                        className="hover:bg-[#FBFAF5] transition-colors cursor-pointer"
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter" || e.key === " ") {
+                                                e.preventDefault()
+                                                router.push(`/inventory/products/${r.id}`)
+                                            }
+                                        }}
+                                        className="hover:bg-[#FBFAF5] transition-colors cursor-pointer focus:outline-2 focus:outline-orange-500 focus:outline-offset-[-2px]"
                                     >
                                         <td className={cn(cellBase, "border-b border-[var(--integra-hairline)]")}>
                                             <input
