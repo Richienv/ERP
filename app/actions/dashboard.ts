@@ -1308,8 +1308,8 @@ export async function getProcurementMetrics() {
         // dashboard instead of degrading to zeros.
         return {
             activeCount: 0,
-            delays: [] as any[],
-            pendingApproval: [] as any[],
+            delays: [],
+            pendingApproval: [],
             totalPRs: 0,
             pendingPRs: 0,
             totalPOs: 0,
