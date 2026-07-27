@@ -158,6 +158,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         }
                     } catch { /* retry failed — fall through to expired */ }
                     console.warn("[Auth] Token refresh failed after retry — session expired")
+                    // Same as expiry: never leave financial data cached for the
+                    // next user of this browser.
+                    await clearSupabaseSession()
                     setUser(null)
                     setIsLoading(false)
                     return
@@ -188,6 +191,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [router])
 
     const fetchUserProfile = async (authUser: User) => {
+        // SECURITY: bind the persisted query cache to this user BEFORE any
+        // component can render with it. If the cache currently belongs to a
+        // different user (e.g. someone logged in after a session timeout on a
+        // shared browser), setCacheScope wipes IndexedDB + the in-memory cache
+        // and repoints the namespace. Same user => no-op, so instant restore
+        // still works.
+        await setCacheScope(authUser.id)
+
         // In a real app, query "public.Employee" or "public.User" here.
         // For now, we will use metadata or fallback mechanism
         // We will default to ROLE_CEO for the first user or based on email logic if you prefer
@@ -223,12 +234,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (err) {
             // Even if signOut fails (e.g., network error), clear local state
             console.warn("Sign out API call failed, clearing local session:", err)
-            clearSupabaseSession()
+            await clearSupabaseSession()
         }
-        // Clear persisted query cache from IndexedDB to prevent data leak between users.
-        // This is ONLY called on explicit logout — session expiry preserves the cache
-        // so the user gets instant load on re-login.
+        // Clear persisted query cache from IndexedDB to prevent data leak between
+        // users. Both explicit logout and session expiry clear it — an expired
+        // session on a shared browser is exactly the leak scenario.
         await clearPersistedCache()
+        await setCacheScope(null)
         setUser(null)
         router.push("/login")
         router.refresh()
