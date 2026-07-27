@@ -31,7 +31,11 @@ const formSchema = z.object({
   items: z.array(itemSchema).min(1, "At least one item is required"),
 });
 
-type FormValues = z.infer<typeof formSchema>;
+// The schema has `.default()` and `z.coerce`, so the parsed *output* type is
+// narrower than the *input* type the form fields actually hold. Keep both, and
+// let react-hook-form know about the transform (3rd generic).
+type FormInput = z.input<typeof formSchema>;
+type FormValues = z.output<typeof formSchema>;
 
 interface Props {
   products: { id: string; name: string; unit: string; code: string }[];
@@ -49,7 +53,7 @@ export function CreateRequestForm({ products, employees }: Props) {
     notes: "",
   });
 
-  const form = useForm<FormValues>({
+  const form = useForm<FormInput, unknown, FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       requesterId: "",
@@ -159,7 +163,7 @@ export function CreateRequestForm({ products, employees }: Props) {
                     <FormItem>
                       <NBSelect
                         label="Prioritas"
-                        value={field.value}
+                        value={field.value ?? "NORMAL"}
                         onValueChange={field.onChange}
                         options={[
                           { value: "LOW", label: "Low" },
@@ -278,7 +282,7 @@ export function CreateRequestForm({ products, employees }: Props) {
                           <div className="text-[11px] font-mono text-zinc-400">{p?.code}</div>
                         </div>
                         <div className="text-right font-mono font-bold text-sm text-zinc-900 dark:text-white">
-                          {item.quantity} <span className="text-zinc-400 text-xs">{p?.unit}</span>
+                          {Number(item.quantity)} <span className="text-zinc-400 text-xs">{p?.unit}</span>
                         </div>
                         <Button
                           type="button"

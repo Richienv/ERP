@@ -1303,7 +1303,20 @@ export async function getProcurementMetrics() {
         return await fetchProcurementMetrics(basePrisma)
     } catch (error) {
         console.error("Failed to fetch procurement metrics:", error)
-        return { activeCount: 0, delays: [] }
+        // Fallback must carry the full shape — consumers (CeoActionCenter) read
+        // `pendingApproval.length` unguarded, so a partial object crashes the
+        // dashboard instead of degrading to zeros.
+        return {
+            activeCount: 0,
+            delays: [] as any[],
+            pendingApproval: [] as any[],
+            totalPRs: 0,
+            pendingPRs: 0,
+            totalPOs: 0,
+            totalPOValue: 0,
+            totalPRValue: 0,
+            poByStatus: {} as Record<string, number>,
+        }
     }
 }
 
