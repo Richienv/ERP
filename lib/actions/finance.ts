@@ -368,7 +368,7 @@ export async function getGLAccounts() {
  */
 export async function postJournalEntry(
     ...args: Parameters<typeof import("./finance-gl").postJournalEntry>
-): Promise<{ success: boolean; id?: string; error?: string }> {
+): Promise<import("./finance-gl").JournalPostResult> {
     const { postJournalEntry: fn } = await import("./finance-gl")
     const result = await fn(...args)
 
@@ -382,15 +382,14 @@ export async function postJournalEntry(
     // nuance, not a change in correctness guarantees. The proper long-term fix
     // is to move the audit write into postJournalEntryInner() in finance-gl.ts
     // (a file this change is not permitted to touch).
-    const entryId = (result as { id?: string } | undefined)?.id
-    if (result?.success && entryId) {
+    if (result.success && result.id) {
         try {
             const sbClient = await createClient()
             const { data: { user: authUser } } = await sbClient.auth.getUser()
             if (authUser) {
                 await logAudit(basePrisma, {
                     entityType: "JournalEntry",
-                    entityId: entryId,
+                    entityId: result.id,
                     action: "CREATE",
                     userId: authUser.id,
                     userName: authUser.email || undefined,
@@ -399,7 +398,7 @@ export async function postJournalEntry(
         } catch { /* audit is best-effort */ }
     }
 
-    return result as { success: boolean; id?: string; error?: string }
+    return result
 }
 
 function parseDateInput(date?: Date | string): Date | undefined {
@@ -1484,8 +1483,8 @@ export async function createInvoiceFromSalesOrder(salesOrderId: string) {
                             }
                         ]
                     })
-                    if (!glResult?.success) {
-                        console.error("GL posting failed:", glResult?.error)
+                    if (!glResult.success) {
+                        console.error("GL posting failed:", glResult.error)
                     }
                     console.log("GL Entry Posted for Invoice:", invoice.number)
                 } else {
@@ -2503,8 +2502,8 @@ export async function approveAndPayBill(
                     reference: bill.number,
                     lines: glLines
                 })
-                if (!approvalGl?.success) {
-                    console.error("GL posting failed:", approvalGl?.error)
+                if (!approvalGl.success) {
+                    console.error("GL posting failed:", approvalGl.error)
                 }
             }
 
@@ -2541,8 +2540,8 @@ export async function approveAndPayBill(
                     { accountCode: SYS_ACCOUNTS.BANK_BCA, debit: 0, credit: paymentDetails.amount, description: `Transfer ke ${bill.supplier?.name}` }
                 ]
             })
-            if (!paymentGl?.success) {
-                console.error("GL posting failed:", paymentGl?.error)
+            if (!paymentGl.success) {
+                console.error("GL posting failed:", paymentGl.error)
             }
 
             return { success: true }

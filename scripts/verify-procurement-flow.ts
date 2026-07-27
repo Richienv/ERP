@@ -77,7 +77,9 @@ async function main() {
     const itemIds = approvedPr.items.map(i => i.id)
     const poResult = await createPOFromPR(prId, itemIds, "Generated PO from Test PR")
 
-    if (!poResult.success) throw new Error(`PO Conversion Failed: ${poResult.error}`)
+    // `success` is typed as a plain boolean by createPOFromPR, so it is not a
+    // usable discriminant — probe for the payload key instead.
+    if (!poResult.success || !('poIds' in poResult)) throw new Error(`PO Conversion Failed: ${poResult.error}`)
     console.log("PO Created IDs:", poResult.poIds)
 
     // 6. Verify PO

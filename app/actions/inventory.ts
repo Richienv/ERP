@@ -816,7 +816,7 @@ export async function getWarehouseDetails(id: string) {
 // ==========================================
 // GOODS RECEIPT ACTION
 // ==========================================
-export async function createWarehouse(data: { name: string, code: string, address: string, capacity: number, warehouseType?: string }) {
+export async function createWarehouse(data: { name: string, code: string, address: string, capacity: number, warehouseType?: string }): Promise<{ success: boolean; error?: string }> {
     try {
         return await withPrismaAuth(async (prisma) => {
             await prisma.warehouse.create({
@@ -1176,11 +1176,41 @@ export async function receiveGoodsFromPO(data: {
 // ==========================================
 // PURCHASE REQUEST ACTION
 // ==========================================
+/**
+ * Result of {@link requestPurchase}.
+ *
+ * Declared explicitly (rather than inferred) so that callers can read any
+ * branch's field without a type error — the absent fields are typed as
+ * `undefined`, which is exactly what they are at runtime.
+ */
+export type RequestPurchaseResult =
+    | {
+        success: true
+        pendingTask: { id: string; status: string; type: string }
+        message?: undefined
+        alreadyPending?: undefined
+        error?: undefined
+    }
+    | {
+        success: false
+        message: string
+        alreadyPending: true
+        pendingTask?: undefined
+        error?: undefined
+    }
+    | {
+        success: false
+        error: string
+        message?: undefined
+        alreadyPending?: undefined
+        pendingTask?: undefined
+    }
+
 export async function requestPurchase(data: {
     itemId: string,
     quantity: number,
     notes?: string
-}) {
+}): Promise<RequestPurchaseResult> {
     try {
         console.log("Requesting Purchase (PR):", data)
 
@@ -1200,7 +1230,7 @@ export async function requestPurchase(data: {
             if (existingItem) {
                 console.warn("Duplicate PR item detected:", data.itemId)
                 return {
-                    success: false as const,
+                    success: false,
                     message: "A pending request for this item already exists.",
                     alreadyPending: true
                 }
@@ -1248,7 +1278,7 @@ export async function requestPurchase(data: {
             })
 
             return {
-                success: true as const,
+                success: true,
                 pendingTask: {
                     id: pr.id,
                     status: 'PR_CREATED',
@@ -1259,7 +1289,7 @@ export async function requestPurchase(data: {
 
     } catch (error: any) {
         console.error("Error requesting purchase:", error)
-        return { success: false as const, error: "Failed to request purchase" }
+        return { success: false, error: "Failed to request purchase" }
     }
 }
 
@@ -1511,7 +1541,7 @@ export async function createManualMovement(data: {
     }
 }
 
-export async function updateWarehouse(id: string, data: { name: string, code: string, address: string, capacity: number, warehouseType?: string }) {
+export async function updateWarehouse(id: string, data: { name: string, code: string, address: string, capacity: number, warehouseType?: string }): Promise<{ success: boolean; error?: string }> {
     try {
         return await withPrismaAuth(async (prisma) => {
             await prisma.warehouse.update({
