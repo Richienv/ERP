@@ -408,8 +408,10 @@ blow their context on unbounded lists and then reason over the half they can sti
 
 Open-weight tool-callers degrade as the tool list grows. The procurement slice is sized to fit.
 
-- **Per-session cap: ≤ 30 tools.** The procurement slice ships **21** (see catalog) — 9 reads, 6 propose,
-  1 confirm, 1 cancel, 2 reversals, 2 meta.
+- **Per-session cap: ≤ 30 tools.** The procurement slice ships **23** (see catalog §3) — 10 reads,
+  10 exposed mutations (each a single tool taking a `dryRun` flag rather than a separate propose tool),
+  and 3 meta tools (`describeCapabilities`, `confirmProposal`, `cancelProposal`). Four further mutations
+  are designed but `BLOCKED` and emit no tool.
 - **`agent.describeCapabilities(domain?)`** is the discovery tool (the OData `$metadata` equivalent). It
   returns the operation descriptors — id, version, bilingual title/description, JSON Schema, riskTier,
   requiredCapability, whether the *current grant* actually permits it, and remaining limit headroom. The
@@ -459,7 +461,7 @@ while the model thinks**.
 |---|---|---|
 | **BAPI** (stable business API) | **DESIGNED** | `lib/agent/operations/<domain>/<op>.ts`, descriptor in `AGENT_OPERATION_CATALOG.md` §2. Business verbs only; Prisma/SQL/table names never appear in any agent-visible schema. |
 | **BAPIRET2** (typed return) | **DESIGNED** | `AgentResult` envelope, §4. Bilingual, stable codes, `retryable`, `remediation`, `fieldErrors[]`. |
-| **BAPI_TRANSACTION_COMMIT/ROLLBACK** | **DESIGNED** | §2 transaction boundary; one operation = one `$transaction`; never held across a turn. Proved in §3.2. Requires Phase 0 items G-04/G-05 (T-2, T-3) so the boundary is not leaked by singleton-client calls. |
+| **BAPI_TRANSACTION_COMMIT/ROLLBACK** | **DESIGNED** | §2 transaction boundary; one operation = one `$transaction`; never held across a turn. Proved in §3.2. Requires Phase 0 item G-04 (T-2, T-3, T-4) so the boundary is not leaked by singleton-client calls made from inside an open transaction. |
 | **TESTRUN / posting simulation** | **DESIGNED** | `dryRunSupported: true` on every mutation; `AgentResult.simulation` returns the exact JE lines, stock deltas and status changes. It is the payload the human approves. |
 | **Belegprinzip** (document principle) | **DESIGNED** | Every mutation creates a document and, where money moves, a balanced JE in the same transaction. POSTED documents are never edited in place. |
 | **Storno** (reversal, FB08) | **DESIGNED** | Catalog contains **zero** delete operations. Every `WRITE_MONEY`/`IRREVERSIBLE` op declares a `reversalOperation`. Where the counter-operation does not yet exist in the codebase (goods return-out), the forward operation is **not exposed** until it does — see catalog §5. |
