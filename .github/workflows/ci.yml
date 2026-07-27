@@ -90,12 +90,26 @@ jobs:
           fi
 
           # tsc exits non-zero while any error remains — expected under the ratchet,
-          # so swallow the exit code and judge purely on the count.
-          npx tsc --noEmit > tsc-report.txt 2>&1 || true
+          # so capture the exit code and judge primarily on the count.
+          set +e
+          npx tsc --noEmit > tsc-report.txt 2>&1
+          TSC_EXIT=$?
+          set -e
 
           # grep -c exits 1 when the count is 0, which would abort the step under `set -e`.
           CURRENT="$(grep -c 'error TS' tsc-report.txt || true)"
           CURRENT="${CURRENT:-0}"
+
+          # Guard against a FALSE GREEN: if tsc crashed, ran out of memory, or never
+          # ran at all, the report has no 'error TS' lines and the count would look
+          # like a perfect 0. A non-zero tsc exit with zero counted errors is never
+          # legitimate — a genuinely clean type check exits 0.
+          if [ "$TSC_EXIT" -ne 0 ] && [ "$CURRENT" -eq 0 ]; then
+            echo "::error::tsc exited with code $TSC_EXIT but produced no 'error TS' lines — the type check did not run correctly. Refusing to report a passing count."
+            echo "----- tsc output -----"
+            cat tsc-report.txt || echo "(report file missing)"
+            exit 1
+          fi
 
           echo "-------------------------------------------"
           echo "  TypeScript errors (current) : $CURRENT"

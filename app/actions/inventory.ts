@@ -1200,7 +1200,7 @@ export async function requestPurchase(data: {
             if (existingItem) {
                 console.warn("Duplicate PR item detected:", data.itemId)
                 return {
-                    success: false,
+                    success: false as const,
                     message: "A pending request for this item already exists.",
                     alreadyPending: true
                 }
@@ -1248,7 +1248,7 @@ export async function requestPurchase(data: {
             })
 
             return {
-                success: true,
+                success: true as const,
                 pendingTask: {
                     id: pr.id,
                     status: 'PR_CREATED',
@@ -1259,7 +1259,7 @@ export async function requestPurchase(data: {
 
     } catch (error: any) {
         console.error("Error requesting purchase:", error)
-        return { success: false, error: "Failed to request purchase" }
+        return { success: false as const, error: "Failed to request purchase" }
     }
 }
 
