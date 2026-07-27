@@ -189,11 +189,17 @@ let browserQueryClient: QueryClient | undefined
 let persistenceSetUp = false
 let unsubscribePersist: (() => void) | undefined
 
+// `@tanstack/query-persist-client-core` ships its own nested copy of
+// `@tanstack/query-core`, so its QueryClient is nominally a different type from
+// the one we construct even though it is structurally identical at runtime.
+// Bind to the function's own parameter type instead of hand-writing a cast.
+type PersistedQueryClient = Parameters<typeof persistQueryClient>[0]["queryClient"]
+
 function setupPersistence(client: QueryClient) {
     if (persistenceSetUp) return
     persistenceSetUp = true
     const [unsubscribe, restorePromise] = persistQueryClient({
-        queryClient: client,
+        queryClient: client as unknown as PersistedQueryClient,
         persister: idbPersister,
         maxAge: 7 * 24 * 60 * 60 * 1000,
         // Scope is part of the buster too: a blob written under another user's

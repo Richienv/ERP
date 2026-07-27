@@ -1103,7 +1103,11 @@ export async function cancelPurchaseOrder(id: string, reason: string) {
                 data: {
                     previousStatus: po.status as any,
                     status: 'CANCELLED',
-                    notes: reason ? `[DIBATALKAN] ${reason}` : '[DIBATALKAN]',
+                    // PurchaseOrder has no `notes` column — the previous code
+                    // wrote to a non-existent field (masked by the untyped
+                    // callback) which Prisma rejects at runtime. The status
+                    // reason field is `rejectionReason`, same as reject.
+                    rejectionReason: reason ? `[DIBATALKAN] ${reason}` : '[DIBATALKAN]',
                 }
             })
             if (updateRes.count === 0) {

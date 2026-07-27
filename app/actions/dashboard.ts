@@ -955,7 +955,7 @@ async function fetchProfitability(prisma: PrismaClient) {
     for (const item of topProductRows) {
         const name = item.product?.name ?? 'Unknown'
         const lineRevenue = Number(item.lineTotal)
-        const lineCost = item.quantity * Number(item.product?.costPrice ?? 0)
+        const lineCost = Number(item.quantity) * Number(item.product?.costPrice ?? 0)
         const existing = productMap.get(name)
         if (existing) {
             existing.revenue += lineRevenue

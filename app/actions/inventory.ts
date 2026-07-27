@@ -2085,10 +2085,11 @@ export async function getWarehouseStaffing(warehouseId: string) {
             }
         }
 
-        // Get all users as potential manager candidates
+        // Get all users as potential manager candidates.
+        // NOTE: the User model has no `isActive` flag, so there is nothing to filter on here.
         const users = await prisma.user.findMany({
-            where: { isActive: true },
             select: { id: true, name: true },
+            orderBy: { name: 'asc' },
             take: 50
         })
 
