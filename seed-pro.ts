@@ -23,7 +23,7 @@ async function main() {
                     name: 'Premium Textiles Ltd'
                 }
             },
-            status: 'CONFIRMED'
+            status: 'VENDOR_CONFIRMED'
         }
     })
 

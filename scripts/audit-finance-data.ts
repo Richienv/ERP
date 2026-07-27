@@ -135,16 +135,16 @@ async function audit() {
   // 9. Check payments and their linked journal entries
   const allPayments = await prisma.payment.findMany({
     select: { id: true, amount: true, method: true, invoiceId: true,
-      journalEntry: true,
+      journalEntries: true,
       invoice: { select: { number: true, type: true } },
     },
   })
-  const noJEPayments = allPayments.filter(p => !p.journalEntry)
+  const noJEPayments = allPayments.filter(p => p.journalEntries.length === 0)
   console.log(`9. PAYMENTS WITHOUT JOURNAL ENTRIES:`)
   console.log(`   Total payments: ${allPayments.length}`)
   console.log(`   WITHOUT journal entry: ${noJEPayments.length}`)
   for (const p of allPayments) {
-    console.log(`     Rp ${Number(p.amount).toLocaleString('id-ID')} (${p.method}) for ${p.invoice?.number || 'unknown'} — JE: ${p.journalEntry ? 'YES' : 'MISSING'}`)
+    console.log(`     Rp ${Number(p.amount).toLocaleString('id-ID')} (${p.method}) for ${p.invoice?.number || 'unknown'} — JE: ${p.journalEntries.length > 0 ? 'YES' : 'MISSING'}`)
   }
   console.log()
 
@@ -162,7 +162,7 @@ async function audit() {
   for (const je of recentJE) {
     const totalDR = je.lines.reduce((s, l) => s + Number(l.debit), 0)
     const totalCR = je.lines.reduce((s, l) => s + Number(l.credit), 0)
-    console.log(`   [${je.status}] ${je.refNo} | ${je.date.toISOString().slice(0, 10)} | "${je.description}" | DR ${totalDR.toLocaleString('id-ID')} / CR ${totalCR.toLocaleString('id-ID')}`)
+    console.log(`   [${je.status}] ${je.reference} | ${je.date.toISOString().slice(0, 10)} | "${je.description}" | DR ${totalDR.toLocaleString('id-ID')} / CR ${totalCR.toLocaleString('id-ID')}`)
     for (const line of je.lines) {
       const dr = Number(line.debit)
       const cr = Number(line.credit)
