@@ -8,11 +8,13 @@ TYPECHECK_BASELINE=169
 ```
 
 - **Last verified:** 2026-07-27 (`npx tsc --noEmit 2>&1 | grep -c "error TS"` → `169`)
-- **Finance-related files:** ~108 of those 169 errors.
-- **Note:** a re-run the same day observed `188` while type-error cleanup was actively
-  landing. The baseline is intentionally left at the higher `169` so that in-flight work
-  cannot cause spurious CI failures. **Lower it to the real count once cleanup settles** —
-  CI prints the current number on every run.
+- **Finance-related files:** 71 of those 169 errors.
+- **History:** the baseline started at `241`. A parallel fix wave brought it to `169`
+  (verified once the wave settled, with `vitest` unchanged at 1045 passed / 5 pre-existing
+  failures). The baseline was then lowered to lock that gain in.
+- **Policy:** whenever the real count drops, lower this number in the same PR. CI prints
+  the current count on every run and passes with a notice when you are below baseline —
+  that notice is your cue to ratchet. Never raise this number to make a build pass.
 
 ## Why this exists
 
