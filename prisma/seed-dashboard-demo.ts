@@ -179,7 +179,7 @@ async function main() {
             data: {
                 productId: product.id,
                 warehouseId: warehouse.id,
-                type: 'IN',
+                type: 'PO_RECEIVE',
                 quantity: 50,
                 createdAt: new Date(Date.now() - 1000 * 60 * 30),
                 performedBy: 'Gudang Staff'
