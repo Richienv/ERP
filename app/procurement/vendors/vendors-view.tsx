@@ -43,6 +43,9 @@ type Vendor = {
     address: string | null
     address2: string | null
     paymentTerm: string | null
+    bankName: string | null
+    bankAccountNumber: string | null
+    bankAccountName: string | null
     rating: number
     onTimeRate: number
     isActive: boolean
