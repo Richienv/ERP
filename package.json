@@ -8,6 +8,7 @@
     "postinstall": "node scripts/install-typst.js && prisma generate",
     "start": "next start",
     "lint": "eslint \"{app,lib,components}/**/*.{js,jsx,ts,tsx}\" --ignore-pattern \"**/._*\"",
+    "typecheck": "tsc --noEmit",
     "db:seed": "npx prisma db seed",
     "db:reset": "npx prisma migrate reset --force",
     "db:fresh": "npx prisma migrate reset --force && echo '✓ Database reset & seeded'"
