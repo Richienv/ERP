@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { clearPersistedCache } from "@/lib/query-client"
+import { clearPersistedCache, setCacheScope } from "@/lib/query-client"
 import { type User } from "@supabase/supabase-js"
 
 // Define the User Role (SystemRole)
@@ -40,8 +40,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
  * Clear all Supabase auth artifacts from the browser.
  * Called when we detect a corrupt/stale session to prevent
  * the app from being stuck in an error loop.
+ *
+ * SECURITY: this also wipes the persisted TanStack Query cache (IndexedDB).
+ * That cache holds invoices, payments, AR/AP balances, payroll and employee
+ * records. Clearing cookies/localStorage but leaving IndexedDB behind means the
+ * next person to use this browser can be served the previous user's financial
+ * data on first paint. Session expiry must be treated exactly like a logout.
  */
-function clearSupabaseSession() {
+async function clearSupabaseSession() {
     // Clear cookies (especially sb-* auth cookies)
     try {
         document.cookie.split(";").forEach((c) => {
@@ -75,6 +81,11 @@ function clearSupabaseSession() {
         }
         keysToRemove.forEach((key) => sessionStorage.removeItem(key))
     } catch {}
+
+    // Wipe the persisted query cache (IndexedDB) + in-memory cache, then drop
+    // the cache namespace back to anonymous so nothing survives the session.
+    await clearPersistedCache()
+    await setCacheScope(null)
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -93,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 if (error) {
                     console.warn("Session check returned error, clearing stale session:", error.message)
-                    clearSupabaseSession()
+                    await clearSupabaseSession()
                     setUser(null)
                     setIsLoading(false)
                     return
@@ -108,7 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // This catches network errors, JSON parse errors, and any other
                 // unexpected failures when the auth state is corrupt
                 console.error("Session check failed with exception, clearing stale session:", error)
-                clearSupabaseSession()
+                await clearSupabaseSession()
                 setUser(null)
             } finally {
                 setIsLoading(false)
@@ -123,8 +134,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
                 if (event === "SIGNED_OUT") {
                     if (!isExplicitLogoutRef.current) {
-                        // Session expired — NOT explicit logout. IndexedDB cache is preserved.
-                        console.warn("[Auth] Session expired (not explicit logout) — cache preserved")
+                        // Session expired — NOT an explicit logout, but the cached
+                        // financial data must go anyway: the next person on this
+                        // browser may be a different user.
+                        console.warn("[Auth] Session expired — clearing persisted cache")
+                        await clearPersistedCache()
+                        await setCacheScope(null)
                     }
                     isExplicitLogoutRef.current = false
                     setUser(null)
