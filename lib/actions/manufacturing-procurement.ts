@@ -40,7 +40,9 @@ export async function detectWorkOrderShortages(workOrderId: string) {
         where: { productId: { in: materialIds } },
         _sum: { availableQty: true },
     })
-    const stockMap = new Map(stockLevels.map((s) => [s.productId, s._sum.availableQty ?? 0]))
+    // _sum.availableQty is a Prisma Decimal — normalise to number so the
+    // shortage arithmetic below (and the server-action response) stay plain JSON.
+    const stockMap = new Map(stockLevels.map((s) => [s.productId, Number(s._sum.availableQty ?? 0)]))
 
     // Get on-order quantities — only count POs actually committed to vendor
     // (DRAFT/PENDING_APPROVAL/APPROVED may never be sent and shouldn't suppress
@@ -74,7 +76,7 @@ export async function detectWorkOrderShortages(workOrderId: string) {
     }
 
     const shortages = wo.productionBom.items.map((item) => {
-        const requiredQty = Math.ceil(Number(item.quantityPerUnit) * Number(wo.plannedQty) * (1 + Number(item.wastePct) / 100))
+        const requiredQty = Math.ceil(Number(item.quantityPerUnit) * wo.plannedQty * (1 + Number(item.wastePct) / 100))
         const availableQty = stockMap.get(item.materialId) ?? 0
         const onOrderQty = onOrderMap.get(item.materialId) ?? 0
         const shortfall = Math.max(0, requiredQty - availableQty - onOrderQty)
