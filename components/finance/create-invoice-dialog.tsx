@@ -159,6 +159,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                 queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.invoiceAvailableOrders.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.glAccounts.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.miningCommand.pulse() })
             } else {
                 toast.error(('error' in result ? result.error : "Gagal membuat invoice") || "Gagal membuat invoice")
             }
@@ -176,16 +177,15 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
 
     return (
         <NBDialog open={open} onOpenChange={(v) => { if (!v) resetForm(); onOpenChange(v) }} size="narrow">
-            <NBDialogHeader icon={FileText} title="Buat Invoice" subtitle="Buat invoice/bill baru dari order atau manual" />
+            <NBDialogHeader icon={FileText} title="Buat Invoice" subtitle="Tagih pelanggan dari Finance — tanpa pipeline penjualan" />
 
             <NBDialogBody>
                 {/* ── Section 1: Sumber Invoice ── */}
-                <NBSection icon={Receipt} title="Sumber Invoice">
-                    <div className="grid grid-cols-3 gap-2">
+                <NBSection icon={Receipt} title="Sumber dokumen">
+                    <div className="grid grid-cols-2 gap-2">
                         {([
-                            { key: 'SO' as const, title: 'Sales Order', desc: 'Dari pesanan penjualan' },
-                            { key: 'PO' as const, title: 'Purchase Order', desc: 'Dari pesanan pembelian' },
-                            { key: 'MANUAL' as const, title: 'Manual', desc: 'Input data sendiri' },
+                            { key: 'MANUAL' as const, title: 'Invoice Pelanggan', desc: 'Tagih sewa / jasa / spare part dari Finance' },
+                            { key: 'PO' as const, title: 'Bill dari PO', desc: 'Tagihan vendor setelah barang masuk' },
                         ]).map((opt) => (
                             <button
                                 key={opt.key}
@@ -344,7 +344,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                     label="Deskripsi / Produk"
                                     value={manualProduct}
                                     onChange={setManualProduct}
-                                    placeholder="Jasa Konsultasi"
+                                    placeholder="Sewa dump truck / angkutan / spare part"
                                 />
                             </NBSection>
 

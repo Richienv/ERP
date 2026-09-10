@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { IconArrowLeft, IconEdit, IconTruck } from "@tabler/icons-react"
 import { formatIDR } from "@/lib/utils"
 import { NB } from "@/lib/dialog-styles"
+import { CapitalizeAssetCard } from "@/components/fleet/capitalize-asset-card"
 
 export const dynamic = "force-dynamic"
 
@@ -125,6 +126,12 @@ export default async function VehicleDetailPage({
                         <Detail label="Pemilik" value={vehicle.ownerCustomer?.name || "Perusahaan sendiri"} />
                     </CardContent>
                 </Card>
+
+                <CapitalizeAssetCard
+                    vehicleId={vehicle.id}
+                    plateNumber={vehicle.plateNumber}
+                    existingAsset={vehicle.fixedAsset}
+                />
 
                 <Card>
                     <CardHeader>

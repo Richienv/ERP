@@ -111,8 +111,11 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
       });
 
       if (result.success) {
-        toast.success("Stock Received Successfully!", {
-          description: `Added ${values.receivedQty} ${item.unit} to inventory.`,
+        const billed = "billNumber" in result && result.billNumber
+          ? `Draft bill ${result.billNumber} siap di Finance`
+          : `Ditambah ${values.receivedQty} ${item.unit} ke gudang`
+        toast.success("Spare part masuk", {
+          description: billed,
           icon: <CheckCircle2 className="h-5 w-5 text-green-600" />,
         });
         queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all });
@@ -122,6 +125,8 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
         queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all });
         queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.all });
         queryClient.invalidateQueries({ queryKey: queryKeys.stockTransfers.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.miningCommand.pulse() });
+        queryClient.invalidateQueries({ queryKey: queryKeys.bills.all });
         setOpen(false);
         form.reset();
         setSelectedPO(null);

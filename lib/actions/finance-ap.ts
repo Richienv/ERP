@@ -875,7 +875,7 @@ export async function approveAndPayBill(
                     lines: glLines
                 })
                 if (!approvalGl?.success) {
-                    return { success: false, error: `Jurnal approval gagal: ${(approvalGl as any)?.error || 'GL error'}` }
+                    throw new Error(`Jurnal approval gagal: ${(approvalGl as any)?.error || 'GL error'}`)
                 }
             }
 
