@@ -140,11 +140,11 @@ export async function createFixedAssetCategory(data: FixedAssetCategoryInput) {
                     gainLossAccountId: data.gainLossAccountId || null,
                 },
             })
-            return { success: true, category }
+            return { success: true as const, category }
         })
     } catch (error) {
         console.error("Failed to create fixed asset category:", error)
-        return { success: false, error: "Gagal membuat kategori aset tetap" }
+        return { success: false as const, error: "Gagal membuat kategori aset tetap" }
     }
 }
 
@@ -396,13 +396,13 @@ export async function createFixedAsset(data: FixedAssetInput) {
 
             // Check for duplicate code
             const existing = await prisma.fixedAsset.findUnique({ where: { assetCode } })
-            if (existing) return { success: false, error: `Kode aset ${assetCode} sudah digunakan` }
+            if (existing) return { success: false as const, error: `Kode aset ${assetCode} sudah digunakan` }
 
             const category = await prisma.fixedAssetCategory.findUnique({
                 where: { id: data.categoryId },
                 include: { assetAccount: { select: { id: true, code: true } } },
             })
-            if (!category) return { success: false, error: "Kategori aset tidak ditemukan" }
+            if (!category) return { success: false as const, error: "Kategori aset tidak ditemukan" }
 
             let assetAccountCode = category.assetAccount?.code
             if (!assetAccountCode) {
@@ -412,7 +412,7 @@ export async function createFixedAsset(data: FixedAssetInput) {
                     select: { id: true, code: true },
                 })
                 if (!fallbackAccount) {
-                    return { success: false, error: `Akun COA ${fallbackCode} tidak ditemukan. Hubungkan kategori ke akun COA terlebih dahulu.` }
+                    return { success: false as const, error: `Akun COA ${fallbackCode} tidak ditemukan. Hubungkan kategori ke akun COA terlebih dahulu.` }
                 }
                 assetAccountCode = fallbackAccount.code
                 // Backfill the link on the category so future assets use it directly.
@@ -424,7 +424,7 @@ export async function createFixedAsset(data: FixedAssetInput) {
 
             const fundingSource: FixedAssetFundingSource = data.fundingSource ?? "OPENING_BALANCE"
             const offset = resolveOffsetAccount(fundingSource, Boolean(data.supplierId))
-            if (offset.error) return { success: false, error: offset.error }
+            if (offset.error) return { success: false as const, error: offset.error }
 
             const nbv = data.purchaseCost - 0 // No depreciation yet
             const asset = await prisma.fixedAsset.create({
@@ -501,11 +501,11 @@ export async function createFixedAsset(data: FixedAssetInput) {
                 },
             })
 
-            return { success: true, asset }
+            return { success: true as const, asset }
         }, { timeout: 30000, maxWait: 20000 })
     } catch (error: any) {
         console.error("Failed to create fixed asset:", error)
-        return { success: false, error: error?.message || "Gagal membuat aset tetap" }
+        return { success: false as const, error: error?.message || "Gagal membuat aset tetap" }
     }
 }
 

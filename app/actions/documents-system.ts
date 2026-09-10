@@ -251,7 +251,7 @@ const getRoleCodeCandidates = (role?: string | null) => {
     return dedupeTokens([normalizedRole, stripped, ...aliases])
 }
 
-const findSystemRoleByAppRole = (roles: Array<{ code: string }>, appRole?: string | null) => {
+const findSystemRoleByAppRole = <T extends { code: string }>(roles: T[], appRole?: string | null): T | null => {
     const candidates = getRoleCodeCandidates(appRole)
     if (candidates.length === 0) return null
     const roleMap = new Map(roles.map((role) => [normalizeToken(role.code), role]))

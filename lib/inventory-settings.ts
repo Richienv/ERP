@@ -34,7 +34,7 @@ export async function setNegativeStockPolicy(allow: boolean): Promise<void> {
     create: {
       key: INVENTORY_SETTING_KEYS.ALLOW_NEGATIVE_STOCK,
       value: String(allow),
-      label: "Izinkan Stok Negatif",
+      description: "Izinkan Stok Negatif",
     },
   })
 }

@@ -848,15 +848,32 @@ export async function recordShipment(data: {
                         },
                     })
 
-                    // Decrement stock (use findFirst + update by id for null locationId)
-                    if (stockLevel) {
-                        await (prisma as any).stockLevel.update({
-                            where: { id: stockLevel.id },
-                            data: {
-                                quantity: { decrement: item.quantity },
-                                availableQty: { decrement: item.quantity },
-                            },
+                    // Decrement stock atomically — the availability check above is
+                    // only for a friendly message; it is a read that can go stale
+                    // (TOCTOU). The real enforcement lives in the WHERE clause so
+                    // two concurrent send-outs cannot both pass and drive stock
+                    // negative.
+                    const shipped = await (prisma as any).stockLevel.updateMany({
+                        where: {
+                            id: stockLevel.id,
+                            quantity: { gte: item.quantity },
+                            availableQty: { gte: item.quantity },
+                        },
+                        data: {
+                            quantity: { decrement: item.quantity },
+                            availableQty: { decrement: item.quantity },
+                        },
+                    })
+
+                    if (shipped.count === 0) {
+                        const product = await prisma.product.findUnique({
+                            where: { id: item.productId },
+                            select: { name: true },
                         })
+                        throw new Error(
+                            `Stok tidak mencukupi untuk ${product?.name || item.productId}. ` +
+                            `Stok berubah oleh transaksi lain, silakan muat ulang dan coba lagi.`
+                        )
                     }
 
                     // GL: DR WIP (material sent to CMT), CR Inventory Asset

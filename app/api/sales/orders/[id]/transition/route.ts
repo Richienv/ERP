@@ -80,9 +80,21 @@ export async function POST(
                     : `[${timestamp}] ${so.status}\u2192${targetStatus}: ${note}`
             }
 
-            const updated = await tx.salesOrder.update({
-                where: { id },
+            // Atomic status guard — updateMany with WHERE status = current
+            // ensures two concurrent transitions can't both pass the state
+            // machine check above and have the last write silently win.
+            const updateRes = await tx.salesOrder.updateMany({
+                where: { id, status: so.status },
                 data: updateData,
+            })
+            if (updateRes.count === 0) {
+                throw new Error(
+                    "Pesanan sudah diproses oleh pengguna lain. Refresh halaman."
+                )
+            }
+
+            const updated = await tx.salesOrder.findUniqueOrThrow({
+                where: { id },
                 include: {
                     items: { include: { product: true } },
                     customer: true,

@@ -65,6 +65,8 @@ interface OpenInvoice {
     customer: { id: string; name: string } | null
     amount: number
     balanceDue: number
+    /** Credit-note settlements applied to this invoice (supplied by getARRegistry). */
+    cnReduction?: number
     dueDate: Date
     isOverdue: boolean
     status: string

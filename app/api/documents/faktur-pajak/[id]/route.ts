@@ -106,7 +106,7 @@ export async function GET(
         )
 
         // 5. Return PDF
-        return new NextResponse(pdfBuffer, {
+        return new NextResponse(new Uint8Array(pdfBuffer), {
             status: 200,
             headers: {
                 "Content-Type": "application/pdf",
