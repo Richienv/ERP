@@ -332,10 +332,17 @@ export async function capitalizeVehicleAsAsset(vehicleId: string, input: Capital
                 accDepAccountId: accDep?.id,
                 depExpAccountId: depExp?.id,
             })
-            if (!created.success || !created.category) {
+            if (!created.success) {
                 return { success: false as const, error: created.error || "Gagal membuat kategori aset Kendaraan" }
             }
             category = { ...created.category, defaultResidualPct: Number(created.category.defaultResidualPct) } as any
+        }
+
+        // Defensive: `category` is assigned on both paths above (found, or created and
+        // returned early on failure), but the `as any` assignment above erases the
+        // narrowing, so TypeScript still sees `X | undefined` here. Unreachable in practice.
+        if (!category) {
+            return { success: false as const, error: "Gagal menyiapkan kategori aset Kendaraan" }
         }
 
         const purchaseDate = input.purchaseDate || new Date().toISOString().slice(0, 10)
