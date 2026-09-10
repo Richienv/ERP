@@ -11,6 +11,7 @@ import { useFinanceDashboard } from "@/hooks/use-finance-dashboard"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 import { AccountingModuleActions } from "@/components/finance/accounting-module-actions"
 import { CashFlowChart } from "@/components/finance/cash-flow-chart"
+import { CommandPulse, MiningMoneyLoop, MiningSnapshotStrip } from "@/components/mining/command-pulse"
 import { formatCompactNumber, formatIDR } from "@/lib/utils"
 
 export default function FinanceDashboardPage() {
@@ -24,6 +25,13 @@ export default function FinanceDashboardPage() {
 
     return (
         <div className="mf-page">
+
+            <CommandPulse
+                title="Finance Command — langkah yang menggerakkan buku"
+                subtitle="Invoice pelanggan, bill vendor, gaji, dan armada. Satu klik, jurnal ikut."
+            />
+            <MiningMoneyLoop />
+            <MiningSnapshotStrip />
 
             {/* COMMAND HEADER */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">

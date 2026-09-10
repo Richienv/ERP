@@ -46,6 +46,7 @@ const SYSTEM_ACCOUNT_DEFS: { code: string; name: string; type: "ASSET" | "LIABIL
   { code: SYS_ACCOUNTS.INTEREST_INCOME,  name: "Pendapatan Bunga",              type: "REVENUE" },
   { code: SYS_ACCOUNTS.COGS,             name: "Beban Pokok Penjualan (HPP)",   type: "EXPENSE" },
   { code: SYS_ACCOUNTS.SALARY_EXPENSE,   name: "Beban Gaji",                    type: "EXPENSE" },
+  { code: SYS_ACCOUNTS.BPJS_EMPLOYER_EXPENSE, name: "Beban BPJS Perusahaan",    type: "EXPENSE" },
   { code: SYS_ACCOUNTS.DEPRECIATION,     name: "Beban Penyusutan",              type: "EXPENSE" },
   { code: SYS_ACCOUNTS.BAD_DEBT_EXPENSE, name: "Beban Kerugian Piutang",        type: "EXPENSE" },
   { code: SYS_ACCOUNTS.EXPENSE_DEFAULT,  name: "Beban Lain-lain",              type: "EXPENSE" },

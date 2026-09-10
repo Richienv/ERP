@@ -21,6 +21,7 @@ import {
     STANDARD_DAILY_HOURS,
 } from '@/lib/hcm-calculations'
 import { assertPeriodOpen } from '@/lib/period-helpers'
+import { buildPayrollJournalLines, resolveEmployerBpjsFromSalary } from '@/lib/payroll-gl'
 
 const LEAVE_APPROVAL_PREFIX = 'LEAVE_APPROVAL::'
 const PAYROLL_RUN_PREFIX = 'PAYROLL_RUN::'
@@ -61,6 +62,12 @@ interface PayrollLineData {
     bpjsKetenagakerjaan: number
     bpjsJHT: number
     bpjsJP: number
+    bpjsKesEmployer: number
+    bpjsJhtEmployer: number
+    bpjsJpEmployer: number
+    bpjsJkkEmployer: number
+    bpjsJkmEmployer: number
+    bpjsEmployerTotal: number
     pph21: number
     grossSalary: number
     totalDeductions: number
@@ -73,6 +80,8 @@ interface PayrollSummaryData {
     net: number
     employees: number
     overtimeHours: number
+    employerBpjs: number
+    companyCost: number
 }
 
 interface PayrollRunPayload {
@@ -86,6 +95,7 @@ interface PayrollRunPayload {
     lines: PayrollLineData[]
     compliance?: {
         bpjsTotal: number
+        bpjsEmployerTotal: number
         taxTotal: number
     }
     postedAt?: string
@@ -417,7 +427,7 @@ async function resolvePayrollApproverId(prisma: any) {
  * No keyword-matching — direct, deterministic account references.
  */
 async function resolvePayrollAccounts(): Promise<
-    | { success: true; data: { expenseCode: string; cashCode: string; taxCode: string; bpjsTkCode: string; bpjsKesCode: string; payrollPayableCode: string } }
+    | { success: true; data: { expenseCode: string; employerExpenseCode: string; cashCode: string; taxCode: string; bpjsTkCode: string; bpjsKesCode: string; payrollPayableCode: string } }
     | { success: false; error: string }
 > {
     try {
@@ -433,12 +443,59 @@ async function resolvePayrollAccounts(): Promise<
         success: true,
         data: {
             expenseCode: SYS_ACCOUNTS.SALARY_EXPENSE,       // 6100 — Beban Gaji
+            employerExpenseCode: SYS_ACCOUNTS.BPJS_EMPLOYER_EXPENSE, // 6130 — Beban BPJS Perusahaan
             cashCode: SYS_ACCOUNTS.BANK_BCA,                // 1110 — Bank BCA (default)
             taxCode: SYS_ACCOUNTS.PPH_21_PAYABLE,           // 2310 — Utang PPh 21
             bpjsTkCode: SYS_ACCOUNTS.BPJS_TK_PAYABLE,      // 2320 — Utang BPJS Ketenagakerjaan
             bpjsKesCode: SYS_ACCOUNTS.BPJS_KES_PAYABLE,    // 2330 — Utang BPJS Kesehatan
             payrollPayableCode: SYS_ACCOUNTS.SALARY_PAYABLE, // 2200 — Utang Gaji
         },
+    }
+}
+
+function previewPayrollJournal(payload: PayrollRunPayload) {
+    const payrollLines = payload.lines || []
+    const taxTotal = payrollLines.reduce((sum, line) => sum + line.pph21, 0)
+    const bpjsKesEmployee = payrollLines.reduce((sum, line) => sum + line.bpjsKesehatan, 0)
+    const bpjsTkEmployee = payrollLines.reduce((sum, line) => sum + line.bpjsKetenagakerjaan, 0)
+    let bpjsKesEmployer = payrollLines.reduce((sum, line) => sum + (line.bpjsKesEmployer || 0), 0)
+    let bpjsTkEmployer = payrollLines.reduce((sum, line) => {
+        if ((line.bpjsEmployerTotal || 0) > 0) {
+            return sum + ((line.bpjsEmployerTotal || 0) - (line.bpjsKesEmployer || 0))
+        }
+        return sum
+    }, 0)
+    if (bpjsKesEmployer === 0 && bpjsTkEmployer === 0) {
+        for (const line of payrollLines) {
+            const fallback = resolveEmployerBpjsFromSalary(line.basicSalary, calculateBPJS)
+            bpjsKesEmployer += fallback.kesEmployer
+            bpjsTkEmployer += fallback.tkEmployer
+        }
+    }
+
+    const journal = buildPayrollJournalLines({
+        periodLabel: payload.periodLabel,
+        gross: payload.summary.gross,
+        net: payload.summary.net,
+        pph21: taxTotal,
+        bpjsKesEmployee,
+        bpjsTkEmployee,
+        bpjsKesEmployer,
+        bpjsTkEmployer,
+        accounts: {
+            salaryExpense: SYS_ACCOUNTS.SALARY_EXPENSE,
+            bpjsEmployerExpense: SYS_ACCOUNTS.BPJS_EMPLOYER_EXPENSE,
+            payrollPayable: SYS_ACCOUNTS.SALARY_PAYABLE,
+            pph21Payable: SYS_ACCOUNTS.PPH_21_PAYABLE,
+            bpjsKesPayable: SYS_ACCOUNTS.BPJS_KES_PAYABLE,
+            bpjsTkPayable: SYS_ACCOUNTS.BPJS_TK_PAYABLE,
+        },
+    })
+
+    return {
+        ...journal,
+        employerBpjs: bpjsKesEmployer + bpjsTkEmployer,
+        companyCost: payload.summary.gross + bpjsKesEmployer + bpjsTkEmployer,
     }
 }
 
@@ -513,6 +570,12 @@ async function buildPayrollDraft(prisma: any, period: string, generatedBy: strin
         const bpjsKetenagakerjaan = bpjs.jhtEmployee + bpjs.jpEmployee // JHT + JP (employee portion)
         const bpjsJHT = bpjs.jhtEmployee
         const bpjsJP = bpjs.jpEmployee
+        const bpjsKesEmployer = bpjs.kesehatanEmployer
+        const bpjsJhtEmployer = bpjs.jhtEmployer
+        const bpjsJpEmployer = bpjs.jpEmployer
+        const bpjsJkkEmployer = bpjs.jkkEmployer
+        const bpjsJkmEmployer = bpjs.jkmEmployer
+        const bpjsEmployerTotal = bpjs.totalEmployer
 
         // PPh21: Progressive brackets per UU HPP
         const pph21 = calculateMonthlyPPh21(grossSalary, bpjs.totalEmployee)
@@ -538,6 +601,12 @@ async function buildPayrollDraft(prisma: any, period: string, generatedBy: strin
             bpjsKetenagakerjaan,
             bpjsJHT,
             bpjsJP,
+            bpjsKesEmployer,
+            bpjsJhtEmployer,
+            bpjsJpEmployer,
+            bpjsJkkEmployer,
+            bpjsJkmEmployer,
+            bpjsEmployerTotal,
             pph21,
             grossSalary,
             totalDeductions,
@@ -551,14 +620,17 @@ async function buildPayrollDraft(prisma: any, period: string, generatedBy: strin
             acc.deductions += line.totalDeductions
             acc.net += line.netSalary
             acc.overtimeHours += line.overtimeHours
+            acc.employerBpjs += line.bpjsEmployerTotal
             return acc
         },
-        { gross: 0, deductions: 0, net: 0, employees: lines.length, overtimeHours: 0 }
+        { gross: 0, deductions: 0, net: 0, employees: lines.length, overtimeHours: 0, employerBpjs: 0, companyCost: 0 }
     )
 
     summary.gross = Math.round(summary.gross)
     summary.deductions = Math.round(summary.deductions)
     summary.net = Math.round(summary.net)
+    summary.employerBpjs = Math.round(summary.employerBpjs)
+    summary.companyCost = summary.gross + summary.employerBpjs
     summary.overtimeHours = Number(summary.overtimeHours.toFixed(2))
 
     const payload: PayrollRunPayload = {
@@ -572,6 +644,7 @@ async function buildPayrollDraft(prisma: any, period: string, generatedBy: strin
         lines,
         compliance: {
             bpjsTotal: lines.reduce((sum, line) => sum + line.bpjsKesehatan + line.bpjsKetenagakerjaan, 0),
+            bpjsEmployerTotal: lines.reduce((sum, line) => sum + line.bpjsEmployerTotal, 0),
             taxTotal: lines.reduce((sum, line) => sum + line.pph21, 0),
         },
         disbursementStatus: 'PENDING',
@@ -1336,7 +1409,8 @@ export async function getPayrollRun(period: string) {
                 run: {
                     period: payload.period,
                     periodLabel: payload.periodLabel,
-                    summary: payload.summary ?? { gross: 0, deductions: 0, net: 0, employees: 0, overtimeHours: 0 },
+                    summary: payload.summary ?? { gross: 0, deductions: 0, net: 0, employees: 0, overtimeHours: 0, employerBpjs: 0, companyCost: 0 },
+                    journalPreview: previewPayrollJournal(payload),
                     status:
                         payload.status === 'POSTED' || payload.postedJournalReference
                             ? 'POSTED'
@@ -1773,62 +1847,54 @@ export async function approvePayrollRun(period: string) {
             if (!accounts.success) return { success: false, error: accounts.error }
 
             const payrollLines = payload.lines || []
-            const bpjsTkTotal = payrollLines.reduce(
-                (sum, line) => sum + line.bpjsKetenagakerjaan,
-                0
-            )
-            const bpjsKesTotal = payrollLines.reduce(
-                (sum, line) => sum + line.bpjsKesehatan,
-                0
-            )
             const taxTotal = payrollLines.reduce((sum, line) => sum + line.pph21, 0)
+            const bpjsKesEmployee = payrollLines.reduce((sum, line) => sum + line.bpjsKesehatan, 0)
+            const bpjsTkEmployee = payrollLines.reduce((sum, line) => sum + line.bpjsKetenagakerjaan, 0)
 
-            const lines: Array<{
-                accountCode: string
-                debit: number
-                credit: number
-                description?: string
-            }> = [
-                {
-                    accountCode: accounts.data.expenseCode,
-                    debit: payload.summary.gross,
-                    credit: 0,
-                    description: `Beban gaji ${payload.periodLabel}`,
+            let bpjsKesEmployer = payrollLines.reduce((sum, line) => sum + (line.bpjsKesEmployer || 0), 0)
+            let bpjsTkEmployer = payrollLines.reduce((sum, line) => {
+                if ((line.bpjsEmployerTotal || 0) > 0) {
+                    return sum + ((line.bpjsEmployerTotal || 0) - (line.bpjsKesEmployer || 0))
+                }
+                return sum
+            }, 0)
+
+            // Legacy drafts (before employer fields) — recompute from gaji pokok
+            if (bpjsKesEmployer === 0 && bpjsTkEmployer === 0) {
+                for (const line of payrollLines) {
+                    const fallback = resolveEmployerBpjsFromSalary(line.basicSalary, calculateBPJS)
+                    bpjsKesEmployer += fallback.kesEmployer
+                    bpjsTkEmployer += fallback.tkEmployer
+                }
+            }
+
+            const journal = buildPayrollJournalLines({
+                periodLabel: payload.periodLabel,
+                gross: payload.summary.gross,
+                net: payload.summary.net,
+                pph21: taxTotal,
+                bpjsKesEmployee,
+                bpjsTkEmployee,
+                bpjsKesEmployer,
+                bpjsTkEmployer,
+                accounts: {
+                    salaryExpense: accounts.data.expenseCode,
+                    bpjsEmployerExpense: accounts.data.employerExpenseCode,
+                    payrollPayable: accounts.data.payrollPayableCode,
+                    pph21Payable: accounts.data.taxCode,
+                    bpjsKesPayable: accounts.data.bpjsKesCode,
+                    bpjsTkPayable: accounts.data.bpjsTkCode,
                 },
-                {
-                    accountCode: accounts.data.payrollPayableCode,
-                    debit: 0,
-                    credit: payload.summary.net,
-                    description: `Utang gaji ${payload.periodLabel}`,
-                },
-            ]
+            })
 
-            if (bpjsTkTotal > 0) {
-                lines.push({
-                    accountCode: accounts.data.bpjsTkCode,
-                    debit: 0,
-                    credit: bpjsTkTotal,
-                    description: `Utang BPJS Ketenagakerjaan ${payload.periodLabel}`,
-                })
+            if (!journal.balanced) {
+                return {
+                    success: false,
+                    error: `Jurnal payroll tidak seimbang: debit ${journal.totalDebit} ≠ kredit ${journal.totalCredit}`,
+                }
             }
 
-            if (bpjsKesTotal > 0) {
-                lines.push({
-                    accountCode: accounts.data.bpjsKesCode,
-                    debit: 0,
-                    credit: bpjsKesTotal,
-                    description: `Utang BPJS Kesehatan ${payload.periodLabel}`,
-                })
-            }
-
-            if (taxTotal > 0) {
-                lines.push({
-                    accountCode: accounts.data.taxCode,
-                    debit: 0,
-                    credit: taxTotal,
-                    description: `Utang PPh 21 ${payload.periodLabel}`,
-                })
-            }
+            const lines = journal.lines
 
             const reference = `PAYROLL-${payload.period.replace('-', '')}`
 

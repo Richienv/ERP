@@ -70,6 +70,7 @@ export const SYS_ACCOUNTS = {
 
   // --- Expenses ---
   SALARY_EXPENSE: "6100",  // Beban Gaji
+  BPJS_EMPLOYER_EXPENSE: "6130", // Beban BPJS Perusahaan (employer 4%+3.7%+2%+JKK+JKM)
   DEPRECIATION:   "6290",  // Beban Penyusutan (seed: 6290)
   BAD_DEBT_EXPENSE: "6500", // Beban Kerugian Piutang
   EXPENSE_DEFAULT:"6900",  // Beban Lain-lain (generic expense for AP bills)

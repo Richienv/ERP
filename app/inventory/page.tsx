@@ -10,6 +10,7 @@ import { InventoryPerformanceProvider } from "@/components/inventory/inventory-p
 import { InventoryDashboardView } from "@/components/inventory/inventory-dashboard-view"
 import { useInventoryDashboard } from "@/hooks/use-inventory-dashboard"
 import { CardPageSkeleton } from "@/components/ui/page-skeleton"
+import { CommandPulse, MiningSnapshotStrip } from "@/components/mining/command-pulse"
 
 export default function InventoryPage() {
     const { data, isLoading } = useInventoryDashboard()
@@ -23,6 +24,17 @@ export default function InventoryPage() {
 
     return (
         <InventoryPerformanceProvider currentPath="/inventory">
+            <div className="px-4 md:px-6 pt-4">
+                <CommandPulse
+                    module="inventory"
+                    compact
+                    title="Spare part yang harus bergerak"
+                    subtitle="Stok minimum, barang masuk, dan nilai gudang — tanpa tebak-tebakan"
+                />
+                <div className="mt-3">
+                    <MiningSnapshotStrip highlight={["inventoryValue", "apOpen"]} />
+                </div>
+            </div>
             <InventoryDashboardView
                 headerSlot={
                     <div className="flex flex-wrap items-center justify-between gap-3">

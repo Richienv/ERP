@@ -1016,7 +1016,7 @@ export async function receiveGoodsFromPO(data: {
     try {
         console.log("Receiving Goods:", data)
 
-        return await withPrismaAuth(async (prisma) => {
+        const result = await withPrismaAuth(async (prisma) => {
             // 1. Get PO Item details
             const po = await prisma.purchaseOrder.findUnique({
                 where: { id: data.poId },
@@ -1166,6 +1166,33 @@ export async function receiveGoodsFromPO(data: {
 
             return { success: true, message: `Successfully received ${data.receivedQty} units.` }
         }, { maxWait: 5000, timeout: 20000 })
+
+        if (result.success) {
+            let billId: string | undefined
+            let billNumber: string | undefined
+            let billAlreadyExists = false
+            try {
+                const { createBillFromPOId } = await import("@/lib/actions/finance-invoices")
+                const bill = await createBillFromPOId(data.poId)
+                if (bill && "billId" in bill && bill.billId) {
+                    billId = bill.billId
+                    billNumber = "billNumber" in bill ? bill.billNumber : undefined
+                    billAlreadyExists = Boolean("alreadyExists" in bill && bill.alreadyExists)
+                } else if (bill && "existingInvoiceId" in bill && bill.existingInvoiceId) {
+                    billId = bill.existingInvoiceId
+                    billNumber = "existingInvoiceNumber" in bill ? bill.existingInvoiceNumber : undefined
+                    billAlreadyExists = true
+                }
+            } catch (billErr: any) {
+                console.error("[receiveGoodsFromPO] Draft bill failed (non-blocking):", billErr?.message)
+            }
+            revalidatePath("/finance/bills")
+            revalidatePath("/finance")
+            revalidatePath("/procurement")
+            return { ...result, billId, billNumber, billAlreadyExists }
+        }
+
+        return result
 
     } catch (error) {
         console.error("Error receiving goods:", error)

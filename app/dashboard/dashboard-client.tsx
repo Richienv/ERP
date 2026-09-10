@@ -7,6 +7,7 @@ import { TodaysTasks } from "@/components/dashboard/todays-tasks"
 import { CompactActivityFeed } from "@/components/dashboard/compact-activity-feed"
 import { useExecutiveDashboard } from "@/hooks/use-executive-dashboard"
 import { CardPageSkeleton } from "@/components/ui/page-skeleton"
+import { CommandPulse } from "@/components/mining/command-pulse"
 import { formatCurrency } from "@/lib/utils"
 import Link from "next/link"
 import { AreaChart, Area, ResponsiveContainer } from "recharts"
@@ -148,13 +149,19 @@ export function DashboardPageClient() {
     return (
         <DashboardView
             heroSlot={
-                <GreetingBar
-                    revenueMTD={sales?.totalRevenue ?? 0}
-                    receivables={financials?.receivables ?? 0}
-                    payables={financials?.payables ?? 0}
-                    overdueCount={overdueCount}
-                    pendingApprovals={pendingApprovals}
-                />
+                <div className="space-y-3">
+                    <CommandPulse
+                        title="Operasi tambang — langkah berikutnya"
+                        subtitle="Finance, armada, spare part, pengadaan, dan gaji dalam satu antrian"
+                    />
+                    <GreetingBar
+                        revenueMTD={sales?.totalRevenue ?? 0}
+                        receivables={financials?.receivables ?? 0}
+                        payables={financials?.payables ?? 0}
+                        overdueCount={overdueCount}
+                        pendingApprovals={pendingApprovals}
+                    />
+                </div>
             }
             alertSlot={
                 executiveAlerts.length > 0 ? (
