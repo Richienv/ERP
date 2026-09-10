@@ -443,7 +443,7 @@ export async function recordVendorPayment(data: {
                 date: new Date(),
                 reference: paymentNumber,
                 lines: glLines,
-            })
+            }, prisma)
             if (!glResult?.success) {
                 // Atomic: GL gagal → lempar error agar withPrismaAuth rollback payment + bill update
                 throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(glResult as any)?.error || 'Unknown GL error'}`)
@@ -623,7 +623,7 @@ export async function recordMultiBillPayment(data: {
                 date: new Date(),
                 reference: paymentNumber,
                 lines: multiGlLines,
-            })
+            }, prisma)
             if (!multiGlResult?.success) {
                 // Atomic: GL gagal → lempar error agar withPrismaAuth rollback semua pembayaran + bill updates
                 throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(multiGlResult as any)?.error || 'Unknown GL error'}`)
@@ -873,7 +873,7 @@ export async function approveAndPayBill(
                     date: new Date(),
                     reference: bill.number,
                     lines: glLines
-                })
+                }, prisma)
                 if (!approvalGl?.success) {
                     throw new Error(`Jurnal approval gagal: ${(approvalGl as any)?.error || 'GL error'}`)
                 }
@@ -911,7 +911,7 @@ export async function approveAndPayBill(
                     { accountCode: SYS_ACCOUNTS.AP, debit: paymentDetails.amount, credit: 0, description: `Pelunasan Hutang` },
                     { accountCode: SYS_ACCOUNTS.BANK_BCA, debit: 0, credit: paymentDetails.amount, description: `Transfer Bank` }
                 ]
-            })
+            }, prisma)
             if (!payGl?.success) {
                 // Atomic: GL gagal → lempar error agar withPrismaAuth rollback approval + payment
                 throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(payGl as any)?.error || 'Unknown GL error'}`)

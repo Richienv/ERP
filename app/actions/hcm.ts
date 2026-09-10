@@ -1705,7 +1705,7 @@ export async function createPayrollDisbursementBatch(period: string, options?: {
                         description: `Pembayaran payroll ${payload.periodLabel}`,
                     },
                 ],
-            })
+            }, prisma)
             if (!journalPost.success) {
                 return { success: false, error: 'error' in journalPost ? journalPost.error : 'Gagal posting jurnal disbursement payroll' }
             }
@@ -1909,7 +1909,7 @@ export async function approvePayrollRun(period: string) {
                 date: new Date(),
                 reference,
                 lines,
-            })
+            }, prisma)
 
             if (!posting.success) {
                 return { success: false, error: 'error' in posting ? posting.error : 'Gagal post jurnal payroll' }

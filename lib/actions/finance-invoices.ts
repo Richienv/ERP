@@ -1038,8 +1038,12 @@ export async function createBillFromPOId(
     options?: { forceCreate?: boolean }
 ) {
     try {
-        return await withPrismaAuth(async (prisma) => {
-            const po = await prisma.purchaseOrder.findUnique({
+        // Load the PO in its own short transaction, THEN create the bill.
+        // recordPendingBillFromPO starts withPrismaAuth itself — nesting the two
+        // interactive transactions deadlocks the Supabase pooler (outer holds a
+        // connection, inner waits for another).
+        const po = await withPrismaAuth(async (tx) => {
+            return tx.purchaseOrder.findUnique({
                 where: { id: poId },
                 include: {
                     items: {
@@ -1049,12 +1053,12 @@ export async function createBillFromPOId(
                     }
                 }
             })
+        })
 
-            if (!po) throw new Error("Purchase Order not found")
-            return await recordPendingBillFromPO(po, {
-                forceCreate: options?.forceCreate,
-                requireConfirmationOnDuplicate: true
-            })
+        if (!po) throw new Error("Purchase Order not found")
+        return await recordPendingBillFromPO(po, {
+            forceCreate: options?.forceCreate,
+            requireConfirmationOnDuplicate: true
         })
     } catch (error: any) {
         console.error("Failed to create bill from PO:", error)
