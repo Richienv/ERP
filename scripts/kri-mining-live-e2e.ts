@@ -82,6 +82,8 @@ async function main() {
     await ensureSystemAccounts()
     const acc6130 = await prisma.gLAccount.findUnique({ where: { code: "6130" }, select: { code: true, name: true } })
     log("gl-6130", !!acc6130, acc6130 ? `${acc6130.code} ${acc6130.name}` : "missing after ensureSystemAccounts")
+    const acc2200 = await prisma.gLAccount.findUnique({ where: { code: "2200" }, select: { code: true, name: true } })
+    log("gl-2200", !!acc2200 && /gaji/i.test(acc2200?.name || ""), acc2200 ? `${acc2200.code} ${acc2200.name}` : "missing")
 
     const warehouse = await prisma.warehouse.findFirst({ where: { isActive: true }, select: { id: true, name: true } })
     const supplier = await prisma.supplier.findFirst({ select: { id: true, name: true } })
