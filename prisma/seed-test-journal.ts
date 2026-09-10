@@ -32,19 +32,22 @@ async function main() {
         dueDate: new Date()
     })
 
-    if (!invRes.success || !invRes.invoiceId) {
-        throw new Error(`Failed to create invoice: ${invRes.error}`)
+    // createInvoice types `success` as a plain boolean, so it cannot discriminate
+    // the result union — probe for the payload/error keys instead.
+    const invoiceId = 'invoiceId' in invRes ? invRes.invoiceId : null
+    if (!invRes.success || !invoiceId) {
+        throw new Error(`Failed to create invoice: ${'error' in invRes ? invRes.error : 'unknown error'}`)
     }
-    console.log(`   Invoice Created: ID ${invRes.invoiceId}`)
+    console.log(`   Invoice Created: ID ${invoiceId}`)
 
     // 3. Approve Invoice (Should trigger GL Post)
     console.log('2. Approving Invoice (Posting to GL)...')
-    const appRes = await approveInvoice(invRes.invoiceId)
+    const appRes = await approveInvoice(invoiceId)
     if (!appRes.success) throw new Error(`Failed to approve: ${appRes.error}`)
     console.log('   Invoice Approved.')
 
     // 4. Verify Invoice Journal
-    const invoice = await prisma.invoice.findUnique({ where: { id: invRes.invoiceId } })
+    const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } })
     const journal1 = await prisma.journalEntry.findFirst({
         where: { reference: invoice?.number },
         include: { lines: { include: { account: true } } }
@@ -60,7 +63,7 @@ async function main() {
 
     // 5. Pay Invoice
     console.log('3. Recording Payment...')
-    const payRes = await recordPayment(invRes.invoiceId, 12500000, 'TRANSFER') // Full amount 
+    const payRes = await recordPayment(invoiceId, 12500000, 'TRANSFER') // Full amount 
     // Wait, total is 12.5M + tax?
     // Subtotal: 10M + 2.5M = 12.5M
     // Tax: 1.375M
@@ -70,7 +73,7 @@ async function main() {
     console.log('   Payment Recorded.')
 
     // 6. Verify Payment Journal
-    const payments = await prisma.payment.findMany({ where: { invoiceId: invRes.invoiceId } })
+    const payments = await prisma.payment.findMany({ where: { invoiceId } })
     const lastPay = payments[payments.length - 1]
     const journal2 = await prisma.journalEntry.findFirst({
         where: { reference: lastPay.reference || "PAY" }, // logic in recordPayment might need checking

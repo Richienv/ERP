@@ -26,7 +26,7 @@ export function getRequiredInvoicePostingSystemAccountCodes(input: {
     goodsReceivedViaPO: boolean
 }): string[] {
     if (input.type === "INV_OUT") {
-        const codes = [
+        const codes: string[] = [
             SYS_ACCOUNTS.AR,
             SYS_ACCOUNTS.REVENUE,
             SYS_ACCOUNTS.COGS,
@@ -36,7 +36,7 @@ export function getRequiredInvoicePostingSystemAccountCodes(input: {
         return codes
     }
 
-    const codes = [
+    const codes: string[] = [
         SYS_ACCOUNTS.AP,
         input.goodsReceivedViaPO ? SYS_ACCOUNTS.GR_IR_CLEARING : SYS_ACCOUNTS.EXPENSE_DEFAULT,
     ]

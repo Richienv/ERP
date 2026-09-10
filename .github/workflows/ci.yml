@@ -1,0 +1,154 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# A new push to the same ref cancels the previous in-flight run.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Placeholder only. CI never connects to a real database — these exist so that
+  # Prisma schema loading and any module-level client construction do not blow up
+  # on a missing env var. Do NOT point these at a real instance.
+  DATABASE_URL: "postgresql://ci:ci@127.0.0.1:5432/ci?schema=public"
+  DIRECT_URL: "postgresql://ci:ci@127.0.0.1:5432/ci?schema=public"
+  NEXT_TELEMETRY_DISABLED: "1"
+  # Typst is only needed for PDF generation; its installer already degrades
+  # gracefully, this just makes the intent explicit.
+  TYPST_STRICT: "0"
+
+jobs:
+  verify:
+    name: Test & Typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The Prisma client is generated into node_modules and is NOT committed.
+      # Type checking and tests both depend on the generated types, so this must
+      # run before either. (postinstall also runs it; this is idempotent and
+      # guards against postinstall being skipped, e.g. --ignore-scripts.)
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      # KNOWN RED as of 2026-07-27: 5 tests in app/actions/inventory.test.ts fail
+      # because they reach a real database (no DATABASE_URL in CI). 1045/1050 pass.
+      # continue-on-error keeps the failure VISIBLE (the step is marked red and the
+      # output is in the log) without blocking every PR on a pre-existing problem.
+      # REMOVE continue-on-error once those tests are mocked or given a service DB.
+      - name: Run tests (vitest)
+        id: tests
+        continue-on-error: true
+        run: npx vitest run
+
+      - name: Flag failing tests
+        if: steps.tests.outcome == 'failure'
+        run: |
+          echo "::warning::Test suite is RED. This is currently non-blocking (known pre-existing failures in app/actions/inventory.test.ts). See the 'Run tests (vitest)' step for details."
+          echo "### :warning: Test suite is RED (non-blocking)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "See the **Run tests (vitest)** step log. Known pre-existing failures live in \`app/actions/inventory.test.ts\` (they require a live database)." >> "$GITHUB_STEP_SUMMARY"
+
+      # RATCHET, NOT A GATE.
+      # next.config.ts sets typescript.ignoreBuildErrors:true, so type errors ship to
+      # production today. We cannot fail on the existing backlog, but we can refuse to
+      # let it grow: fail only when the error count EXCEEDS the committed baseline.
+      # Baseline lives in docs/reliability/TYPECHECK_BASELINE.md and is human-editable.
+      - name: Typecheck ratchet
+        run: |
+          BASELINE_FILE="docs/reliability/TYPECHECK_BASELINE.md"
+
+          if [ ! -f "$BASELINE_FILE" ]; then
+            echo "::error::Baseline file '$BASELINE_FILE' is missing. The typecheck ratchet cannot run."
+            exit 1
+          fi
+
+          # Read the marker line: TYPECHECK_BASELINE=<number> (must start at column 0).
+          BASELINE="$(grep -oE '^TYPECHECK_BASELINE=[0-9]+' "$BASELINE_FILE" | head -n 1 | cut -d '=' -f 2)"
+
+          if [ -z "$BASELINE" ]; then
+            echo "::error::Could not parse a 'TYPECHECK_BASELINE=<number>' line from '$BASELINE_FILE'."
+            exit 1
+          fi
+
+          # tsc exits non-zero while any error remains — expected under the ratchet,
+          # so capture the exit code and judge primarily on the count.
+          set +e
+          npx tsc --noEmit > tsc-report.txt 2>&1
+          TSC_EXIT=$?
+          set -e
+
+          # grep -c exits 1 when the count is 0, which would abort the step under `set -e`.
+          CURRENT="$(grep -c 'error TS' tsc-report.txt || true)"
+          CURRENT="${CURRENT:-0}"
+
+          # Guard against a FALSE GREEN: if tsc crashed, ran out of memory, or never
+          # ran at all, the report has no 'error TS' lines and the count would look
+          # like a perfect 0. A non-zero tsc exit with zero counted errors is never
+          # legitimate — a genuinely clean type check exits 0.
+          if [ "$TSC_EXIT" -ne 0 ] && [ "$CURRENT" -eq 0 ]; then
+            echo "::error::tsc exited with code $TSC_EXIT but produced no 'error TS' lines — the type check did not run correctly. Refusing to report a passing count."
+            echo "----- tsc output -----"
+            cat tsc-report.txt || echo "(report file missing)"
+            exit 1
+          fi
+
+          echo "-------------------------------------------"
+          echo "  TypeScript errors (current) : $CURRENT"
+          echo "  TypeScript errors (baseline): $BASELINE"
+          echo "-------------------------------------------"
+
+          {
+            echo "## Typecheck ratchet"
+            echo ""
+            echo "| | count |"
+            echo "|---|---|"
+            echo "| Current | \`$CURRENT\` |"
+            echo "| Baseline | \`$BASELINE\` |"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$CURRENT" -gt "$BASELINE" ]; then
+            echo ""
+            echo "Worst offending files:"
+            grep 'error TS' tsc-report.txt | cut -d '(' -f 1 | sort | uniq -c | sort -rn | head -n 20
+            echo ""
+            echo "::error::Typecheck REGRESSION: $CURRENT errors vs baseline of $BASELINE (+$((CURRENT - BASELINE))). Fix the new type errors — do not raise the baseline."
+            echo ":x: **REGRESSION** — $((CURRENT - BASELINE)) new type error(s). Fix them; do not raise the baseline." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          if [ "$CURRENT" -lt "$BASELINE" ]; then
+            echo "::notice::Typecheck IMPROVED: $CURRENT errors vs baseline of $BASELINE (-$((BASELINE - CURRENT))). Please lower TYPECHECK_BASELINE to $CURRENT in $BASELINE_FILE to lock the progress in."
+            echo ":tada: **IMPROVED** by $((BASELINE - CURRENT)) — lower \`TYPECHECK_BASELINE\` to \`$CURRENT\` in \`$BASELINE_FILE\` to lock it in." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo ":white_check_mark: Holding at baseline." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload typecheck report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tsc-report
+          path: tsc-report.txt
+          if-no-files-found: ignore
+          retention-days: 14

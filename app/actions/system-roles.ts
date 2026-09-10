@@ -29,7 +29,7 @@ export async function createSystemRole(data: z.infer<typeof roleSchema>) {
     const result = roleSchema.safeParse(data)
 
     if (!result.success) {
-        return { success: false, error: result.error.errors[0].message }
+        return { success: false, error: result.error.issues[0].message }
     }
 
     try {

@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic"
 
 import { useState, useCallback } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion, AnimatePresence, type Variants } from "framer-motion"
 import { toast } from "sonner"
 import {
     ClipboardCheck,
@@ -51,7 +51,7 @@ import {
 } from "@/components/ui/select"
 
 /* ─── Animation ─── */
-const fadeUp = {
+const fadeUp: Variants = {
     hidden: { opacity: 0, y: 14 },
     show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 320, damping: 26 } },
 }

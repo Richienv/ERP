@@ -95,15 +95,29 @@ export async function middleware(request: NextRequest) {
     )
 
     if (isProtectedRoute && !user) {
-        // For RSC/prefetch requests (e.g., router.prefetch() during cache warming),
-        // do NOT redirect or clear cookies. During concurrent cache warming, multiple
-        // middleware calls race to refresh the same token — if one fails transiently,
-        // clearing cookies would wipe the valid session from the browser.
-        // The client-side RouteGuard handles unauthenticated state properly.
+        // RSC / router-prefetch requests (e.g. router.prefetch() during cache warming).
+        //
+        // SECURITY: the `rsc` and `next-router-prefetch` headers are attacker-supplied —
+        // anyone can append them to a plain request. They must NEVER grant access, so we
+        // do not let the request through to the page.
+        //
+        // We still preserve the original intent of this branch: do NOT redirect and do NOT
+        // clear auth cookies here. During concurrent cache warming multiple middleware calls
+        // race to refresh the same token — if one fails transiently, clearing cookies would
+        // wipe a still-valid session from the browser. Instead we answer with an empty 401.
+        // The client router treats a failed prefetch as a no-op and falls back to a full
+        // navigation, which then hits the normal redirect path below.
+        // Authenticated users never reach this branch, so legitimate prefetch is unaffected.
         const isRSC = request.headers.get('rsc') === '1'
         const isPrefetch = request.headers.get('next-router-prefetch') === '1'
         if (isRSC || isPrefetch) {
-            return response
+            return new NextResponse(null, {
+                status: 401,
+                headers: {
+                    'cache-control': 'no-store, must-revalidate',
+                    'x-auth-status': 'unauthenticated',
+                },
+            })
         }
 
         const url = request.nextUrl.clone()

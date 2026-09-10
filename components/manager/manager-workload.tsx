@@ -88,7 +88,7 @@ export function ManagerWorkload() {
                                         <Clock className="h-3 w-3" /> Updated {mgr.lastUpdate}
                                     </div>
                                     <div className="flex gap-2 justify-end">
-                                        <Button variant="outline" size="xs" className="h-7 text-xs">View Tasks</Button>
+                                        <Button variant="outline" size="sm" className="h-7 text-xs">View Tasks</Button>
                                         <Button variant="ghost" size="icon" className="h-7 w-7"><Phone className="h-3 w-3" /></Button>
                                     </div>
                                 </div>

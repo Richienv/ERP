@@ -173,7 +173,7 @@ async function executeProductionPosting(
         })
 
         if (!sourceLevel || Number(sourceLevel.quantity) < requiredQty) {
-            throw new Error(`Insufficient stock for ${item.material.code}. Need ${requiredQty}, available ${sourceLevel ? Number(sourceLevel.quantity) : 0}`)
+            throw new Error(`Stok tidak mencukupi untuk ${item.material.code}. Dibutuhkan ${requiredQty}, tersedia ${sourceLevel ? Number(sourceLevel.quantity) : 0}`)
         }
 
         // Release from reservation first (WO start reserved stock),
@@ -181,14 +181,29 @@ async function executeProductionPosting(
         const releaseFromReserved = Math.min(requiredQty, Number(sourceLevel.reservedQty))
         const releaseFromAvailable = requiredQty - releaseFromReserved
 
-        await tx.stockLevel.update({
-            where: { id: sourceLevel.id },
+        // ATOMIC GUARD — the check above is only for a friendly message; it is a
+        // read that can go stale (TOCTOU). The real enforcement lives in the
+        // WHERE clause below so two concurrent WO postings cannot both pass and
+        // drive quantity / reservedQty / availableQty negative.
+        const consumed = await tx.stockLevel.updateMany({
+            where: {
+                id: sourceLevel.id,
+                quantity: { gte: requiredQty },
+                reservedQty: { gte: releaseFromReserved },
+                availableQty: { gte: releaseFromAvailable },
+            },
             data: {
                 quantity: { decrement: requiredQty },
                 reservedQty: { decrement: releaseFromReserved },
                 availableQty: { decrement: releaseFromAvailable },
             },
         })
+
+        if (consumed.count === 0) {
+            throw new Error(
+                `Stok tidak mencukupi untuk ${item.material.code} (dibutuhkan ${requiredQty}). Stok berubah oleh transaksi lain, silakan muat ulang dan coba lagi.`
+            )
+        }
 
         // Mark StockReservation as consumed if exists
         if (releaseFromReserved > 0) {
@@ -568,22 +583,33 @@ async function reserveStockForWorkOrder(workOrderId: string) {
         const requiredQty = Math.ceil(perUnit * wo.plannedQty * (1 + waste))
         if (requiredQty <= 0) continue
 
-        const stockLevel = await prisma.stockLevel.findFirst({
-            where: { productId: item.materialId, warehouseId: defaultWarehouse.id },
-        })
+        // ATOMIC GUARD — availableQty is evaluated by the database inside the
+        // UPDATE, so two work orders starting at the same time cannot both
+        // reserve the same free stock. On a lost race we re-read and reserve
+        // whatever is still free (this reservation is best-effort/partial by
+        // design — it must never throw, the caller treats it as non-blocking).
+        let reserveQty = 0
+        for (let attempt = 0; attempt < 3 && reserveQty <= 0; attempt++) {
+            const stockLevel = await prisma.stockLevel.findFirst({
+                where: { productId: item.materialId, warehouseId: defaultWarehouse.id },
+            })
 
-        const reserveQty = Math.min(requiredQty, Number(stockLevel?.availableQty ?? 0))
-        if (reserveQty <= 0) continue
+            const candidateQty = Math.min(requiredQty, Number(stockLevel?.availableQty ?? 0))
+            if (!stockLevel || candidateQty <= 0) break
 
-        if (stockLevel) {
-            await prisma.stockLevel.update({
-                where: { id: stockLevel.id },
+            const reserved = await prisma.stockLevel.updateMany({
+                where: { id: stockLevel.id, availableQty: { gte: candidateQty } },
                 data: {
-                    availableQty: { decrement: reserveQty },
-                    reservedQty: { increment: reserveQty },
+                    availableQty: { decrement: candidateQty },
+                    reservedQty: { increment: candidateQty },
                 },
             })
+            if (reserved.count === 0) continue
+
+            reserveQty = candidateQty
         }
+
+        if (reserveQty <= 0) continue
 
         await prisma.stockReservation.upsert({
             where: {

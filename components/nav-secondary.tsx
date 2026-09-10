@@ -3,8 +3,8 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { type Icon } from "@tabler/icons-react"
 import { useNavPrefetch } from "@/hooks/use-nav-prefetch"
+import type { SidebarNavItem } from "@/lib/sidebar-nav-data"
 
 import {
   SidebarGroup,
@@ -17,11 +17,7 @@ export function NavSecondary({
   items,
   ...props
 }: {
-  items: {
-    title: string
-    url: string
-    icon: Icon
-  }[]
+  items: SidebarNavItem[]
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
   const pathname = usePathname()
   const { prefetchRoute } = useNavPrefetch()
@@ -53,7 +49,7 @@ export function NavSecondary({
                       : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 hover:translate-x-0.5 border border-transparent"
                   }`}
                 >
-                  <item.icon className="size-3.5 shrink-0" />
+                  {item.icon ? <item.icon className="size-3.5 shrink-0" /> : null}
                   <span className="text-[12px] group-data-[collapsible=icon]:hidden">{item.title}</span>
                 </Link>
               </SidebarMenuItem>

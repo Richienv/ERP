@@ -942,13 +942,18 @@ export async function submitPOForApproval(poId: string) {
 
             assertPOTransition(current.status as any, "PENDING_APPROVAL")
 
-            await prisma.purchaseOrder.update({
-                where: { id: poId },
+            // Atomic status guard — updateMany with WHERE status = current
+            // ensures two concurrent submitters can't both succeed.
+            const updateRes = await prisma.purchaseOrder.updateMany({
+                where: { id: poId, status: current.status },
                 data: {
                     previousStatus: current.status as any,
                     status: 'PENDING_APPROVAL',
                 }
             })
+            if (updateRes.count === 0) {
+                throw new Error('PO sudah diproses oleh pengguna lain. Refresh halaman.')
+            }
 
             await createPurchaseOrderEvent(prisma as any, {
                 purchaseOrderId: poId,
@@ -1039,14 +1044,19 @@ export async function rejectPurchaseOrder(poId: string, reason: string) {
 
             assertPOTransition(current.status as any, "REJECTED")
 
-            await prisma.purchaseOrder.update({
-                where: { id: poId },
+            // Atomic status guard — updateMany with WHERE status = current
+            // ensures a concurrent approve/reject can't be silently overwritten.
+            const updateRes = await prisma.purchaseOrder.updateMany({
+                where: { id: poId, status: current.status },
                 data: {
                     previousStatus: current.status as any,
                     status: 'REJECTED',
                     rejectionReason: reason,
                 }
             })
+            if (updateRes.count === 0) {
+                throw new Error('PO sudah diproses oleh pengguna lain. Refresh halaman.')
+            }
 
             await createPurchaseOrderEvent(prisma as any, {
                 purchaseOrderId: poId,
@@ -1068,7 +1078,14 @@ export async function rejectPurchaseOrder(poId: string, reason: string) {
 
 export async function cancelPurchaseOrder(id: string, reason: string) {
     try {
-        return await withPrismaAuth(async (prisma, user) => {
+        // withPrismaAuth only passes the Prisma client to its callback — the
+        // authenticated user must be resolved here, same as every other PO
+        // transition action in this file.
+        const user = await getAuthzUser()
+        assertRole(user, PURCHASING_ROLES)
+
+        return await withPrismaAuth(async (prisma) => {
+            await requireActiveProcurementActor(prisma, user)
             const po = await prisma.purchaseOrder.findUnique({
                 where: { id },
                 select: { id: true, number: true, status: true }
@@ -1079,14 +1096,24 @@ export async function cancelPurchaseOrder(id: string, reason: string) {
             // Use state machine to validate transition
             assertPOTransition(po.status as ProcurementStatus, 'CANCELLED')
 
-            const updated = await prisma.purchaseOrder.update({
-                where: { id },
+            // Atomic status guard — updateMany with WHERE status = current
+            // ensures two concurrent actors can't both succeed.
+            const updateRes = await prisma.purchaseOrder.updateMany({
+                where: { id, status: po.status },
                 data: {
                     previousStatus: po.status as any,
                     status: 'CANCELLED',
-                    notes: reason ? `[DIBATALKAN] ${reason}` : '[DIBATALKAN]',
+                    // PurchaseOrder has no `notes` column — the previous code
+                    // wrote to a non-existent field (masked by the untyped
+                    // callback) which Prisma rejects at runtime. The status
+                    // reason field is `rejectionReason`, same as reject.
+                    rejectionReason: reason ? `[DIBATALKAN] ${reason}` : '[DIBATALKAN]',
                 }
             })
+            if (updateRes.count === 0) {
+                throw new Error('PO sudah diproses oleh pengguna lain. Refresh halaman.')
+            }
+            const updated = await prisma.purchaseOrder.findUniqueOrThrow({ where: { id } })
 
             // C1: when a PO is cancelled, release the PR-item link so the
             // source PR items can be re-converted to a new PO. The partial
