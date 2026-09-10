@@ -29,6 +29,12 @@ function requireEnv(name: string): string {
     return v
 }
 
+/** Read an optional key from a server-action union without fighting TS narrowing. */
+function field<T = unknown>(obj: object | null | undefined, key: string): T | undefined {
+    if (!obj || !(key in obj)) return undefined
+    return (obj as Record<string, T>)[key]
+}
+
 async function main() {
     const databasePresent = !!process.env.DATABASE_URL
     const directPresent = !!process.env.DIRECT_URL
@@ -155,7 +161,7 @@ async function main() {
     if (!accepted?.success) {
         log("spare-parts-in", false, ("error" in accepted ? String(accepted.error) : "acceptGRN failed"))
     } else {
-        log("spare-parts-in", true, `stock in + bill=${billNumber || "(none)"} already=${accepted.billAlreadyExists ? "yes" : "no"}`)
+        log("spare-parts-in", true, `stock in + bill=${billNumber || "(none)"} already=${field<boolean>(accepted, "billAlreadyExists") ? "yes" : "no"}`)
     }
 
     let payBillId = billId as string | undefined
@@ -173,11 +179,13 @@ async function main() {
     if (!payBillId) {
         const { createBillFromPOId } = await import("../lib/actions/finance-invoices")
         const billed = await createBillFromPOId(po.id)
-        if (billed && "billId" in billed && billed.billId) {
-            payBillId = billed.billId
-            log("bill-create", true, `${"billNumber" in billed ? billed.billNumber : billed.billId}`)
+        const createdBillId = field<string>(billed, "billId") || field<string>(billed, "existingInvoiceId")
+        const createdBillNumber = field<string>(billed, "billNumber") || field<string>(billed, "existingInvoiceNumber")
+        if (createdBillId) {
+            payBillId = createdBillId
+            log("bill-create", true, createdBillNumber || createdBillId)
         } else {
-            log("bill-create", false, ("error" in billed ? String(billed.error) : "no bill"))
+            log("bill-create", false, field<string>(billed, "error") || "no bill")
         }
     }
 
@@ -194,7 +202,7 @@ async function main() {
             bankAccountName: "E2E",
             notes: "E2E KRI pay vendor bill",
         })
-        log("vendor-pay", !!paid.success, paid.success ? `${bill?.number} PAID` : String(paid.error))
+        log("vendor-pay", !!paid.success, paid.success ? `${bill?.number} PAID` : (field<string>(paid, "error") || "pay failed"))
     } else {
         log("vendor-pay", false, "no bill id")
     }
@@ -245,7 +253,7 @@ async function main() {
         log(
             "payroll-gl",
             !!line6130 && Math.abs(debit - credit) <= 1,
-            `ref=${je?.reference || posted.journalReference} 6130_debit=${num(line6130?.debit)} balanced=${Math.abs(debit - credit) <= 1}`,
+            `ref=${je?.reference || field<string>(posted, "journalReference") || period} 6130_debit=${num(line6130?.debit)} balanced=${Math.abs(debit - credit) <= 1}`,
         )
     }
 
