@@ -556,7 +556,12 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
                         unitCost,
                         totalValue,
                         reference: grn.number,
-                        transactionDate: grn.receivedAt ?? grn.createdAt,
+                        // Post to the fiscal period the goods were ACTUALLY
+                        // received in, not when the record happened to be
+                        // created. The model field is `receivedDate` — the
+                        // old `receivedAt` did not exist on GoodsReceivedNote
+                        // and silently fell back to createdAt every time.
+                        transactionDate: grn.receivedDate ?? grn.createdAt,
                     })
                     console.log("[acceptGRN] GL entry posted OK")
                 }

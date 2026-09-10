@@ -337,7 +337,7 @@ export default function CycleCountsPage() {
                             <TableBody>
                                 {activeSession?.items.map((item) => {
                                     const actual = counts[item.id]
-                                    const variance = actual !== undefined && actual !== "" ? Number(actual) - item.expectedQty : null
+                                    const variance = actual !== undefined && actual !== "" ? Number(actual) - Number(item.expectedQty) : null
                                     return (
                                         <TableRow key={item.id} className="border-b border-zinc-100">
                                             <TableCell>

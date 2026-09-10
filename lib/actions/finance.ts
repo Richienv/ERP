@@ -335,9 +335,70 @@ export async function getGLAccounts() {
 // JOURNAL ENTRY SYSTEM (CORE)
 // ==========================================
 
-export async function postJournalEntry(...args: Parameters<typeof import("./finance-gl").postJournalEntry>) {
-    const { postJournalEntry: canonical } = await import("./finance-gl")
-    return canonical(...args)
+/**
+ * Post a journal entry to the GL.
+ *
+ * DELEGATES to the canonical implementation in `./finance-gl`. The local copy
+ * that used to live here was a hard fork which:
+ *   (a) had no `txClient` parameter, so callers physically could not make GL
+ *       posting atomic with their own surrounding transaction; and
+ *   (b) omitted `invoiceId` / `paymentId` / `inventoryTransactionId` from its
+ *       accepted data, so every entry it ever wrote left those FKs NULL and the
+ *       journal entry orphaned from its source document.
+ * Delegating fixes both, and both parameters are now reachable through this
+ * export because the signature is derived from the canonical's.
+ *
+ * This wrapper is kept (rather than the export simply deleted) because four
+ * live consumers import `postJournalEntry` from `@/lib/actions/finance`:
+ *   - app/finance/journal/new/page.tsx
+ *   - components/finance/journal/create-journal-dialog.tsx
+ *   - components/finance/accounting-module-actions.tsx
+ *   - lib/actions/sales.ts
+ * Delegation keeps all four working with zero changes at the import sites.
+ * The async-wrapper form (rather than `export { x } from "./finance-gl"`) is
+ * required because a "use server" module may only export async functions.
+ *
+ * BEHAVIOR PARITY: the canonical performs the same debit/credit balance
+ * validation, the same `assertPeriodOpen()` fiscal-period lock on the
+ * standalone (no-txClient) path, and the same MANUAL control-account
+ * restriction that the fork did. Fiscal-period enforcement is therefore
+ * UNCHANGED by this consolidation — the fork already called assertPeriodOpen.
+ * The single thing the canonical does NOT do is write the AuditLog row the
+ * fork wrote, so that is re-applied below rather than silently dropped.
+ */
+export async function postJournalEntry(
+    ...args: Parameters<typeof import("./finance-gl").postJournalEntry>
+): Promise<import("./finance-gl").JournalPostResult> {
+    const { postJournalEntry: fn } = await import("./finance-gl")
+    const result = await fn(...args)
+
+    // Audit trail — preserved from the previous local implementation, which
+    // logged a JournalEntry CREATE that the canonical does not. Best-effort:
+    // an audit failure must never fail an already-committed GL posting.
+    //
+    // NOTE: the fork wrote this row inside the same transaction as the entry;
+    // here it runs just after that transaction commits. Since the write was
+    // already wrapped in a swallow-all try/catch before, this is a durability
+    // nuance, not a change in correctness guarantees. The proper long-term fix
+    // is to move the audit write into postJournalEntryInner() in finance-gl.ts
+    // (a file this change is not permitted to touch).
+    if (result.success && result.id) {
+        try {
+            const sbClient = await createClient()
+            const { data: { user: authUser } } = await sbClient.auth.getUser()
+            if (authUser) {
+                await logAudit(basePrisma, {
+                    entityType: "JournalEntry",
+                    entityId: result.id,
+                    action: "CREATE",
+                    userId: authUser.id,
+                    userName: authUser.email || undefined,
+                })
+            }
+        } catch { /* audit is best-effort */ }
+    }
+
+    return result
 }
 
 function parseDateInput(date?: Date | string): Date | undefined {
@@ -1422,8 +1483,8 @@ export async function createInvoiceFromSalesOrder(salesOrderId: string) {
                             }
                         ]
                     })
-                    if (!glResult?.success) {
-                        console.error("GL posting failed:", glResult?.error)
+                    if (!glResult.success) {
+                        console.error("GL posting failed:", glResult.error)
                     }
                     console.log("GL Entry Posted for Invoice:", invoice.number)
                 } else {
@@ -2359,8 +2420,8 @@ export async function approveAndPayBill(
                     reference: bill.number,
                     lines: glLines
                 })
-                if (!approvalGl?.success) {
-                    console.error("GL posting failed:", approvalGl?.error)
+                if (!approvalGl.success) {
+                    console.error("GL posting failed:", approvalGl.error)
                 }
             }
 
@@ -2397,8 +2458,8 @@ export async function approveAndPayBill(
                     { accountCode: SYS_ACCOUNTS.BANK_BCA, debit: 0, credit: paymentDetails.amount, description: `Transfer ke ${bill.supplier?.name}` }
                 ]
             })
-            if (!paymentGl?.success) {
-                console.error("GL posting failed:", paymentGl?.error)
+            if (!paymentGl.success) {
+                console.error("GL posting failed:", paymentGl.error)
             }
 
             return { success: true }

@@ -125,6 +125,8 @@ export interface PayrollExportRow {
     overtimePay: number
     bpjsKesehatan: number
     bpjsKetenagakerjaan: number
+    bpjsJHT: number
+    bpjsJP: number
     pph21: number
     grossSalary: number
     totalDeductions: number
@@ -1477,6 +1479,10 @@ export async function getPayrollExportData(period: string) {
                 overtimePay: line.overtimePay,
                 bpjsKesehatan: line.bpjsKesehatan,
                 bpjsKetenagakerjaan: line.bpjsKetenagakerjaan,
+                // Legacy payroll payloads (persisted before the JHT/JP split existed)
+                // may not carry these fields, so default them to 0.
+                bpjsJHT: line.bpjsJHT ?? 0,
+                bpjsJP: line.bpjsJP ?? 0,
                 pph21: line.pph21,
                 grossSalary: line.grossSalary,
                 totalDeductions: line.totalDeductions,

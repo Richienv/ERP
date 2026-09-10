@@ -6,7 +6,7 @@ import * as XLSX from "xlsx"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import Link from "next/link"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion, AnimatePresence, type Variants } from "framer-motion"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -27,11 +27,11 @@ const stagger = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { staggerChildren: 0.07 } },
 }
-const fadeUp = {
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 14 },
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 320, damping: 26 } },
 }
-const fadeX = {
+const fadeX: Variants = {
   hidden: { opacity: 0, x: -12 },
   show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 320, damping: 26 } },
 }

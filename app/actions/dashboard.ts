@@ -955,7 +955,7 @@ async function fetchProfitability(prisma: PrismaClient) {
     for (const item of topProductRows) {
         const name = item.product?.name ?? 'Unknown'
         const lineRevenue = Number(item.lineTotal)
-        const lineCost = item.quantity * Number(item.product?.costPrice ?? 0)
+        const lineCost = Number(item.quantity) * Number(item.product?.costPrice ?? 0)
         const existing = productMap.get(name)
         if (existing) {
             existing.revenue += lineRevenue
@@ -1303,7 +1303,20 @@ export async function getProcurementMetrics() {
         return await fetchProcurementMetrics(basePrisma)
     } catch (error) {
         console.error("Failed to fetch procurement metrics:", error)
-        return { activeCount: 0, delays: [] }
+        // Fallback must carry the full shape — consumers (CeoActionCenter) read
+        // `pendingApproval.length` unguarded, so a partial object crashes the
+        // dashboard instead of degrading to zeros.
+        return {
+            activeCount: 0,
+            delays: [],
+            pendingApproval: [],
+            totalPRs: 0,
+            pendingPRs: 0,
+            totalPOs: 0,
+            totalPOValue: 0,
+            totalPRValue: 0,
+            poByStatus: {} as Record<string, number>,
+        }
     }
 }
 
