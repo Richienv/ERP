@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { clearPersistedCache, setCacheScope } from "@/lib/query-client"
 import { type User } from "@supabase/supabase-js"
+import { isLocalDemoUiEnabled, LOCAL_DEMO_EMAIL, LOCAL_DEMO_USER_ID } from "@/lib/local-demo"
 
 // Define the User Role (SystemRole)
 export type UserRole =
@@ -100,6 +101,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Check active session
         const checkSession = async () => {
             try {
+                if (isLocalDemoUiEnabled()) {
+                    try {
+                        const res = await fetch("/api/dev/local-demo", { method: "GET", cache: "no-store" })
+                        if (res.ok) {
+                            const data = await res.json() as { active?: boolean }
+                            if (data.active) {
+                                await setCacheScope(LOCAL_DEMO_USER_ID)
+                                setUser({
+                                    id: LOCAL_DEMO_USER_ID,
+                                    aud: "authenticated",
+                                    role: "ROLE_ADMIN",
+                                    email: LOCAL_DEMO_EMAIL,
+                                    app_metadata: { provider: "local-demo" },
+                                    user_metadata: { name: "Demo KRI", role: "ROLE_ADMIN" },
+                                    created_at: new Date().toISOString(),
+                                    name: "Demo KRI",
+                                } as AppUser)
+                                setIsLoading(false)
+                                return
+                            }
+                        }
+                    } catch {
+                        // Fall through to Supabase / placeholder handling
+                    }
+                }
+
+                const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
+                if (!supabaseUrl || supabaseUrl.includes("placeholder")) {
+                    setUser(null)
+                    setIsLoading(false)
+                    return
+                }
+
                 const { data: { session }, error } = await supabase.auth.getSession()
 
                 if (error) {
@@ -230,6 +264,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Mark as explicit logout so onAuthStateChange knows to expect SIGNED_OUT
         isExplicitLogoutRef.current = true
         try {
+            if (isLocalDemoUiEnabled()) {
+                await fetch("/api/dev/local-demo", { method: "DELETE" })
+            }
             await supabase.auth.signOut()
         } catch (err) {
             // Even if signOut fails (e.g., network error), clear local state

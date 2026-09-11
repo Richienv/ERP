@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import modulesCatalog from '@/config/modules-catalog.json'
+import { isLocalDemoAllowed, LOCAL_DEMO_COOKIE } from '@/lib/local-demo'
 
 // Build route → moduleId mapping from catalog at startup
 const ROUTE_MODULE_MAP: Record<string, string> = {}
@@ -24,49 +25,63 @@ export async function middleware(request: NextRequest) {
         },
     })
 
-    const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                getAll() {
-                    return request.cookies.getAll()
-                },
-                setAll(cookiesToSet) {
-                    cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
-                    response = NextResponse.next({
-                        request: {
-                            headers: request.headers,
-                        },
-                    })
-                    cookiesToSet.forEach(({ name, value, options }) =>
-                        response.cookies.set(name, value, options)
-                    )
-                },
-            },
-        }
-    )
-
-    // Wrap getUser in try/catch with timeout — if auth is broken (stale JWT, network error),
-    // treat user as unauthenticated and clear auth cookies to prevent error loops
     let user = null
-    try {
-        const authPromise = supabase.auth.getUser()
-        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000))
-        const result = await Promise.race([authPromise, timeoutPromise])
+    if (isLocalDemoAllowed() && request.cookies.get(LOCAL_DEMO_COOKIE)?.value === "1") {
+        user = { id: "local-demo" }
+    } else {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+        const canUseSupabase = Boolean(
+            supabaseUrl &&
+            supabaseKey &&
+            !supabaseUrl.includes("placeholder")
+        )
 
-        if (result && 'data' in result && !result.error) {
-            user = result.data?.user ?? null
+        if (canUseSupabase) {
+            const supabase = createServerClient(
+                supabaseUrl!,
+                supabaseKey!,
+                {
+                    cookies: {
+                        getAll() {
+                            return request.cookies.getAll()
+                        },
+                        setAll(cookiesToSet) {
+                            cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+                            response = NextResponse.next({
+                                request: {
+                                    headers: request.headers,
+                                },
+                            })
+                            cookiesToSet.forEach(({ name, value, options }) =>
+                                response.cookies.set(name, value, options)
+                            )
+                        },
+                    },
+                }
+            )
+
+            // Wrap getUser in try/catch with timeout — if auth is broken (stale JWT, network error),
+            // treat user as unauthenticated and clear auth cookies to prevent error loops
+            try {
+                const authPromise = supabase.auth.getUser()
+                const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000))
+                const result = await Promise.race([authPromise, timeoutPromise])
+
+                if (result && 'data' in result && !result.error) {
+                    user = result.data?.user ?? null
+                }
+                // On auth error or timeout: user stays null, treated as unauthenticated.
+                // Do NOT clear cookies here — concurrent requests (e.g. cache warming)
+                // can cause transient refresh token race conditions where one request
+                // consumes the refresh token before others finish. Clearing cookies
+                // would wipe a valid session. Cookies are only cleared when redirecting
+                // to /login on protected routes (below).
+            } catch (err) {
+                // getUser() threw — user stays null, no cookie clearing
+                console.error("Middleware: auth.getUser() threw:", err)
+            }
         }
-        // On auth error or timeout: user stays null, treated as unauthenticated.
-        // Do NOT clear cookies here — concurrent requests (e.g. cache warming)
-        // can cause transient refresh token race conditions where one request
-        // consumes the refresh token before others finish. Clearing cookies
-        // would wipe a valid session. Cookies are only cleared when redirecting
-        // to /login on protected routes (below).
-    } catch (err) {
-        // getUser() threw — user stays null, no cookie clearing
-        console.error("Middleware: auth.getUser() threw:", err)
     }
 
     // Define protected routes

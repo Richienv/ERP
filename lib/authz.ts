@@ -65,6 +65,24 @@ export function isSuperRole(role: string): boolean {
  * privilege) and no employeeId.
  */
 export async function getAuthzUser(): Promise<AuthzUser> {
+    const { isLocalDemoAllowed, LOCAL_DEMO_COOKIE, LOCAL_DEMO_EMAIL } = await import("@/lib/local-demo")
+    if (isLocalDemoAllowed()) {
+        const { cookies } = await import("next/headers")
+        const jar = await cookies()
+        if (jar.get(LOCAL_DEMO_COOKIE)?.value === "1") {
+            const demo = await prisma.user.findUnique({
+                where: { email: LOCAL_DEMO_EMAIL },
+                select: { id: true, role: true },
+            })
+            return {
+                id: demo?.id || "00000000-0000-0000-0000-000000000001",
+                role: demo?.role || "ADMIN",
+                email: LOCAL_DEMO_EMAIL,
+                employeeId: null,
+            }
+        }
+    }
+
     const supabase = await createClient()
     const { data, error } = await supabase.auth.getUser()
 
