@@ -1,10 +1,21 @@
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/db"
-import { redirect } from "next/navigation"
+import { DEFAULT_ROLE, SUPER_ROLES, isSuperRole } from "@/lib/authz"
 
 export type UserRole = "admin" | "user" | "manager" | "CEO" | "DIRECTOR" | "PURCHASING" | "WAREHOUSE"
 
-// Map legacy simple roles to enterprise roles if needed, or just allow string matching
+// Re-exported so callers importing from the guard see the same super-role list.
+export { SUPER_ROLES, isSuperRole }
+
+/**
+ * Resolve the current user and their AUTHORITATIVE role.
+ *
+ * SECURITY: the role comes from `public.users.role` (database) ONLY.
+ * Supabase `user_metadata` is client-writable — an authenticated user can
+ * self-promote with `supabase.auth.updateUser({ data: { role: 'ADMIN' } })` —
+ * so it is never read here, not even as a fallback or "fast path" cache.
+ * Accounts with no database row fall back to DEFAULT_ROLE (least privilege).
+ */
 export async function getCurrentUserRole() {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
@@ -14,12 +25,9 @@ export async function getCurrentUserRole() {
     }
 
     try {
-        // 1. Try metadata first (fastest)
-        const metadata = (user.user_metadata as any) || {}
-        let role = metadata?.role || ""
-
-        // 2. Fallback: Get from public.users table (authoritative)
+        let role = ""
         let dbId = user.id
+
         if (user.email) {
             const dbUser = await prisma.user.findUnique({
                 where: { email: user.email },
@@ -27,11 +35,11 @@ export async function getCurrentUserRole() {
             })
             if (dbUser) {
                 dbId = dbUser.id
-                if (!role) role = dbUser.role
+                if (dbUser.role) role = dbUser.role
             }
         }
 
-        if (!role) role = "ROLE_STAFF"
+        if (!role) role = DEFAULT_ROLE
 
         return {
             id: user.id,
@@ -40,6 +48,7 @@ export async function getCurrentUserRole() {
             role
         }
     } catch (e) {
+        // Fail closed: an unresolvable role must not become an elevated role.
         console.error("Error fetching user role:", e)
         return null
     }
@@ -55,15 +64,17 @@ export async function requireUser() {
 
 export async function requireRole(allowedRoles: string[]) {
     const user = await getCurrentUserRole()
-    
+
     if (!user) {
         throw new Error("Unauthorized: Not authenticated")
     }
 
     const normalizedUserRole = user.role.toUpperCase()
+    // NOTE: super roles (see SUPER_ROLES in lib/authz.ts) intentionally bypass
+    // the allowedRoles whitelist — matches both "ADMIN" and "ROLE_ADMIN".
     const hasRole = allowedRoles.some(role =>
         normalizedUserRole === role.toUpperCase()
-    ) || normalizedUserRole === 'ADMIN' || normalizedUserRole === 'ROLE_ADMIN'
+    ) || isSuperRole(user.role)
 
     if (!hasRole) {
         throw new Error(`Forbidden: Requires one of [${allowedRoles.join(', ')}]`)

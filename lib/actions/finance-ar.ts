@@ -183,9 +183,14 @@ export async function createCreditNote(data: {
             const creditTotal = creditSubtotal + creditTax
 
             // 3. Generate Credit Note Number
+            // NOTE: InvoiceType only has INV_OUT / INV_IN — there is no CREDIT_NOTE member,
+            // so counting by type threw at runtime. Credit notes are stored as INV_OUT rows
+            // with a CN- number prefix (see step 4), so we count by that prefix instead.
             const noteDate = new Date()
-            const count = await prisma.invoice.count({ where: { type: 'CREDIT_NOTE' } })
             const year = noteDate.getFullYear()
+            const count = await prisma.invoice.count({
+                where: { number: { startsWith: `CN-${year}-` } }
+            })
             const number = `CN-${year}-${String(count + 1).padStart(4, '0')}`
 
             // 4. Create Credit Note — relation connect for Prisma 6
@@ -329,10 +334,40 @@ export async function processRefund(data: {
 }
 
 // ==========================================
-// PAYMENT VOUCHERS (AP)
+// PAYMENT VOUCHERS / GIRO / BANK STATEMENT — NOT IMPLEMENTED (no database schema)
 // ==========================================
+//
+// The five functions below were written against columns and a model that do not
+// exist in prisma/schema.prisma:
+//
+//   Payment  — has NO `type`, `status`, `dueDate`, `bankAccount`, `clearedDate`,
+//              `isReconciled` columns and NO `voucherItems` relation.
+//   model BankStatement — does not exist at all (verified: no `bankStatement` on
+//              PrismaClient, no migration).
+//
+// Every one of them therefore threw at runtime ("Unknown argument" from Prisma,
+// or "Cannot read properties of undefined" for prisma.bankStatement). Nothing in
+// the app imports them — the working bank-reconciliation implementation lives in
+// lib/actions/finance-reconciliation.ts (BankReconciliation / BankReconciliationItem
+// models) and is what app/finance/reconciliation/page.tsx actually calls.
+//
+// The exports are kept so the API surface is stable, but each entry point now
+// fails loudly instead of pretending to post money.
+//
+// TODO(schema): payment vouchers + GIRO clearing need Payment.type/status/dueDate/
+// clearedDate + a PaymentVoucherItem model before this can be restored. Bank
+// statement import should be routed to finance-reconciliation.ts rather than
+// reviving a second, parallel BankStatement model.
 
-export async function createPaymentVoucher(data: {
+const PAYMENT_VOUCHER_NOT_IMPLEMENTED =
+    'Fitur Payment Voucher / GIRO belum tersedia — kolom Payment (type, status, dueDate, ' +
+    'clearedDate) dan model item voucher belum ada di database schema.'
+
+const BANK_STATEMENT_NOT_IMPLEMENTED =
+    'Fitur import rekening koran di modul ini belum tersedia — model BankStatement tidak ada. ' +
+    'Gunakan rekonsiliasi bank di lib/actions/finance-reconciliation.ts.'
+
+export async function createPaymentVoucher(_data: {
     supplierId: string
     billIds: string[]
     amount: number
@@ -341,176 +376,22 @@ export async function createPaymentVoucher(data: {
     dueDate?: Date
     reference?: string
     notes?: string
-}) {
-    try {
-        return await withPrismaAuth(async (prisma) => {
-            // 1. Validate Bills
-            const bills = await prisma.invoice.findMany({
-                where: {
-                    id: { in: data.billIds },
-                    type: 'INV_IN',
-                    status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] }
-                },
-                include: { supplier: true }
-            })
+}): Promise<{ success: boolean; voucherNumber?: string; error?: string }> {
+    console.error('[createPaymentVoucher]', PAYMENT_VOUCHER_NOT_IMPLEMENTED)
+    return { success: false, error: PAYMENT_VOUCHER_NOT_IMPLEMENTED }
+}
 
-            if (bills.length !== data.billIds.length) {
-                throw new Error("Some bills not found or already paid")
-            }
-
-            // Period lock: fail fast before mutation
-            await assertPeriodOpen(new Date())
-
-            // 2. Generate PV Number
-            const count = await prisma.payment.count({ where: { type: 'VOUCHER' } })
-            const year = new Date().getFullYear()
-            const number = `PV-${year}-${String(count + 1).padStart(4, '0')}`
-
-            // 3. Create Payment Voucher
-            const voucher = await prisma.payment.create({
-                data: {
-                    number,
-                    type: 'VOUCHER',
-                    amount: data.amount,
-                    method: data.method,
-                    supplierId: data.supplierId,
-                    status: data.method === 'GIRO' ? 'PENDING' : 'APPROVED',
-                    date: new Date(),
-                    dueDate: data.dueDate,
-                    reference: data.reference,
-                    bankAccount: data.bankAccount,
-                    notes: data.notes,
-                    voucherItems: {
-                        create: bills.map(bill => ({
-                            invoiceId: bill.id,
-                            amount: Math.min(data.amount / bills.length, toNum(bill.balanceDue))
-                        }))
-                    }
-                }
-            })
-
-            // 4. If not GIRO, immediately apply payment
-            if (data.method !== 'GIRO') {
-                for (const bill of bills) {
-                    const paymentAmount = Math.min(data.amount / bills.length, toNum(bill.balanceDue))
-                    const newBalance = toNum(bill.balanceDue) - paymentAmount
-
-                    await prisma.invoice.update({
-                        where: { id: bill.id },
-                        data: {
-                            balanceDue: newBalance,
-                            status: newBalance <= 0 ? 'PAID' : 'PARTIAL'
-                        }
-                    })
-                }
-            }
-
-            // Post to GL
-            const creditAccount = getCashAccountCode(data.method, data.bankAccount)
-
-            await ensureSystemAccounts()
-            await postJournalEntry({
-                description: `Payment Voucher ${number} for ${bills.length} bills`,
-                date: new Date(),
-                reference: voucher.id,
-                lines: [
-                    {
-                        accountCode: SYS_ACCOUNTS.AP, // Hutang Usaha (AP)
-                        debit: data.amount,
-                        credit: 0
-                    },
-                    {
-                        accountCode: creditAccount,
-                        debit: 0,
-                        credit: data.amount
-                    }
-                ]
-            }, prisma)
-
-            return { success: true, voucherNumber: number }
-        })
-    } catch (error: any) {
-        console.error("Failed to create voucher:", error)
-        return { success: false, error: "Failed to create payment voucher" }
-    }
+export async function processGIROClearing(
+    _voucherId: string,
+    _isCleared: boolean,
+    _rejectionReason?: string
+): Promise<{ success: boolean; status?: string; reason?: string; error?: string }> {
+    console.error('[processGIROClearing]', PAYMENT_VOUCHER_NOT_IMPLEMENTED)
+    return { success: false, error: PAYMENT_VOUCHER_NOT_IMPLEMENTED }
 }
 
 // ==========================================
-// GIRO CLEARING
-// ==========================================
-
-export async function processGIROClearing(voucherId: string, isCleared: boolean, rejectionReason?: string) {
-    try {
-        return await withPrismaAuth(async (prisma) => {
-            const voucher = await prisma.payment.findUnique({
-                where: { id: voucherId },
-                include: { voucherItems: { include: { invoice: true } } }
-            })
-
-            if (!voucher) throw new Error("Voucher not found")
-            if (voucher.method !== 'GIRO') throw new Error("Not a GIRO payment")
-            if (voucher.status !== 'PENDING') throw new Error("GIRO already processed")
-
-            // Period lock: fail fast before mutation
-            await assertPeriodOpen(new Date())
-
-            if (isCleared) {
-                // GIRO Cleared - apply payments
-                for (const item of voucher.voucherItems) {
-                    const newBalance = toNum(item.invoice.balanceDue) - toNum(item.amount)
-                    await prisma.invoice.update({
-                        where: { id: item.invoiceId },
-                        data: {
-                            balanceDue: newBalance,
-                            status: newBalance <= 0 ? 'PAID' : 'PARTIAL'
-                        }
-                    })
-                }
-
-                await prisma.payment.update({
-                    where: { id: voucherId },
-                    data: { status: 'CLEARED', clearedDate: new Date() }
-                })
-
-                // Post to GL
-                await ensureSystemAccounts()
-                await postJournalEntry({
-                    description: `GIRO ${voucher.number} cleared`,
-                    date: new Date(),
-                    reference: voucher.id,
-                    lines: [
-                        {
-                            accountCode: SYS_ACCOUNTS.AP, // Hutang Usaha (AP)
-                            debit: Number(voucher.amount),
-                            credit: 0
-                        },
-                        {
-                            accountCode: SYS_ACCOUNTS.BANK_BCA, // Bank
-                            debit: 0,
-                            credit: Number(voucher.amount)
-                        }
-                    ]
-                }, prisma)
-
-                return { success: true, status: 'CLEARED' }
-            } else {
-                // GIRO Rejected
-                await prisma.payment.update({
-                    where: { id: voucherId },
-                    data: { status: 'REJECTED', notes: rejectionReason }
-                })
-
-                return { success: true, status: 'REJECTED', reason: rejectionReason }
-            }
-        })
-    } catch (error: any) {
-        console.error("GIRO Processing Error:", error)
-        return { success: false, error: error.message }
-    }
-}
-
-// ==========================================
-// BANK RECONCILIATION
+// BANK RECONCILIATION (superseded by lib/actions/finance-reconciliation.ts)
 // ==========================================
 
 export interface BankStatementLine {
@@ -525,105 +406,29 @@ export interface BankStatementLine {
     matchedPaymentId?: string
 }
 
-export async function importBankStatement(bankAccountId: string, lines: Omit<BankStatementLine, 'id' | 'isReconciled'>[]) {
-    try {
-        return await withPrismaAuth(async (prisma) => {
-            // Create bank statement lines
-            const created = await prisma.bankStatement.createMany({
-                data: lines.map(line => ({
-                    bankAccountId,
-                    date: new Date(line.date),
-                    description: line.description,
-                    reference: line.reference,
-                    debit: line.debit,
-                    credit: line.credit,
-                    isReconciled: false
-                }))
-            })
-
-            return { success: true, count: created.count }
-        })
-    } catch (error: any) {
-        console.error("Import Bank Statement Error:", error)
-        return { success: false, error: error.message }
-    }
+export async function importBankStatement(
+    _bankAccountId: string,
+    _lines: Omit<BankStatementLine, 'id' | 'isReconciled'>[]
+): Promise<{ success: boolean; count?: number; error?: string }> {
+    console.error('[importBankStatement]', BANK_STATEMENT_NOT_IMPLEMENTED)
+    return { success: false, error: BANK_STATEMENT_NOT_IMPLEMENTED }
 }
 
-export async function getUnreconciledBankLines(bankAccountId: string) {
-    try {
-        return await withPrismaAuth(async (prisma) => {
-            const lines = await prisma.bankStatement.findMany({
-                where: {
-                    bankAccountId,
-                    isReconciled: false
-                },
-                orderBy: { date: 'asc' }
-            })
-
-            // Get unreconciled payments for matching
-            const unreconciledPayments = await prisma.payment.findMany({
-                where: {
-                    isReconciled: false,
-                    method: { in: ['TRANSFER', 'CHECK', 'GIRO'] }
-                },
-                include: {
-                    invoice: true,
-                    customer: true,
-                    supplier: true
-                }
-            })
-
-            return {
-                success: true,
-                bankLines: lines,
-                payments: unreconciledPayments
-            }
-        })
-    } catch (error: any) {
-        console.error("Get Unreconciled Lines Error:", error)
-        return { success: false, error: error.message, bankLines: [], payments: [] }
-    }
+export async function getUnreconciledBankLines(
+    _bankAccountId: string
+): Promise<{ success: boolean; error?: string; bankLines: BankStatementLine[]; payments: [] }> {
+    console.error('[getUnreconciledBankLines]', BANK_STATEMENT_NOT_IMPLEMENTED)
+    return { success: false, error: BANK_STATEMENT_NOT_IMPLEMENTED, bankLines: [], payments: [] }
 }
 
-export async function reconcileBankLine(data: {
+export async function reconcileBankLine(_data: {
     bankLineId: string
     paymentId?: string
     invoiceId?: string
     isAutoMatched?: boolean
-}) {
-    try {
-        return await withPrismaAuth(async (prisma) => {
-            const bankLine = await prisma.bankStatement.findUnique({
-                where: { id: data.bankLineId }
-            })
-
-            if (!bankLine) throw new Error("Bank statement line not found")
-
-            // Update bank line
-            await prisma.bankStatement.update({
-                where: { id: data.bankLineId },
-                data: {
-                    isReconciled: true,
-                    matchedPaymentId: data.paymentId,
-                    matchedInvoiceId: data.invoiceId,
-                    reconciledAt: new Date()
-                }
-            })
-
-            // Update payment if matched
-            if (data.paymentId) {
-                await prisma.payment.update({
-                    where: { id: data.paymentId },
-                    data: { isReconciled: true }
-                })
-            }
-
-            return { success: true }
-        })
-    } catch (error: any) {
-        console.error("Reconcile Bank Line Error:", error)
-        return { success: false, error: error.message }
-    }
+}): Promise<{ success: boolean; error?: string }> {
+    console.error('[reconcileBankLine]', BANK_STATEMENT_NOT_IMPLEMENTED)
+    return { success: false, error: BANK_STATEMENT_NOT_IMPLEMENTED }
 }
 
 // ==========================================
