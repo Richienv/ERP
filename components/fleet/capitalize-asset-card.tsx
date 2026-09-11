@@ -28,7 +28,7 @@ export function CapitalizeAssetCard({
     const [purchaseCost, setPurchaseCost] = useState("")
     const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().slice(0, 10))
     const [usefulLifeMonths, setUsefulLifeMonths] = useState("60")
-    const [fundingSource, setFundingSource] = useState<"OPENING_BALANCE" | "BANK" | "CASH">("OPENING_BALANCE")
+    const [fundingSource, setFundingSource] = useState<"" | "OPENING_BALANCE" | "BANK" | "CASH">("")
     const [saving, setSaving] = useState(false)
 
     if (existingAsset) {
@@ -49,10 +49,15 @@ export function CapitalizeAssetCard({
     }
 
     const submit = async () => {
+        const cost = Number(purchaseCost)
+        if (!cost || cost <= 0 || !fundingSource) {
+            toast.error("Isi nilai perolehan dan pilih sumber dana")
+            return
+        }
         setSaving(true)
         try {
             const result = await capitalizeVehicleAsAsset(vehicleId, {
-                purchaseCost: Number(purchaseCost),
+                purchaseCost: cost,
                 purchaseDate,
                 usefulLifeMonths: Number(usefulLifeMonths) || 60,
                 fundingSource,
@@ -73,10 +78,10 @@ export function CapitalizeAssetCard({
 
     return (
         <div className="border-2 border-black bg-white p-4 shadow-[3px_3px_0_0_#000]">
-            <div className="text-[10px] font-black uppercase tracking-widest text-orange-600">Wow — 1 klik ke buku</div>
+            <div className="text-[10px] font-black uppercase tracking-widest text-orange-600">Kapitalisasi armada</div>
             <h3 className="text-sm font-black uppercase mt-1">Jadikan aset tetap</h3>
             <p className="text-[11px] text-zinc-500 mt-1">
-                Posting DR Kendaraan / CR Saldo Awal, lalu unit ini masuk depresiasi bulanan.
+                Operator wajib pilih sumber dana: saldo awal (migrasi), bank, atau tunai. Setelah diposting, unit ini masuk depresiasi bulanan.
             </p>
             {!open ? (
                 <Button type="button" className={`${NB.toolbarBtnPrimary} ml-0 mt-3`} onClick={() => setOpen(true)}>
@@ -112,21 +117,21 @@ export function CapitalizeAssetCard({
                         />
                     </div>
                     <div>
-                        <Label className={NB.label}>Sumber dana</Label>
-                        <Select value={fundingSource} onValueChange={(v) => setFundingSource(v as typeof fundingSource)}>
-                            <SelectTrigger className={`${NB.select} ${NB.inputActive}`}>
-                                <SelectValue />
+                        <Label className={NB.label}>Sumber dana <span className={NB.labelRequired}>*</span></Label>
+                        <Select value={fundingSource || undefined} onValueChange={(v) => setFundingSource(v as "OPENING_BALANCE" | "BANK" | "CASH")}>
+                            <SelectTrigger className={`${NB.select} ${fundingSource ? NB.inputActive : NB.inputEmpty}`}>
+                                <SelectValue placeholder="Pilih sumber dana..." />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="OPENING_BALANCE">Saldo awal / sudah dimiliki</SelectItem>
-                                <SelectItem value="BANK">Bayar dari bank</SelectItem>
-                                <SelectItem value="CASH">Bayar tunai</SelectItem>
+                                <SelectItem value="OPENING_BALANCE">Saldo awal (migrasi)</SelectItem>
+                                <SelectItem value="BANK">Bank</SelectItem>
+                                <SelectItem value="CASH">Tunai</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
                     <div className="flex gap-2 pt-1">
                         <Button type="button" className={NB.cancelBtn} onClick={() => setOpen(false)}>Batal</Button>
-                        <Button type="button" className={NB.submitBtnOrange} disabled={saving || !purchaseCost} onClick={submit}>
+                        <Button type="button" className={NB.submitBtnOrange} disabled={saving || Number(purchaseCost) <= 0 || !fundingSource} onClick={submit}>
                             {saving ? "Memposting..." : "Posting ke GL"}
                         </Button>
                     </div>

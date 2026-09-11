@@ -30,14 +30,15 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { receiveGoodsFromPO } from "@/app/actions/inventory";
 import { PackagePlus, Box, CheckCircle2, Truck, Warehouse } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { useWarehouses } from "@/hooks/use-warehouses";
 
 const formSchema = z.object({
-  poId: z.string().min(1, "Purchase Order is required"),
+  poId: z.string().min(1, "Purchase Order wajib diisi"),
   warehouseId: z.string().min(1, "Gudang tujuan harus dipilih"),
-  receivedQty: z.coerce.number().min(1, "Quantity must be at least 1"),
+  receivedQty: z.coerce.number().min(1, "Jumlah minimal 1"),
 });
 
 interface OpenPO {
@@ -67,6 +68,7 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
   const [loading, setLoading] = useState(false);
   const [selectedPO, setSelectedPO] = useState<OpenPO | null>(null);
   const queryClient = useQueryClient();
+  const router = useRouter();
   const { data: allWarehouses } = useWarehouses();
 
   const defaultWarehouse = item.warehouses[0]?.id || "";
@@ -117,6 +119,10 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
         toast.success("Spare part masuk", {
           description: billed,
           icon: <CheckCircle2 className="h-5 w-5 text-green-600" />,
+          action: {
+            label: "Buka Tagihan",
+            onClick: () => router.push("/finance/bills"),
+          },
         });
         queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all });
         queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all });
@@ -135,7 +141,7 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
         toast.error((result as any).error || "Gagal menerima barang");
       }
     } catch {
-      toast.error("An error occurred");
+      toast.error("Terjadi kesalahan");
     } finally {
       setLoading(false);
     }
@@ -149,13 +155,13 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
         className="bg-emerald-600 text-white hover:bg-emerald-700 border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all active:translate-x-[1px] active:translate-y-[1px] active:shadow-none font-bold uppercase text-xs h-8 gap-2 rounded-none"
       >
         <PackagePlus className="h-3.5 w-3.5" />
-        Receive Goods
+        Terima Barang
       </Button>
 
       <NBDialog open={open} onOpenChange={setOpen}>
         <NBDialogHeader
           icon={Truck}
-          title="Confirm Goods Receipt"
+          title="Konfirmasi Penerimaan"
           subtitle="Verifikasi penerimaan barang dari Purchase Order."
         />
 
@@ -168,7 +174,7 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
               </div>
               <div>
                 <p className="font-black text-base leading-tight">{item.name}</p>
-                <p className="text-xs font-bold text-zinc-400">Unit: {item.unit}</p>
+                <p className="text-xs font-bold text-zinc-400">Satuan: {item.unit}</p>
               </div>
             </div>
           </NBSection>
@@ -183,7 +189,7 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
                   render={({ field }) => (
                     <FormItem>
                       <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
-                        Source PO <span className="text-red-500">*</span>
+                        Sumber PO <span className="text-red-500">*</span>
                       </label>
                       <Select
                         onValueChange={(val) => {
@@ -194,7 +200,7 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
                       >
                         <FormControl>
                           <SelectTrigger className="h-8 text-sm rounded-none border border-zinc-300">
-                            <SelectValue placeholder="Select Purchase Order..." />
+                            <SelectValue placeholder="Pilih Purchase Order..." />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -215,17 +221,17 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
                   <div className="bg-blue-50 border border-blue-200 p-3">
                     <div className="grid grid-cols-3 gap-3">
                       <div>
-                        <p className="text-[10px] font-black uppercase text-blue-500">Supplier</p>
+                        <p className="text-[10px] font-black uppercase text-blue-500">Pemasok</p>
                         <p className="font-bold text-sm truncate">{selectedPO.supplierName}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-black uppercase text-blue-500">Ordered</p>
+                        <p className="text-[10px] font-black uppercase text-blue-500">Dipesan</p>
                         <p className="font-bold text-sm font-mono">
                           {selectedPO.orderedQty} {item.unit}
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-black uppercase text-blue-500">Remaining</p>
+                        <p className="text-[10px] font-black uppercase text-blue-500">Sisa</p>
                         <p className="font-black text-sm font-mono text-blue-700">
                           {selectedPO.remainingQty} {item.unit}
                         </p>
@@ -271,7 +277,7 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
                   render={({ field }) => (
                     <FormItem>
                       <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
-                        Received Quantity <span className="text-red-500">*</span>
+                        Jumlah Diterima <span className="text-red-500">*</span>
                       </label>
                       <FormControl>
                         <Input
@@ -281,7 +287,7 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
                         />
                       </FormControl>
                       <p className="text-[10px] text-zinc-400 font-bold mt-1 text-center">
-                        in {item.unit}
+                        dalam {item.unit}
                       </p>
                       <FormMessage />
                     </FormItem>
@@ -296,7 +302,7 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
           onCancel={() => setOpen(false)}
           onSubmit={() => form.handleSubmit(onSubmit)()}
           submitting={loading}
-          submitLabel="Confirm Receipt"
+          submitLabel="Konfirmasi Penerimaan"
         />
       </NBDialog>
     </>

@@ -95,3 +95,7 @@ codex/
 
 # TypeScript incremental build cache — regenerated on every tsc run
 *.tsbuildinfo
+
+# Local ops notes that have contained credentials — never commit
+supabase-info.txt
+DB_CONNECTION_FIX.md

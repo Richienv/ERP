@@ -6,7 +6,9 @@ import { createClient } from "@/lib/supabase/server"
 import { logAudit } from "@/lib/audit-helpers"
 import { postJournalEntry } from "./finance-gl"
 import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts-server"
+import { resolveVendorBillDebitAccount } from "@/lib/invoice-posting-accounts"
 import { assertPeriodOpen } from "@/lib/period-helpers"
+import { assertRole, FINANCE_POSTING_ROLES, getAuthzUser } from "@/lib/authz"
 import { getPPhLiabilityAccount, type PPhTypeValue } from "@/lib/pph-helpers"
 import { toNum } from "@/lib/utils"
 import * as dueDateUtils from "@/lib/due-date-utils"
@@ -291,6 +293,8 @@ export async function getVendorPayments(): Promise<VendorPayment[]> {
 /**
  * Record a vendor payment (pay a bill)
  */
+const PAYABLE_BILL_STATUSES: InvoiceStatus[] = ['ISSUED', 'PARTIAL', 'OVERDUE']
+
 export async function recordVendorPayment(data: {
     supplierId: string
     billId?: string
@@ -309,6 +313,8 @@ export async function recordVendorPayment(data: {
     whtRate?: number    // WHT rate (e.g. 0.02 for 2%)
 }) {
     try {
+        const user = await getAuthzUser()
+        assertRole(user, [...FINANCE_POSTING_ROLES])
         return await withPrismaAuth(async (prisma) => {
             if (!data.supplierId) {
                 throw new Error("Supplier is required")
@@ -319,6 +325,16 @@ export async function recordVendorPayment(data: {
 
             // Period lock: fail fast before mutation
             await assertPeriodOpen(new Date())
+
+            if (data.billId) {
+                const payable = await prisma.invoice.findUnique({
+                    where: { id: data.billId },
+                    select: { number: true, status: true },
+                })
+                if (payable && !PAYABLE_BILL_STATUSES.includes(payable.status)) {
+                    throw new Error(`Tagihan ${payable.number} harus disetujui dulu sebelum dibayar`)
+                }
+            }
 
             const whtAmount = data.whtAmount && data.whtAmount > 0 ? data.whtAmount : 0
             const grossAmount = data.amount  // Total amount applied against invoice
@@ -503,6 +519,8 @@ export async function recordMultiBillPayment(data: {
     }
 }) {
     try {
+        const user = await getAuthzUser()
+        assertRole(user, [...FINANCE_POSTING_ROLES])
         return await withPrismaAuth(async (prisma) => {
             if (!data.supplierId) {
                 throw new Error("Supplier wajib dipilih")
@@ -544,6 +562,9 @@ export async function recordMultiBillPayment(data: {
                 if (!bill) throw new Error(`Tagihan ${alloc.billId} tidak ditemukan`)
                 if (bill.supplierId !== data.supplierId) {
                     throw new Error(`Tagihan ${bill.number} bukan milik vendor yang dipilih`)
+                }
+                if (!PAYABLE_BILL_STATUSES.includes(bill.status)) {
+                    throw new Error(`Tagihan ${bill.number} harus disetujui dulu sebelum dibayar`)
                 }
 
                 const currentBalance = toNum(bill.balanceDue)
@@ -800,6 +821,8 @@ export async function approveAndPayBill(
     }
 ) {
     try {
+        const user = await getAuthzUser()
+        assertRole(user, [...FINANCE_POSTING_ROLES])
         return await withPrismaAuth(async (prisma) => {
             // 1. Get Bill
             const bill = await prisma.invoice.findUnique({
@@ -828,54 +851,68 @@ export async function approveAndPayBill(
             // 3. Approve (Start GL Transaction: Debit Expense, Credit AP)
             // If already ISSUED (Approved), skip this step?
 
-            if (bill.status === 'DRAFT' || bill.status === 'DISPUTED' as InvoiceStatus) { // DRAFT or DISPUTED
-                // Update Status
+            if (bill.status === 'DRAFT' || bill.status === 'DISPUTED' as InvoiceStatus) {
                 await prisma.invoice.update({ where: { id: billId }, data: { status: 'ISSUED' } })
 
-                // Post AP Journal (Expense vs AP)
-                const glLines: any[] = []
-                let totalAmount = 0
-
-                // Add Expense Lines
-                // Vendor bills debit EXPENSE_DEFAULT (6900). COGS (5000) is only debited when inventory items are SOLD, not when purchased.
-                for (const item of bill.items) {
-                    const amount = toNum(item.amount)
-                    totalAmount += amount
-                    glLines.push({
-                        accountCode: SYS_ACCOUNTS.EXPENSE_DEFAULT,
-                        debit: amount,
-                        credit: 0,
-                        description: `${item.description}`
+                let goodsReceivedViaPO = false
+                if (bill.purchaseOrderId) {
+                    const grnCount = await prisma.goodsReceivedNote.count({
+                        where: {
+                            purchaseOrderId: bill.purchaseOrderId,
+                            status: 'ACCEPTED',
+                        },
                     })
+                    goodsReceivedViaPO = grnCount > 0
                 }
 
-                // Add Tax
-                if (toNum(bill.taxAmount) > 0) {
-                    glLines.push({
-                        accountCode: SYS_ACCOUNTS.PPN_MASUKAN,
-                        debit: toNum(bill.taxAmount),
-                        credit: 0,
-                        description: `PPN Masukan - Bill ${bill.number}`
-                    })
-                    totalAmount += toNum(bill.taxAmount)
-                }
-
-                // Add AP Credit
-                glLines.push({
-                    accountCode: SYS_ACCOUNTS.AP,
-                    debit: 0,
-                    credit: totalAmount,
-                    description: `Hutang - ${bill.supplier?.name}`
+                const existingJE = await prisma.journalEntry.findFirst({
+                    where: {
+                        OR: [{ invoiceId: billId }, { reference: bill.number }],
+                    },
+                    select: { id: true },
                 })
 
-                const approvalGl = await postJournalEntry({
-                    description: `Bill Approval (Instant Pay) #${bill.number} - ${bill.supplier?.name}`,
-                    date: new Date(),
-                    reference: bill.number,
-                    lines: glLines
-                }, prisma)
-                if (!approvalGl?.success) {
-                    throw new Error(`Jurnal approval gagal: ${(approvalGl as any)?.error || 'GL error'}`)
+                if (!existingJE) {
+                    const subtotal = toNum(bill.subtotal) || bill.items.reduce((sum, item) => sum + toNum(item.amount), 0)
+                    const tax = toNum(bill.taxAmount)
+                    const totalAmount = toNum(bill.totalAmount) || (subtotal + tax)
+                    const debitAccount = resolveVendorBillDebitAccount({
+                        goodsReceivedViaPO,
+                        glAccountCode: bill.glAccountCode,
+                    })
+                    const debitLabel = goodsReceivedViaPO
+                        ? `GR/IR Clearing - ${bill.number}`
+                        : `Beban - ${bill.number}`
+
+                    const glLines: { accountCode: string; debit: number; credit: number; description: string }[] = []
+                    if (tax > 0) {
+                        glLines.push({ accountCode: debitAccount, debit: subtotal, credit: 0, description: debitLabel })
+                        glLines.push({
+                            accountCode: SYS_ACCOUNTS.PPN_MASUKAN,
+                            debit: tax,
+                            credit: 0,
+                            description: `PPN Masukan - Bill ${bill.number}`,
+                        })
+                    } else {
+                        glLines.push({ accountCode: debitAccount, debit: totalAmount, credit: 0, description: debitLabel })
+                    }
+                    glLines.push({
+                        accountCode: SYS_ACCOUNTS.AP,
+                        debit: 0,
+                        credit: totalAmount,
+                        description: `Hutang - ${bill.supplier?.name}`,
+                    })
+
+                    const approvalGl = await postJournalEntry({
+                        description: `Bill Approval (Instant Pay) #${bill.number} - ${bill.supplier?.name}`,
+                        date: new Date(),
+                        reference: bill.number,
+                        invoiceId: billId,
+                        lines: glLines,
+                    }, prisma)
+                    if (!approvalGl?.success) {
+                        throw new Error(`Jurnal approval gagal: ${(approvalGl as any)?.error || 'GL error'}`)
+                    }
                 }
             }
 

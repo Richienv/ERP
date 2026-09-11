@@ -1707,7 +1707,7 @@ export async function createPayrollDisbursementBatch(period: string, options?: {
                 ],
             }, prisma)
             if (!journalPost.success) {
-                return { success: false, error: 'error' in journalPost ? journalPost.error : 'Gagal posting jurnal disbursement payroll' }
+                throw new Error('error' in journalPost ? String(journalPost.error) : 'Gagal posting jurnal disbursement payroll')
             }
 
             const updatedPayload: PayrollRunPayload = {

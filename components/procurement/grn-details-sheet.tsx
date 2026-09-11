@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { CheckCircle2, XCircle, Package, Loader2, Calendar, User, Warehouse, Printer, AlertTriangle } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { NB } from "@/lib/dialog-styles"
@@ -57,6 +58,7 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
     const [sodMode, setSodMode] = useState(false)
     const [sodReason, setSodReason] = useState("")
     const queryClient = useQueryClient()
+    const router = useRouter()
 
     if (!grn) return null
 
@@ -86,7 +88,13 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
                         ? `Bill ${result.billNumber} sudah ada`
                         : `Draft bill ${result.billNumber} siap disetujui`
                     : "Stok & jurnal GR/IR sudah masuk"
-                toast.success("Barang masuk diterima", { description: billed })
+                toast.success("Barang masuk diterima", {
+                    description: billed,
+                    action: {
+                        label: "Buka Tagihan",
+                        onClick: () => router.push("/finance/bills"),
+                    },
+                })
                 queryClient.invalidateQueries({ queryKey: queryKeys.miningCommand.pulse() })
                 queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
                 setSodMode(false)

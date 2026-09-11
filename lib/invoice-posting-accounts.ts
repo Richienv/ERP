@@ -43,3 +43,12 @@ export function getRequiredInvoicePostingSystemAccountCodes(input: {
     if (input.taxAmount > 0) codes.push(SYS_ACCOUNTS.PPN_MASUKAN)
     return codes
 }
+
+/** AP bill approval debit: GR/IR when goods already received, else expense/COA. */
+export function resolveVendorBillDebitAccount(input: {
+    goodsReceivedViaPO: boolean
+    glAccountCode?: string | null
+}): string {
+    if (input.goodsReceivedViaPO) return SYS_ACCOUNTS.GR_IR_CLEARING
+    return input.glAccountCode || SYS_ACCOUNTS.EXPENSE_DEFAULT
+}

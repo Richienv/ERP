@@ -46,6 +46,7 @@ import { CheckboxFilter } from "@/components/ui/checkbox-filter"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { disputeBill, recordMultiBillPayment, type VendorBill } from "@/lib/actions/finance"
+import { moveInvoiceToSent } from "@/lib/actions/finance-invoices"
 import { PaymentHistoryTable, type PaymentHistoryRow } from "@/components/finance/payment-history-table"
 import { processXenditPayout } from "@/lib/actions/xendit"
 import { formatIDR } from "@/lib/utils"
@@ -95,6 +96,7 @@ export default function APBillsStackPage() {
     const [activeBill, setActiveBill] = useState<VendorBill | null>(null)
     const [stamped, setStamped] = useState(false)
     const [processing, setProcessing] = useState(false)
+    const [approvingId, setApprovingId] = useState<string | null>(null)
     const [paymentPendingBillId, setPaymentPendingBillId] = useState<string | null>(null)
 
     const [isDetailOpen, setIsDetailOpen] = useState(false)
@@ -239,6 +241,30 @@ export default function APBillsStackPage() {
         queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
         queryClient.invalidateQueries({ queryKey: queryKeys.accountTransactions.all })
         queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
+    }
+
+    const invalidateAfterApprove = () => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.miningCommand.pulse() })
+    }
+
+    const handleApproveBill = async (bill: VendorBill) => {
+        if (!bill?.id || approvingId) return
+        setApprovingId(bill.id)
+        try {
+            const result = await moveInvoiceToSent(bill.id)
+            if (result.success) {
+                toast.success(`${bill.number} berhasil disetujui`)
+                setIsDetailOpen(false)
+                invalidateAfterApprove()
+            } else {
+                toast.error(("error" in result ? result.error : null) || "Gagal menyetujui tagihan")
+            }
+        } catch (err: any) {
+            toast.error(err?.message || "Gagal menyetujui tagihan")
+        } finally {
+            setApprovingId(null)
+        }
     }
 
     const handleDisputeSubmit = async () => {
@@ -618,7 +644,20 @@ export default function APBillsStackPage() {
                                                 </motion.button>
                                             )}
                                             {bill.status === "DRAFT" && (
-                                                <span className="text-[9px] italic text-zinc-400 dark:text-zinc-500 px-1">Perlu persetujuan</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleApproveBill(bill)}
+                                                    disabled={!!approvingId}
+                                                    title="Setujui"
+                                                    className={`${NB.toolbarBtnPrimary} ml-0 h-7 px-2 inline-flex items-center`}
+                                                >
+                                                    {approvingId === bill.id ? (
+                                                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                                    ) : (
+                                                        <Check className="h-3 w-3 mr-1" />
+                                                    )}
+                                                    Setujui
+                                                </button>
                                             )}
                                         </div>
                                     </motion.div>
@@ -727,9 +766,17 @@ export default function APBillsStackPage() {
                                 </>
                             ) : activeBill.status === "DRAFT" ? (
                                 <>
-                                    <span className="text-[10px] italic text-zinc-400">Tagihan ini masih draft — perlu persetujuan sebelum dibayar</span>
                                     <Button variant="outline" onClick={() => setIsDetailOpen(false)} className={NB.cancelBtn}>
                                         Tutup
+                                    </Button>
+                                    <Button
+                                        onClick={() => handleApproveBill(activeBill)}
+                                        disabled={!!approvingId}
+                                        className={NB.submitBtnOrange}
+                                    >
+                                        {approvingId === activeBill.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        <Check className="mr-2 h-3.5 w-3.5" />
+                                        Setujui
                                     </Button>
                                 </>
                             ) : (

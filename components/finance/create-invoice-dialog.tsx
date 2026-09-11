@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { FileText, Receipt, CreditCard, CalendarDays, Loader2, Package } from "lucide-react"
+import { FileText, Receipt, CreditCard, CalendarDays, Loader2, Package, UserPlus } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { SelectItem } from "@/components/ui/select"
 import { toast } from "sonner"
@@ -15,6 +15,7 @@ import {
     createInvoiceFromSalesOrder,
     createBillFromPOId,
 } from "@/lib/actions/finance-invoices"
+import { createCustomerQuick } from "@/lib/actions/master-data"
 import { NB } from "@/lib/dialog-styles"
 import {
     NBDialog,
@@ -89,6 +90,8 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
     const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0])
     const [dueDate, setDueDate] = useState("")
     const [selectedAccountId, setSelectedAccountId] = useState("")
+    const [quickCustomerName, setQuickCustomerName] = useState("")
+    const [creatingCustomer, setCreatingCustomer] = useState(false)
 
     // Single API call fetches all data — no withPrismaAuth transaction overhead
     const { data, isLoading: dataLoading } = useQuery<AvailableOrdersData>({
@@ -120,6 +123,34 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
         setDueDate("")
         setIssueDate(new Date().toISOString().split('T')[0])
         setSelectedAccountId("")
+        setQuickCustomerName("")
+    }
+
+    const handleQuickCreateCustomer = async () => {
+        const name = quickCustomerName.trim()
+        if (!name) {
+            toast.error("Masukkan nama pelanggan")
+            return
+        }
+        setCreatingCustomer(true)
+        try {
+            const customer = await createCustomerQuick(name)
+            queryClient.setQueryData<AvailableOrdersData>(queryKeys.invoiceAvailableOrders.list(), (old) => {
+                if (!old) return old
+                return {
+                    ...old,
+                    parties: [...old.parties, { id: customer.id, name: customer.name, type: "CUSTOMER" }],
+                }
+            })
+            setSelectedCustomer(customer.id)
+            setQuickCustomerName("")
+            queryClient.invalidateQueries({ queryKey: queryKeys.invoiceAvailableOrders.all })
+            toast.success(`Pelanggan "${customer.name}" berhasil ditambahkan`)
+        } catch (err: any) {
+            toast.error(err?.message || "Gagal menambah pelanggan")
+        } finally {
+            setCreatingCustomer(false)
+        }
     }
 
     const handleCreate = async () => {
@@ -322,7 +353,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
 
                                 {/* Customer/Vendor */}
                                 <NBSelect
-                                    label={manualType === 'CUSTOMER' ? 'Customer' : 'Vendor'}
+                                    label={manualType === 'CUSTOMER' ? 'Pelanggan' : 'Vendor'}
                                     required
                                     value={selectedCustomer}
                                     onValueChange={setSelectedCustomer}
@@ -332,12 +363,38 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                         <SelectItem value="__loading__" disabled>Memuat data...</SelectItem>
                                     ) : parties.filter(c => c.type === manualType).length === 0 ? (
                                         <SelectItem value="__empty__" disabled>
-                                            Tidak ada {manualType.toLowerCase()} aktif
+                                            Tidak ada {manualType === 'CUSTOMER' ? 'pelanggan' : 'vendor'} aktif
                                         </SelectItem>
                                     ) : parties.filter(c => c.type === manualType).map((party) => (
                                         <SelectItem key={party.id} value={party.id}>{party.name}</SelectItem>
                                     ))}
                                 </NBSelect>
+                                {manualType === 'CUSTOMER' && !dataLoading && parties.filter(c => c.type === 'CUSTOMER').length === 0 && (
+                                    <div className="border border-orange-300 bg-orange-50/50 dark:border-orange-600 dark:bg-orange-950/20 p-3 space-y-2">
+                                        <p className="text-[10px] font-black uppercase tracking-wider text-orange-700 dark:text-orange-400">
+                                            Belum ada pelanggan
+                                        </p>
+                                        <NBInput
+                                            label="Tambah pelanggan cepat"
+                                            value={quickCustomerName}
+                                            onChange={setQuickCustomerName}
+                                            placeholder="Nama pelanggan"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleQuickCreateCustomer}
+                                            disabled={creatingCustomer || !quickCustomerName.trim()}
+                                            className={`${NB.toolbarBtnPrimary} ml-0 inline-flex items-center disabled:opacity-50`}
+                                        >
+                                            {creatingCustomer ? (
+                                                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                                            ) : (
+                                                <UserPlus className="h-3.5 w-3.5 mr-1.5" />
+                                            )}
+                                            Tambah pelanggan
+                                        </button>
+                                    </div>
+                                )}
 
                                 {/* Product/Description */}
                                 <NBInput

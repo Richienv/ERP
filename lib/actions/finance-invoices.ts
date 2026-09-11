@@ -4,9 +4,11 @@ import { InvoiceStatus, InvoiceType } from "@prisma/client"
 import { withPrismaAuth, prisma } from "@/lib/db"
 import { postJournalEntry } from "./finance-gl"
 import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts-server"
+import { assertRole, FINANCE_POSTING_ROLES, getAuthzUser } from "@/lib/authz"
 import {
     getRequiredInvoicePostingSystemAccountCodes,
     INVOICE_POSTING_ACCOUNT_DEFS,
+    resolveVendorBillDebitAccount,
     type RequiredSystemAccountDef,
 } from "@/lib/invoice-posting-accounts"
 import {
@@ -313,6 +315,8 @@ export async function createCustomerInvoice(data: {
     accountId?: string // User-selected GL account UUID (looked up → glAccountCode on invoice)
 }) {
     try {
+        const user = await getAuthzUser()
+        assertRole(user, [...FINANCE_POSTING_ROLES])
         // Server-side validation: COA account is mandatory for manual invoices
         if (!data.accountId) {
             return { success: false, error: "Pilih akun pendapatan/beban (COA) terlebih dahulu" }
@@ -1068,6 +1072,8 @@ export async function createBillFromPOId(
 
 export async function moveInvoiceToSent(invoiceId: string, _message?: string, _method?: 'WHATSAPP' | 'EMAIL') {
     try {
+        const user = await getAuthzUser()
+        assertRole(user, [...FINANCE_POSTING_ROLES])
         // Period lock: fail fast before mutation
         await assertPeriodOpen(new Date())
 
@@ -1199,9 +1205,10 @@ export async function moveInvoiceToSent(invoiceId: string, _message?: string, _m
                     }, prisma)
                 } else {
                     // AP Bill: DR [expense or GR/IR] + DR PPN Masukan, CR Hutang Usaha
-                    const debitAccount = goodsReceivedViaPO
-                        ? SYS_ACCOUNTS.GR_IR_CLEARING
-                        : (existing.glAccountCode || SYS_ACCOUNTS.EXPENSE_DEFAULT)
+                    const debitAccount = resolveVendorBillDebitAccount({
+                        goodsReceivedViaPO,
+                        glAccountCode: existing.glAccountCode,
+                    })
                     const debitLabel = goodsReceivedViaPO
                         ? `GR/IR Clearing - ${existing.number}`
                         : `Beban - ${existing.number}`
@@ -1315,6 +1322,8 @@ export async function recordInvoicePayment(data: {
     }
 }) {
     try {
+        const user = await getAuthzUser()
+        assertRole(user, [...FINANCE_POSTING_ROLES])
         const paymentDate = new Date(data.paymentDate)
         if (Number.isNaN(paymentDate.getTime())) {
             throw new Error("Tanggal pembayaran tidak valid")

@@ -32,6 +32,15 @@ export const DEFAULT_ROLE = "ROLE_STAFF"
  */
 export const SUPER_ROLES: readonly string[] = ["ADMIN"]
 
+/** Roles allowed to post money-moving finance documents (invoice, bill, payment, capitalize). */
+export const FINANCE_POSTING_ROLES: readonly string[] = [
+    "ROLE_ADMIN",
+    "ROLE_CEO",
+    "ROLE_DIRECTOR",
+    "ROLE_MANAGER",
+    "ROLE_ACCOUNTANT",
+]
+
 /** Strip ROLE_ prefix and uppercase for comparison */
 function normalizeRole(role: string): string {
     return (role || "").toUpperCase().replace(/^ROLE_/, '')

@@ -84,7 +84,13 @@ export async function middleware(request: NextRequest) {
         "/staff",
         "/subcontract",
         "/cutting",
-        "/costing"
+        "/costing",
+        "/fleet",
+        "/settings",
+        "/reports",
+        "/documents",
+        "/admin",
+        "/search",
     ]
 
     const { pathname } = request.nextUrl

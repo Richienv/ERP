@@ -4,6 +4,8 @@ import { prisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import type { VehicleType, VehicleStatus } from "@prisma/client"
+import { assertRole, FINANCE_POSTING_ROLES, getAuthzUser } from "@/lib/authz"
+import { assertPeriodOpen } from "@/lib/period-helpers"
 
 async function requireAuth() {
     const supabase = await createClient()
@@ -268,10 +270,15 @@ export type CapitalizeVehicleInput = {
  */
 export async function capitalizeVehicleAsAsset(vehicleId: string, input: CapitalizeVehicleInput) {
     try {
-        await requireAuth()
+        const user = await getAuthzUser()
+        assertRole(user, [...FINANCE_POSTING_ROLES])
+        await assertPeriodOpen(new Date())
         const cost = Number(input.purchaseCost)
         if (!cost || cost <= 0) {
             return { success: false as const, error: "Nilai perolehan harus lebih dari 0" }
+        }
+        if (!input.fundingSource) {
+            return { success: false as const, error: "Pilih sumber dana (kas, bank, atau saldo awal)" }
         }
 
         const vehicle = await prisma.vehicle.findUnique({
@@ -296,6 +303,27 @@ export async function capitalizeVehicleAsAsset(vehicleId: string, input: Capital
         }
         if (vehicle.ownerCustomerId) {
             return { success: false as const, error: "Kendaraan milik customer tidak bisa dikapitalisasi sebagai aset perusahaan" }
+        }
+
+        if (vehicle.vin) {
+            const orphan = await prisma.fixedAsset.findFirst({
+                where: { serialNumber: vehicle.vin },
+                select: { id: true, assetCode: true, name: true },
+            })
+            if (orphan) {
+                await prisma.vehicle.update({
+                    where: { id: vehicle.id },
+                    data: { fixedAssetId: orphan.id },
+                })
+                revalidatePath("/fleet")
+                revalidatePath(`/fleet/${vehicle.id}`)
+                return {
+                    success: true as const,
+                    assetId: orphan.id,
+                    assetCode: orphan.assetCode,
+                    name: orphan.name,
+                }
+            }
         }
 
         const { createFixedAsset, getFixedAssetCategories, createFixedAssetCategory } = await import(
@@ -366,7 +394,7 @@ export async function capitalizeVehicleAsAsset(vehicleId: string, input: Capital
             department: "Operasional Tambang",
             serialNumber: vehicle.vin || undefined,
             notes: `Dikapitalisasi dari armada ${vehicle.plateNumber}`,
-            fundingSource: input.fundingSource || "OPENING_BALANCE",
+            fundingSource: input.fundingSource,
         })
 
         if (!created.success || !created.asset) {
@@ -397,7 +425,8 @@ export async function capitalizeVehicleAsAsset(vehicleId: string, input: Capital
 
 export async function deleteVehicle(id: string) {
     try {
-        await requireAuth()
+        const user = await getAuthzUser()
+        assertRole(user, [...FINANCE_POSTING_ROLES])
         // Soft delete dulu — cek belum ada rental contract aktif (TODO setelah module rental dibuat).
         await prisma.vehicle.update({ where: { id }, data: { isActive: false, status: "INACTIVE" } })
         revalidatePath("/fleet")
