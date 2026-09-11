@@ -1,6 +1,6 @@
 
-import { getLatestSnapshot } from './app/actions/dashboard.ts'
-import { getFinancialMetrics } from './lib/actions/finance.ts'
+import { getLatestSnapshot } from './app/actions/dashboard'
+import { getFinancialMetrics } from './lib/actions/finance'
 
 async function main() {
     try {

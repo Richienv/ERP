@@ -80,6 +80,10 @@ export const queryKeys = {
         all: ["financeDashboard"] as const,
         list: () => [...queryKeys.financeDashboard.all, "list"] as const,
     },
+    miningCommand: {
+        all: ["miningCommand"] as const,
+        pulse: () => [...queryKeys.miningCommand.all, "pulse"] as const,
+    },
     purchaseRequests: {
         all: ["purchaseRequests"] as const,
         list: () => [...queryKeys.purchaseRequests.all, "list"] as const,
@@ -377,6 +381,11 @@ export const queryKeys = {
     fiscalPeriods: {
         all: ["fiscalPeriods"] as const,
         list: (year?: number) => [...["fiscalPeriods"], "list", year] as const,
+    },
+    monthEndClose: {
+        all: ["monthEndClose"] as const,
+        checklist: (year: number, month: number) =>
+            [...queryKeys.monthEndClose.all, "checklist", year, month] as const,
     },
     cashflowPlan: {
         all: ["cashflowPlan"] as const,

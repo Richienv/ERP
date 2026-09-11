@@ -2,10 +2,10 @@
 // Server-only GL account functions that need Prisma.
 // Client-safe constants (SYS_ACCOUNTS, isCOGSAccount, etc.) live in gl-accounts.ts.
 
-import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
+import { isStaleSystemAccountName, SYS_ACCOUNTS } from "@/lib/gl-accounts"
 
 // Re-export everything from gl-accounts so callers can import from one place
-export { SYS_ACCOUNTS, getCashAccountCode, isCOGSAccount } from "@/lib/gl-accounts"
+export { SYS_ACCOUNTS, getCashAccountCode, isCOGSAccount, isStaleSystemAccountName } from "@/lib/gl-accounts"
 
 const SYSTEM_ACCOUNT_DEFS: { code: string; name: string; type: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE" }[] = [
   { code: SYS_ACCOUNTS.CASH,             name: "Kas & Setara Kas",              type: "ASSET" },
@@ -46,6 +46,7 @@ const SYSTEM_ACCOUNT_DEFS: { code: string; name: string; type: "ASSET" | "LIABIL
   { code: SYS_ACCOUNTS.INTEREST_INCOME,  name: "Pendapatan Bunga",              type: "REVENUE" },
   { code: SYS_ACCOUNTS.COGS,             name: "Beban Pokok Penjualan (HPP)",   type: "EXPENSE" },
   { code: SYS_ACCOUNTS.SALARY_EXPENSE,   name: "Beban Gaji",                    type: "EXPENSE" },
+  { code: SYS_ACCOUNTS.BPJS_EMPLOYER_EXPENSE, name: "Beban BPJS Perusahaan",    type: "EXPENSE" },
   { code: SYS_ACCOUNTS.DEPRECIATION,     name: "Beban Penyusutan",              type: "EXPENSE" },
   { code: SYS_ACCOUNTS.BAD_DEBT_EXPENSE, name: "Beban Kerugian Piutang",        type: "EXPENSE" },
   { code: SYS_ACCOUNTS.EXPENSE_DEFAULT,  name: "Beban Lain-lain",              type: "EXPENSE" },
@@ -56,32 +57,64 @@ const SYSTEM_ACCOUNT_DEFS: { code: string; name: string; type: "ASSET" | "LIABIL
 
 let _ensured = false
 
+type EnsureAccountsClient = {
+  gLAccount: {
+    upsert: (args: {
+      where: { code: string }
+      create: { code: string; name: string; type: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE"; balance: number; isSystem: boolean }
+      update: Record<string, unknown>
+    }) => Promise<unknown>
+    findMany?: (args: {
+      where: { code: { in: string[] } }
+      select: { code: true; name: true }
+    }) => Promise<Array<{ code: string; name: string }>>
+    update?: (args: {
+      where: { code: string }
+      data: { name: string; isSystem: boolean }
+    }) => Promise<unknown>
+  }
+}
+
 /**
  * Ensures all system GL accounts exist in the database.
- * Uses upsert (create if missing, skip if exists).
- * Cached per process — in serverless (Vercel), resets on cold start (harmless, upserts are idempotent).
+ * Creates missing codes. Refreshes only known stale English placeholders
+ * (e.g. 2200 "Other liabilities" → "Utang Gaji"). Custom names stay put.
+ * Cached per process — in serverless (Vercel), resets on cold start.
  */
 export async function ensureSystemAccounts(
-  prismaClient?: {
-    gLAccount: {
-      upsert: (args: {
-        where: { code: string }
-        create: { code: string; name: string; type: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE"; balance: number; isSystem: boolean }
-        update: Record<string, never>
-      }) => Promise<unknown>
-    }
-  }
+  prismaClient?: EnsureAccountsClient
 ): Promise<void> {
   if (_ensured) return
-  const db = prismaClient ?? (await import("@/lib/prisma")).prisma
+  const db = (prismaClient ?? (await import("@/lib/prisma")).prisma) as EnsureAccountsClient
   try {
     await Promise.all(SYSTEM_ACCOUNT_DEFS.map((def) =>
       db.gLAccount.upsert({
         where: { code: def.code },
         create: { code: def.code, name: def.name, type: def.type, balance: 0, isSystem: true },
-        update: {}, // Don't overwrite existing name/type — user may have customized
+        update: {}, // Don't overwrite a customized name/type on upsert
       })
     ))
+
+    if (typeof db.gLAccount.findMany === "function" && typeof db.gLAccount.update === "function") {
+      const existing = await db.gLAccount.findMany({
+        where: { code: { in: SYSTEM_ACCOUNT_DEFS.map((d) => d.code) } },
+        select: { code: true, name: true },
+      })
+      const byCode = new Map(existing.map((row) => [row.code, row.name]))
+      const stale = SYSTEM_ACCOUNT_DEFS.filter((def) => {
+        const current = byCode.get(def.code)
+        return current != null && isStaleSystemAccountName(current, def.name)
+      })
+      if (stale.length > 0) {
+        await Promise.all(stale.map((def) =>
+          db.gLAccount.update!({
+            where: { code: def.code },
+            data: { name: def.name, isSystem: true },
+          })
+        ))
+      }
+    }
+
     _ensured = true
   } catch (error) {
     console.error("Failed to ensure system accounts:", error)

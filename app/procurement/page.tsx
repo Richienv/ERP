@@ -16,6 +16,7 @@ import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 import { useCallback, useState } from "react"
 import { DirectPurchaseDialog } from "@/components/procurement/direct-purchase-dialog"
 import { useDirectPurchaseOptions } from "@/hooks/use-direct-purchase-options"
+import { CommandPulse, MiningSnapshotStrip } from "@/components/mining/command-pulse"
 
 function statusLabel(status: string) {
   const map: Record<string, { label: string; dot: string; bg: string; text: string }> = {
@@ -69,6 +70,14 @@ export default function ProcurementPage() {
   return (
     <ProcurementPerformanceProvider currentPath="/procurement">
       <div className="flex-1 p-4 md:p-6 lg:p-8 pt-6 w-full space-y-4">
+
+        <CommandPulse
+          module="procurement"
+          compact
+          title="Pengadaan — terima, tagih, bayar"
+          subtitle="PR, PO, GRN, dan bill vendor dalam satu antrian"
+        />
+        <MiningSnapshotStrip highlight={["apOpen", "inventoryValue"]} />
 
         {/* Page Header */}
         <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
