@@ -172,7 +172,7 @@ export function OperationsInbox({
                         <div className="flex items-center gap-2">
                             <h2 className="text-sm font-black uppercase tracking-wider">{title}</h2>
                             <span className="border border-zinc-300 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-zinc-500 dark:border-zinc-700">
-                                {actions.length} tugas
+                                {data ? `${actions.length} tugas` : "memuat"}
                             </span>
                         </div>
                         <p className="mt-0.5 text-[11px] text-zinc-500">{subtitle}</p>
@@ -185,19 +185,21 @@ export function OperationsInbox({
             <div className={`${NB.kpiStrip} ${NB.pageRowBorder}`}>
                 <div className={NB.kpiCell}>
                     <span className={NB.kpiLabel}>Segera</span>
-                    <span className={`${NB.kpiCount} ${segera > 0 ? "text-red-600 dark:text-red-500" : ""}`}>{segera}</span>
+                    <span className={`${NB.kpiCount} ${segera > 0 ? "text-red-600 dark:text-red-500" : ""}`}>
+                        {data ? segera : "—"}
+                    </span>
                 </div>
                 <div className={NB.kpiCell}>
                     <span className={NB.kpiLabel}>Minggu ini</span>
-                    <span className={NB.kpiCount}>{mingguIni}</span>
+                    <span className={NB.kpiCount}>{data ? mingguIni : "—"}</span>
                 </div>
                 <div className={NB.kpiCell}>
                     <span className={NB.kpiLabel}>Terjadwal</span>
-                    <span className={NB.kpiCount}>{terjadwal}</span>
+                    <span className={NB.kpiCount}>{data ? terjadwal : "—"}</span>
                 </div>
                 <div className={`${NB.kpiCell} hidden md:flex`}>
                     <span className={NB.kpiLabel}>Nilai tertahan</span>
-                    <span className={NB.kpiAmount}>{formatIDR(amountHeld)}</span>
+                    <span className={NB.kpiAmount}>{data ? formatIDR(amountHeld) : "—"}</span>
                 </div>
             </div>
 
