@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef } from "react"
 import {
     ReactFlow, Background, Controls, MiniMap,
-    useNodesState, useEdgesState, reconnectEdge,
+    useNodesState, useEdgesState, reconnectEdge, ConnectionLineType,
     type Node, type Edge, type Connection,
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
@@ -287,7 +287,7 @@ export function BOMCanvas({
                 fitView
                 minZoom={0.3}
                 maxZoom={2}
-                connectionLineType="smoothstep"
+                connectionLineType={ConnectionLineType.SmoothStep}
                 connectionLineStyle={{ strokeWidth: 2, stroke: "#f97316" }}
                 proOptions={{ hideAttribution: true }}
             >

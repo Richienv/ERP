@@ -61,7 +61,14 @@ export default function SignUpPage() {
                 options: {
                     data: {
                         name: fullName,
-                        role: role
+                        // SECURITY: never send `role` here. Supabase user_metadata is
+                        // client-writable, so anything stored in it is attacker-controlled
+                        // and must never be treated as an authorization source.
+                        // The effective role is assigned server-side from public.users
+                        // (see lib/authz.ts). New accounts start at the least-privileged
+                        // role until an admin promotes them. This field is a non-binding
+                        // hint for the admin reviewing the request — do NOT read it for authz.
+                        requestedRole: role
                     },
                     emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3002'}/auth/callback`
                 }
@@ -203,7 +210,7 @@ export default function SignUpPage() {
                         {/* Role Selection */}
                         <div className="space-y-2">
                             <Label htmlFor="role" className="text-sm font-bold text-black">
-                                Peran / Jabatan
+                                Peran / Jabatan yang Diajukan
                             </Label>
                             <div className="relative">
                                 <select
@@ -221,6 +228,10 @@ export default function SignUpPage() {
                                 </select>
                                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
                             </div>
+                            <p className="text-xs text-zinc-500 leading-relaxed">
+                                Akun baru dimulai dengan akses Staf. Peran yang Anda ajukan akan
+                                diverifikasi dan diaktifkan oleh admin.
+                            </p>
                         </div>
 
                         {/* Password */}

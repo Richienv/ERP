@@ -13,11 +13,14 @@ import { toNum } from "@/lib/utils"
 export async function getNextJournalRef(prefix: string): Promise<string> {
     const year = new Date().getFullYear()
     const search = `${prefix}-${year}`
-    const { prisma } = await withPrismaAuth()
-    const count = await prisma.journalEntry.count({
-        where: { reference: { startsWith: search } }
+    // withPrismaAuth takes an operation callback — it does NOT return { prisma }.
+    // Calling it with no arguments threw "operation is not a function" at runtime.
+    return await withPrismaAuth(async (prisma) => {
+        const count = await prisma.journalEntry.count({
+            where: { reference: { startsWith: search } }
+        })
+        return `${search}-${String(count + 1).padStart(4, '0')}`
     })
-    return `${search}-${String(count + 1).padStart(4, '0')}`
 }
 
 // ==========================================
@@ -227,6 +230,14 @@ export async function deleteGLAccount(id: string) {
  * When called from within an existing transaction, pass the tx client to avoid
  * nested withPrismaAuth deadlocks (connection pool exhaustion).
  */
+/** Shape of the GLAccount columns postJournalEntryInner relies on. */
+type PostingAccount = { id: string; code: string; name: string; type: string; allowDirectPosting: boolean }
+
+/** Discriminated result of a journal posting attempt. */
+export type JournalPostResult =
+    | { success: true; id: string }
+    | { success: false; error: string }
+
 async function postJournalEntryInner(prisma: any, data: {
     description: string
     date: Date
@@ -236,13 +247,15 @@ async function postJournalEntryInner(prisma: any, data: {
     inventoryTransactionId?: string
     sourceDocumentType?: string
     lines: { accountCode: string; debit: number; credit: number; description?: string }[]
-}) {
+}): Promise<JournalPostResult> {
     const codes = data.lines.map(l => l.accountCode)
-    const accounts = await prisma.gLAccount.findMany({
+    // `prisma` is intentionally untyped (may be a tx client); the selected model is GLAccount,
+    // so the rows are safely described by PostingAccount.
+    const accounts: PostingAccount[] = await prisma.gLAccount.findMany({
         where: { code: { in: codes } }
     })
 
-    const accountMap = new Map(accounts.map((a: any) => [a.code, a]))
+    const accountMap = new Map<string, PostingAccount>(accounts.map((a) => [a.code, a]))
 
     // Block manual journal entries from posting to control accounts (AR, AP, Inventory)
     if (data.sourceDocumentType === 'MANUAL') {
@@ -285,17 +298,17 @@ async function postJournalEntryInner(prisma: any, data: {
     // Update GL balances in parallel
     await Promise.all(data.lines.map(line => {
         const account = accountMap.get(line.accountCode)!
-        const balanceChange = ['ASSET', 'EXPENSE'].includes((account as any).type)
+        const balanceChange = ['ASSET', 'EXPENSE'].includes(account.type)
             ? line.debit - line.credit
             : line.credit - line.debit
 
         return prisma.gLAccount.update({
-            where: { id: (account as any).id },
+            where: { id: account.id },
             data: { balance: { increment: balanceChange } }
         })
     }))
 
-    return { success: true, id: entry.id }
+    return { success: true, id: entry.id as string }
 }
 
 /**
@@ -320,7 +333,7 @@ export async function postJournalEntry(data: {
         credit: number
         description?: string
     }[]
-}, txClient?: any) {
+}, txClient?: any): Promise<JournalPostResult> {
     try {
         const totalDebit = data.lines.reduce((sum, line) => sum + line.debit, 0)
         const totalCredit = data.lines.reduce((sum, line) => sum + line.credit, 0)
@@ -1496,13 +1509,15 @@ export async function applyBalanceReconciliation(): Promise<{ updated: number }>
     throw new Error(`Gagal membuat jurnal penyesuaian: ${glResult.error}`)
   }
 
-  // Log audit trail
+  // Log audit trail — logAudit(tx, params); `changes` is a ChangeMap keyed by field name,
+  // and the narrative is generated inside logAudit from those changes.
   const { logAudit } = await import('@/lib/audit-helpers')
-  await logAudit({
-    entityType: 'GL_RECONCILIATION', entityId: glResult.id || 'system', action: 'UPDATE',
+  await logAudit(prisma, {
+    entityType: 'GL_RECONCILIATION', entityId: glResult.id, action: 'UPDATE',
     userId: user.id, userName: user.email || 'System',
-    changes: preview.rows.map((r) => ({ field: `${r.accountCode} ${r.accountName}`, from: r.oldBalance, to: r.newBalance })),
-    narrative: `Rekonsiliasi saldo ${preview.rows.length} akun GL via jurnal penyesuaian. Total selisih: Rp ${preview.totalDifference.toLocaleString('id-ID')}`,
+    changes: Object.fromEntries(
+      preview.rows.map((r) => [`${r.accountCode} ${r.accountName}`, { from: r.oldBalance, to: r.newBalance }])
+    ),
   })
 
   return { updated: preview.rows.length }
