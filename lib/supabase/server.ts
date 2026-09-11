@@ -43,6 +43,11 @@ export async function createClient() {
             data: { user: demoUser as never },
             error: null,
         })) as typeof supabase.auth.getUser
+    } else if (supabaseUrl.includes("placeholder")) {
+        supabase.auth.getUser = (async () => ({
+            data: { user: null },
+            error: { message: "Supabase auth is not configured", name: "AuthSessionMissingError", status: 400 },
+        })) as typeof supabase.auth.getUser
     }
 
     return supabase
