@@ -23,6 +23,9 @@ import {
     Banknote,
     Check,
     Minus,
+    GitCompare,
+    ShieldCheck,
+    ShieldAlert,
 } from "lucide-react"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -46,6 +49,9 @@ import { CheckboxFilter } from "@/components/ui/checkbox-filter"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { disputeBill, recordMultiBillPayment, type VendorBill } from "@/lib/actions/finance"
+import { moveInvoiceToSent } from "@/lib/actions/finance-invoices"
+import { getThreeWayMatch } from "@/lib/actions/finance-match"
+import { useBillMatch } from "@/hooks/use-bill-match"
 import { PaymentHistoryTable, type PaymentHistoryRow } from "@/components/finance/payment-history-table"
 import { processXenditPayout } from "@/lib/actions/xendit"
 import { formatIDR } from "@/lib/utils"
@@ -95,12 +101,19 @@ export default function APBillsStackPage() {
     const [activeBill, setActiveBill] = useState<VendorBill | null>(null)
     const [stamped, setStamped] = useState(false)
     const [processing, setProcessing] = useState(false)
+    const [approvingId, setApprovingId] = useState<string | null>(null)
     const [paymentPendingBillId, setPaymentPendingBillId] = useState<string | null>(null)
 
     const [isDetailOpen, setIsDetailOpen] = useState(false)
     const [isPayOpen, setIsPayOpen] = useState(false)
     const [isDisputeOpen, setIsDisputeOpen] = useState(false)
     const [disputeReason, setDisputeReason] = useState("")
+    const [approveAlasan, setApproveAlasan] = useState("")
+
+    const { data: billMatch, isLoading: matchLoading, isError: matchError } = useBillMatch(
+        activeBill?.id,
+        isDetailOpen && activeBill?.status === "DRAFT"
+    )
 
     const [paymentForm, setPaymentForm] = useState({
         bankCode: "",
@@ -241,6 +254,46 @@ export default function APBillsStackPage() {
         queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
     }
 
+    const invalidateAfterApprove = () => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.miningCommand.pulse() })
+    }
+
+    const handleApproveBill = async (bill: VendorBill) => {
+        if (!bill?.id || approvingId) return
+        setApprovingId(bill.id)
+        try {
+            const match = await queryClient.fetchQuery({
+                queryKey: queryKeys.bills.match(bill.id),
+                queryFn: () => getThreeWayMatch(bill.id),
+            })
+            let message: string | undefined
+            if (match.status === "OVER_BILLED") {
+                const reason = approveAlasan.trim()
+                if (reason.length < 10) {
+                    setActiveBill(bill)
+                    setIsDetailOpen(true)
+                    toast.error("Selisih penerimaan. Isi alasan persetujuan (min. 10 karakter).")
+                    return
+                }
+                message = reason
+            }
+            const result = await moveInvoiceToSent(bill.id, message)
+            if (result.success) {
+                toast.success(`${bill.number} berhasil disetujui`)
+                setIsDetailOpen(false)
+                setApproveAlasan("")
+                invalidateAfterApprove()
+            } else {
+                toast.error(("error" in result ? result.error : null) || "Gagal menyetujui tagihan")
+            }
+        } catch (err: any) {
+            toast.error(err?.message || "Gagal menyetujui tagihan")
+        } finally {
+            setApprovingId(null)
+        }
+    }
+
     const handleDisputeSubmit = async () => {
         if (!activeBill || !disputeReason.trim()) { toast.error("Masukkan alasan dispute"); return }
         setProcessing(true)
@@ -350,7 +403,15 @@ export default function APBillsStackPage() {
         }
     }
 
-    const openBillDetail = (bill: VendorBill) => { setActiveBill(bill); setStamped(false); setIsDetailOpen(true) }
+    const openBillDetail = (bill: VendorBill) => {
+        setActiveBill(bill)
+        setStamped(false)
+        setApproveAlasan("")
+        setIsDetailOpen(true)
+    }
+
+    const overBilledBlocked = billMatch?.status === "OVER_BILLED" && approveAlasan.trim().length < 10
+    const approveDisabled = !!approvingId || (activeBill?.status === "DRAFT" && (matchLoading || matchError || overBilledBlocked))
 
     // Separate active vs completed bills
     const activeBills = bills.filter((b) => b.status !== "PAID")
@@ -618,7 +679,20 @@ export default function APBillsStackPage() {
                                                 </motion.button>
                                             )}
                                             {bill.status === "DRAFT" && (
-                                                <span className="text-[9px] italic text-zinc-400 dark:text-zinc-500 px-1">Perlu persetujuan</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleApproveBill(bill)}
+                                                    disabled={!!approvingId}
+                                                    title="Setujui"
+                                                    className={`${NB.toolbarBtnPrimary} ml-0 h-7 px-2 inline-flex items-center`}
+                                                >
+                                                    {approvingId === bill.id ? (
+                                                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                                    ) : (
+                                                        <Check className="h-3 w-3 mr-1" />
+                                                    )}
+                                                    Setujui
+                                                </button>
                                             )}
                                         </div>
                                     </motion.div>
@@ -648,8 +722,11 @@ export default function APBillsStackPage() {
             </motion.div>
 
             {/* ═══ BILL DETAIL DIALOG ═══ */}
-            <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-                <DialogContent className={NB.contentNarrow}>
+            <Dialog open={isDetailOpen} onOpenChange={(open) => {
+                setIsDetailOpen(open)
+                if (!open) setApproveAlasan("")
+            }}>
+                <DialogContent className={NB.content}>
                     {activeBill && (<>
                         <DialogHeader className={NB.header}>
                             <div className="flex items-center justify-between">
@@ -667,13 +744,108 @@ export default function APBillsStackPage() {
                                 <div className="border-8 border-emerald-600 text-emerald-600 font-black text-5xl uppercase px-6 py-3 -rotate-12 opacity-70 tracking-widest">PAID</div>
                             </div>
                         )}
-                        <div className="px-6 py-5 space-y-4">
+                        <div className={`px-6 py-5 space-y-4 overflow-y-auto ${NB.scroll}`}>
                             <div className="grid grid-cols-2 gap-4">
                                 <div><label className={NB.label}>No. Invoice</label><p className="font-mono font-bold text-sm">{activeBill.number}</p></div>
                                 <div><label className={NB.label}>Jatuh Tempo</label><p className="font-bold text-sm">{new Date(activeBill.dueDate).toLocaleDateString("id-ID")}</p></div>
                                 <div><label className={NB.label}>Total Tagihan</label><p className="text-2xl font-black">{formatIDR(activeBill.amount)}</p></div>
                                 <div><label className={NB.label}>Sisa Bayar</label><p className="text-2xl font-black text-red-600">{formatIDR(activeBill.balanceDue)}</p></div>
                             </div>
+                            {activeBill.status === "DRAFT" && (
+                                <div className={NB.section}>
+                                    <div className={NB.sectionHead}>
+                                        <GitCompare className="h-3.5 w-3.5" />
+                                        <span className={NB.sectionTitle}>Verifikasi 3 Arah</span>
+                                        {billMatch?.poNumber && (
+                                            <span className={NB.sectionHint}>{billMatch.poNumber}</span>
+                                        )}
+                                    </div>
+                                    {matchLoading ? (
+                                        <div className="px-4 py-6 text-center text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                                            Memuat verifikasi PO ↔ GRN ↔ Bill…
+                                        </div>
+                                    ) : matchError ? (
+                                        <div className="px-4 py-4 text-[11px] font-bold text-red-600">
+                                            Gagal memuat verifikasi 3 arah. Tutup dan buka ulang detail.
+                                        </div>
+                                    ) : billMatch?.status === "NO_PO" ? (
+                                        <div className="px-4 py-3 text-[11px] font-bold text-zinc-500">
+                                            Tagihan manual — tidak terhubung ke PO
+                                        </div>
+                                    ) : billMatch ? (
+                                        <>
+                                            <div className={`px-4 py-2.5 flex items-center gap-2 text-[11px] font-black uppercase tracking-wider ${
+                                                billMatch.status === "MATCHED"
+                                                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
+                                                    : billMatch.status === "OVER_BILLED"
+                                                        ? "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400"
+                                                        : "bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-400"
+                                            }`}>
+                                                {billMatch.status === "MATCHED" ? (
+                                                    <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+                                                ) : (
+                                                    <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+                                                )}
+                                                {billMatch.status === "MATCHED"
+                                                    ? "Cocok — aman disetujui"
+                                                    : billMatch.status === "OVER_BILLED"
+                                                        ? `Selisih ${billMatch.totalVarianceQty} unit — ${formatIDR(billMatch.totalVarianceAmount)} ditagih tanpa barang`
+                                                        : "Penerimaan belum lengkap — tagihan sesuai barang diterima"}
+                                            </div>
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full">
+                                                    <thead>
+                                                        <tr className="bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700">
+                                                            <th className={`${NB.tableHeadCell} text-left`}>Barang</th>
+                                                            <th className={`${NB.tableHeadCell} text-right`}>Dipesan</th>
+                                                            <th className={`${NB.tableHeadCell} text-right`}>Diterima</th>
+                                                            <th className={`${NB.tableHeadCell} text-right`}>Ditagih</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {billMatch.lines.map((line, idx) => {
+                                                            const hasVariance = line.varianceQty !== 0
+                                                            return (
+                                                                <tr
+                                                                    key={`${line.productId ?? line.productName}-${idx}`}
+                                                                    className={`${NB.tableRow} ${hasVariance ? "bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400" : ""}`}
+                                                                >
+                                                                    <td className={NB.tableCell}>
+                                                                        <span className="font-bold">{line.productName}</span>
+                                                                        {line.productCode && (
+                                                                            <span className="block font-mono text-[10px] text-zinc-400">{line.productCode}</span>
+                                                                        )}
+                                                                    </td>
+                                                                    <td className={`${NB.tableCell} text-right font-mono`}>{line.ordered}</td>
+                                                                    <td className={`${NB.tableCell} text-right font-mono`}>{line.received}</td>
+                                                                    <td className={`${NB.tableCell} text-right font-mono font-black`}>{line.billed}</td>
+                                                                </tr>
+                                                            )
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            {billMatch.status === "OVER_BILLED" && (
+                                                <div className="p-4 border-t border-zinc-200 dark:border-zinc-700 space-y-1.5">
+                                                    <label className={NB.label}>
+                                                        Alasan menyetujui selisih <span className={NB.labelRequired}>*</span>
+                                                    </label>
+                                                    <Textarea
+                                                        placeholder="Contoh: sisa barang masih di jalan, tagihan sesuai kontrak..."
+                                                        value={approveAlasan}
+                                                        onChange={(e) => setApproveAlasan(e.target.value)}
+                                                        rows={3}
+                                                        className={`${NB.textarea} ${approveAlasan.trim() ? NB.inputActive : NB.inputEmpty}`}
+                                                    />
+                                                    <p className={NB.labelHint}>
+                                                        Wajib diisi (min. 10 karakter) sebelum Setujui — {approveAlasan.trim().length}/10
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </>
+                                    ) : null}
+                                </div>
+                            )}
                             {activeBill.vendor?.bankAccountNumber && (
                                 <div className={NB.section}>
                                     <div className={NB.sectionHead}><Building2 className="h-3.5 w-3.5" /><span className={NB.sectionTitle}>Info Bank Vendor</span></div>
@@ -727,9 +899,17 @@ export default function APBillsStackPage() {
                                 </>
                             ) : activeBill.status === "DRAFT" ? (
                                 <>
-                                    <span className="text-[10px] italic text-zinc-400">Tagihan ini masih draft — perlu persetujuan sebelum dibayar</span>
                                     <Button variant="outline" onClick={() => setIsDetailOpen(false)} className={NB.cancelBtn}>
                                         Tutup
+                                    </Button>
+                                    <Button
+                                        onClick={() => handleApproveBill(activeBill)}
+                                        disabled={approveDisabled}
+                                        className={NB.submitBtnOrange}
+                                    >
+                                        {approvingId === activeBill.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        <Check className="mr-2 h-3.5 w-3.5" />
+                                        Setujui
                                     </Button>
                                 </>
                             ) : (

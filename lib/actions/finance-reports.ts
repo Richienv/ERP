@@ -655,11 +655,19 @@ export async function getInventoryTurnoverReport(startDate: string, endDate: str
                 },
             })
 
-            // Get inventory transactions in period
+            // Get inventory transactions in period.
+            // NOTE: TransactionType has no *_IN / *_OUT variants for ADJUSTMENT and TRANSFER —
+            // direction for those is carried by the sign of `quantity` (positive = in, negative = out).
+            // The period column on InventoryTransaction is `createdAt` (there is no `date` column).
+            const periodFilter = { gte: new Date(startDate), lte: new Date(endDate) }
+
             const transactions = await basePrisma.inventoryTransaction.findMany({
                 where: {
-                    date: { gte: new Date(startDate), lte: new Date(endDate) },
-                    type: { in: ['SO_SHIPMENT', 'PRODUCTION_OUT', 'ADJUSTMENT_OUT', 'TRANSFER_OUT'] },
+                    createdAt: periodFilter,
+                    OR: [
+                        { type: { in: ['SO_SHIPMENT', 'PRODUCTION_OUT'] } },
+                        { type: { in: ['ADJUSTMENT', 'TRANSFER'] }, quantity: { lt: 0 } },
+                    ],
                 },
                 select: { productId: true, quantity: true, type: true },
             })
@@ -667,8 +675,11 @@ export async function getInventoryTurnoverReport(startDate: string, endDate: str
             // Get incoming transactions for average calculation
             const incomingTx = await basePrisma.inventoryTransaction.findMany({
                 where: {
-                    date: { gte: new Date(startDate), lte: new Date(endDate) },
-                    type: { in: ['PO_RECEIVE', 'PRODUCTION_IN', 'ADJUSTMENT_IN', 'TRANSFER_IN'] },
+                    createdAt: periodFilter,
+                    OR: [
+                        { type: { in: ['PO_RECEIVE', 'PRODUCTION_IN'] } },
+                        { type: { in: ['ADJUSTMENT', 'TRANSFER'] }, quantity: { gt: 0 } },
+                    ],
                 },
                 select: { productId: true, quantity: true },
             })
@@ -889,19 +900,21 @@ export async function getPPh23Report(startDate?: string, endDate?: string) {
             ? new Date(endDate)
             : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
 
-        // Query all payments with PPh 23 withholding in the period
+        // Query all payments with PPh 23 withholding in the period.
+        // The withheld amount/rate live on Payment.whtAmount / Payment.whtRate
+        // (written by recordVendorPayment in finance-ap.ts) — there is no
+        // pph23Amount column on Payment, nor a pph23Rate column on Supplier.
         const payments = await basePrisma.payment.findMany({
             where: {
                 date: { gte: start, lte: end },
                 supplierId: { not: null },
-                pph23Amount: { gt: 0 },
+                whtAmount: { gt: 0 },
             },
             include: {
                 supplier: {
                     select: {
                         name: true,
                         code: true,
-                        pph23Rate: true,
                     }
                 },
                 invoice: {
@@ -913,9 +926,9 @@ export async function getPPh23Report(startDate?: string, endDate?: string) {
 
         // Build report items
         const items: PPh23ReportItem[] = payments.map(p => {
-            const pphAmount = Number(p.pph23Amount || 0)
+            const pphAmount = Number(p.whtAmount || 0)
             const grossAmount = Number(p.amount)
-            const rate = p.supplier?.pph23Rate ? Number(p.supplier.pph23Rate) : 0
+            const rate = p.whtRate ? Number(p.whtRate) : 0
             return {
                 paymentId: p.id,
                 paymentNumber: p.number,

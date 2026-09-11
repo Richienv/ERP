@@ -6,7 +6,7 @@ import * as XLSX from "xlsx"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import Link from "next/link"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion, AnimatePresence, type Variants } from "framer-motion"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -27,11 +27,11 @@ const stagger = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { staggerChildren: 0.07 } },
 }
-const fadeUp = {
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 14 },
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 320, damping: 26 } },
 }
-const fadeX = {
+const fadeX: Variants = {
   hidden: { opacity: 0, x: -12 },
   show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 320, damping: 26 } },
 }
@@ -116,6 +116,7 @@ export default function PayrollPage() {
   const invalidatePayroll = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.payroll.run(selectedPeriod) })
     queryClient.invalidateQueries({ queryKey: queryKeys.payroll.compliance(selectedPeriod) })
+    queryClient.invalidateQueries({ queryKey: queryKeys.miningCommand.pulse() })
   }
 
   const handleGenerate = async () => {
@@ -456,7 +457,8 @@ export default function PayrollPage() {
           {[
             { label: "Karyawan", count: employeeCount, amount: null, color: "orange" },
             { label: "Gaji Kotor", count: null, amount: totalGrossSalary, color: "blue" },
-            { label: "Potongan", count: null, amount: totalDeductions, color: "red" },
+            { label: "BPJS Perusahaan", count: null, amount: run?.journalPreview?.employerBpjs || run?.summary?.employerBpjs || 0, color: "orange" },
+            { label: "Biaya Perusahaan", count: null, amount: run?.journalPreview?.companyCost || run?.summary?.companyCost || totalGrossSalary, color: "amber" },
             { label: "Gaji Bersih", count: null, amount: totalNetSalary, color: "emerald" },
             { label: "Lembur", count: totalOvertimeHours, suffix: " jam", amount: null, color: "zinc" },
           ].map((kpi) => (
@@ -466,6 +468,7 @@ export default function PayrollPage() {
                   kpi.color === "orange" ? "bg-orange-500" :
                   kpi.color === "blue" ? "bg-blue-500" :
                   kpi.color === "red" ? "bg-red-500" :
+                  kpi.color === "amber" ? "bg-amber-500" :
                   kpi.color === "emerald" ? "bg-emerald-500" : "bg-zinc-400"
                 }`} />
                 <span className={NB.kpiLabel}>{kpi.label}</span>
@@ -633,6 +636,27 @@ export default function PayrollPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {run?.journalPreview && (
+        <div className="border-2 border-black bg-white shadow-[3px_3px_0_0_#000] overflow-hidden">
+          <div className="px-4 py-2.5 border-b-2 border-black bg-zinc-950 text-white flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-widest">Preview jurnal yang akan diposting</span>
+            <span className={`text-[10px] font-black uppercase ${run.journalPreview.balanced ? "text-emerald-400" : "text-red-400"}`}>
+              {run.journalPreview.balanced ? "Seimbang" : "Tidak seimbang"}
+            </span>
+          </div>
+          <div className="divide-y divide-zinc-100">
+            {run.journalPreview.lines.map((line, idx) => (
+              <div key={`${line.accountCode}-${idx}`} className="grid grid-cols-12 px-4 py-2 text-xs">
+                <div className="col-span-2 font-mono font-black">{line.accountCode}</div>
+                <div className="col-span-6 text-zinc-600">{line.description}</div>
+                <div className="col-span-2 text-right font-mono">{line.debit ? formatCurrency(line.debit) : "—"}</div>
+                <div className="col-span-2 text-right font-mono">{line.credit ? formatCurrency(line.credit) : "—"}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ─── Tabs ─── */}
       <motion.div variants={fadeUp}>

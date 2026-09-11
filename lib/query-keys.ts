@@ -80,6 +80,10 @@ export const queryKeys = {
         all: ["financeDashboard"] as const,
         list: () => [...queryKeys.financeDashboard.all, "list"] as const,
     },
+    miningCommand: {
+        all: ["miningCommand"] as const,
+        pulse: () => [...queryKeys.miningCommand.all, "pulse"] as const,
+    },
     purchaseRequests: {
         all: ["purchaseRequests"] as const,
         list: () => [...queryKeys.purchaseRequests.all, "list"] as const,
@@ -87,6 +91,7 @@ export const queryKeys = {
     bills: {
         all: ["bills"] as const,
         list: () => [...queryKeys.bills.all, "list"] as const,
+        match: (billId: string) => [...queryKeys.bills.all, "match", billId] as const,
     },
     journal: {
         all: ["journal"] as const,

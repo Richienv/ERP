@@ -16,17 +16,28 @@ export async function getBudgets() {
     return { success: true, budgets }
 }
 
-export async function getCostCenters() {
+/**
+ * Cost centers are NOT implemented.
+ *
+ * There is no `CostCenter` model in prisma/schema.prisma and no `costCenterId`
+ * column on BudgetLine or JournalLine. Every function below therefore refuses
+ * cost-center input loudly instead of silently ignoring it or crashing deep
+ * inside Prisma with an unknown-argument error.
+ *
+ * TODO(schema): to enable this feature, add `model CostCenter` plus
+ * `costCenterId` on BudgetLine and JournalLine, run a migration, then restore
+ * the includes/filters marked with COST_CENTER below.
+ */
+const COST_CENTER_NOT_IMPLEMENTED =
+    'Fitur Cost Center belum tersedia — model CostCenter belum ada di database schema.'
+
+export async function getCostCenters(): Promise<never> {
     const supabaseClient = await createClient()
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
     if (authError || !user) throw new Error('Unauthorized')
 
-    const costCenters = await basePrisma.costCenter.findMany({
-        where: { isActive: true },
-        orderBy: { code: 'asc' },
-        select: { id: true, code: true, name: true, type: true },
-    })
-    return { success: true, costCenters }
+    // COST_CENTER: no backing model — fail explicitly rather than return fake data.
+    throw new Error(COST_CENTER_NOT_IMPLEMENTED)
 }
 
 export async function getBudgetVsActual(
@@ -39,17 +50,17 @@ export async function getBudgetVsActual(
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
     if (authError || !user) throw new Error('Unauthorized')
 
-    // Build cost center filter for budget lines
-    const budgetLineWhere = costCenterId ? { costCenterId } : {}
+    // COST_CENTER: BudgetLine/JournalLine have no costCenterId column, so a
+    // cost-center-scoped report cannot be produced. Refuse rather than silently
+    // returning company-wide numbers under a cost-center label.
+    if (costCenterId) throw new Error(COST_CENTER_NOT_IMPLEMENTED)
 
     const budget = await basePrisma.budget.findUnique({
             where: { id: budgetId },
             include: {
                 lines: {
-                    where: budgetLineWhere,
                     include: {
                         account: { select: { id: true, code: true, name: true, type: true } },
-                        costCenter: { select: { id: true, code: true, name: true } },
                     },
                     orderBy: [{ account: { code: 'asc' } }, { month: 'asc' }],
                 },
@@ -58,24 +69,17 @@ export async function getBudgetVsActual(
 
         if (!budget) return { success: false, error: 'Budget not found', data: null }
 
-        // Build cost center filter for actuals
-        const journalLineWhere: Record<string, unknown> = {
-            entry: {
-                status: 'POSTED',
-                date: { gte: new Date(startDate), lte: new Date(endDate) },
-            },
-        }
-        if (costCenterId) {
-            journalLineWhere.costCenterId = costCenterId
-        }
-
         // Get actual journal lines for the period
         const actualLines = await basePrisma.journalLine.findMany({
-            where: journalLineWhere,
+            where: {
+                entry: {
+                    status: 'POSTED',
+                    date: { gte: new Date(startDate), lte: new Date(endDate) },
+                },
+            },
             include: {
                 account: { select: { id: true, code: true, name: true, type: true } },
                 entry: { select: { date: true } },
-                costCenter: { select: { id: true, code: true, name: true } },
             },
         })
 
@@ -166,6 +170,10 @@ export async function saveBudgetLines(
     budgetId: string,
     lines: { accountId: string; month: number; amount: number; costCenterId?: string }[]
 ) {
+    // COST_CENTER: BudgetLine has no costCenterId column — writing it would blow up
+    // inside Prisma with an unknown-argument error, so reject it up front.
+    if (lines.some((l) => l.costCenterId)) throw new Error(COST_CENTER_NOT_IMPLEMENTED)
+
     return await withPrismaAuth(async (prisma) => {
         // Upsert each line
         for (const line of lines) {
@@ -182,11 +190,9 @@ export async function saveBudgetLines(
                     accountId: line.accountId,
                     month: line.month,
                     amount: line.amount,
-                    ...(line.costCenterId ? { costCenterId: line.costCenterId } : {}),
                 },
                 update: {
                     amount: line.amount,
-                    ...(line.costCenterId ? { costCenterId: line.costCenterId } : {}),
                 },
             })
         }

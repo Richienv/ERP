@@ -46,10 +46,9 @@ export default function PermissionsPage() {
     }
 
     const handleSave = () => {
-        toast.success("Matriks izin disimpan!", {
+        toast.error("Matriks izin belum dapat disimpan. Fitur ini segera hadir.", {
             className: "font-bold border-2 border-black",
         })
-        setDirty(false)
     }
 
     // Group modules
@@ -82,15 +81,21 @@ export default function PermissionsPage() {
                 </div>
                 <Button
                     className={cn(
-                        "border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-black uppercase text-xs tracking-wider",
-                        dirty ? "bg-black text-white" : "bg-zinc-200 text-zinc-500"
+                        "border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] font-black uppercase text-xs tracking-wider",
+                        "bg-zinc-200 text-zinc-500 cursor-not-allowed"
                     )}
                     onClick={handleSave}
-                    disabled={!dirty}
+                    disabled
+                    title="Penyimpanan matriks izin belum tersedia"
                 >
-                    <Save className="h-4 w-4 mr-1" /> Simpan Perubahan
+                    <Save className="h-4 w-4 mr-1" /> Segera hadir
                 </Button>
             </div>
+            {dirty && (
+                <p className="text-xs font-bold uppercase tracking-wider text-amber-600">
+                    Perubahan di layar ini tidak tersimpan — penyimpanan segera hadir.
+                </p>
+            )}
 
             {/* Permission Matrix Table */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white">

@@ -17,6 +17,7 @@ import type { StaffActivityRow } from "@/components/hcm/detailed-staff-activity"
 import { DetailedPerformanceTable } from "@/components/hcm/detailed-performance-table"
 import type { PerformanceRow } from "@/components/hcm/detailed-performance-table"
 import { queryKeys } from "@/lib/query-keys"
+import { CommandPulse, MiningSnapshotStrip } from "@/components/mining/command-pulse"
 
 interface HCMDashboardData {
   attendance: {
@@ -168,6 +169,13 @@ export default function HCMPage() {
 
   return (
     <div className="flex-1 min-h-screen space-y-6 bg-zinc-50/50 p-4 pt-6 dark:bg-black md:p-8">
+      <CommandPulse
+        module="hcm"
+        compact
+        title="Gaji yang masuk jurnal"
+        subtitle="Posting payroll termasuk BPJS perusahaan — jangan biarkan beban tertinggal"
+      />
+      <MiningSnapshotStrip highlight={["payrollCompanyCost", "cash"]} />
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Sumber Daya Manusia (SDM)</h2>
