@@ -382,6 +382,11 @@ export const queryKeys = {
         all: ["fiscalPeriods"] as const,
         list: (year?: number) => [...["fiscalPeriods"], "list", year] as const,
     },
+    monthEndClose: {
+        all: ["monthEndClose"] as const,
+        checklist: (year: number, month: number) =>
+            [...queryKeys.monthEndClose.all, "checklist", year, month] as const,
+    },
     cashflowPlan: {
         all: ["cashflowPlan"] as const,
         list: (month: number, year: number) => [...["cashflowPlan"], "list", month, year] as const,
