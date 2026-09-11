@@ -6,11 +6,13 @@ export const LOCAL_DEMO_COOKIE = "kri-local-demo"
 export const LOCAL_DEMO_EMAIL = "demo.kri@local"
 export const LOCAL_DEMO_USER_ID = "00000000-0000-0000-0000-000000000001"
 
-export function isLocalDemoAllowed(): boolean {
+export function isLocalDemoAllowed(
+    env: NodeJS.ProcessEnv = process.env,
+): boolean {
     return (
-        process.env.ALLOW_LOCAL_DEMO === "1" &&
-        process.env.NODE_ENV !== "production" &&
-        process.env.VERCEL !== "1"
+        env.ALLOW_LOCAL_DEMO === "1" &&
+        env.NODE_ENV !== "production" &&
+        env.VERCEL !== "1"
     )
 }
 
