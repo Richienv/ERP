@@ -91,6 +91,7 @@ export const queryKeys = {
     bills: {
         all: ["bills"] as const,
         list: () => [...queryKeys.bills.all, "list"] as const,
+        match: (billId: string) => [...queryKeys.bills.all, "match", billId] as const,
     },
     journal: {
         all: ["journal"] as const,
