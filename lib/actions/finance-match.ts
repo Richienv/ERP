@@ -125,7 +125,16 @@ export function buildThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatch {
     for (const item of input.billItems) {
         const idKey = item.productId ? lineKey(item.productId, item.description) : null
         const nameKey = lineKey(null, item.description)
-        const existing = (idKey ? byKey.get(idKey) : undefined) ?? byKey.get(nameKey)
+        let existing = (idKey ? byKey.get(idKey) : undefined) ?? byKey.get(nameKey)
+        if (!existing) {
+            const desc = item.description.trim().toLowerCase()
+            for (const row of byKey.values()) {
+                if (row.productName.trim().toLowerCase() === desc) {
+                    existing = row
+                    break
+                }
+            }
+        }
         if (existing) {
             existing.billed += item.billed
             if (item.unitPrice) existing.unitPrice = item.unitPrice

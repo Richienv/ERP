@@ -744,7 +744,7 @@ export default function APBillsStackPage() {
                                 <div className="border-8 border-emerald-600 text-emerald-600 font-black text-5xl uppercase px-6 py-3 -rotate-12 opacity-70 tracking-widest">PAID</div>
                             </div>
                         )}
-                        <div className="px-6 py-5 space-y-4">
+                        <div className={`px-6 py-5 space-y-4 overflow-y-auto ${NB.scroll}`}>
                             <div className="grid grid-cols-2 gap-4">
                                 <div><label className={NB.label}>No. Invoice</label><p className="font-mono font-bold text-sm">{activeBill.number}</p></div>
                                 <div><label className={NB.label}>Jatuh Tempo</label><p className="font-bold text-sm">{new Date(activeBill.dueDate).toLocaleDateString("id-ID")}</p></div>
