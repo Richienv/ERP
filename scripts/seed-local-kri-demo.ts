@@ -55,6 +55,23 @@ async function main() {
         update: { isActive: true, name: "PT Adaro Indonesia" },
     })
 
+    // Relative expiries so the /fleet war room stays visible on every local seed.
+    const day = (offset: number) => {
+        const d = new Date()
+        d.setHours(12, 0, 0, 0)
+        d.setDate(d.getDate() + offset)
+        return d
+    }
+    const demoDocs = {
+        stnkNumber: "STNK-8801",
+        stnkExpiry: day(-12),
+        kirNumber: "KIR-8801",
+        kirExpiry: day(14),
+        insurancePolicyNumber: "POL-8801",
+        insuranceExpiry: day(200),
+        insurer: "Jasindo",
+    }
+
     await prisma.vehicle.upsert({
         where: { plateNumber: "KT 8801 TB" },
         create: {
@@ -65,9 +82,41 @@ async function main() {
             vehicleType: "TRUCK",
             warehouseId: warehouse.id,
             currentLocation: "Site Tabang",
-            notes: "Unit demo kapitalisasi",
+            notes: "Unit demo kapitalisasi + dokumen habis/jatuh tempo",
+            ...demoDocs,
         },
-        update: { isActive: true, currentLocation: "Site Tabang" },
+        update: {
+            isActive: true,
+            currentLocation: "Site Tabang",
+            ...demoDocs,
+        },
+    })
+
+    await prisma.vehicle.upsert({
+        where: { plateNumber: "KT 8812 TB" },
+        create: {
+            plateNumber: "KT 8812 TB",
+            brand: "Scania",
+            model: "P410",
+            year: 2021,
+            vehicleType: "TRUCK",
+            warehouseId: warehouse.id,
+            currentLocation: "Site Tabang",
+            notes: "Unit demo asuransi habis — war room dua plat",
+            stnkNumber: "STNK-8812",
+            stnkExpiry: day(8),
+            kirNumber: "KIR-8812",
+            insurancePolicyNumber: "POL-8812",
+            insuranceExpiry: day(-3),
+            insurer: "Askrida",
+        },
+        update: {
+            isActive: true,
+            currentLocation: "Site Tabang",
+            stnkExpiry: day(8),
+            insuranceExpiry: day(-3),
+            insurer: "Askrida",
+        },
     })
 
     const existingBill = await prisma.invoice.findFirst({ where: { number: "BILL-DEMO-SETUJUI" } })
@@ -103,7 +152,8 @@ async function main() {
     console.log("Local KRI demo seeded")
     console.log(`  user=${user.email} role=${user.role}`)
     console.log("  bill=BILL-DEMO-SETUJUI DRAFT")
-    console.log("  vehicle=KT 8801 TB")
+    console.log("  vehicle=KT 8801 TB (STNK habis, KIR ≤30 hari)")
+    console.log("  vehicle=KT 8812 TB (asuransi habis, STNK ≤30 hari)")
 }
 
 main()

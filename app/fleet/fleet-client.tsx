@@ -4,7 +4,7 @@ import { useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
-    IconPlus, IconSearch, IconAlertTriangle, IconTruck, IconBulldozer,
+    IconPlus, IconSearch, IconTruck, IconBulldozer,
     IconCar, IconShoppingCart, IconBuildingFactory, IconClipboardCheck,
     IconX
 } from "@tabler/icons-react"
@@ -13,7 +13,13 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { NB } from "@/lib/dialog-styles"
 import { formatIDR } from "@/lib/utils"
-import { CommandPulse, MiningSnapshotStrip } from "@/components/mining/command-pulse"
+import { MiningSnapshotStrip } from "@/components/mining/command-pulse"
+import { ComplianceWarRoom } from "@/components/fleet/compliance-war-room"
+import {
+    buildWarRoomBuckets,
+    classifyExpiry,
+    formatExpiryDate,
+} from "@/components/fleet/expiry-buckets"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 type Vehicle = Awaited<ReturnType<typeof import("@/lib/actions/vehicles").getVehicles>>[number]
@@ -68,6 +74,8 @@ export function FleetClient({ initialVehicles, initialStats }: FleetClientProps)
     const [statusFilter, setStatusFilter] = useState<string>("ALL")
     const [typeFilter, setTypeFilter] = useState<string>("ALL")
 
+    const warRoom = useMemo(() => buildWarRoomBuckets(initialVehicles), [initialVehicles])
+
     const filtered = useMemo(() => {
         return initialVehicles.filter((v) => {
             if (statusFilter !== "ALL" && v.status !== statusFilter) return false
@@ -84,12 +92,7 @@ export function FleetClient({ initialVehicles, initialStats }: FleetClientProps)
 
     return (
         <div className="mf-page">
-            <CommandPulse
-                module="fleet"
-                compact
-                title="Armada yang butuh tindakan"
-                subtitle="Dokumen habis atau unit belum masuk register aset"
-            />
+            <ComplianceWarRoom vehicles={initialVehicles} />
             <MiningSnapshotStrip highlight={["fleetAssetValue", "fleetWithoutAsset"]} />
             <div className={NB.pageCard}>
                 <div className={NB.pageAccent} />
@@ -140,11 +143,15 @@ export function FleetClient({ initialVehicles, initialStats }: FleetClientProps)
                         amount=""
                     />
                     <KpiCell
-                        dotColor="bg-red-500"
-                        label="Dokumen Akan Habis"
-                        count={initialStats.expiringDocsCount}
-                        amount={initialStats.expiringDocsCount > 0 ? "≤30 hari" : ""}
-                        urgent={initialStats.expiringDocsCount > 0}
+                        dotColor={warRoom.overdueVehicleCount > 0 ? "bg-red-500" : "bg-amber-500"}
+                        label="Dokumen Perlu Tindakan"
+                        count={warRoom.actionVehicleCount}
+                        amount={
+                            warRoom.actionVehicleCount > 0
+                                ? `${warRoom.overdueVehicleCount} habis · ${warRoom.dueSoonVehicleCount} ≤30h`
+                                : ""
+                        }
+                        urgent={warRoom.overdueVehicleCount > 0}
                     />
                 </div>
 
@@ -272,9 +279,9 @@ function VehicleRow({ vehicle: v }: { vehicle: Vehicle }) {
             </td>
             <td className="p-3">
                 <div className="flex flex-col gap-0.5 text-[10px]">
-                    <ComplianceBadge label="STNK" expiry={v.stnkExpiry} overdue={v.compliance.stnkOverdue} soon={v.compliance.stnkSoon} />
-                    <ComplianceBadge label="KIR" expiry={v.kirExpiry} overdue={v.compliance.kirOverdue} soon={v.compliance.kirSoon} />
-                    <ComplianceBadge label="Asuransi" expiry={v.insuranceExpiry} overdue={v.compliance.insuranceOverdue} soon={v.compliance.insuranceSoon} />
+                    <ComplianceBadge label="STNK" expiry={v.stnkExpiry} />
+                    <ComplianceBadge label="KIR" expiry={v.kirExpiry} />
+                    <ComplianceBadge label="Asuransi" expiry={v.insuranceExpiry} />
                 </div>
             </td>
             <td className="p-3 text-right">
@@ -311,13 +318,14 @@ function VehicleRow({ vehicle: v }: { vehicle: Vehicle }) {
     )
 }
 
-function ComplianceBadge({ label, expiry, overdue, soon }: {
-    label: string; expiry: Date | null; overdue: boolean; soon: boolean
+function ComplianceBadge({ label, expiry }: {
+    label: string; expiry: Date | string | null
 }) {
-    if (!expiry) return <span className="text-zinc-400">{label}: —</span>
-    const dateStr = new Date(expiry).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })
-    if (overdue) return <span className="text-red-600 font-bold">⚠ {label}: HABIS {dateStr}</span>
-    if (soon) return <span className="text-amber-600 font-semibold">⏱ {label}: {dateStr}</span>
+    const bucket = classifyExpiry(expiry)
+    if (bucket === "MISSING") return <span className="text-zinc-400">{label}: —</span>
+    const dateStr = formatExpiryDate(expiry)
+    if (bucket === "OVERDUE") return <span className="text-red-600 font-bold">⚠ {label}: HABIS {dateStr}</span>
+    if (bucket === "DUE_SOON") return <span className="text-amber-600 font-semibold">⏱ {label}: {dateStr}</span>
     return <span className="text-zinc-600">{label}: {dateStr}</span>
 }
 
