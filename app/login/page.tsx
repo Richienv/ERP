@@ -21,6 +21,7 @@ export default function LoginPage() {
     const [error, setError] = useState<string | null>(null)
     const [rememberMe, setRememberMe] = useState(false)
     const [tenantName, setTenantName] = useState<string | null>(null)
+    const [localDemoAvailable, setLocalDemoAvailable] = useState(false)
 
     // Load tenant branding
     useEffect(() => {
@@ -28,6 +29,14 @@ export default function LoginPage() {
             .then(res => res.json())
             .then(data => {
                 if (data?.tenantName) setTenantName(data.tenantName)
+            })
+            .catch(() => {})
+    }, [])
+
+    useEffect(() => {
+        fetch("/api/dev/local-demo", { method: "GET", cache: "no-store" })
+            .then((res) => {
+                if (res.ok) setLocalDemoAvailable(true)
             })
             .catch(() => {})
     }, [])
@@ -286,7 +295,7 @@ export default function LoginPage() {
                                 </>
                             )}
                         </Button>
-                        {process.env.NEXT_PUBLIC_ALLOW_LOCAL_DEMO === "1" && (
+                        {localDemoAvailable && (
                             <Button
                                 type="button"
                                 variant="outline"
