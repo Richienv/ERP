@@ -127,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
                 if (!supabaseUrl || supabaseUrl.includes("placeholder")) {
-                    setUser(null)
+                    setUser((prev) => (prev?.email === LOCAL_DEMO_EMAIL ? prev : null))
                     setIsLoading(false)
                     return
                 }
