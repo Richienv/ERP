@@ -7,10 +7,12 @@ import { TodaysTasks } from "@/components/dashboard/todays-tasks"
 import { CompactActivityFeed } from "@/components/dashboard/compact-activity-feed"
 import { useExecutiveDashboard } from "@/hooks/use-executive-dashboard"
 import { CardPageSkeleton } from "@/components/ui/page-skeleton"
+import { OperationsInbox } from "@/components/mining/command-pulse"
 import { formatCurrency } from "@/lib/utils"
 import Link from "next/link"
 import { AreaChart, Area, ResponsiveContainer } from "recharts"
 import { FlagButton } from "@/components/dashboard/flag-button"
+import { isModuleEnabled } from "@/lib/sidebar-feature-flags"
 import {
     IconShoppingCart,
     IconTruck,
@@ -148,13 +150,19 @@ export function DashboardPageClient() {
     return (
         <DashboardView
             heroSlot={
-                <GreetingBar
-                    revenueMTD={sales?.totalRevenue ?? 0}
-                    receivables={financials?.receivables ?? 0}
-                    payables={financials?.payables ?? 0}
-                    overdueCount={overdueCount}
-                    pendingApprovals={pendingApprovals}
-                />
+                <div className="space-y-3">
+                    <OperationsInbox
+                        title="Kotak Masuk Operasi"
+                        subtitle="Antrian kerja KRI hari ini — kerjakan dari nomor 01, tiap tombol mendarat di layar kerjanya"
+                    />
+                    <GreetingBar
+                        revenueMTD={sales?.totalRevenue ?? 0}
+                        receivables={financials?.receivables ?? 0}
+                        payables={financials?.payables ?? 0}
+                        overdueCount={overdueCount}
+                        pendingApprovals={pendingApprovals}
+                    />
+                </div>
             }
             alertSlot={
                 executiveAlerts.length > 0 ? (
@@ -179,6 +187,7 @@ export function DashboardPageClient() {
                         <div className="space-y-3">
 
                             {/* PENJUALAN */}
+                            {isModuleEnabled("sales") && (
                             <ModuleCard title="Penjualan" icon={IconShoppingCart} href="/sales/orders" accentColor="bg-cyan-600">
                                 {/* Only show stats that have real data */}
                                 {((sales?.activeOrders ?? 0) > 0 || (sales?.totalRevenue ?? 0) > 0) && (
@@ -221,6 +230,7 @@ export function DashboardPageClient() {
                                     </>
                                 )}
                             </ModuleCard>
+                            )}
 
                             {/* PROFITABILITAS */}
                             <ModuleCard title="Profitabilitas" icon={IconReportMoney} href="/finance/reports" accentColor="bg-emerald-700">
@@ -291,6 +301,7 @@ export function DashboardPageClient() {
                             </ModuleCard>
 
                             {/* PELANGGAN */}
+                            {isModuleEnabled("sales") && (
                             <ModuleCard title="Pelanggan" icon={IconUsersGroup} href="/sales/customers" accentColor="bg-violet-700">
                                 <div className="grid grid-cols-2 gap-x-4">
                                     <CardMetric label="Pelanggan Aktif" value={String(customerInsights.totalActive)} />
@@ -350,6 +361,7 @@ export function DashboardPageClient() {
                                     </>
                                 )}
                             </ModuleCard>
+                            )}
 
                             {/* INVENTORI */}
                             <ModuleCard
@@ -525,6 +537,7 @@ export function DashboardPageClient() {
                             </ModuleCard>
 
                             {/* MANUFAKTUR */}
+                            {isModuleEnabled("manufacturing") && (
                             <ModuleCard
                                 title="Manufaktur"
                                 icon={IconTool}
@@ -718,6 +731,7 @@ export function DashboardPageClient() {
                                     </div>
                                 )}
                             </ModuleCard>
+                            )}
                         </div>
 
                         {/* ═══ COLUMN 3: Keuangan + Arus Kas + SDM + Kepatuhan + Tugas ═══ */}

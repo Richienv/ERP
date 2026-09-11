@@ -1,6 +1,13 @@
 {
   "modules": [
     {
+      "id": "FLEET",
+      "name": "Armada",
+      "routes": ["/fleet"],
+      "tier": "STARTER",
+      "permissionKeys": ["FLEET", "VEHICLE", "ARMADA"]
+    },
+    {
       "id": "INVENTORY",
       "name": "Inventori & Gudang",
       "routes": ["/inventory"],

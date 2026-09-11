@@ -21,6 +21,7 @@ export default function LoginPage() {
     const [error, setError] = useState<string | null>(null)
     const [rememberMe, setRememberMe] = useState(false)
     const [tenantName, setTenantName] = useState<string | null>(null)
+    const [localDemoAvailable, setLocalDemoAvailable] = useState(false)
 
     // Load tenant branding
     useEffect(() => {
@@ -28,6 +29,14 @@ export default function LoginPage() {
             .then(res => res.json())
             .then(data => {
                 if (data?.tenantName) setTenantName(data.tenantName)
+            })
+            .catch(() => {})
+    }, [])
+
+    useEffect(() => {
+        fetch("/api/dev/local-demo", { method: "GET", cache: "no-store" })
+            .then((res) => {
+                if (res.ok) setLocalDemoAvailable(true)
             })
             .catch(() => {})
     }, [])
@@ -83,23 +92,30 @@ export default function LoginPage() {
             // Always clean up any legacy password storage
             localStorage.removeItem('rememberPassword')
 
-            // Check role and redirect accordingly
-            const { data: { user } } = await supabase.auth.getUser()
-            const role = user?.user_metadata?.role as string
-
             toast.success("Login berhasil!")
-
-            let targetPath = "/dashboard"
-            switch (role) {
-                case "ROLE_MANAGER": targetPath = "/manager"; break
-                case "ROLE_ACCOUNTANT": targetPath = "/finance"; break
-                case "ROLE_SALES": targetPath = "/sales"; break
-                case "ROLE_STAFF": targetPath = "/staff"; break
-            }
-            window.location.href = targetPath
+            window.location.href = "/dashboard"
         } catch (err) {
             console.error("Login Error:", err)
             setError("Terjadi kesalahan sistem")
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    const handleLocalDemo = async () => {
+        setIsLoading(true)
+        setError(null)
+        try {
+            const res = await fetch("/api/dev/local-demo", { method: "POST" })
+            if (!res.ok) {
+                setError("Demo lokal tidak tersedia")
+                toast.error("Demo lokal tidak tersedia")
+                return
+            }
+            toast.success("Masuk demo lokal")
+            window.location.href = "/dashboard"
+        } catch {
+            setError("Demo lokal gagal")
         } finally {
             setIsLoading(false)
         }
@@ -279,6 +295,17 @@ export default function LoginPage() {
                                 </>
                             )}
                         </Button>
+                        {localDemoAvailable && (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full h-11 border-2 border-orange-500 text-orange-700 font-bold rounded-none"
+                                disabled={isLoading}
+                                onClick={handleLocalDemo}
+                            >
+                                Masuk demo lokal (KRI)
+                            </Button>
+                        )}
                     </form>
 
                     {/* Divider */}

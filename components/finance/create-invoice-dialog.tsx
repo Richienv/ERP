@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { FileText, Receipt, CreditCard, CalendarDays, Loader2, Package } from "lucide-react"
+import { FileText, Receipt, CreditCard, CalendarDays, Loader2, Package, UserPlus } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { SelectItem } from "@/components/ui/select"
 import { toast } from "sonner"
@@ -15,6 +15,7 @@ import {
     createInvoiceFromSalesOrder,
     createBillFromPOId,
 } from "@/lib/actions/finance-invoices"
+import { createCustomerQuick } from "@/lib/actions/master-data"
 import { NB } from "@/lib/dialog-styles"
 import {
     NBDialog,
@@ -89,6 +90,8 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
     const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0])
     const [dueDate, setDueDate] = useState("")
     const [selectedAccountId, setSelectedAccountId] = useState("")
+    const [quickCustomerName, setQuickCustomerName] = useState("")
+    const [creatingCustomer, setCreatingCustomer] = useState(false)
 
     // Single API call fetches all data — no withPrismaAuth transaction overhead
     const { data, isLoading: dataLoading } = useQuery<AvailableOrdersData>({
@@ -120,6 +123,34 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
         setDueDate("")
         setIssueDate(new Date().toISOString().split('T')[0])
         setSelectedAccountId("")
+        setQuickCustomerName("")
+    }
+
+    const handleQuickCreateCustomer = async () => {
+        const name = quickCustomerName.trim()
+        if (!name) {
+            toast.error("Masukkan nama pelanggan")
+            return
+        }
+        setCreatingCustomer(true)
+        try {
+            const customer = await createCustomerQuick(name)
+            queryClient.setQueryData<AvailableOrdersData>(queryKeys.invoiceAvailableOrders.list(), (old) => {
+                if (!old) return old
+                return {
+                    ...old,
+                    parties: [...old.parties, { id: customer.id, name: customer.name, type: "CUSTOMER" }],
+                }
+            })
+            setSelectedCustomer(customer.id)
+            setQuickCustomerName("")
+            queryClient.invalidateQueries({ queryKey: queryKeys.invoiceAvailableOrders.all })
+            toast.success(`Pelanggan "${customer.name}" berhasil ditambahkan`)
+        } catch (err: any) {
+            toast.error(err?.message || "Gagal menambah pelanggan")
+        } finally {
+            setCreatingCustomer(false)
+        }
     }
 
     const handleCreate = async () => {
@@ -159,6 +190,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                 queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.invoiceAvailableOrders.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.glAccounts.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.miningCommand.pulse() })
             } else {
                 toast.error(('error' in result ? result.error : "Gagal membuat invoice") || "Gagal membuat invoice")
             }
@@ -176,16 +208,15 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
 
     return (
         <NBDialog open={open} onOpenChange={(v) => { if (!v) resetForm(); onOpenChange(v) }} size="narrow">
-            <NBDialogHeader icon={FileText} title="Buat Invoice" subtitle="Buat invoice/bill baru dari order atau manual" />
+            <NBDialogHeader icon={FileText} title="Buat Invoice" subtitle="Tagih pelanggan dari Finance — tanpa pipeline penjualan" />
 
             <NBDialogBody>
                 {/* ── Section 1: Sumber Invoice ── */}
-                <NBSection icon={Receipt} title="Sumber Invoice">
-                    <div className="grid grid-cols-3 gap-2">
+                <NBSection icon={Receipt} title="Sumber dokumen">
+                    <div className="grid grid-cols-2 gap-2">
                         {([
-                            { key: 'SO' as const, title: 'Sales Order', desc: 'Dari pesanan penjualan' },
-                            { key: 'PO' as const, title: 'Purchase Order', desc: 'Dari pesanan pembelian' },
-                            { key: 'MANUAL' as const, title: 'Manual', desc: 'Input data sendiri' },
+                            { key: 'MANUAL' as const, title: 'Invoice Pelanggan', desc: 'Tagih sewa / jasa / spare part dari Finance' },
+                            { key: 'PO' as const, title: 'Bill dari PO', desc: 'Tagihan vendor setelah barang masuk' },
                         ]).map((opt) => (
                             <button
                                 key={opt.key}
@@ -322,7 +353,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
 
                                 {/* Customer/Vendor */}
                                 <NBSelect
-                                    label={manualType === 'CUSTOMER' ? 'Customer' : 'Vendor'}
+                                    label={manualType === 'CUSTOMER' ? 'Pelanggan' : 'Vendor'}
                                     required
                                     value={selectedCustomer}
                                     onValueChange={setSelectedCustomer}
@@ -332,19 +363,45 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                         <SelectItem value="__loading__" disabled>Memuat data...</SelectItem>
                                     ) : parties.filter(c => c.type === manualType).length === 0 ? (
                                         <SelectItem value="__empty__" disabled>
-                                            Tidak ada {manualType.toLowerCase()} aktif
+                                            Tidak ada {manualType === 'CUSTOMER' ? 'pelanggan' : 'vendor'} aktif
                                         </SelectItem>
                                     ) : parties.filter(c => c.type === manualType).map((party) => (
                                         <SelectItem key={party.id} value={party.id}>{party.name}</SelectItem>
                                     ))}
                                 </NBSelect>
+                                {manualType === 'CUSTOMER' && !dataLoading && parties.filter(c => c.type === 'CUSTOMER').length === 0 && (
+                                    <div className="border border-orange-300 bg-orange-50/50 dark:border-orange-600 dark:bg-orange-950/20 p-3 space-y-2">
+                                        <p className="text-[10px] font-black uppercase tracking-wider text-orange-700 dark:text-orange-400">
+                                            Belum ada pelanggan
+                                        </p>
+                                        <NBInput
+                                            label="Tambah pelanggan cepat"
+                                            value={quickCustomerName}
+                                            onChange={setQuickCustomerName}
+                                            placeholder="Nama pelanggan"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleQuickCreateCustomer}
+                                            disabled={creatingCustomer || !quickCustomerName.trim()}
+                                            className={`${NB.toolbarBtnPrimary} ml-0 inline-flex items-center disabled:opacity-50`}
+                                        >
+                                            {creatingCustomer ? (
+                                                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                                            ) : (
+                                                <UserPlus className="h-3.5 w-3.5 mr-1.5" />
+                                            )}
+                                            Tambah pelanggan
+                                        </button>
+                                    </div>
+                                )}
 
                                 {/* Product/Description */}
                                 <NBInput
                                     label="Deskripsi / Produk"
                                     value={manualProduct}
                                     onChange={setManualProduct}
-                                    placeholder="Jasa Konsultasi"
+                                    placeholder="Sewa dump truck / angkutan / spare part"
                                 />
                             </NBSection>
 

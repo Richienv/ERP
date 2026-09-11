@@ -3,8 +3,9 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { clearPersistedCache } from "@/lib/query-client"
+import { clearPersistedCache, setCacheScope } from "@/lib/query-client"
 import { type User } from "@supabase/supabase-js"
+import { LOCAL_DEMO_EMAIL, LOCAL_DEMO_USER_ID } from "@/lib/local-demo"
 
 // Define the User Role (SystemRole)
 export type UserRole =
@@ -40,8 +41,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
  * Clear all Supabase auth artifacts from the browser.
  * Called when we detect a corrupt/stale session to prevent
  * the app from being stuck in an error loop.
+ *
+ * SECURITY: this also wipes the persisted TanStack Query cache (IndexedDB).
+ * That cache holds invoices, payments, AR/AP balances, payroll and employee
+ * records. Clearing cookies/localStorage but leaving IndexedDB behind means the
+ * next person to use this browser can be served the previous user's financial
+ * data on first paint. Session expiry must be treated exactly like a logout.
  */
-function clearSupabaseSession() {
+async function clearSupabaseSession() {
     // Clear cookies (especially sb-* auth cookies)
     try {
         document.cookie.split(";").forEach((c) => {
@@ -75,6 +82,11 @@ function clearSupabaseSession() {
         }
         keysToRemove.forEach((key) => sessionStorage.removeItem(key))
     } catch {}
+
+    // Wipe the persisted query cache (IndexedDB) + in-memory cache, then drop
+    // the cache namespace back to anonymous so nothing survives the session.
+    await clearPersistedCache()
+    await setCacheScope(null)
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -89,11 +101,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Check active session
         const checkSession = async () => {
             try {
+                try {
+                    const res = await fetch("/api/dev/local-demo", { method: "GET", cache: "no-store" })
+                    if (res.ok) {
+                        const data = await res.json() as { active?: boolean }
+                        if (data.active) {
+                            await setCacheScope(LOCAL_DEMO_USER_ID)
+                            setUser({
+                                id: LOCAL_DEMO_USER_ID,
+                                aud: "authenticated",
+                                role: "ROLE_ADMIN",
+                                email: LOCAL_DEMO_EMAIL,
+                                app_metadata: { provider: "local-demo" },
+                                user_metadata: { name: "Demo KRI", role: "ROLE_ADMIN" },
+                                created_at: new Date().toISOString(),
+                                name: "Demo KRI",
+                            } as AppUser)
+                            setIsLoading(false)
+                            return
+                        }
+                    }
+                } catch {
+                    // Demo endpoint is off or unreachable — continue to Supabase
+                }
+
+                const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
+                if (!supabaseUrl || supabaseUrl.includes("placeholder")) {
+                    setUser((prev) => (prev?.email === LOCAL_DEMO_EMAIL ? prev : null))
+                    setIsLoading(false)
+                    return
+                }
+
                 const { data: { session }, error } = await supabase.auth.getSession()
 
                 if (error) {
                     console.warn("Session check returned error, clearing stale session:", error.message)
-                    clearSupabaseSession()
+                    await clearSupabaseSession()
                     setUser(null)
                     setIsLoading(false)
                     return
@@ -108,7 +151,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // This catches network errors, JSON parse errors, and any other
                 // unexpected failures when the auth state is corrupt
                 console.error("Session check failed with exception, clearing stale session:", error)
-                clearSupabaseSession()
+                await clearSupabaseSession()
                 setUser(null)
             } finally {
                 setIsLoading(false)
@@ -123,8 +166,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
                 if (event === "SIGNED_OUT") {
                     if (!isExplicitLogoutRef.current) {
-                        // Session expired — NOT explicit logout. IndexedDB cache is preserved.
-                        console.warn("[Auth] Session expired (not explicit logout) — cache preserved")
+                        // Session expired — NOT an explicit logout, but the cached
+                        // financial data must go anyway: the next person on this
+                        // browser may be a different user.
+                        console.warn("[Auth] Session expired — clearing persisted cache")
+                        await clearPersistedCache()
+                        await setCacheScope(null)
                     }
                     isExplicitLogoutRef.current = false
                     setUser(null)
@@ -143,6 +190,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         }
                     } catch { /* retry failed — fall through to expired */ }
                     console.warn("[Auth] Token refresh failed after retry — session expired")
+                    // Same as expiry: never leave financial data cached for the
+                    // next user of this browser.
+                    await clearSupabaseSession()
                     setUser(null)
                     setIsLoading(false)
                     return
@@ -173,6 +223,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [router])
 
     const fetchUserProfile = async (authUser: User) => {
+        // SECURITY: bind the persisted query cache to this user BEFORE any
+        // component can render with it. If the cache currently belongs to a
+        // different user (e.g. someone logged in after a session timeout on a
+        // shared browser), setCacheScope wipes IndexedDB + the in-memory cache
+        // and repoints the namespace. Same user => no-op, so instant restore
+        // still works.
+        await setCacheScope(authUser.id)
+
         // In a real app, query "public.Employee" or "public.User" here.
         // For now, we will use metadata or fallback mechanism
         // We will default to ROLE_CEO for the first user or based on email logic if you prefer
@@ -204,16 +262,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Mark as explicit logout so onAuthStateChange knows to expect SIGNED_OUT
         isExplicitLogoutRef.current = true
         try {
+            await fetch("/api/dev/local-demo", { method: "DELETE" }).catch(() => {})
             await supabase.auth.signOut()
         } catch (err) {
             // Even if signOut fails (e.g., network error), clear local state
             console.warn("Sign out API call failed, clearing local session:", err)
-            clearSupabaseSession()
+            await clearSupabaseSession()
         }
-        // Clear persisted query cache from IndexedDB to prevent data leak between users.
-        // This is ONLY called on explicit logout — session expiry preserves the cache
-        // so the user gets instant load on re-login.
+        // Clear persisted query cache from IndexedDB to prevent data leak between
+        // users. Both explicit logout and session expiry clear it — an expired
+        // session on a shared browser is exactly the leak scenario.
         await clearPersistedCache()
+        await setCacheScope(null)
         setUser(null)
         router.push("/login")
         router.refresh()

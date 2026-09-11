@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { NB } from "@/lib/dialog-styles"
 import { formatIDR } from "@/lib/utils"
+import { CommandPulse, MiningSnapshotStrip } from "@/components/mining/command-pulse"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 type Vehicle = Awaited<ReturnType<typeof import("@/lib/actions/vehicles").getVehicles>>[number]
@@ -83,6 +84,13 @@ export function FleetClient({ initialVehicles, initialStats }: FleetClientProps)
 
     return (
         <div className="mf-page">
+            <CommandPulse
+                module="fleet"
+                compact
+                title="Armada yang butuh tindakan"
+                subtitle="Dokumen habis atau unit belum masuk register aset"
+            />
+            <MiningSnapshotStrip highlight={["fleetAssetValue", "fleetWithoutAsset"]} />
             <div className={NB.pageCard}>
                 <div className={NB.pageAccent} />
 
@@ -201,6 +209,7 @@ export function FleetClient({ initialVehicles, initialStats }: FleetClientProps)
                                     <th className="text-left p-3">Dokumen</th>
                                     <th className="text-right p-3">Tarif Sewa</th>
                                     <th className="text-left p-3">Lokasi</th>
+                                    <th className="text-left p-3">Aset</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -287,6 +296,15 @@ function VehicleRow({ vehicle: v }: { vehicle: Vehicle }) {
                 )}
                 {v.ownerCustomer && (
                     <div className="text-[10px] text-zinc-500 mt-0.5">Milik: {v.ownerCustomer.name}</div>
+                )}
+            </td>
+            <td className="p-3">
+                {v.ownerCustomerId ? (
+                    <span className="text-[10px] font-bold uppercase text-zinc-400">Milik customer</span>
+                ) : v.fixedAsset ? (
+                    <span className="text-[10px] font-black uppercase text-emerald-700">{v.fixedAsset.assetCode}</span>
+                ) : (
+                    <span className="text-[10px] font-black uppercase text-orange-600">Belum aset</span>
                 )}
             </td>
         </tr>
