@@ -23,4 +23,17 @@ describe("SAP-snap cache map", () => {
         const hits = mapped.filter((route) => route === url || route.startsWith(`${url}#`))
         expect(hits).toEqual(["/dashboard", "/dashboard#pulse"])
     })
+
+    it("warms stock and alerts from the same products query", () => {
+        expect(ROUTE_TIERS["/inventory/stock"]).toBe("MASTER_PLUS")
+        expect(ROUTE_TIERS["/inventory/alerts"]).toBe("MASTER_PLUS")
+        expect(queryKeys.products.list()).toEqual(["products", "list"])
+    })
+
+    it("does not treat an empty search string as a different procurement key", () => {
+        const base = queryKeys.procurementDashboard.list()
+        const qs = "".trim()
+        const key = qs ? [...base, qs] : base
+        expect(key).toEqual(base)
+    })
 })

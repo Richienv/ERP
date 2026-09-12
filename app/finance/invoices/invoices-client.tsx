@@ -77,15 +77,6 @@ import {
     type ActionButton,
 } from "@/components/module"
 
-/* ─── Animation variants ─── */
-const stagger = {
-    hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { staggerChildren: 0.07 } },
-}
-const fadeUp = {
-    hidden: { opacity: 0, y: 14 },
-    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
-}
 const typeChipClass = (type: string, onDark = false) =>
     type === "INV_OUT"
         ? onDark
@@ -1089,9 +1080,9 @@ export function InvoicesPageClient() {
                                 <span className="text-xs font-bold uppercase tracking-widest">Memuat detail invoice...</span>
                             </motion.div>
                         ) : (
-                            <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5">
+                            <div className="space-y-5">
                                 {/* Party Selector */}
-                                <motion.div variants={fadeUp} className="space-y-1.5">
+                                <div className="space-y-1.5">
                                     <Label className={NB.label}>
                                         {editInvoiceType === 'INV_OUT' ? 'Customer' : 'Vendor / Supplier'} <span className={NB.labelRequired}>*</span>
                                     </Label>
@@ -1108,10 +1099,10 @@ export function InvoicesPageClient() {
                                             }
                                         </SelectContent>
                                     </Select>
-                                </motion.div>
+                                </div>
 
                                 {/* Items Table */}
-                                <motion.div variants={fadeUp} className="space-y-3">
+                                <div className="space-y-3">
                                     <Label className={NB.label}>
                                         Item Invoice <span className={NB.labelRequired}>*</span>
                                     </Label>
@@ -1174,10 +1165,10 @@ export function InvoicesPageClient() {
                                     >
                                         <Plus className="h-3 w-3 mr-1" /> Tambah Item
                                     </Button>
-                                </motion.div>
+                                </div>
 
                                 {/* Dates */}
-                                <motion.div variants={fadeUp} className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1.5">
                                         <Label className={NB.label}>Tanggal Terbit</Label>
                                         <Input type="date" className={NB.input} value={editIssueDate} onChange={(e) => setEditIssueDate(e.target.value)} />
@@ -1186,10 +1177,10 @@ export function InvoicesPageClient() {
                                         <Label className={NB.label}>Jatuh Tempo</Label>
                                         <Input type="date" className={NB.input} value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} />
                                     </div>
-                                </motion.div>
+                                </div>
 
                                 {/* Discount */}
-                                <motion.div variants={fadeUp} className="space-y-1.5">
+                                <div className="space-y-1.5">
                                     <Label className={NB.label}>Diskon (Rp)</Label>
                                     <span className={NB.labelHint}>Potongan harga sebelum pajak</span>
                                     <div className="relative">
@@ -1198,10 +1189,10 @@ export function InvoicesPageClient() {
                                             onChange={(e) => setEditDiscount(Math.max(0, Number(e.target.value) || 0))}
                                         />
                                     </div>
-                                </motion.div>
+                                </div>
 
                                 {/* PPN Toggle */}
-                                <motion.div variants={fadeUp} className="flex items-center justify-between border-2 border-zinc-200 dark:border-zinc-700 px-4 py-2.5">
+                                <div className="flex items-center justify-between border-2 border-zinc-200 dark:border-zinc-700 px-4 py-2.5">
                                     <div>
                                         <span className={NB.label + " !mb-0"}>PPN 11%</span>
                                         <span className={NB.labelHint}>Pajak Pertambahan Nilai</span>
@@ -1217,10 +1208,10 @@ export function InvoicesPageClient() {
                                             className={`${NB.toggleThumb} ${editIncludeTax ? 'left-5' : 'left-0.5'}`}
                                         />
                                     </button>
-                                </motion.div>
+                                </div>
 
                                 {/* Totals Summary */}
-                                <motion.div variants={fadeUp}>
+                                <div>
                                     {(() => {
                                         const subtotal = editItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
                                         const afterDiscount = subtotal - editDiscount
@@ -1259,26 +1250,26 @@ export function InvoicesPageClient() {
                                             </div>
                                         )
                                     })()}
-                                </motion.div>
+                                </div>
 
                                 {/* Attachments */}
                                 {activeInvoice && (
-                                    <motion.div variants={fadeUp} className="border-t-2 border-zinc-200 dark:border-zinc-700 pt-4">
+                                    <div className="border-t-2 border-zinc-200 dark:border-zinc-700 pt-4">
                                         <InvoiceAttachmentSection invoiceId={activeInvoice.id} />
-                                    </motion.div>
+                                    </div>
                                 )}
 
                                 {/* Riwayat */}
                                 {activeInvoice && (
-                                    <motion.div variants={fadeUp} className={NB.section}>
+                                    <div className={NB.section}>
                                         <div className={NB.sectionHead}>
                                             <Clock className="h-4 w-4 text-zinc-500" />
                                             <span className={NB.sectionTitle}>Riwayat Perubahan</span>
                                         </div>
                                         <AuditLogTimeline entityType="Invoice" entityId={activeInvoice.id} />
-                                    </motion.div>
+                                    </div>
                                 )}
-                            </motion.div>
+                            </div>
                         )}
                     </div>
                     <DialogFooter className="p-6 pt-3 border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex gap-2">

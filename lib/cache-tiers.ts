@@ -86,6 +86,8 @@ export const ROUTE_TIERS: Record<string, CacheTier> = {
 
     // ── Master+ data (T3) ──
     "/inventory/products":            "MASTER_PLUS",
+    "/inventory/stock":               "MASTER_PLUS",
+    "/inventory/alerts":              "MASTER_PLUS",
     "/inventory/fabric-rolls":        "MASTER_PLUS",
     "/inventory/opening-stock":       "MASTER_PLUS",
     "/sales/customers":               "MASTER_PLUS",

@@ -17,6 +17,7 @@ import type { StaffActivityRow } from "@/components/hcm/detailed-staff-activity"
 import { DetailedPerformanceTable } from "@/components/hcm/detailed-performance-table"
 import type { PerformanceRow } from "@/components/hcm/detailed-performance-table"
 import { queryKeys } from "@/lib/query-keys"
+import { CACHE_TIERS } from "@/lib/cache-tiers"
 import { CommandPulse, MiningSnapshotStrip } from "@/components/mining/command-pulse"
 import { InlinePendingBar } from "@/components/ui/inline-pending"
 
@@ -91,6 +92,7 @@ export default function HCMPage() {
       if (!res.ok) throw new Error("Failed to fetch HCM dashboard data")
       return res.json() as Promise<HCMDashboardData>
     },
+    ...CACHE_TIERS.DASHBOARD,
   })
 
   // Fetch detailed attendance snapshot for staff activity & performance tables
@@ -116,6 +118,7 @@ export default function HCMPage() {
         departments: string[]
       }>
     },
+    ...CACHE_TIERS.REALTIME,
   })
 
   const dashboardData = data ?? fallbackData

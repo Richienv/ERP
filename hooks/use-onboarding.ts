@@ -2,14 +2,18 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
-import { getOnboardingTemplates } from "@/lib/actions/hcm-onboarding"
+import { CACHE_TIERS } from "@/lib/cache-tiers"
+
+export async function fetchOnboardingPage() {
+    const res = await fetch("/api/hcm/onboarding-data")
+    if (!res.ok) throw new Error("Failed to fetch onboarding")
+    return res.json()
+}
 
 export function useOnboarding() {
     return useQuery({
         queryKey: queryKeys.hcmOnboarding.list(),
-        queryFn: async () => {
-            const templates = await getOnboardingTemplates()
-            return { templates }
-        },
+        queryFn: fetchOnboardingPage,
+        ...CACHE_TIERS.MASTER,
     })
 }

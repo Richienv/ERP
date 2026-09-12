@@ -21,7 +21,7 @@ export interface StatusTabBarProps {
 const dotColorMap: Record<string, string> = {
   orange: "bg-orange-500",
   gray: "bg-zinc-400",
-  blue: "bg-blue-500",
+  blue: "bg-zinc-400",
   red: "bg-red-500",
   green: "bg-emerald-500",
 }
@@ -58,7 +58,7 @@ export function StatusTabBar({ tabs, activeTab, onTabChange, totalLabel }: Statu
               {/* Left: dot + label */}
               <div className="flex items-center gap-1.5">
                 <span className={`w-2 h-2 shrink-0 ${dotColor}`} />
-                <span className={`text-[11px] font-bold uppercase tracking-wider ${
+                <span className={`text-xs font-bold uppercase tracking-wider ${
                   isActive ? "text-orange-600 dark:text-orange-400" : "text-zinc-500 dark:text-zinc-400"
                 }`}>
                   {tab.label}
@@ -73,7 +73,7 @@ export function StatusTabBar({ tabs, activeTab, onTabChange, totalLabel }: Statu
         {/* Optional total label at the end */}
         {totalLabel && (
           <div className="px-4 py-3 flex items-center shrink-0">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+            <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
               {totalLabel}
             </span>
           </div>

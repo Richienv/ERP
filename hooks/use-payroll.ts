@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { CACHE_TIERS } from "@/lib/cache-tiers"
 import { getPayrollRun, getPayrollComplianceReport } from "@/app/actions/hcm"
 
 export interface PayrollLine {
@@ -114,6 +115,7 @@ export function usePayrollRun(period: string) {
         queryKey: queryKeys.payroll.run(period),
         queryFn: () => fetchPayrollRun(period),
         enabled: !!period,
+        ...CACHE_TIERS.TRANSACTIONAL,
     })
 }
 
@@ -122,5 +124,6 @@ export function usePayrollCompliance(period: string) {
         queryKey: queryKeys.payroll.compliance(period),
         queryFn: () => fetchPayrollCompliance(period),
         enabled: !!period,
+        ...CACHE_TIERS.TRANSACTIONAL,
     })
 }

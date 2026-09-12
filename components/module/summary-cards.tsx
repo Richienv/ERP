@@ -21,7 +21,7 @@ const dotColor: Record<NonNullable<SummaryCard["color"]>, string> = {
   green: "bg-emerald-500",
   orange: "bg-amber-500",
   red: "bg-red-500",
-  blue: "bg-blue-500",
+  blue: "bg-zinc-400",
 }
 
 const bgTint: Record<NonNullable<SummaryCard["color"]>, string> = {
@@ -29,7 +29,7 @@ const bgTint: Record<NonNullable<SummaryCard["color"]>, string> = {
   green: "bg-emerald-50/50 dark:bg-emerald-950/10",
   orange: "bg-amber-50/50 dark:bg-amber-950/10",
   red: "bg-red-50/50 dark:bg-red-950/10",
-  blue: "bg-blue-50/50 dark:bg-blue-950/10",
+  blue: "",
 }
 
 const labelColor: Record<NonNullable<SummaryCard["color"]>, string> = {
@@ -37,7 +37,7 @@ const labelColor: Record<NonNullable<SummaryCard["color"]>, string> = {
   green: "text-emerald-600 dark:text-emerald-400",
   orange: "text-amber-600 dark:text-amber-400",
   red: "text-red-600 dark:text-red-400",
-  blue: "text-blue-600 dark:text-blue-400",
+  blue: "text-zinc-500 dark:text-zinc-400",
 }
 
 const valueColor: Record<NonNullable<SummaryCard["color"]>, string> = {
@@ -45,7 +45,7 @@ const valueColor: Record<NonNullable<SummaryCard["color"]>, string> = {
   green: "text-emerald-700 dark:text-emerald-300",
   orange: "text-amber-700 dark:text-amber-300",
   red: "text-red-700 dark:text-red-300",
-  blue: "text-blue-700 dark:text-blue-300",
+  blue: "text-zinc-900 dark:text-white",
 }
 
 const subColor: Record<NonNullable<SummaryCard["color"]>, string> = {
@@ -53,7 +53,7 @@ const subColor: Record<NonNullable<SummaryCard["color"]>, string> = {
   green: "text-emerald-500 dark:text-emerald-400",
   orange: "text-amber-500 dark:text-amber-400",
   red: "text-red-500 dark:text-red-400",
-  blue: "text-blue-500 dark:text-blue-400",
+  blue: "text-zinc-500 dark:text-zinc-400",
 }
 
 const colsClass: Record<2 | 3 | 4, string> = {
@@ -93,7 +93,7 @@ export function SummaryCards({ cards, columns = 3, className }: SummaryCardsProp
               )}
               <span
                 className={cn(
-                  "text-[10px] font-black uppercase tracking-widest",
+                  "text-xs font-black uppercase tracking-widest",
                   labelColor[c],
                 )}
               >

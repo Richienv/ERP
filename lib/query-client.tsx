@@ -16,7 +16,7 @@ const ReactQueryDevtools =
         : null
 
 // Cache version — auto-busts on Vercel deploy via git SHA, manual bump for local
-export const CACHE_BUSTER = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 8) || "v2-snap"
+export const CACHE_BUSTER = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 8) || "v3-snap"
 
 /* ────────────────────────────────────────────────────────────────────────────
  * CACHE TIERS
