@@ -84,6 +84,10 @@ export const queryKeys = {
         all: ["miningCommand"] as const,
         pulse: () => [...queryKeys.miningCommand.all, "pulse"] as const,
     },
+    fleet: {
+        all: ["fleet"] as const,
+        list: () => [...queryKeys.fleet.all, "list"] as const,
+    },
     purchaseRequests: {
         all: ["purchaseRequests"] as const,
         list: () => [...queryKeys.purchaseRequests.all, "list"] as const,

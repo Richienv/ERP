@@ -14,6 +14,9 @@ import { getVendors } from "@/lib/actions/procurement"
 import { getJournalEntries, getGLAccountsList } from "@/lib/actions/finance-gl"
 import { getARAgingReport, getAPAgingReport } from "@/lib/actions/finance"
 import { getPayrollRun, getPayrollComplianceReport } from "@/app/actions/hcm"
+import { getMiningCommandPulse } from "@/lib/actions/mining-command"
+import { getVehicles, getVehicleStats } from "@/lib/actions/vehicles"
+import { fetchExecutiveDashboard } from "@/hooks/use-executive-dashboard"
 
 /** Helper: fetch JSON from an API route. Throws on error so TanStack Query
  *  treats failures as errors (keeps stale data) instead of caching empty fallbacks. */
@@ -255,7 +258,22 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/dashboard": {
         queryKey: queryKeys.executiveDashboard.list(),
-        queryFn: () => fetch("/api/dashboard").then((r) => r.json()).then((p) => p.data ?? {}),
+        queryFn: fetchExecutiveDashboard,
+    },
+    // Companion — mining command pulse rendered on the executive dashboard
+    "/dashboard#pulse": {
+        queryKey: queryKeys.miningCommand.pulse(),
+        queryFn: () => getMiningCommandPulse(),
+    },
+    "/fleet": {
+        queryKey: queryKeys.fleet.list(),
+        queryFn: async () => {
+            const [vehicles, stats] = await Promise.all([
+                getVehicles(),
+                getVehicleStats(),
+            ])
+            return { vehicles, stats }
+        },
     },
     "/inventory": {
         queryKey: queryKeys.inventoryDashboard.list(),
@@ -640,9 +658,10 @@ export function useNavPrefetch() {
         (url: string) => {
             router.prefetch(url)
 
-            const config = routePrefetchMap[url]
-            if (config) {
-                const tier = getTierForRoute(url)
+            const companionPrefix = `${url}#`
+            for (const [route, config] of Object.entries(routePrefetchMap)) {
+                if (route !== url && !route.startsWith(companionPrefix)) continue
+                const tier = getTierForRoute(route)
                 queryClient.prefetchQuery({
                     queryKey: config.queryKey,
                     queryFn: config.queryFn,

@@ -485,7 +485,7 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
   }
 }
 
@@ -532,4 +532,18 @@ textarea.nb-input:not(:placeholder-shown) {
   .mf-panel {
     @apply border border-black/15 bg-zinc-50/40;
   }
+}
+
+/* In-page refetch bar — zinc track, orange sweep. Used by InlinePendingBar. */
+@keyframes kri-inline-pending {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+.animate-inline-pending {
+  animation: kri-inline-pending 1.1s ease-in-out infinite;
 }

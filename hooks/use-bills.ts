@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { CACHE_TIERS } from "@/lib/cache-tiers"
 import { getVendorBillsRegistry } from "@/lib/actions/finance-ap"
 import { getAvailableBanks } from "@/lib/actions/xendit"
 
@@ -24,6 +25,7 @@ export function useBills(params?: BillsQueryParams) {
             } : undefined)
             return data
         },
+        ...CACHE_TIERS.TRANSACTIONAL,
     })
 }
 
@@ -34,6 +36,6 @@ export function useBanks() {
             const data = await getAvailableBanks()
             return { banks: data.banks, ewallets: data.ewallets }
         },
-        staleTime: 5 * 60 * 1000, // banks don't change often
+        ...CACHE_TIERS.MASTER,
     })
 }

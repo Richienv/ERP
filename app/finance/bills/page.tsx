@@ -68,10 +68,6 @@ const fadeUp = {
     hidden: { opacity: 0, y: 14 },
     show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
 }
-const fadeX = {
-    hidden: { opacity: 0, x: -12 },
-    show: { opacity: 1, x: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
-}
 
 export default function APBillsStackPage() {
     const router = useRouter()
@@ -432,7 +428,7 @@ export default function APBillsStackPage() {
         switch (status) {
             case "PAID": return "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700"
             case "DISPUTED": return "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700"
-            case "PARTIAL": return "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border-blue-300 dark:border-blue-700"
+            case "PARTIAL": return "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-300 dark:border-zinc-700"
             case "DRAFT": return "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-700"
             default: return "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-300 dark:border-zinc-700"
         }
@@ -477,7 +473,7 @@ export default function APBillsStackPage() {
                         <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                             Tagihan Vendor
                         </span>
-                        <span className="text-[10px] font-mono font-bold text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5">
+                        <span className="text-xs font-mono font-bold text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5">
                             {billMeta.total}
                         </span>
                     </div>
@@ -489,42 +485,38 @@ export default function APBillsStackPage() {
                     </Button>
                 </div>
 
-                {/* Row 2: KPI Strip — big, colorful, attention-grabbing */}
-                <div className="grid grid-cols-4 border-b border-zinc-200 dark:border-zinc-800">
-                    {/* Total Tagihan */}
-                    <div className="px-5 py-4 border-r border-zinc-200 dark:border-zinc-800 bg-blue-50/50 dark:bg-blue-950/10">
-                        <div className="flex items-center gap-1.5 mb-1">
-                            <span className="w-2 h-2 bg-blue-500 rounded-full" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">Total Tagihan</span>
+                {/* Row 2: KPI Strip — zinc default, orange due-today, red overdue */}
+                <div className={`${NB.kpiStrip} border-b border-zinc-200 dark:border-zinc-800`}>
+                    <div className={NB.kpiCell}>
+                        <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 bg-zinc-400 rounded-full" />
+                            <span className={NB.kpiLabel}>Total Tagihan</span>
                         </div>
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-black text-blue-700 dark:text-blue-300 tabular-nums">{totalBills}</span>
-                            <span className="text-sm font-mono font-bold text-blue-500 dark:text-blue-400">{formatIDR(totalAmount)}</span>
+                        <div className="text-right">
+                            <span className={NB.kpiCount}>{totalBills}</span>
+                            <span className={`${NB.kpiAmount} block`}>{formatIDR(totalAmount)}</span>
                         </div>
                     </div>
-                    {/* Pending */}
-                    <div className="px-5 py-4 border-r border-zinc-200 dark:border-zinc-800">
-                        <div className="flex items-center gap-1.5 mb-1">
-                            <span className="w-2 h-2 bg-amber-500 rounded-full" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Pending</span>
+                    <div className={NB.kpiCell}>
+                        <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 bg-zinc-400 rounded-full" />
+                            <span className={NB.kpiLabel}>Pending</span>
                         </div>
-                        <span className="text-3xl font-black text-amber-600 dark:text-amber-400 tabular-nums">{pendingBills}</span>
+                        <span className={NB.kpiCount}>{pendingBills}</span>
                     </div>
-                    {/* Hari Ini / Due Today */}
-                    <div className={`px-5 py-4 border-r border-zinc-200 dark:border-zinc-800 ${dueTodayBills > 0 ? "bg-orange-50/50 dark:bg-orange-950/10" : ""}`}>
-                        <div className="flex items-center gap-1.5 mb-1">
+                    <div className={NB.kpiCell}>
+                        <div className="flex items-center gap-1.5">
                             <span className={`w-2 h-2 rounded-full ${dueTodayBills > 0 ? "bg-orange-500" : "bg-zinc-300"}`} />
-                            <span className={`text-[10px] font-black uppercase tracking-widest ${dueTodayBills > 0 ? "text-orange-600 dark:text-orange-400" : "text-zinc-400"}`}>Hari Ini</span>
+                            <span className={NB.kpiLabel}>Hari Ini</span>
                         </div>
-                        <span className={`text-3xl font-black tabular-nums ${dueTodayBills > 0 ? "text-orange-600 dark:text-orange-400" : "text-zinc-300 dark:text-zinc-600"}`}>{dueTodayBills}</span>
+                        <span className={`${NB.kpiCount} ${dueTodayBills > 0 ? "text-orange-600 dark:text-orange-400" : ""}`}>{dueTodayBills}</span>
                     </div>
-                    {/* Jatuh Tempo / Overdue */}
-                    <div className={`px-5 py-4 ${overdueBills > 0 ? "bg-red-50 dark:bg-red-950/20" : ""}`}>
-                        <div className="flex items-center gap-1.5 mb-1">
-                            <span className={`w-2 h-2 rounded-full ${overdueBills > 0 ? "bg-red-500 animate-pulse" : "bg-zinc-300"}`} />
-                            <span className={`text-[10px] font-black uppercase tracking-widest ${overdueBills > 0 ? "text-red-600 dark:text-red-400" : "text-zinc-400"}`}>Jatuh Tempo</span>
+                    <div className={NB.kpiCell}>
+                        <div className="flex items-center gap-1.5">
+                            <span className={`w-2 h-2 rounded-full ${overdueBills > 0 ? "bg-red-500" : "bg-zinc-300"}`} />
+                            <span className={NB.kpiLabel}>Jatuh Tempo</span>
                         </div>
-                        <span className={`text-3xl font-black tabular-nums ${overdueBills > 0 ? "text-red-600 dark:text-red-400" : "text-zinc-300 dark:text-zinc-600"}`}>{overdueBills}</span>
+                        <span className={`${NB.kpiCount} ${overdueBills > 0 ? "text-red-600 dark:text-red-400" : ""}`}>{overdueBills}</span>
                     </div>
                 </div>
 
@@ -568,7 +560,7 @@ export default function APBillsStackPage() {
                             <Filter className="h-3.5 w-3.5 mr-1.5" /> Terapkan
                         </Button>
                         {hasActiveFilters && (
-                            <Button variant="ghost" onClick={resetFilters} className="text-zinc-400 text-[10px] font-bold uppercase h-9 px-3 rounded-none hover:text-zinc-700 dark:hover:text-zinc-200 ml-1.5">
+                            <Button variant="ghost" onClick={resetFilters} className="text-zinc-400 text-xs font-bold uppercase h-9 px-3 rounded-none hover:text-zinc-700 dark:hover:text-zinc-200 ml-1.5">
                                 <RotateCcw className="h-3 w-3 mr-1" /> Reset
                             </Button>
                         )}
@@ -581,37 +573,29 @@ export default function APBillsStackPage() {
                 {/* ─── Table Header — black bar ─── */}
                 <div className="hidden md:grid grid-cols-[1fr_1.5fr_110px_100px_140px_110px] gap-2 px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black">
                     {["No. Bill", "Vendor", "Jatuh Tempo", "Status", "Jumlah", "Aksi"].map((h) => (
-                        <span key={h} className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{h}</span>
+                        <span key={h} className="text-xs font-black uppercase tracking-widest text-zinc-400">{h}</span>
                     ))}
                 </div>
 
                 {/* ─── Table Body (active bills only) ─── */}
                 <div className="min-h-[200px]">
                     {activeBills.length === 0 ? (
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="flex flex-col items-center justify-center py-16 text-zinc-400"
-                        >
+                        <div className="flex flex-col items-center justify-center py-16 text-zinc-400">
                             <div className="w-14 h-14 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-3">
                                 <CheckCircle2 className="h-6 w-6 text-zinc-200 dark:text-zinc-700" />
                             </div>
                             <span className="text-sm font-bold text-zinc-500 dark:text-zinc-400">Semua tagihan sudah terbayar</span>
                             <span className="text-xs text-zinc-400 mt-1">Tidak ada tagihan yang perlu diproses</span>
-                        </motion.div>
+                        </div>
                     ) : (
                         <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
                             {activeBills.map((bill, idx) => {
                                 const isOverdue = bill.isOverdue
                                 const billDueToday = (bill as any).isDueToday
                                 return (
-                                    <motion.div
+                                    <div
                                         key={bill.id}
-                                        variants={fadeX}
-                                        initial="hidden"
-                                        animate="show"
-                                        transition={{ delay: idx * 0.03 }}
-                                        className={`grid grid-cols-1 md:grid-cols-[1fr_1.5fr_110px_100px_140px_110px] gap-2 px-5 py-3 items-center transition-all hover:bg-orange-50/50 dark:hover:bg-orange-950/10 ${
+                                        className={`grid grid-cols-1 md:grid-cols-[1fr_1.5fr_110px_100px_140px_110px] gap-2 px-5 py-3 items-center hover:bg-orange-50/50 dark:hover:bg-orange-950/10 ${
                                             idx % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/60 dark:bg-zinc-800/20"
                                         } ${isOverdue ? "border-l-4 border-l-red-500" : billDueToday ? "border-l-4 border-l-orange-400" : ""}`}
                                     >
@@ -631,7 +615,7 @@ export default function APBillsStackPage() {
                                         </div>
                                         {/* Status */}
                                         <div>
-                                            <span className={`inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wide px-2 py-1 border rounded-none ${getStatusColor(bill.status, isOverdue, billDueToday)}`}>
+                                            <span className={`inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wide px-2 py-1 border rounded-none ${getStatusColor(bill.status, isOverdue, billDueToday)}`}>
                                                 <span className={`w-1.5 h-1.5 ${
                                                     isOverdue ? "bg-red-500" :
                                                     billDueToday ? "bg-orange-500" :
@@ -652,7 +636,7 @@ export default function APBillsStackPage() {
                                                 {formatIDR(bill.amount)}
                                             </span>
                                             {bill.balanceDue !== bill.amount && bill.balanceDue > 0 && (
-                                                <span className="text-[9px] text-zinc-400 block font-mono">Sisa {formatIDR(bill.balanceDue)}</span>
+                                                <span className="text-xs text-zinc-400 block font-mono">Sisa {formatIDR(bill.balanceDue)}</span>
                                             )}
                                         </div>
                                         {/* Actions */}
@@ -673,7 +657,7 @@ export default function APBillsStackPage() {
                                                     onClick={() => { setActiveBill(bill); setStamped(false); setIsPayOpen(true) }}
                                                     disabled={!!paymentPendingBillId}
                                                     title="Bayar"
-                                                    className="h-7 px-2 flex items-center gap-1 border border-emerald-300 dark:border-emerald-600 text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:border-emerald-500 transition-colors rounded-none text-[9px] font-bold uppercase"
+                                                    className="h-7 px-2 flex items-center gap-1 border border-emerald-300 dark:border-emerald-600 text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:border-emerald-500 transition-colors rounded-none text-xs font-bold uppercase"
                                                 >
                                                     <CreditCard className="h-3 w-3" /> Bayar
                                                 </motion.button>
@@ -695,7 +679,7 @@ export default function APBillsStackPage() {
                                                 </button>
                                             )}
                                         </div>
-                                    </motion.div>
+                                    </div>
                                 )
                             })}
                         </div>
@@ -705,7 +689,7 @@ export default function APBillsStackPage() {
                 {/* Pagination footer */}
                 {billMeta.totalPages > 1 && (
                     <div className="px-5 py-3 border-t border-zinc-200 dark:border-zinc-700 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                        <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                             {billMeta.total} tagihan
                         </span>
                         <div className="flex items-center gap-2">

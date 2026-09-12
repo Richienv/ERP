@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select"
 import { Users, Search, Shield, X } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Skeleton } from "@/components/ui/skeleton"
 import { toast, Toaster } from "sonner"
 import { NB } from "@/lib/dialog-styles"
 import { listUsers, setUserRole } from "@/app/actions/users"
@@ -187,7 +188,7 @@ export default function UserManagementPage() {
                             </button>
                         ) : null}
                     </div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                    <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">
                         {filteredUsers.length} pengguna
                     </span>
                 </div>
@@ -203,9 +204,26 @@ export default function UserManagementPage() {
                 </CardHeader>
                 <CardContent>
                     {loading ? (
-                        <p className="py-8 text-center text-sm font-bold uppercase tracking-wider text-zinc-500">
-                            Memuat pengguna...
-                        </p>
+                        <div className="space-y-0" aria-busy="true" aria-label="Memuat pengguna">
+                            <div className="flex gap-4 border-b border-zinc-200 px-1 py-2 dark:border-zinc-700">
+                                <Skeleton className="h-3 w-24" />
+                                <Skeleton className="h-3 w-32" />
+                                <Skeleton className="h-3 w-20" />
+                                <Skeleton className="h-3 w-16" />
+                            </div>
+                            {Array.from({ length: 5 }).map((_, index) => (
+                                <div
+                                    key={index}
+                                    className="flex items-center gap-4 border-b border-zinc-100 px-1 py-3 last:border-0 dark:border-zinc-800"
+                                >
+                                    <Skeleton className="h-9 w-9 shrink-0" />
+                                    <Skeleton className="h-4 w-28" />
+                                    <Skeleton className="h-4 flex-1 max-w-[180px]" />
+                                    <Skeleton className="h-8 w-[160px]" />
+                                    <Skeleton className="h-3 w-20" />
+                                </div>
+                            ))}
+                        </div>
                     ) : error ? (
                         <p className="py-8 text-center text-sm font-bold text-red-600">{error}</p>
                     ) : filteredUsers.length === 0 ? (

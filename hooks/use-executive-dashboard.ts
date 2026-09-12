@@ -2,26 +2,26 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { CACHE_TIERS } from "@/lib/cache-tiers"
+
+/**
+ * Shared dashboard queryFn — used by useExecutiveDashboard and route prefetch.
+ *
+ * /api/dashboard returns the payload DIRECTLY (no `{ data }` wrapper):
+ *   { financials, operations, activity, charts, sales, hr, tax, details }
+ * Manufacturing is hidden for KRI; keep `manufacturing: null` so the cached
+ * object shape matches what the dashboard page already reads.
+ */
+export async function fetchExecutiveDashboard() {
+    const dashData = await fetch("/api/dashboard")
+    if (!dashData.ok) throw new Error("Failed to fetch dashboard data")
+    return { ...await dashData.json(), manufacturing: null }
+}
 
 export function useExecutiveDashboard() {
     return useQuery({
         queryKey: queryKeys.executiveDashboard.list(),
-        queryFn: async () => {
-            const [dashRes, mfgRes] = await Promise.all([
-                fetch("/api/dashboard"),
-                fetch("/api/manufacturing/dashboard").catch(() => null),
-            ])
-
-            if (!dashRes.ok) throw new Error("Failed to fetch dashboard data")
-            const dashData = await dashRes.json()
-
-            let mfgData = null
-            if (mfgRes?.ok) {
-                const mfgJson = await mfgRes.json()
-                mfgData = mfgJson?.data ?? null
-            }
-
-            return { ...dashData, manufacturing: mfgData }
-        },
+        queryFn: fetchExecutiveDashboard,
+        ...CACHE_TIERS.DASHBOARD,
     })
 }
