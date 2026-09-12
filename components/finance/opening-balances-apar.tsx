@@ -9,7 +9,6 @@ import { createOpeningInvoices, getOpeningBalanceParties } from "@/lib/actions/f
 import type { OpeningInvoiceRow } from "@/lib/actions/finance-gl"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
-import { motion, AnimatePresence } from "framer-motion"
 
 interface PartyOption { id: string; name: string }
 
@@ -64,10 +63,10 @@ export function OpeningBalancesAPAR() {
 
     const accentGradient = activeSection === "AP"
         ? "from-red-500 via-rose-400 to-red-500"
-        : "from-blue-500 via-sky-400 to-blue-500"
+        : "from-zinc-500 via-zinc-400 to-zinc-500"
     const accentBg = activeSection === "AP"
         ? "bg-red-50/50 dark:bg-red-950/10"
-        : "bg-blue-50/50 dark:bg-blue-950/10"
+        : "bg-zinc-50 dark:bg-zinc-800/40"
 
     return (
         <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
@@ -84,7 +83,7 @@ export function OpeningBalancesAPAR() {
                 <div className="flex items-center gap-0 shrink-0 ml-4">
                     <button
                         onClick={() => setActiveSection("AP")}
-                        className={`flex items-center gap-1 h-8 px-3 border text-[10px] font-black uppercase tracking-wider rounded-none transition-all border-r-0 ${
+                        className={`flex items-center gap-1 h-8 px-3 border text-xs font-black uppercase tracking-wider rounded-none transition-all border-r-0 ${
                             activeSection === "AP"
                                 ? "bg-red-500 text-white border-red-600"
                                 : "bg-white dark:bg-zinc-900 text-zinc-500 border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50"
@@ -94,9 +93,9 @@ export function OpeningBalancesAPAR() {
                     </button>
                     <button
                         onClick={() => setActiveSection("AR")}
-                        className={`flex items-center gap-1 h-8 px-3 border text-[10px] font-black uppercase tracking-wider rounded-none transition-all ${
+                        className={`flex items-center gap-1 h-8 px-3 border text-xs font-black uppercase tracking-wider rounded-none transition-all ${
                             activeSection === "AR"
-                                ? "bg-blue-500 text-white border-blue-600"
+                                ? "bg-black text-white border-black dark:bg-white dark:text-black dark:border-white"
                                 : "bg-white dark:bg-zinc-900 text-zinc-500 border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50"
                         }`}
                     >
@@ -117,13 +116,9 @@ export function OpeningBalancesAPAR() {
 
             {/* Data Rows */}
             <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                <AnimatePresence>
                     {rows.map((row, idx) => (
-                        <motion.div
+                        <div
                             key={idx}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
                             className="grid grid-cols-[36px_1fr_1fr_150px_130px_36px] gap-0 items-center group hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors"
                         >
                             <div className="px-2 py-2 text-[11px] text-zinc-300 font-black text-center">{idx + 1}</div>
@@ -184,9 +179,8 @@ export function OpeningBalancesAPAR() {
                                     <IconTrash size={13} />
                                 </button>
                             </div>
-                        </motion.div>
+                        </div>
                     ))}
-                </AnimatePresence>
             </div>
 
             {/* Footer: Add Row + Total + Submit */}
@@ -200,14 +194,14 @@ export function OpeningBalancesAPAR() {
                         <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400 block">
                             Total {activeSection === "AP" ? "Hutang" : "Piutang"}
                         </span>
-                        <span className={`text-lg font-black font-mono tabular-nums ${activeSection === "AP" ? "text-red-600" : "text-blue-600"}`}>
+                        <span className={`text-lg font-black font-mono tabular-nums ${activeSection === "AP" ? "text-red-600" : "text-zinc-900 dark:text-white"}`}>
                             {formatIDR(totalAmount)}
                         </span>
                     </div>
                     <button
                         onClick={handleSubmit}
                         disabled={loading || validRows.length === 0}
-                        className={`${activeSection === "AP" ? NB.submitBtn : NB.submitBtnBlue} disabled:opacity-40 disabled:cursor-not-allowed disabled:translate-y-0 disabled:shadow-none`}
+                        className={`${NB.submitBtn} disabled:opacity-40 disabled:cursor-not-allowed disabled:translate-y-0 disabled:shadow-none`}
                     >
                         {loading ? "Menyimpan..." : `Simpan ${validRows.length} Saldo Awal`}
                     </button>

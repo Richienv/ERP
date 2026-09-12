@@ -70,7 +70,7 @@ export default function FinanceDashboardPage() {
                         <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <Wallet className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Posisi Kas</span>
+                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Posisi Kas</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-emerald-600">
                             Rp {formatCompactNumber(metrics.cashBalance)}
@@ -85,7 +85,7 @@ export default function FinanceDashboardPage() {
                         <div className="absolute top-0 left-0 right-0 h-1 bg-orange-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <FileText className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Piutang (AR)</span>
+                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Piutang (AR)</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-orange-600">
                             Rp {formatCompactNumber(metrics.receivables)}
@@ -100,7 +100,7 @@ export default function FinanceDashboardPage() {
                         <div className="absolute top-0 left-0 right-0 h-1 bg-red-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <CreditCard className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Utang (AP)</span>
+                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Utang (AP)</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-red-600">
                             Rp {formatCompactNumber(metrics.payables)}
@@ -115,7 +115,7 @@ export default function FinanceDashboardPage() {
                         <div className="absolute top-0 left-0 right-0 h-1 bg-amber-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <PiggyBank className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Laba Bersih (YTD)</span>
+                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Laba Bersih (YTD)</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-amber-600">
                             {metrics.netMargin}%

@@ -36,6 +36,8 @@ import { queryKeys } from "@/lib/query-keys"
 import { VendorMultiPaymentDialog } from "@/components/finance/vendor-multi-payment-dialog"
 import { useChartOfAccounts } from "@/hooks/use-chart-accounts"
 import { exportToExcel } from "@/lib/table-export"
+import { TablePageSkeleton } from "@/components/ui/page-skeleton"
+import { InlinePendingBar } from "@/components/ui/inline-pending"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -73,7 +75,7 @@ const parsePaymentMeta = (notes?: string): PaymentMeta => {
 export default function APCheckbookPage() {
     const searchParams = useSearchParams()
     const highlightPaymentId = searchParams.get("highlight")
-    const { data, isLoading: loading } = useVendorPayments()
+    const { data, isLoading: loading, isFetching } = useVendorPayments()
     const queryClient = useQueryClient()
     const payments = data?.payments ?? []
     const vendors = data?.vendors ?? []
@@ -310,18 +312,15 @@ export default function APCheckbookPage() {
         toast.success(`${rows.length} transaksi diekspor ke ${format.name}`)
     }
 
-    if (loading && payments.length === 0) {
-        return (
-            <div className="mf-page flex items-center justify-center">
-                <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400 animate-pulse">Loading...</div>
-            </div>
-        )
+    if (!data) {
+        return <TablePageSkeleton accentColor="bg-orange-400" />
     }
 
     const cashCount = payments.filter(p => p.method === "CASH").length
 
     return (
-        <div className="mf-page">
+        <div className="mf-page relative">
+            <InlinePendingBar active={isFetching} />
 
             {/* ═══ UNIFIED CARD: Toolbar + KPI + Table ═══ */}
             <div className={NB.pageCard}>
@@ -404,7 +403,7 @@ export default function APCheckbookPage() {
                 <div className={`${NB.kpiStrip} ${NB.pageRowBorder}`}>
                     {[
                         { label: "Total Bayar", count: totalPayments, amount: formatIDR(totalPaid), dot: "bg-orange-500" },
-                        { label: "Transfer", count: transferCount, amount: null, dot: "bg-blue-500" },
+                        { label: "Transfer", count: transferCount, amount: null, dot: "bg-zinc-500" },
                         { label: "Cek/Giro", count: checkCount, amount: null, dot: "bg-amber-500" },
                         { label: "Kas", count: cashCount, amount: null, dot: "bg-zinc-400" },
                     ].map((kpi) => (

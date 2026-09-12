@@ -4,7 +4,6 @@ import { useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import dynamic from "next/dynamic"
-import { motion } from "framer-motion"
 import { NotaDebitTab } from "@/components/finance/nota-debit-tab"
 import { TabContentSkeleton } from "@/components/ui/page-skeleton"
 import { NB } from "@/lib/dialog-styles"
@@ -46,19 +45,9 @@ export function PayablesPageClient() {
     const total = b.totalOutstanding
 
     return (
-        <motion.div
-            className="mf-page"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
-        >
+        <div className="mf-page">
             {/* ─── Unified Page Header ─── */}
-            <motion.div
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ type: "spring" as const, stiffness: 320, damping: 26 }}
-                className={NB.pageCard}
-            >
+            <div className={NB.pageCard}>
                 <div className={NB.pageAccent} />
 
                 {/* Row 1: Title + Tab Navigation */}
@@ -83,7 +72,7 @@ export function PayablesPageClient() {
                             <button
                                 key={tab.value}
                                 onClick={() => setActiveTab(tab.value)}
-                                className={`h-9 px-4 text-[10px] font-black uppercase tracking-widest transition-all border rounded-none ${
+                                className={`h-9 px-4 text-xs font-black uppercase tracking-widest transition-all border rounded-none ${
                                     idx < tabs.length - 1 ? "border-r-0" : ""
                                 } ${
                                     activeTab === tab.value
@@ -118,7 +107,7 @@ export function PayablesPageClient() {
                         </div>
                     </div>
                 )}
-            </motion.div>
+            </div>
 
             {/* ─── Pending Approval ─── */}
             {aging?.pending && aging.pending.length > 0 && (
@@ -131,6 +120,6 @@ export function PayablesPageClient() {
                 {activeTab === "pembayaran" && <VendorPaymentsTab />}
                 {activeTab === "nota-debit" && <NotaDebitTab />}
             </div>
-        </motion.div>
+        </div>
     )
 }
