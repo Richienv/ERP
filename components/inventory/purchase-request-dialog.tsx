@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -49,11 +49,30 @@ interface PurchaseRequestDialogProps {
     currentStock?: number;
   };
   onSuccess?: (newPO: any) => void;
+  triggerLabel?: string;
+  hideTrigger?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  defaultOpen?: boolean;
 }
 
-export function PurchaseRequestDialog({ item, onSuccess }: PurchaseRequestDialogProps) {
+export function PurchaseRequestDialog({
+  item,
+  onSuccess,
+  triggerLabel = "Request Purchase",
+  hideTrigger = false,
+  open: openProp,
+  onOpenChange,
+  defaultOpen = false,
+}: PurchaseRequestDialogProps) {
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
+  const isControlled = openProp !== undefined;
+  const open = isControlled ? openProp : uncontrolledOpen;
+  const setOpen = (next: boolean) => {
+    if (!isControlled) setUncontrolledOpen(next);
+    onOpenChange?.(next);
+  };
   const [loading, setLoading] = useState(false);
 
   const defaultQty = item.gap > 0 ? item.gap : item.reorderPoint > 0 ? item.reorderPoint : 10;
@@ -65,6 +84,11 @@ export function PurchaseRequestDialog({ item, onSuccess }: PurchaseRequestDialog
       notes: "",
     },
   });
+
+  useEffect(() => {
+    const qty = item.gap > 0 ? item.gap : item.reorderPoint > 0 ? item.reorderPoint : 10;
+    form.reset({ quantity: qty, notes: "" });
+  }, [item.id, item.gap, item.reorderPoint, form]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setLoading(true);
@@ -102,14 +126,16 @@ export function PurchaseRequestDialog({ item, onSuccess }: PurchaseRequestDialog
 
   return (
     <>
-      <Button
-        size="sm"
-        onClick={() => setOpen(true)}
-        className="bg-white text-black hover:bg-amber-50 border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all active:translate-x-[1px] active:translate-y-[1px] active:shadow-none font-bold uppercase text-xs h-8 gap-2 rounded-none"
-      >
-        <ShoppingBag className="h-3.5 w-3.5" />
-        Request Purchase
-      </Button>
+      {!hideTrigger && (
+        <Button
+          size="sm"
+          onClick={() => setOpen(true)}
+          className="bg-white text-black hover:bg-amber-50 border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all active:translate-x-[1px] active:translate-y-[1px] active:shadow-none font-bold uppercase text-xs h-8 gap-2 rounded-none"
+        >
+          <ShoppingBag className="h-3.5 w-3.5" />
+          {triggerLabel}
+        </Button>
+      )}
 
       <NBDialog open={open} onOpenChange={setOpen} size="narrow">
         <NBDialogHeader

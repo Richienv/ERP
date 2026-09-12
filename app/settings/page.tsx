@@ -7,18 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import {
     Settings,
     Shield,
     Bell,
     Zap,
-    Info,
     Save,
     RotateCcw,
     Database,
     Server,
-    Clock,
     Factory,
 } from "lucide-react";
 import {
@@ -31,6 +28,7 @@ import {
 import { mockSystemSettings, systemInfo } from "@/components/settings/data";
 import { useWorkingHours, useSaveWorkingHours } from "@/hooks/use-working-hours";
 import { toast } from "sonner";
+import { NB } from "@/lib/dialog-styles";
 
 export default function SystemSettingsPage() {
     const categories = Array.from(new Set(mockSystemSettings.map(s => s.category)));
@@ -101,90 +99,92 @@ export default function SystemSettingsPage() {
 
     return (
         <div className="mf-page">
-            <div className="flex items-center justify-between space-y-2">
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Pengaturan Sistem</h2>
-                    <p className="text-muted-foreground">
-                        Kelola konfigurasi dan preferensi sistem ERP.
-                    </p>
+            <div className={NB.pageCard}>
+                <div className={NB.pageAccent} />
+                <div className={`px-5 py-3.5 flex items-center justify-between ${NB.pageRowBorder}`}>
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center bg-zinc-800 text-white">
+                            <Settings className="h-4 w-4" />
+                        </div>
+                        <div>
+                            <h1 className="text-base font-black uppercase tracking-wider text-zinc-900 dark:text-white">
+                                Pengaturan Sistem
+                            </h1>
+                            <p className="text-xs font-medium text-zinc-400">
+                                Kelola konfigurasi dan preferensi sistem ERP.
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-0">
+                        <Button variant="outline" className={`${NB.toolbarBtn} ${NB.toolbarBtnJoin}`}>
+                            <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                            Reset Default
+                        </Button>
+                        <Button className={NB.toolbarBtnPrimary}>
+                            <Save className="mr-1.5 h-3.5 w-3.5" />
+                            Simpan Perubahan
+                        </Button>
+                    </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                    <Button variant="outline">
-                        <RotateCcw className="mr-2 h-4 w-4" />
-                        Reset Default
-                    </Button>
-                    <Button>
-                        <Save className="mr-2 h-4 w-4" />
-                        Simpan Perubahan
-                    </Button>
-                </div>
-            </div>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Versi Sistem</CardTitle>
-                        <Info className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{systemInfo.version}</div>
-                        <p className="text-xs text-muted-foreground">
-                            Build: {systemInfo.buildDate}
-                        </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Environment</CardTitle>
-                        <Server className="h-4 w-4 text-green-600" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">
-                            <Badge variant="default" className="bg-green-600">
+                <div className={`${NB.kpiStrip} ${NB.pageRowBorder}`}>
+                    <div className={NB.kpiCell}>
+                        <div className="flex items-center gap-1.5">
+                            <span className="h-2 w-2 bg-zinc-400" />
+                            <span className={NB.kpiLabel}>Versi</span>
+                        </div>
+                        <div className="text-right">
+                            <span className={NB.kpiCount}>{systemInfo.version}</span>
+                            <p className="text-xs font-medium text-zinc-400">Build {systemInfo.buildDate}</p>
+                        </div>
+                    </div>
+                    <div className={NB.kpiCell}>
+                        <div className="flex items-center gap-1.5">
+                            <span className="h-2 w-2 bg-zinc-400" />
+                            <span className={NB.kpiLabel}>Environment</span>
+                        </div>
+                        <div className="text-right">
+                            <span className="text-sm font-black uppercase text-zinc-900 dark:text-white">
                                 {systemInfo.environment}
-                            </Badge>
+                            </span>
+                            <p className="text-xs font-medium text-zinc-400">{systemInfo.database}</p>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                            {systemInfo.database}
-                        </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Uptime</CardTitle>
-                        <Clock className="h-4 w-4 text-blue-600" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{systemInfo.uptime.split(' ')[0]}</div>
-                        <p className="text-xs text-muted-foreground">
-                            hari tanpa gangguan
-                        </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Last Backup</CardTitle>
-                        <Database className="h-4 w-4 text-purple-600" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-lg font-bold">
-                            {new Date(systemInfo.lastBackup).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                    </div>
+                    <div className={NB.kpiCell}>
+                        <div className="flex items-center gap-1.5">
+                            <span className="h-2 w-2 bg-zinc-400" />
+                            <span className={NB.kpiLabel}>Uptime</span>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                            {new Date(systemInfo.lastBackup).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                    </CardContent>
-                </Card>
+                        <div className="text-right">
+                            <span className={NB.kpiCount}>{systemInfo.uptime.split(" ")[0]}</span>
+                            <p className="text-xs font-medium text-zinc-400">hari tanpa gangguan</p>
+                        </div>
+                    </div>
+                    <div className={NB.kpiCell}>
+                        <div className="flex items-center gap-1.5">
+                            <span className="h-2 w-2 bg-zinc-400" />
+                            <span className={NB.kpiLabel}>Last Backup</span>
+                        </div>
+                        <div className="text-right">
+                            <span className="text-sm font-black text-zinc-900 dark:text-white">
+                                {new Date(systemInfo.lastBackup).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
+                            </span>
+                            <p className="text-xs font-medium text-zinc-400">
+                                {new Date(systemInfo.lastBackup).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <Tabs defaultValue="Manufaktur" className="space-y-4">
-                <TabsList>
-                    <TabsTrigger value="Manufaktur" className="flex items-center">
+                <TabsList className="h-10 rounded-none border-2 border-black bg-zinc-100 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:bg-zinc-800">
+                    <TabsTrigger value="Manufaktur" className="flex items-center rounded-none text-xs font-bold uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:shadow-none">
                         <Factory className="mr-2 h-4 w-4" />
                         Manufaktur
                     </TabsTrigger>
                     {categories.map((category) => (
-                        <TabsTrigger key={category} value={category} className="flex items-center">
+                        <TabsTrigger key={category} value={category} className="flex items-center rounded-none text-xs font-bold uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:shadow-none">
                             {category === 'Umum' && <Settings className="mr-2 h-4 w-4" />}
                             {category === 'Keamanan' && <Shield className="mr-2 h-4 w-4" />}
                             {category === 'Notifikasi' && <Bell className="mr-2 h-4 w-4" />}
@@ -196,10 +196,10 @@ export default function SystemSettingsPage() {
 
                 {/* ── Manufaktur settings (real DB-backed) ── */}
                 <TabsContent value="Manufaktur" className="space-y-4">
-                    <Card>
+                    <Card className="rounded-none border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                         <CardHeader>
-                            <CardTitle>Pengaturan Manufaktur</CardTitle>
-                            <CardDescription>
+                            <CardTitle className="text-sm font-black uppercase tracking-wider">Pengaturan Manufaktur</CardTitle>
+                            <CardDescription className="text-xs">
                                 Konfigurasi parameter produksi dan kalkulasi biaya.
                             </CardDescription>
                         </CardHeader>
@@ -214,7 +214,7 @@ export default function SystemSettingsPage() {
                                         max={744}
                                         value={workingHoursInput !== "" ? workingHoursInput : workingHours}
                                         onChange={(e) => setWorkingHoursInput(e.target.value)}
-                                        className="max-w-xs"
+                                        className={`max-w-xs rounded-none ${effectiveHours ? NB.inputActive : NB.inputEmpty}`}
                                     />
                                     <Button
                                         onClick={async () => {
@@ -225,6 +225,7 @@ export default function SystemSettingsPage() {
                                             toast.success(`Jam kerja diperbarui: ${val} jam/bulan`)
                                         }}
                                         disabled={saveWorkingHours.isPending}
+                                        className={NB.toolbarBtnPrimary + " !ml-0"}
                                     >
                                         <Save className="mr-2 h-4 w-4" />
                                         {saveWorkingHours.isPending ? "Menyimpan..." : "Simpan"}
@@ -244,10 +245,10 @@ export default function SystemSettingsPage() {
 
                 {categories.map((category) => (
                     <TabsContent key={category} value={category} className="space-y-4">
-                        <Card>
+                        <Card className="rounded-none border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                             <CardHeader>
-                                <CardTitle>Pengaturan {category}</CardTitle>
-                                <CardDescription>
+                                <CardTitle className="text-sm font-black uppercase tracking-wider">Pengaturan {category}</CardTitle>
+                                <CardDescription className="text-xs">
                                     Konfigurasi untuk {category.toLowerCase()} sistem.
                                 </CardDescription>
                             </CardHeader>
@@ -266,26 +267,26 @@ export default function SystemSettingsPage() {
             </Tabs>
 
             {/* System Actions */}
-            <Card className="border-orange-200 bg-orange-50/50">
+            <Card className="rounded-none border-2 border-black bg-zinc-50 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:bg-zinc-900">
                 <CardHeader>
-                    <CardTitle className="flex items-center text-orange-900">
-                        <Shield className="mr-2 h-5 w-5" />
+                    <CardTitle className="flex items-center text-sm font-black uppercase tracking-wider text-zinc-900 dark:text-white">
+                        <Shield className="mr-2 h-5 w-5 text-zinc-600" />
                         Tindakan Sistem Kritis
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription className="text-xs">
                         Operasi berikut memerlukan konfirmasi dan dapat mempengaruhi seluruh sistem.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-wrap gap-2">
-                    <Button variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-50">
+                    <Button variant="outline" className={NB.toolbarBtn}>
                         <Database className="mr-2 h-4 w-4" />
                         Backup Database Sekarang
                     </Button>
-                    <Button variant="outline" className="border-purple-600 text-purple-600 hover:bg-purple-50">
+                    <Button variant="outline" className={NB.toolbarBtn}>
                         <RotateCcw className="mr-2 h-4 w-4" />
                         Clear Cache Sistem
                     </Button>
-                    <Button variant="outline" className="border-orange-600 text-orange-600 hover:bg-orange-50">
+                    <Button variant="outline" className={NB.toolbarBtn}>
                         <Server className="mr-2 h-4 w-4" />
                         Restart Services
                     </Button>

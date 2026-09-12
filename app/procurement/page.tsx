@@ -16,6 +16,9 @@ import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 import { useCallback, useState } from "react"
 import { DirectPurchaseDialog } from "@/components/procurement/direct-purchase-dialog"
 import { useDirectPurchaseOptions } from "@/hooks/use-direct-purchase-options"
+import { CommandPulse, MiningSnapshotStrip } from "@/components/mining/command-pulse"
+import { InlinePendingBar } from "@/components/ui/inline-pending"
+import { NB } from "@/lib/dialog-styles"
 
 function statusLabel(status: string) {
   const map: Record<string, { label: string; dot: string; bg: string; text: string }> = {
@@ -24,10 +27,10 @@ function statusLabel(status: string) {
     PENDING: { label: 'Pending', dot: 'bg-amber-500', bg: 'bg-amber-50 border-amber-300', text: 'text-amber-700' },
     PENDING_APPROVAL: { label: 'Pending', dot: 'bg-amber-500', bg: 'bg-amber-50 border-amber-300', text: 'text-amber-700' },
     APPROVED: { label: 'Approved', dot: 'bg-emerald-500', bg: 'bg-emerald-50 border-emerald-300', text: 'text-emerald-700' },
-    PO_CREATED: { label: 'PO Created', dot: 'bg-blue-500', bg: 'bg-blue-50 border-blue-300', text: 'text-blue-700' },
-    ORDERED: { label: 'Ordered', dot: 'bg-blue-500', bg: 'bg-blue-50 border-blue-300', text: 'text-blue-700' },
-    VENDOR_CONFIRMED: { label: 'Confirmed', dot: 'bg-blue-500', bg: 'bg-blue-50 border-blue-300', text: 'text-blue-700' },
-    SHIPPED: { label: 'Shipped', dot: 'bg-indigo-500', bg: 'bg-indigo-50 border-indigo-300', text: 'text-indigo-700' },
+    PO_CREATED: { label: 'PO Created', dot: 'bg-zinc-500', bg: 'bg-zinc-100 border-zinc-300', text: 'text-zinc-700' },
+    ORDERED: { label: 'Ordered', dot: 'bg-zinc-500', bg: 'bg-zinc-100 border-zinc-300', text: 'text-zinc-700' },
+    VENDOR_CONFIRMED: { label: 'Confirmed', dot: 'bg-zinc-500', bg: 'bg-zinc-100 border-zinc-300', text: 'text-zinc-700' },
+    SHIPPED: { label: 'Shipped', dot: 'bg-zinc-500', bg: 'bg-zinc-100 border-zinc-300', text: 'text-zinc-700' },
     PARTIAL_RECEIVED: { label: 'Partial', dot: 'bg-amber-500', bg: 'bg-amber-50 border-amber-300', text: 'text-amber-700' },
     PARTIAL_ACCEPTED: { label: 'Partial', dot: 'bg-amber-500', bg: 'bg-amber-50 border-amber-300', text: 'text-amber-700' },
     RECEIVED: { label: 'Received', dot: 'bg-emerald-500', bg: 'bg-emerald-50 border-emerald-300', text: 'text-emerald-700' },
@@ -43,7 +46,7 @@ function statusLabel(status: string) {
 export default function ProcurementPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const { data, isLoading } = useProcurementDashboard(searchParams.toString())
+  const { data, isFetching } = useProcurementDashboard(searchParams.toString())
   const [dpHovered, setDpHovered] = useState(false)
   const dpOptions = useDirectPurchaseOptions(dpHovered)
 
@@ -57,8 +60,8 @@ export default function ProcurementPage() {
     return qs ? `/procurement?${qs}` : "/procurement"
   }, [searchParams])
 
-  if (isLoading || !data) {
-    return <TablePageSkeleton accentColor="bg-violet-400" />
+  if (!data) {
+    return <TablePageSkeleton accentColor="bg-orange-400" />
   }
 
   const { spend, needsApproval, urgentNeeds, vendorHealth, incomingCount, recentActivity, purchaseOrders, purchaseRequests, receiving, registryMeta, pendingItemsForApproval } = data
@@ -70,11 +73,20 @@ export default function ProcurementPage() {
     <ProcurementPerformanceProvider currentPath="/procurement">
       <div className="flex-1 p-4 md:p-6 lg:p-8 pt-6 w-full space-y-4">
 
+        <CommandPulse
+          module="procurement"
+          compact
+          title="Pengadaan — terima, tagih, bayar"
+          subtitle="PR, PO, GRN, dan bill vendor dalam satu antrian"
+        />
+        <MiningSnapshotStrip highlight={["apOpen", "inventoryValue"]} />
+
         {/* Page Header */}
-        <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
-          <div className="px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-3 border-l-[6px] border-l-violet-400">
+        <div className="relative border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+          <InlinePendingBar active={isFetching} />
+          <div className="px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-3 border-l-[6px] border-l-orange-500">
             <div className="flex items-center gap-3">
-              <Package className="h-5 w-5 text-violet-500" />
+              <Package className="h-5 w-5 text-orange-500" />
               <div>
                 <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
                   Dashboard Pengadaan
@@ -86,12 +98,12 @@ export default function ProcurementPage() {
             </div>
             <div className="flex flex-wrap gap-2">
               <Link href="/procurement/requests">
-                <Button variant="outline" className="border-2 border-zinc-300 dark:border-zinc-600 font-bold uppercase text-[10px] tracking-wide h-10 px-4 hover:border-zinc-500 transition-colors">
+                <Button variant="outline" className="border-2 border-zinc-300 dark:border-zinc-600 font-bold uppercase text-xs tracking-wide h-10 px-4 hover:border-zinc-500 transition-colors">
                   <FileText className="mr-1.5 h-3.5 w-3.5" /> Requests
                 </Button>
               </Link>
               <Link href="/procurement/vendors">
-                <Button variant="outline" className="border-2 border-zinc-300 dark:border-zinc-600 font-bold uppercase text-[10px] tracking-wide h-10 px-4 hover:border-zinc-500 transition-colors">
+                <Button variant="outline" className="border-2 border-zinc-300 dark:border-zinc-600 font-bold uppercase text-xs tracking-wide h-10 px-4 hover:border-zinc-500 transition-colors">
                   <Users className="mr-1.5 h-3.5 w-3.5" /> Vendors
                 </Button>
               </Link>
@@ -103,7 +115,7 @@ export default function ProcurementPage() {
                 />
               </div>
               <Link href="/procurement/requests/new">
-                <Button className="bg-violet-500 text-white hover:bg-violet-600 border-2 border-violet-600 font-black uppercase text-[10px] tracking-wide h-10 px-5 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all">
+                <Button className={NB.toolbarBtnPrimary}>
                   <Plus className="h-3.5 w-3.5 mr-1.5" /> Buat Request
                 </Button>
               </Link>
@@ -116,16 +128,16 @@ export default function ProcurementPage() {
           <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
             <div className="p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Spend (Bulan)</span>
+                <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Spend (Bulan)</span>
                 <DollarSign className="h-4 w-4 text-emerald-500" />
               </div>
               <div className="text-xl font-black text-zinc-900 dark:text-white">{formatIDR(spend?.current ?? 0)}</div>
               <div className="flex items-center gap-1 mt-1">
                 {(spend?.growth ?? 0) > 0 ? <ArrowUpRight className="h-3 w-3 text-red-500" /> : <ArrowDownRight className="h-3 w-3 text-emerald-500" />}
-                <span className={`text-[10px] font-bold ${(spend?.growth ?? 0) > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                <span className={`text-xs font-bold ${(spend?.growth ?? 0) > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
                   {Math.abs(spend?.growth ?? 0).toFixed(1)}%
                 </span>
-                <span className="text-[10px] text-zinc-400">vs bulan lalu</span>
+                <span className="text-xs text-zinc-400">vs bulan lalu</span>
               </div>
             </div>
           </div>
@@ -133,13 +145,13 @@ export default function ProcurementPage() {
           <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
             <div className="p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Vendor Health</span>
-                <Activity className="h-4 w-4 text-blue-500" />
+                <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Vendor Health</span>
+                <Activity className="h-4 w-4 text-zinc-500" />
               </div>
               <div className="text-xl font-black text-zinc-900 dark:text-white flex items-center gap-1.5">
                 {(vendorHealth?.rating ?? 0).toFixed(1)} <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
               </div>
-              <span className="text-[10px] text-zinc-400 font-medium mt-1 block">
+              <span className="text-xs text-zinc-400 font-medium mt-1 block">
                 {(vendorHealth?.onTime ?? 0).toFixed(0)}% On-Time Delivery
               </span>
             </div>
@@ -148,24 +160,24 @@ export default function ProcurementPage() {
           <div className={`border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden ${(urgentNeeds ?? 0) > 0 ? 'bg-red-50 dark:bg-red-950/20' : 'bg-white dark:bg-zinc-900'}`}>
             <div className="p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Urgent Restock</span>
+                <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Urgent Restock</span>
                 <AlertCircle className={`h-4 w-4 ${(urgentNeeds ?? 0) > 0 ? 'text-red-500' : 'text-zinc-400'}`} />
               </div>
               <div className={`text-xl font-black ${(urgentNeeds ?? 0) > 0 ? 'text-red-600' : 'text-zinc-900 dark:text-white'}`}>
                 {urgentNeeds ?? 0} Item
               </div>
-              <span className="text-[10px] text-zinc-400 font-medium mt-1 block">Di bawah stok minimum</span>
+              <span className="text-xs text-zinc-400 font-medium mt-1 block">Di bawah stok minimum</span>
             </div>
           </div>
 
           <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
             <div className="p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Incoming</span>
-                <Truck className="h-4 w-4 text-indigo-500" />
+                <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Incoming</span>
+                <Truck className="h-4 w-4 text-zinc-500" />
               </div>
               <div className="text-xl font-black text-zinc-900 dark:text-white">{incomingCount ?? 0} Order</div>
-              <span className="text-[10px] text-zinc-400 font-medium mt-1 block">Open / partial delivery</span>
+              <span className="text-xs text-zinc-400 font-medium mt-1 block">Open / partial delivery</span>
             </div>
           </div>
         </div>
@@ -183,7 +195,7 @@ export default function ProcurementPage() {
               </span>
             </div>
             <Link href="/procurement/requests">
-              <Button variant="outline" className="border-2 border-zinc-300 font-bold uppercase text-[10px] tracking-wide h-8 px-3 hover:border-zinc-500 transition-colors">
+              <Button variant="outline" className="border-2 border-zinc-300 font-bold uppercase text-xs tracking-wide h-8 px-3 hover:border-zinc-500 transition-colors">
                 Lihat Semua
               </Button>
             </Link>
@@ -196,12 +208,12 @@ export default function ProcurementPage() {
           {/* PO */}
           <RegistryTable
             title="Pesanan Pembelian (PO)"
-            icon={<FileText className="h-4 w-4 text-violet-600" />}
+            icon={<FileText className="h-4 w-4 text-zinc-600" />}
             summaryChips={[
               { label: `Draft: ${purchaseOrders?.summary?.draft ?? 0}`, color: "bg-zinc-50 border-zinc-200 text-zinc-700" },
               { label: `Pending: ${purchaseOrders?.summary?.pendingApproval ?? 0}`, color: "bg-amber-50 border-amber-200 text-amber-700" },
               { label: `Approved: ${purchaseOrders?.summary?.approved ?? 0}`, color: "bg-emerald-50 border-emerald-200 text-emerald-700" },
-              { label: `Active: ${purchaseOrders?.summary?.inProgress ?? 0}`, color: "bg-blue-50 border-blue-200 text-blue-700" },
+              { label: `Active: ${purchaseOrders?.summary?.inProgress ?? 0}`, color: "bg-zinc-50 border-zinc-200 text-zinc-700" },
             ]}
             filters={[
               { label: 'Semua', href: buildHref({ po_status: null, po_page: "1" }) },
@@ -223,12 +235,12 @@ export default function ProcurementPage() {
           {/* PR */}
           <RegistryTable
             title="Permintaan Pembelian (PR)"
-            icon={<CheckSquare className="h-4 w-4 text-violet-600" />}
+            icon={<CheckSquare className="h-4 w-4 text-zinc-600" />}
             summaryChips={[
               { label: `Draft: ${purchaseRequests?.summary?.draft ?? 0}`, color: "bg-zinc-50 border-zinc-200 text-zinc-700" },
               { label: `Pending: ${purchaseRequests?.summary?.pending ?? 0}`, color: "bg-amber-50 border-amber-200 text-amber-700" },
               { label: `Approved: ${purchaseRequests?.summary?.approved ?? 0}`, color: "bg-emerald-50 border-emerald-200 text-emerald-700" },
-              { label: `PO Created: ${purchaseRequests?.summary?.poCreated ?? 0}`, color: "bg-blue-50 border-blue-200 text-blue-700" },
+              { label: `PO Created: ${purchaseRequests?.summary?.poCreated ?? 0}`, color: "bg-zinc-50 border-zinc-200 text-zinc-700" },
             ]}
             filters={[
               { label: 'Semua', href: buildHref({ pr_status: null, pr_page: "1" }) },
@@ -250,11 +262,11 @@ export default function ProcurementPage() {
           {/* GRN */}
           <RegistryTable
             title="Penerimaan (Receiving)"
-            icon={<Truck className="h-4 w-4 text-violet-600" />}
+            icon={<Truck className="h-4 w-4 text-zinc-600" />}
             summaryChips={[
               { label: `Draft: ${receiving?.summary?.draft ?? 0}`, color: "bg-zinc-50 border-zinc-200 text-zinc-700" },
               { label: `Inspecting: ${receiving?.summary?.inspecting ?? 0}`, color: "bg-amber-50 border-amber-200 text-amber-700" },
-              { label: `Partial: ${receiving?.summary?.partialAccepted ?? 0}`, color: "bg-blue-50 border-blue-200 text-blue-700" },
+              { label: `Partial: ${receiving?.summary?.partialAccepted ?? 0}`, color: "bg-zinc-50 border-zinc-200 text-zinc-700" },
               { label: `Accepted: ${receiving?.summary?.accepted ?? 0}`, color: "bg-emerald-50 border-emerald-200 text-emerald-700" },
             ]}
             filters={[
@@ -277,8 +289,8 @@ export default function ProcurementPage() {
 
         {/* Recent Activity */}
         <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-          <div className="bg-violet-50 dark:bg-violet-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-violet-400">
-            <Clock className="h-4 w-4 text-violet-600" />
+          <div className="bg-zinc-50 dark:bg-zinc-800/40 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-zinc-800">
+            <Clock className="h-4 w-4 text-zinc-600" />
             <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">
               Aktivitas Terbaru
             </h3>
@@ -328,21 +340,21 @@ function RegistryTable({
 }) {
   return (
     <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-      <div className="bg-violet-50 dark:bg-violet-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-violet-400">
+      <div className="bg-zinc-50 dark:bg-zinc-800/40 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-zinc-800">
         {icon}
         <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">{title}</h3>
       </div>
 
       <div className="px-4 pt-3 pb-2 flex flex-wrap gap-1.5">
         {summaryChips.map((c) => (
-          <span key={c.label} className={`text-[10px] font-bold px-2 py-0.5 border rounded-sm ${c.color}`}>{c.label}</span>
+          <span key={c.label} className={`text-xs font-bold px-2 py-0.5 border rounded-sm ${c.color}`}>{c.label}</span>
         ))}
       </div>
 
       <div className="px-4 pb-2 flex flex-wrap gap-1.5">
         {filters.map((f) => (
           <Link key={f.label} href={f.href}>
-            <span className="text-[10px] font-bold px-2 py-0.5 border-2 border-zinc-200 hover:border-violet-400 hover:text-violet-700 transition-colors cursor-pointer rounded-sm text-zinc-500">
+            <span className="text-xs font-bold px-2 py-0.5 border-2 border-zinc-200 hover:border-orange-400 hover:text-orange-700 transition-colors cursor-pointer rounded-sm text-zinc-500">
               {f.label}
             </span>
           </Link>
@@ -376,7 +388,7 @@ function RegistryTable({
       </div>
 
       <div className="px-4 py-2.5 border-t-2 border-black flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
-        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{meta.total} total</span>
+        <span className="text-xs font-black uppercase tracking-widest text-zinc-400">{meta.total} total</span>
         {meta.totalPages > 1 ? (
           <div className="flex items-center gap-1.5">
             <Link href={buildPageHref(Math.max(1, meta.page - 1))} className={meta.page <= 1 ? "pointer-events-none opacity-40" : ""}>
@@ -384,7 +396,7 @@ function RegistryTable({
                 <ChevronLeft className="h-3 w-3" />
               </Button>
             </Link>
-            <span className="text-[10px] font-black min-w-[40px] text-center">{meta.page}/{meta.totalPages}</span>
+            <span className="text-xs font-black min-w-[40px] text-center">{meta.page}/{meta.totalPages}</span>
             <Link href={buildPageHref(Math.min(meta.totalPages, meta.page + 1))} className={meta.page >= meta.totalPages ? "pointer-events-none opacity-40" : ""}>
               <Button variant="outline" size="icon" className="h-7 w-7 border-2 border-black">
                 <ChevronRight className="h-3 w-3" />

@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { CACHE_TIERS } from "@/lib/cache-tiers"
 
 export function useReceiving() {
     return useQuery({
@@ -11,6 +12,6 @@ export function useReceiving() {
             if (!res.ok) throw new Error("Failed to fetch receiving data")
             return res.json()
         },
-        staleTime: 2 * 60 * 1000, // 2 min — transactional data
+        ...CACHE_TIERS.TRANSACTIONAL,
     })
 }

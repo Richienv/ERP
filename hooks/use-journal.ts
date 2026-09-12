@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { CACHE_TIERS } from "@/lib/cache-tiers"
 import { getJournalEntries, getGLAccountsList } from "@/lib/actions/finance-gl"
 
 export function useJournal() {
@@ -14,5 +15,6 @@ export function useJournal() {
             ])
             return { entries, accounts }
         },
+        ...CACHE_TIERS.TRANSACTIONAL,
     })
 }

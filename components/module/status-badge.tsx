@@ -58,18 +58,18 @@ const STATUS_MAP: Record<string, { label: string; variant: BadgeVariant }> = {
 }
 
 const VARIANT_STYLES: Record<BadgeVariant, string> = {
-  draft:      "bg-gray-100 text-gray-700 border-gray-300",
+  draft:      "bg-zinc-100 text-zinc-700 border-zinc-300",
   pending:    "bg-amber-100 text-amber-700 border-amber-300",
-  sent:       "bg-blue-100 text-blue-700 border-blue-300",
-  approved:   "bg-green-100 text-green-700 border-green-300",
-  ordered:    "bg-teal-100 text-teal-700 border-teal-300",
-  paid:       "bg-green-200 text-green-800 border-green-400",
+  sent:       "bg-zinc-100 text-zinc-700 border-zinc-300",
+  approved:   "bg-emerald-100 text-emerald-700 border-emerald-300",
+  ordered:    "bg-zinc-100 text-zinc-700 border-zinc-300",
+  paid:       "bg-emerald-100 text-emerald-800 border-emerald-400",
   overdue:    "bg-red-100 text-red-700 border-red-300",
   cancelled:  "bg-red-100 text-red-700 border-red-300",
-  production: "bg-purple-100 text-purple-700 border-purple-300",
-  shipped:    "bg-cyan-100 text-cyan-700 border-cyan-300",
-  delivered:  "bg-green-100 text-green-700 border-green-300",
-  closed:     "bg-gray-200 text-gray-600 border-gray-400",
+  production: "bg-zinc-100 text-zinc-700 border-zinc-300",
+  shipped:    "bg-zinc-100 text-zinc-700 border-zinc-300",
+  delivered:  "bg-emerald-100 text-emerald-700 border-emerald-300",
+  closed:     "bg-zinc-200 text-zinc-600 border-zinc-400",
 }
 
 export function StatusBadge({ status, variant, size = "sm", className }: StatusBadgeProps) {
@@ -82,7 +82,7 @@ export function StatusBadge({ status, variant, size = "sm", className }: StatusB
     <span
       className={cn(
         "inline-flex items-center border font-bold uppercase",
-        size === "sm" ? "text-[10px] px-2 py-0.5" : "text-xs px-2.5 py-1",
+        size === "sm" ? "text-xs px-2 py-0.5" : "text-xs px-2.5 py-1",
         VARIANT_STYLES[resolvedVariant],
         className
       )}

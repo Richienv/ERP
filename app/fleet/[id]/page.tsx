@@ -9,6 +9,9 @@ import { Button } from "@/components/ui/button"
 import { IconArrowLeft, IconEdit, IconTruck } from "@tabler/icons-react"
 import { formatIDR } from "@/lib/utils"
 import { NB } from "@/lib/dialog-styles"
+import { CapitalizeAssetCard } from "@/components/fleet/capitalize-asset-card"
+import { VehicleComplianceStrip } from "@/components/fleet/compliance-strip"
+import { classifyExpiry, daysUntilExpiry, formatDaysRemaining, formatExpiryDate } from "@/components/fleet/expiry-buckets"
 
 export const dynamic = "force-dynamic"
 
@@ -106,13 +109,20 @@ export default async function VehicleDetailPage({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <VehicleComplianceStrip
+                    vehicleId={vehicle.id}
+                    stnkExpiry={vehicle.stnkExpiry}
+                    kirExpiry={vehicle.kirExpiry}
+                    insuranceExpiry={vehicle.insuranceExpiry}
+                />
+
                 <Card className="md:col-span-2">
                     <CardHeader>
                         <CardTitle className="text-sm">Informasi Kendaraan</CardTitle>
                     </CardHeader>
                     <CardContent className="grid grid-cols-2 gap-y-3 gap-x-6 text-sm">
                         <Detail label="Status" value={
-                            <Badge className="font-bold uppercase text-[10px] tracking-wider">{STATUS_LABEL[vehicle.status] || vehicle.status}</Badge>
+                            <Badge className="font-bold uppercase text-xs tracking-wider">{STATUS_LABEL[vehicle.status] || vehicle.status}</Badge>
                         } />
                         <Detail label="Tipe" value={vehicle.vehicleType} />
                         <Detail label="Warna" value={vehicle.color || "—"} />
@@ -126,17 +136,23 @@ export default async function VehicleDetailPage({
                     </CardContent>
                 </Card>
 
+                <CapitalizeAssetCard
+                    vehicleId={vehicle.id}
+                    plateNumber={vehicle.plateNumber}
+                    existingAsset={vehicle.fixedAsset}
+                />
+
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-sm">Tarif Sewa</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3 text-sm">
                         <div>
-                            <div className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Harian</div>
+                            <div className="text-xs uppercase font-bold text-zinc-500 tracking-wider">Harian</div>
                             <div className="text-lg font-mono font-bold">{vehicle.dailyRate ? formatIDR(vehicle.dailyRate) : "—"}</div>
                         </div>
                         <div>
-                            <div className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Bulanan</div>
+                            <div className="text-xs uppercase font-bold text-zinc-500 tracking-wider">Bulanan</div>
                             <div className="text-lg font-mono font-bold">{vehicle.monthlyRate ? formatIDR(vehicle.monthlyRate) : "—"}</div>
                         </div>
                     </CardContent>
@@ -172,7 +188,7 @@ export default async function VehicleDetailPage({
 function Detail({ label, value }: { label: string; value: React.ReactNode }) {
     return (
         <div>
-            <div className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">{label}</div>
+            <div className="text-xs uppercase font-bold text-zinc-500 tracking-wider">{label}</div>
             <div className="text-sm">{value}</div>
         </div>
     )
@@ -181,21 +197,26 @@ function Detail({ label, value }: { label: string; value: React.ReactNode }) {
 function DocBlock({ title, number, expiry, insurer }: {
     title: string; number?: string | null; expiry?: Date | null; insurer?: string | null
 }) {
-    const now = new Date()
-    const overdue = expiry && new Date(expiry) < now
-    const soon = expiry && new Date(expiry) >= now && new Date(expiry) <= new Date(now.getTime() + 30 * 86400_000)
+    const bucket = classifyExpiry(expiry)
+    const border = bucket === "OVERDUE"
+        ? "border-red-300 bg-red-50/50"
+        : bucket === "DUE_SOON"
+            ? "border-amber-300 bg-amber-50/50"
+            : "border-zinc-200"
+    const text = bucket === "OVERDUE" ? "text-red-700" : bucket === "DUE_SOON" ? "text-amber-700" : "text-zinc-600"
 
     return (
-        <div className={`border-2 rounded p-3 ${overdue ? "border-red-300 bg-red-50/50" : soon ? "border-amber-300 bg-amber-50/50" : "border-zinc-200"}`}>
-            <div className="text-[10px] uppercase font-bold text-zinc-600 tracking-wider mb-1">{title}</div>
+        <div className={`border-2 rounded-none p-3 ${border}`}>
+            <div className="text-xs uppercase font-bold text-zinc-600 tracking-wider mb-1">{title}</div>
             <div className="text-sm font-semibold">{number || "—"}</div>
             {insurer && <div className="text-xs text-zinc-500 mt-0.5">{insurer}</div>}
-            {expiry ? (
-                <div className={`text-xs mt-1 font-medium ${overdue ? "text-red-700" : soon ? "text-amber-700" : "text-zinc-600"}`}>
-                    {overdue ? "⚠ HABIS " : soon ? "⏱ Akan habis " : "Berlaku s/d "}
-                    {new Date(expiry).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })}
+            {title !== "BPKB" && (
+                <div className={`text-xs mt-1 font-medium ${text}`}>
+                    {expiry
+                        ? `${formatDaysRemaining(daysUntilExpiry(expiry))} · ${formatExpiryDate(expiry)}`
+                        : "Tanggal belum tercatat"}
                 </div>
-            ) : null}
+            )}
         </div>
     )
 }

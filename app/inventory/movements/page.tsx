@@ -10,10 +10,10 @@ export default function StockMovementsPage() {
     const searchParams = useSearchParams()
     const productId = searchParams.get("product")
     const warehouseId = searchParams.get("warehouse")
-    const { data, isLoading } = useStockMovements()
+    const { data } = useStockMovements()
 
-    if (isLoading || !data) {
-        return <TablePageSkeleton accentColor="bg-violet-400" />
+    if (!data) {
+        return <TablePageSkeleton />
     }
 
     return (

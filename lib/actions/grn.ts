@@ -6,6 +6,7 @@ import { ProcurementStatus } from "@prisma/client"
 import { assertRole, getAuthzUser } from "@/lib/authz"
 import { assertPOTransition, allowedNextStatuses } from "@/lib/po-state-machine"
 import { postInventoryGLEntry } from "@/lib/actions/inventory-gl"
+import { ensureSystemAccounts } from "@/lib/gl-accounts-server"
 import { revalidatePath } from "next/cache"
 import {
     FALLBACK_PENDING_POS,
@@ -457,6 +458,7 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
                 throw new Error('GRN sudah diproses atau tidak ditemukan. Refresh halaman.')
             }
             console.log("[acceptGRN] GRN status → ACCEPTED")
+            await ensureSystemAccounts(prisma)
 
             // 3. Update PO item received quantities — atomic over-receive guard.
             // updateMany with WHERE constraint ensures two concurrent GRN
@@ -556,7 +558,12 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
                         unitCost,
                         totalValue,
                         reference: grn.number,
-                        transactionDate: grn.receivedAt ?? grn.createdAt,
+                        // Post to the fiscal period the goods were ACTUALLY
+                        // received in, not when the record happened to be
+                        // created. The model field is `receivedDate` — the
+                        // old `receivedAt` did not exist on GoodsReceivedNote
+                        // and silently fell back to createdAt every time.
+                        transactionDate: grn.receivedDate ?? grn.createdAt,
                     })
                     console.log("[acceptGRN] GL entry posted OK")
                 }
@@ -658,6 +665,36 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
                 console.error("[acceptGRN] Vendor rating recalc failed (non-blocking):", err)
             )
 
+            // After stock + GR/IR are in, create DRAFT vendor bill so Finance can
+            // approve/pay without leaving the receiving flow. Nested withPrismaAuth
+            // is avoided by running this AFTER the GRN transaction commits.
+            let billId: string | undefined
+            let billNumber: string | undefined
+            let billAlreadyExists = false
+            try {
+                const { createBillFromPOId } = await import("@/lib/actions/finance-invoices")
+                const poId = await prisma.goodsReceivedNote.findUnique({
+                    where: { id: grnId },
+                    select: { purchaseOrderId: true },
+                })
+                if (poId?.purchaseOrderId) {
+                    const bill = await createBillFromPOId(poId.purchaseOrderId)
+                    if (bill && "billId" in bill && bill.billId) {
+                        billId = bill.billId
+                        billNumber = "billNumber" in bill ? bill.billNumber : undefined
+                        billAlreadyExists = Boolean("alreadyExists" in bill && bill.alreadyExists)
+                    } else if (bill && "existingInvoiceId" in bill && bill.existingInvoiceId) {
+                        billId = bill.existingInvoiceId
+                        billNumber = "existingInvoiceNumber" in bill ? bill.existingInvoiceNumber : undefined
+                        billAlreadyExists = true
+                    } else if (bill && "error" in bill && bill.error) {
+                        console.warn("[acceptGRN] Draft bill not created:", bill.error)
+                    }
+                }
+            } catch (billErr: any) {
+                console.error("[acceptGRN] Draft bill failed (non-blocking):", billErr?.message)
+            }
+
             // Revalidate all affected pages
             revalidatePath("/inventory")
             revalidatePath("/inventory/products")
@@ -667,7 +704,17 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
             revalidatePath("/inventory/cycle-counts")
             revalidatePath("/inventory/adjustments")
             revalidatePath("/procurement")
+            revalidatePath("/procurement/receiving")
             revalidatePath("/finance")
+            revalidatePath("/finance/bills")
+            revalidatePath("/finance/invoices")
+
+            return {
+                ...result,
+                billId,
+                billNumber,
+                billAlreadyExists,
+            }
         }
 
         return result

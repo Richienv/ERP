@@ -61,6 +61,7 @@ export const SYS_ACCOUNTS = {
 
   // --- Revenue ---
   REVENUE:        "4000",  // Pendapatan Penjualan (seed: 4000)
+  SALES_RETURNS:  "4010",  // Retur Penjualan (contra-revenue)
   SERVICE_REVENUE: "4200",  // Pendapatan Jasa
   OTHER_INCOME:    "4300",  // Pendapatan Lain-lain
   INTEREST_INCOME: "4400",  // Pendapatan Bunga
@@ -70,6 +71,7 @@ export const SYS_ACCOUNTS = {
 
   // --- Expenses ---
   SALARY_EXPENSE: "6100",  // Beban Gaji
+  BPJS_EMPLOYER_EXPENSE: "6130", // Beban BPJS Perusahaan (employer 4%+3.7%+2%+JKK+JKM)
   DEPRECIATION:   "6290",  // Beban Penyusutan (seed: 6290)
   BAD_DEBT_EXPENSE: "6500", // Beban Kerugian Piutang
   EXPENSE_DEFAULT:"6900",  // Beban Lain-lain (generic expense for AP bills)
@@ -112,6 +114,30 @@ export function getCashAccountCode(method: string, bankAccountCode?: string): st
  *
  * Used by P&L report to properly classify COGS vs operating expenses.
  */
+/**
+ * Generic English placeholders left on older tenants (e.g. 2200 "Other liabilities").
+ * `ensureSystemAccounts` refreshes these to the canonical Indonesian name.
+ * Custom names are left alone.
+ */
+const STALE_GENERIC_ACCOUNT_NAMES = new Set([
+  "other liabilities",
+  "other liability",
+  "other current liabilities",
+  "other payables",
+  "other payable",
+  "accrued liabilities",
+  "accrued liability",
+  "miscellaneous liabilities",
+  "misc liabilities",
+])
+
+export function isStaleSystemAccountName(existingName: string, canonicalName: string): boolean {
+  const existing = existingName.trim().toLowerCase()
+  const canonical = canonicalName.trim().toLowerCase()
+  if (!existing || existing === canonical) return false
+  return STALE_GENERIC_ACCOUNT_NAMES.has(existing)
+}
+
 export function isCOGSAccount(account: { code: string; name: string; type: string }): boolean {
   if (account.type !== "EXPENSE") return false
   // Code range: 5000-5099 are COGS accounts

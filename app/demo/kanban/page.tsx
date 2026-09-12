@@ -1,5 +1,7 @@
 "use client"
 
+export const dynamic = "force-dynamic"
+
 import { KanbanBoard, KanbanColumn } from "@/components/ui/trello-kanban-board";
 
 const simpleColumns: KanbanColumn[] = [

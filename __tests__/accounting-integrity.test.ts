@@ -11,6 +11,8 @@
  */
 
 import { describe, it, expect } from 'vitest'
+import { SYS_ACCOUNTS as CANONICAL_ACCOUNTS } from '@/lib/gl-accounts'
+import { buildPayrollJournalLines } from '@/lib/payroll-gl'
 
 // ============================================================================
 // Replicate core accounting logic from the codebase for unit testing
@@ -277,6 +279,34 @@ describe('Layer 2: Double-Entry Balance — All Transaction Patterns', () => {
 
     const result = validateJournalBalance(lines)
     expect(result.isBalanced).toBe(true)
+  })
+
+  // --- Payroll posted (employer BPJS included) ---
+  it('Payroll posted: DR gaji + BPJS perusahaan, CR utang gaji/PPh21/BPJS (balanced)', () => {
+    const journal = buildPayrollJournalLines({
+      periodLabel: 'Maret 2026',
+      gross: 10_000_000,
+      net: 8_850_000,
+      pph21: 150_000,
+      bpjsKesEmployee: 80_000,
+      bpjsTkEmployee: 920_000,
+      bpjsKesEmployer: 320_000,
+      bpjsTkEmployer: 760_000,
+      accounts: {
+        salaryExpense: CANONICAL_ACCOUNTS.SALARY_EXPENSE,
+        bpjsEmployerExpense: CANONICAL_ACCOUNTS.BPJS_EMPLOYER_EXPENSE,
+        payrollPayable: CANONICAL_ACCOUNTS.SALARY_PAYABLE,
+        pph21Payable: CANONICAL_ACCOUNTS.PPH_21_PAYABLE,
+        bpjsKesPayable: CANONICAL_ACCOUNTS.BPJS_KES_PAYABLE,
+        bpjsTkPayable: CANONICAL_ACCOUNTS.BPJS_TK_PAYABLE,
+      },
+    })
+
+    expect(journal.balanced).toBe(true)
+    expect(journal.totalDebit).toBe(journal.totalCredit)
+    expect(journal.totalDebit).toBe(11_080_000)
+    expect(CANONICAL_ACCOUNTS.BPJS_EMPLOYER_EXPENSE).toBe('6130')
+    expect(inferAccountType(CANONICAL_ACCOUNTS.BPJS_EMPLOYER_EXPENSE)).toBe('EXPENSE')
   })
 
   // --- Credit Note (AR) ---

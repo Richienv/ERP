@@ -2,23 +2,12 @@
 
 import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
-import { motion } from "framer-motion"
 import { Scale, FileText } from "lucide-react"
 import { NB } from "@/lib/dialog-styles"
 import { formatIDR } from "@/lib/utils"
 import { getOpeningBalanceSummary } from "@/lib/actions/finance-gl"
 import { OpeningBalancesGL } from "@/components/finance/opening-balances-gl"
 import { OpeningBalancesAPAR } from "@/components/finance/opening-balances-apar"
-
-/* ─── Animation variants ─── */
-const stagger = {
-    hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { staggerChildren: 0.07 } },
-}
-const fadeUp = {
-    hidden: { opacity: 0, y: 14 },
-    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
-}
 
 export default function OpeningBalancesPage() {
     const searchParams = useSearchParams()
@@ -31,14 +20,9 @@ export default function OpeningBalancesPage() {
     }, [activeTab])
 
     return (
-        <motion.div
-            className="mf-page"
-            variants={stagger}
-            initial="hidden"
-            animate="show"
-        >
+        <div className="mf-page">
             {/* ─── Unified Page Header ─── */}
-            <motion.div variants={fadeUp} className={NB.pageCard}>
+            <div className={NB.pageCard}>
                 <div className={NB.pageAccent} />
 
                 {/* Row 1: Title */}
@@ -94,7 +78,7 @@ export default function OpeningBalancesPage() {
                     <div className="flex items-center gap-0">
                         <button
                             onClick={() => setActiveTab("gl")}
-                            className={`flex items-center gap-1.5 h-9 px-4 border text-[10px] font-bold uppercase tracking-wider rounded-none transition-all ${
+                            className={`flex items-center gap-1.5 h-9 px-4 border text-xs font-bold uppercase tracking-wider rounded-none transition-all ${
                                 activeTab === "gl"
                                     ? "bg-black dark:bg-white text-white dark:text-black border-black dark:border-white"
                                     : "border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 border-r-0"
@@ -105,7 +89,7 @@ export default function OpeningBalancesPage() {
                         </button>
                         <button
                             onClick={() => setActiveTab("apar")}
-                            className={`flex items-center gap-1.5 h-9 px-4 border text-[10px] font-bold uppercase tracking-wider rounded-none transition-all ${
+                            className={`flex items-center gap-1.5 h-9 px-4 border text-xs font-bold uppercase tracking-wider rounded-none transition-all ${
                                 activeTab === "apar"
                                     ? "bg-black dark:bg-white text-white dark:text-black border-black dark:border-white"
                                     : "border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800"
@@ -119,12 +103,12 @@ export default function OpeningBalancesPage() {
                         {activeTab === "gl" ? "Jurnal saldo awal buku besar" : "Invoice saldo awal hutang/piutang"}
                     </span>
                 </div>
-            </motion.div>
+            </div>
 
             {/* ─── Tab Content ─── */}
-            <motion.div variants={fadeUp}>
+            <div>
                 {activeTab === "gl" ? <OpeningBalancesGL /> : <OpeningBalancesAPAR />}
-            </motion.div>
-        </motion.div>
+            </div>
+        </div>
     )
 }

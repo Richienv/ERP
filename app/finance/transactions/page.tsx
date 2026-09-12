@@ -24,16 +24,6 @@ import { formatIDR } from "@/lib/utils"
 import { useAccountTransactions } from "@/hooks/use-account-transactions"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 
-/* ─── Animation variants ─── */
-const stagger = {
-    hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { staggerChildren: 0.07 } },
-}
-const fadeUp = {
-    hidden: { opacity: 0, y: 14 },
-    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
-}
-
 // ─── Types ───────────────────────────────────────────────
 interface TransactionLine {
     id: string
@@ -477,9 +467,9 @@ export default function AccountTransactionsPage() {
     }
 
     return (
-        <motion.div className="mf-page" variants={stagger} initial="hidden" animate="show">
+        <div className="mf-page">
             {/* ─── Unified Page Header ─── */}
-            <motion.div variants={fadeUp} className={NB.pageCard}>
+            <div className={NB.pageCard}>
                 {/* Orange accent bar */}
                 <div className={NB.pageAccent} />
 
@@ -540,7 +530,7 @@ export default function AccountTransactionsPage() {
                 >
                     {[
                         { label: "Transaksi", count: totalTransactions, amount: null, color: "orange" },
-                        { label: "Akun Aktif", count: uniqueAccounts, amount: null, color: "blue" },
+                        { label: "Akun Aktif", count: uniqueAccounts, amount: null, color: "zinc" },
                         { label: "Total Debit", count: null, amount: totalDebit, color: "emerald" },
                         { label: "Total Kredit", count: null, amount: totalCredit, color: "red" },
                     ].map((kpi) => (
@@ -553,11 +543,11 @@ export default function AccountTransactionsPage() {
                                     className={`w-2 h-2 ${
                                         kpi.color === "orange"
                                             ? "bg-orange-500"
-                                            : kpi.color === "blue"
-                                              ? "bg-blue-500"
-                                              : kpi.color === "emerald"
-                                                ? "bg-emerald-500"
-                                                : "bg-red-500"
+                                            : kpi.color === "emerald"
+                                              ? "bg-emerald-500"
+                                              : kpi.color === "red"
+                                                ? "bg-red-500"
+                                                : "bg-zinc-400"
                                     }`}
                                 />
                                 <span className={NB.kpiLabel}>{kpi.label}</span>
@@ -790,13 +780,12 @@ export default function AccountTransactionsPage() {
                         />
                     </div>
                 </div>
-            </motion.div>
+            </div>
 
             {/* ─── Main Content ─── */}
             {groupMode === "ACCOUNT" && groupedByAccount ? (
                 /* ─── GROUPED BY ACCOUNT ─── */
-                <motion.div
-                    variants={fadeUp}
+                <div
                     className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-x-auto"
                 >
                     {groupedByAccount.length === 0 ? (
@@ -1025,17 +1014,16 @@ export default function AccountTransactionsPage() {
                             })}
                         </div>
                     )}
-                </motion.div>
+                </div>
             ) : (
                 /* ─── FLAT CHRONOLOGICAL VIEW ─── */
-                <motion.div
-                    variants={fadeUp}
+                <div
                     className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-x-auto"
                 >
                     {/* Black header bar */}
                     <div className="px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black flex items-center gap-2">
                         <BookOpen className="h-4 w-4 text-zinc-400" />
-                        <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                        <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400">
                             Jurnal Transaksi
                         </h3>
                         <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 min-w-[20px] text-center">
@@ -1143,8 +1131,8 @@ export default function AccountTransactionsPage() {
                             )}
                         </div>
                     )}
-                </motion.div>
+                </div>
             )}
-        </motion.div>
+        </div>
     )
 }

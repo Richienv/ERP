@@ -28,7 +28,9 @@ export function UserNav() {
     }
 
     // Helper to format role name nicely
-    const formatRole = (role: string) => {
+    const formatRole = (role?: string | null) => {
+        if (!role) return ""
+
         // Map roles to Indonesian friendly names
         const roleMap: Record<string, string> = {
             "ROLE_CEO": "Pemilik & CEO",

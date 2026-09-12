@@ -5,7 +5,7 @@ import { StockTransferList } from "@/components/inventory/stock-transfer-list"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 
 export default function StockTransfersPage() {
-    const { data, isLoading } = useStockTransfers()
+    const { data } = useStockTransfers()
 
     return (
         <div className="mf-page">
@@ -14,8 +14,8 @@ export default function StockTransfersPage() {
                 <p className="text-muted-foreground">Transfer stok antar gudang dengan approval workflow.</p>
             </div>
 
-            {isLoading || !data ? (
-                <TablePageSkeleton accentColor="bg-blue-400" />
+            {!data ? (
+                <TablePageSkeleton />
             ) : (
                 <StockTransferList
                     transfers={data.transfers}

@@ -1,10 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
-    CreditCard,
-    Package,
     UserPlus,
     AlertCircle,
     FileText,
@@ -80,17 +77,14 @@ export function ActivityFeed() {
                     <p className="text-xs text-muted-foreground mt-1">Update sistem real-time</p>
                 </div>
                 <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center border border-border/50">
-                    <Clock className="h-5 w-5 text-indigo-500 dark:text-indigo-400" />
+                    <Clock className="h-5 w-5 text-zinc-500 dark:text-zinc-400" />
                 </div>
             </div>
 
             <div className="flex-1 p-6 space-y-6">
-                {activities.map((activity, index) => (
-                    <motion.div
+                {activities.map((activity) => (
+                    <div
                         key={activity.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.1 }}
                         className="group/item flex gap-4"
                     >
                         <div className={cn(
@@ -107,7 +101,7 @@ export function ActivityFeed() {
                                 <p className="text-sm font-medium text-foreground group-hover/item:text-primary transition-colors">
                                     {activity.title}
                                 </p>
-                                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">
                                     {activity.time}
                                 </span>
                             </div>
@@ -115,12 +109,12 @@ export function ActivityFeed() {
                                 {activity.description}
                             </p>
                         </div>
-                    </motion.div>
+                    </div>
                 ))}
             </div>
 
             <div className="relative z-10 p-4 border-t border-border/50 bg-secondary/30 text-center">
-                <button className="text-xs font-medium text-indigo-500 hover:text-indigo-600 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors">
+                <button className="text-xs font-medium text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors">
                     Lihat Semua Aktivitas
                 </button>
             </div>

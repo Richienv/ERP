@@ -1,6 +1,9 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import modulesCatalog from '@/config/modules-catalog.json'
+import { isPublicApiPath } from '@/lib/api-public-paths'
+import { isKriHiddenPath } from '@/lib/kri-module-gates'
+import { isLocalDemoAllowed, LOCAL_DEMO_COOKIE } from '@/lib/local-demo'
 
 // Build route → moduleId mapping from catalog at startup
 const ROUTE_MODULE_MAP: Record<string, string> = {}
@@ -24,49 +27,63 @@ export async function middleware(request: NextRequest) {
         },
     })
 
-    const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                getAll() {
-                    return request.cookies.getAll()
-                },
-                setAll(cookiesToSet) {
-                    cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
-                    response = NextResponse.next({
-                        request: {
-                            headers: request.headers,
-                        },
-                    })
-                    cookiesToSet.forEach(({ name, value, options }) =>
-                        response.cookies.set(name, value, options)
-                    )
-                },
-            },
-        }
-    )
-
-    // Wrap getUser in try/catch with timeout — if auth is broken (stale JWT, network error),
-    // treat user as unauthenticated and clear auth cookies to prevent error loops
     let user = null
-    try {
-        const authPromise = supabase.auth.getUser()
-        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000))
-        const result = await Promise.race([authPromise, timeoutPromise])
+    if (isLocalDemoAllowed() && request.cookies.get(LOCAL_DEMO_COOKIE)?.value === "1") {
+        user = { id: "local-demo" }
+    } else {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+        const canUseSupabase = Boolean(
+            supabaseUrl &&
+            supabaseKey &&
+            !supabaseUrl.includes("placeholder")
+        )
 
-        if (result && 'data' in result && !result.error) {
-            user = result.data?.user ?? null
+        if (canUseSupabase) {
+            const supabase = createServerClient(
+                supabaseUrl!,
+                supabaseKey!,
+                {
+                    cookies: {
+                        getAll() {
+                            return request.cookies.getAll()
+                        },
+                        setAll(cookiesToSet) {
+                            cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+                            response = NextResponse.next({
+                                request: {
+                                    headers: request.headers,
+                                },
+                            })
+                            cookiesToSet.forEach(({ name, value, options }) =>
+                                response.cookies.set(name, value, options)
+                            )
+                        },
+                    },
+                }
+            )
+
+            // Wrap getUser in try/catch with timeout — if auth is broken (stale JWT, network error),
+            // treat user as unauthenticated and clear auth cookies to prevent error loops
+            try {
+                const authPromise = supabase.auth.getUser()
+                const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000))
+                const result = await Promise.race([authPromise, timeoutPromise])
+
+                if (result && 'data' in result && !result.error) {
+                    user = result.data?.user ?? null
+                }
+                // On auth error or timeout: user stays null, treated as unauthenticated.
+                // Do NOT clear cookies here — concurrent requests (e.g. cache warming)
+                // can cause transient refresh token race conditions where one request
+                // consumes the refresh token before others finish. Clearing cookies
+                // would wipe a valid session. Cookies are only cleared when redirecting
+                // to /login on protected routes (below).
+            } catch (err) {
+                // getUser() threw — user stays null, no cookie clearing
+                console.error("Middleware: auth.getUser() threw:", err)
+            }
         }
-        // On auth error or timeout: user stays null, treated as unauthenticated.
-        // Do NOT clear cookies here — concurrent requests (e.g. cache warming)
-        // can cause transient refresh token race conditions where one request
-        // consumes the refresh token before others finish. Clearing cookies
-        // would wipe a valid session. Cookies are only cleared when redirecting
-        // to /login on protected routes (below).
-    } catch (err) {
-        // getUser() threw — user stays null, no cookie clearing
-        console.error("Middleware: auth.getUser() threw:", err)
     }
 
     // Define protected routes
@@ -84,10 +101,40 @@ export async function middleware(request: NextRequest) {
         "/staff",
         "/subcontract",
         "/cutting",
-        "/costing"
+        "/costing",
+        "/fleet",
+        "/settings",
+        "/reports",
+        "/documents",
+        "/admin",
+        "/search",
     ]
 
     const { pathname } = request.nextUrl
+    const isApiRoute = pathname.startsWith("/api/")
+
+    // Business APIs stay in middleware so a missing session-check in a route
+    // file cannot leak invoices, stock, or payroll. Public exceptions are
+    // listed in lib/api-public-paths.ts. Never clear auth cookies on API 401 —
+    // concurrent token refresh can look like a failed getUser().
+    if (isApiRoute) {
+        if (isPublicApiPath(pathname)) {
+            return response
+        }
+        if (!user) {
+            return NextResponse.json(
+                { error: "Unauthorized" },
+                {
+                    status: 401,
+                    headers: {
+                        "cache-control": "no-store, must-revalidate",
+                        "x-auth-status": "unauthenticated",
+                    },
+                },
+            )
+        }
+        return response
+    }
 
     // Check if it's a protected route
     const isProtectedRoute = protectedRoutes.some(route =>
@@ -95,15 +142,29 @@ export async function middleware(request: NextRequest) {
     )
 
     if (isProtectedRoute && !user) {
-        // For RSC/prefetch requests (e.g., router.prefetch() during cache warming),
-        // do NOT redirect or clear cookies. During concurrent cache warming, multiple
-        // middleware calls race to refresh the same token — if one fails transiently,
-        // clearing cookies would wipe the valid session from the browser.
-        // The client-side RouteGuard handles unauthenticated state properly.
+        // RSC / router-prefetch requests (e.g. router.prefetch() during cache warming).
+        //
+        // SECURITY: the `rsc` and `next-router-prefetch` headers are attacker-supplied —
+        // anyone can append them to a plain request. They must NEVER grant access, so we
+        // do not let the request through to the page.
+        //
+        // We still preserve the original intent of this branch: do NOT redirect and do NOT
+        // clear auth cookies here. During concurrent cache warming multiple middleware calls
+        // race to refresh the same token — if one fails transiently, clearing cookies would
+        // wipe a still-valid session from the browser. Instead we answer with an empty 401.
+        // The client router treats a failed prefetch as a no-op and falls back to a full
+        // navigation, which then hits the normal redirect path below.
+        // Authenticated users never reach this branch, so legitimate prefetch is unaffected.
         const isRSC = request.headers.get('rsc') === '1'
         const isPrefetch = request.headers.get('next-router-prefetch') === '1'
         if (isRSC || isPrefetch) {
-            return response
+            return new NextResponse(null, {
+                status: 401,
+                headers: {
+                    'cache-control': 'no-store, must-revalidate',
+                    'x-auth-status': 'unauthenticated',
+                },
+            })
         }
 
         const url = request.nextUrl.clone()
@@ -136,6 +197,10 @@ export async function middleware(request: NextRequest) {
                     return NextResponse.redirect(url)
                 }
             }
+        } else if (isKriHiddenPath(pathname)) {
+            const url = request.nextUrl.clone()
+            url.pathname = '/dashboard'
+            return NextResponse.redirect(url)
         }
     }
 
@@ -166,14 +231,13 @@ function clearAuthCookies(response: NextResponse, request: NextRequest) {
 export const config = {
     matcher: [
         /*
-         * Match all request paths except for the ones starting with:
-         * - api/ (API routes handle auth internally — excluding from middleware
-         *   prevents token refresh race conditions with concurrent requests)
+         * Match pages and /api. Public APIs are allowlisted in code.
+         * Unauthenticated APIs get 401 JSON — cookies are never cleared here.
          * - _next/static (static files)
          * - _next/image (image optimization files)
          * - favicon.ico (favicon file)
          * - public folder files
          */
-        "/((?!api/|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+        "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
     ],
 }

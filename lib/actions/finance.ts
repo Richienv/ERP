@@ -335,112 +335,70 @@ export async function getGLAccounts() {
 // JOURNAL ENTRY SYSTEM (CORE)
 // ==========================================
 
-export async function postJournalEntry(data: {
-    description: string
-    date: Date
-    reference: string
-    sourceDocumentType?: string
-    lines: {
-        accountCode: string
-        debit: number
-        credit: number
-        description?: string
-    }[]
-}) {
-    try {
-        // 1. Validate Balance (Debit must equal Credit)
-        const totalDebit = data.lines.reduce((sum, line) => sum + line.debit, 0)
-        const totalCredit = data.lines.reduce((sum, line) => sum + line.credit, 0)
+/**
+ * Post a journal entry to the GL.
+ *
+ * DELEGATES to the canonical implementation in `./finance-gl`. The local copy
+ * that used to live here was a hard fork which:
+ *   (a) had no `txClient` parameter, so callers physically could not make GL
+ *       posting atomic with their own surrounding transaction; and
+ *   (b) omitted `invoiceId` / `paymentId` / `inventoryTransactionId` from its
+ *       accepted data, so every entry it ever wrote left those FKs NULL and the
+ *       journal entry orphaned from its source document.
+ * Delegating fixes both, and both parameters are now reachable through this
+ * export because the signature is derived from the canonical's.
+ *
+ * This wrapper is kept (rather than the export simply deleted) because four
+ * live consumers import `postJournalEntry` from `@/lib/actions/finance`:
+ *   - app/finance/journal/new/page.tsx
+ *   - components/finance/journal/create-journal-dialog.tsx
+ *   - components/finance/accounting-module-actions.tsx
+ *   - lib/actions/sales.ts
+ * Delegation keeps all four working with zero changes at the import sites.
+ * The async-wrapper form (rather than `export { x } from "./finance-gl"`) is
+ * required because a "use server" module may only export async functions.
+ *
+ * BEHAVIOR PARITY: the canonical performs the same debit/credit balance
+ * validation, the same `assertPeriodOpen()` fiscal-period lock on the
+ * standalone (no-txClient) path, and the same MANUAL control-account
+ * restriction that the fork did. Fiscal-period enforcement is therefore
+ * UNCHANGED by this consolidation — the fork already called assertPeriodOpen.
+ * The single thing the canonical does NOT do is write the AuditLog row the
+ * fork wrote, so that is re-applied below rather than silently dropped.
+ */
+export async function postJournalEntry(
+    ...args: Parameters<typeof import("./finance-gl").postJournalEntry>
+): Promise<import("./finance-gl").JournalPostResult> {
+    const { postJournalEntry: fn } = await import("./finance-gl")
+    const result = await fn(...args)
 
-        if (Math.abs(totalDebit - totalCredit) > 0.01) {
-            throw new Error(`Unbalanced Journal: Debit (${totalDebit}) != Credit (${totalCredit})`)
-        }
-
-        // Period lock check
-        await assertPeriodOpen(data.date)
-
-        return await withPrismaAuth(async (prisma) => {
-            // 2. Fetch Account IDs
-            const codes = data.lines.map(l => l.accountCode)
-            const accounts = await prisma.gLAccount.findMany({
-                where: { code: { in: codes } }
-            })
-
-            const accountMap = new Map(accounts.map(a => [a.code, a]))
-
-            // Block manual journal entries from posting to control accounts
-            if (data.sourceDocumentType === 'MANUAL') {
-                for (const line of data.lines) {
-                    const account = accountMap.get(line.accountCode)
-                    if (account && !account.allowDirectPosting) {
-                        throw new Error(
-                            `Akun kontrol ${account.code} (${account.name}) tidak boleh diposting langsung — gunakan modul AR/AP/Inventory`
-                        )
-                    }
-                }
-            }
-
-            // 3. Create Entry & Lines — relation connect for Prisma 6
-            const _entry = await prisma.journalEntry.create({
-                data: {
-                    date: data.date,
-                    description: data.description,
-                    reference: data.reference,
-                    status: 'POSTED',
-                    lines: {
-                        create: data.lines.map(line => {
-                            const account = accountMap.get(line.accountCode)
-                            if (!account) throw new Error(`Account code not found: ${line.accountCode}`)
-
-                            return {
-                                account: { connect: { id: account.id } },
-                                debit: line.debit,
-                                credit: line.credit,
-                                description: line.description || data.description
-                            }
-                        })
-                    }
-                }
-            })
-
-            // Audit trail
-            try {
-                const sbClient = await createClient()
-                const { data: { user: authUser } } = await sbClient.auth.getUser()
-                if (authUser) {
-                    await logAudit(prisma, {
-                        entityType: "JournalEntry",
-                        entityId: _entry.id,
-                        action: "CREATE",
-                        userId: authUser.id,
-                        userName: authUser.email || undefined,
-                    })
-                }
-            } catch { /* audit is best-effort */ }
-
-            // Update Account Balances
-            for (const line of data.lines) {
-                const account = accountMap.get(line.accountCode)!
-                let balanceChange = 0
-
-                if (['ASSET', 'EXPENSE'].includes(account.type)) {
-                    balanceChange = line.debit - line.credit
-                } else {
-                    balanceChange = line.credit - line.debit
-                }
-
-                await prisma.gLAccount.update({
-                    where: { id: account.id },
-                    data: { balance: { increment: balanceChange } }
+    // Audit trail — preserved from the previous local implementation, which
+    // logged a JournalEntry CREATE that the canonical does not. Best-effort:
+    // an audit failure must never fail an already-committed GL posting.
+    //
+    // NOTE: the fork wrote this row inside the same transaction as the entry;
+    // here it runs just after that transaction commits. Since the write was
+    // already wrapped in a swallow-all try/catch before, this is a durability
+    // nuance, not a change in correctness guarantees. The proper long-term fix
+    // is to move the audit write into postJournalEntryInner() in finance-gl.ts
+    // (a file this change is not permitted to touch).
+    if (result.success && result.id) {
+        try {
+            const sbClient = await createClient()
+            const { data: { user: authUser } } = await sbClient.auth.getUser()
+            if (authUser) {
+                await logAudit(basePrisma, {
+                    entityType: "JournalEntry",
+                    entityId: result.id,
+                    action: "CREATE",
+                    userId: authUser.id,
+                    userName: authUser.email || undefined,
                 })
             }
-
-            return { success: true }
-        })
-    } catch (error: any) {
-        console.error("Journal Posting Error:", error)
-        return { success: false, error: error?.message || "Failed to post journal entry" }
+        } catch { /* audit is best-effort */ }
     }
+
+    return result
 }
 
 function parseDateInput(date?: Date | string): Date | undefined {
@@ -1373,182 +1331,11 @@ export async function recordPendingBillFromPO(po: any) {
 // SALES INTEGRATION
 // ==========================================
 
-export async function createInvoiceFromSalesOrder(salesOrderId: string) {
-    try {
-        console.log("Creating Customer Invoice for Sales Order:", salesOrderId)
-
-        return await withPrismaAuth(async (prisma) => {
-            // Get Sales Order with all details
-            const salesOrder = await prisma.salesOrder.findUnique({
-                where: { id: salesOrderId },
-                include: {
-                    customer: true,
-                    items: {
-                        include: {
-                            product: true
-                        }
-                    }
-                }
-            })
-
-            if (!salesOrder) {
-                throw new Error("Sales Order not found")
-            }
-
-            if (!salesOrder.customerId) {
-                throw new Error("Sales Order has no customer")
-            }
-
-            // Check if Invoice already exists for this Sales Order
-            const existingInvoice = await prisma.invoice.findFirst({
-                where: {
-                    salesOrderId: salesOrder.id,
-                    type: 'INV_OUT'
-                }
-            })
-
-            if (existingInvoice) {
-                console.log("Invoice already exists:", existingInvoice.number)
-                return { success: true, invoiceId: existingInvoice.id, invoiceNumber: existingInvoice.number }
-            }
-
-            // Period lock check
-            await assertPeriodOpen(new Date())
-
-            // Generate Invoice Number
-            const year = new Date().getFullYear()
-            const count = await prisma.invoice.count({
-                where: {
-                    type: 'INV_OUT',
-                    number: { startsWith: `INV-${year}` }
-                }
-            })
-            const invoiceNumber = `INV-${year}-${String(count + 1).padStart(4, '0')}`
-
-            // Determine due date based on payment terms (default: NET_30 = 30 days)
-            const paymentTermDays = legacyTermToDays(salesOrder.paymentTerm)
-            const dueDate = calculateDueDate(new Date(), paymentTermDays)
-
-            // Multi-currency: inherit from SO
-            const soCurrencyCode = salesOrder.currencyCode || "IDR"
-            const soExchangeRate = Number(salesOrder.exchangeRate) || 1
-
-            // Create Customer Invoice (Invoice Type OUT) — relation connect for Prisma 6
-            const invoice = await prisma.invoice.create({
-                data: {
-                    number: invoiceNumber,
-                    type: 'INV_OUT',
-                    ...(salesOrder.customerId ? { customer: { connect: { id: salesOrder.customerId } } } : {}),
-                    salesOrder: { connect: { id: salesOrder.id } },
-                    status: 'ISSUED',
-                    issueDate: new Date(),
-                    dueDate: dueDate,
-                    subtotal: salesOrder.subtotal,
-                    taxAmount: salesOrder.taxAmount,
-                    discountAmount: salesOrder.discountAmount || 0,
-                    totalAmount: salesOrder.total,
-                    balanceDue: salesOrder.total,
-                    currencyCode: soCurrencyCode,
-                    exchangeRate: soExchangeRate,
-                    amountInIDR: 0, // will be computed below
-                    items: {
-                        create: salesOrder.items.map((item) => ({
-                            description: item.product?.name || item.description || 'Unknown Item',
-                            quantity: item.quantity,
-                            unitPrice: item.unitPrice,
-                            amount: item.lineTotal,
-                            ...(item.productId ? { product: { connect: { id: item.productId } } } : {}),
-                        }))
-                    }
-                }
-            })
-
-            console.log("Customer Invoice Created:", invoice.number)
-
-            // Multi-currency: convert to IDR for GL posting
-            const soTotal = Number(salesOrder.total)
-            let glAmount = soTotal
-            if (soCurrencyCode !== "IDR") {
-                try {
-                    const rate = await getExchangeRate(soCurrencyCode, new Date())
-                    glAmount = convertToIDR(soTotal, rate)
-                    // Store computed IDR amount and rate on invoice
-                    await prisma.invoice.update({
-                        where: { id: invoice.id },
-                        data: { exchangeRate: rate, amountInIDR: glAmount }
-                    })
-                } catch {
-                    // Fallback: use SO exchange rate if real-time rate unavailable
-                    glAmount = convertToIDR(soTotal, soExchangeRate)
-                    await prisma.invoice.update({
-                        where: { id: invoice.id },
-                        data: { amountInIDR: glAmount }
-                    }).catch(() => {})
-                }
-            } else {
-                await prisma.invoice.update({
-                    where: { id: invoice.id },
-                    data: { amountInIDR: soTotal }
-                }).catch(() => {})
-            }
-
-            // Auto-post to General Ledger (DR Accounts Receivable, CR Revenue)
-            // GL always in IDR
-            try {
-                // Get GL account codes from database (or use predefined codes)
-                const arAccount = await prisma.gLAccount.findFirst({
-                    where: { code: '1200' } // Accounts Receivable
-                })
-                const revenueAccount = await prisma.gLAccount.findFirst({
-                    where: { code: '4000' } // Sales Revenue
-                })
-
-                if (arAccount && revenueAccount) {
-                    const glCurrencyNote = soCurrencyCode !== "IDR" ? ` [${soCurrencyCode}→IDR]` : ""
-                    // Post journal entry — always in IDR
-                    const glResult = await postJournalEntry({
-                        description: `Customer Invoice ${invoice.number} - ${salesOrder.customer?.name}${glCurrencyNote}`,
-                        date: new Date(),
-                        reference: invoice.number,
-                        lines: [
-                            {
-                                accountCode: arAccount.code,
-                                debit: glAmount,
-                                credit: 0,
-                                description: `AR - ${salesOrder.customer?.name}${glCurrencyNote}`
-                            },
-                            {
-                                accountCode: revenueAccount.code,
-                                debit: 0,
-                                credit: glAmount,
-                                description: `Sales Revenue - SO ${salesOrder.number}${glCurrencyNote}`
-                            }
-                        ]
-                    })
-                    if (!glResult?.success) {
-                        console.error("GL posting failed:", glResult?.error)
-                    }
-                    console.log("GL Entry Posted for Invoice:", invoice.number)
-                } else {
-                    console.warn("GL Accounts not found - skipping auto-posting")
-                }
-            } catch (glError) {
-                console.error("Failed to post GL entry (invoice still created):", glError)
-            }
-
-            return {
-                success: true,
-                invoiceId: invoice.id,
-                invoiceNumber: invoice.number
-            }
-        })
-    } catch (error) {
-        console.error("Failed to create invoice from sales order:", error)
-        return {
-            success: false,
-            error: (error as any)?.message || "Invoice creation failed"
-        }
-    }
+export async function createInvoiceFromSalesOrder(
+    ...args: Parameters<typeof import("./finance-invoices").createInvoiceFromSalesOrder>
+) {
+    const { createInvoiceFromSalesOrder: canonical } = await import("./finance-invoices")
+    return canonical(...args)
 }
 
 /**
@@ -2041,91 +1828,9 @@ export async function getVendorPayments(): Promise<VendorPayment[]> {
 /**
  * Record a vendor payment (pay a bill)
  */
-export async function recordVendorPayment(data: {
-    supplierId: string
-    billId?: string
-    amount: number
-    method?: 'CASH' | 'TRANSFER' | 'CHECK'
-    reference?: string
-    notes?: string
-    bankAccountCode?: string
-}) {
-    try {
-        return await withPrismaAuth(async (prisma) => {
-            // Period lock check
-            await assertPeriodOpen(new Date())
-
-            // Generate payment number
-            const year = new Date().getFullYear()
-            const count = await prisma.payment.count({
-                where: { number: { startsWith: `VPAY-${year}` } }
-            })
-            const paymentNumber = `VPAY-${year}-${String(count + 1).padStart(4, '0')}`
-
-            // Auto-derive method for Payment record from selected account name
-            const selectedBankCode = data.bankAccountCode || SYS_ACCOUNTS.BANK_BCA
-            const bankAcctForMethod = await prisma.gLAccount.findFirst({ where: { code: selectedBankCode }, select: { name: true } })
-            const derivedMethod = data.method || (bankAcctForMethod && /kas|cash|petty/i.test(bankAcctForMethod.name) ? 'CASH' : 'TRANSFER')
-
-            const payment = await prisma.payment.create({
-                data: {
-                    number: paymentNumber,
-                    supplierId: data.supplierId,
-                    invoiceId: data.billId,
-                    amount: data.amount,
-                    date: new Date(),
-                    method: derivedMethod,
-                    reference: data.reference,
-                    notes: data.notes || undefined
-                }
-            })
-
-            // If linked to bill, update bill balance
-            if (data.billId) {
-                const bill = await prisma.invoice.findUnique({
-                    where: { id: data.billId }
-                })
-                if (bill) {
-                    const newBalance = Number(bill.balanceDue) - data.amount
-                    await prisma.invoice.update({
-                        where: { id: data.billId },
-                        data: {
-                            balanceDue: Math.max(0, newBalance),
-                            status: newBalance <= 0 ? 'PAID' : 'PARTIAL'
-                        }
-                    })
-                }
-            }
-
-            // Use selected COA account directly — no method→account mapping
-            const bankCode = data.bankAccountCode || SYS_ACCOUNTS.BANK_BCA
-            let bankAccountName = 'Cash/Bank'
-            try {
-                const bankAcct = await prisma.gLAccount.findFirst({ where: { code: bankCode } })
-                if (bankAcct) bankAccountName = bankAcct.name
-            } catch { /* fallback to default name */ }
-
-            // Post GL entry: DR Hutang Usaha, CR Cash/Bank
-            await ensureSystemAccounts()
-            const glResult = await postJournalEntry({
-                description: `Pembayaran Vendor ${paymentNumber}`,
-                date: new Date(),
-                reference: paymentNumber,
-                lines: [
-                    { accountCode: SYS_ACCOUNTS.AP, debit: data.amount, credit: 0, description: 'Pelunasan Hutang Usaha' },
-                    { accountCode: bankCode, debit: 0, credit: data.amount, description: bankAccountName }
-                ]
-            })
-            if (!glResult?.success) {
-                throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(glResult as any)?.error || 'Unknown GL error'}`)
-            }
-
-            return { success: true, paymentId: payment.id, paymentNumber }
-        })
-    } catch (error: any) {
-        console.error("Failed to record vendor payment:", error)
-        return { success: false, error: error.message }
-    }
+export async function recordVendorPayment(...args: Parameters<typeof import("./finance-ap").recordVendorPayment>) {
+    const { recordVendorPayment: canonical } = await import("./finance-ap")
+    return canonical(...args)
 }
 
 // Re-export multi-bill payment from finance-ap as async wrapper functions
@@ -2461,137 +2166,10 @@ export async function disputeBill(billId: string, reason: string) {
  * Approve and Pay a vendor bill immediately
  */
 export async function approveAndPayBill(
-    billId: string,
-    paymentDetails: {
-        amount: number,
-        bankName?: string,
-        bankAccountNumber?: string,
-        bankAccountName?: string,
-        notes?: string
-    }
+    ...args: Parameters<typeof import("./finance-ap").approveAndPayBill>
 ) {
-    try {
-        return await withPrismaAuth(async (prisma) => {
-            // 1. Get Bill
-            const bill = await prisma.invoice.findUnique({
-                where: { id: billId },
-                include: { supplier: true, items: { include: { product: true } } }
-            })
-            if (!bill) throw new Error("Bill not found")
-
-            // Period lock check
-            await assertPeriodOpen(new Date())
-
-            // 2. Update Supplier Bank Details if provided
-            if (bill.supplierId && paymentDetails.bankAccountNumber) {
-                await prisma.supplier.update({
-                    where: { id: bill.supplierId },
-                    data: {
-                        bankName: paymentDetails.bankName,
-                        bankAccountNumber: paymentDetails.bankAccountNumber,
-                        bankAccountName: paymentDetails.bankAccountName
-                    }
-                })
-            }
-
-            // 3. Approve (Start GL Transaction: Debit Expense, Credit AP)
-            // If already ISSUED (Approved), skip this step?
-
-            if (bill.status === 'DRAFT' || bill.status === 'DISPUTED' as InvoiceStatus) { // DRAFT or DISPUTED
-                // Update Status
-                await prisma.invoice.update({ where: { id: billId }, data: { status: 'ISSUED' } })
-
-                // Post AP Journal (Expense vs AP)
-                await ensureSystemAccounts()
-                const glLines: { accountCode: string; debit: number; credit: number; description: string }[] = []
-                let totalAmount = 0
-
-                // Add Expense Lines — DR Beban (Expense)
-                // Vendor bills debit EXPENSE_DEFAULT (6900). COGS (5000) is only debited when inventory items are SOLD, not when purchased.
-                for (const item of bill.items) {
-                    const amount = Number(item.amount)
-                    totalAmount += amount
-                    glLines.push({
-                        accountCode: SYS_ACCOUNTS.EXPENSE_DEFAULT,
-                        debit: amount,
-                        credit: 0,
-                        description: `${item.description}`
-                    })
-                }
-
-                // Add Tax — DR PPN Masukan
-                if (Number(bill.taxAmount) > 0) {
-                    glLines.push({
-                        accountCode: SYS_ACCOUNTS.PPN_MASUKAN,
-                        debit: Number(bill.taxAmount),
-                        credit: 0,
-                        description: `PPN Masukan - Bill ${bill.number}`
-                    })
-                    totalAmount += Number(bill.taxAmount)
-                }
-
-                // Add AP Credit — CR Hutang Usaha
-                glLines.push({
-                    accountCode: SYS_ACCOUNTS.AP,
-                    debit: 0,
-                    credit: totalAmount,
-                    description: `Hutang - ${bill.supplier?.name}`
-                })
-
-                const approvalGl = await postJournalEntry({
-                    description: `Tagihan Pembelian ${bill.number} - ${bill.supplier?.name}`,
-                    date: new Date(),
-                    reference: bill.number,
-                    lines: glLines
-                })
-                if (!approvalGl?.success) {
-                    console.error("GL posting failed:", approvalGl?.error)
-                }
-            }
-
-            // 4. Pay (Debit AP, Credit Cash/Bank)
-            const paymentNumber = `PAY-${Date.now()}` // Simple gen
-
-            // Create Payment Record
-            const _payment = await prisma.payment.create({
-                data: {
-                    number: paymentNumber,
-                    amount: paymentDetails.amount,
-                    method: 'TRANSFER',
-                    date: new Date(),
-                    invoiceId: billId,
-                    supplierId: bill.supplierId,
-                    reference: `REF-${bill.number}`,
-                    notes: `Paid to ${paymentDetails.bankName} - ${paymentDetails.bankAccountNumber}`
-                }
-            })
-
-            // Update Invoice to PAID
-            await prisma.invoice.update({
-                where: { id: billId },
-                data: { status: 'PAID', balanceDue: 0 }
-            })
-
-            // Post Cash Journal — DR Hutang Usaha, CR Bank
-            const paymentGl = await postJournalEntry({
-                description: `Pembayaran ${bill.supplier?.name} - ${bill.number}`,
-                date: new Date(),
-                reference: paymentNumber,
-                lines: [
-                    { accountCode: SYS_ACCOUNTS.AP, debit: paymentDetails.amount, credit: 0, description: `Pelunasan hutang ${bill.number}` },
-                    { accountCode: SYS_ACCOUNTS.BANK_BCA, debit: 0, credit: paymentDetails.amount, description: `Transfer ke ${bill.supplier?.name}` }
-                ]
-            })
-            if (!paymentGl?.success) {
-                console.error("GL posting failed:", paymentGl?.error)
-            }
-
-            return { success: true }
-        })
-    } catch (error: any) {
-        console.error("Failed to approve and pay bill:", error)
-        return { success: false, error: error.message }
-    }
+    const { approveAndPayBill: canonical } = await import("./finance-ap")
+    return canonical(...args)
 }
 
 // ==========================================

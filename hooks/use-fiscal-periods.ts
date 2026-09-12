@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { CACHE_TIERS } from "@/lib/cache-tiers"
 import { toast } from "sonner"
 
 export interface FiscalPeriod {
@@ -28,6 +29,7 @@ export function useFiscalPeriods(year?: number) {
             if (!res.ok) throw new Error(json.error)
             return json.data as FiscalPeriod[]
         },
+        ...CACHE_TIERS.CONFIG,
     })
 }
 

@@ -18,7 +18,7 @@ export function PageHeaderSkeleton({ accentColor = "bg-zinc-400" }: { accentColo
     return (
         <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
             {/* Real accent bar — immediate brand identity */}
-            <div className="h-1 bg-gradient-to-r from-orange-500 via-amber-400 to-orange-500" />
+            <div className="h-1 bg-orange-500" />
             <div className="px-5 py-3.5 flex items-center justify-between animate-pulse">
                 <div className="flex items-center gap-3">
                     <Bone className="w-9 h-9" />
@@ -217,7 +217,7 @@ export function TablePageSkeleton({ accentColor = "bg-zinc-400" }: { accentColor
         <div className="flex-1 p-4 md:p-6 lg:p-8 pt-6 w-full space-y-4">
             {/* Unified NB v2 card: accent + header + KPI + filter */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
-                <div className="h-1 bg-gradient-to-r from-orange-500 via-amber-400 to-orange-500" />
+                <div className="h-1 bg-orange-500" />
                 {/* Row 1: Header */}
                 <div className="px-5 py-3.5 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 animate-pulse">
                     <div className="flex items-center gap-3">

@@ -51,13 +51,13 @@ import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 import Link from "next/link"
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-    SCHEDULED: { label: "Dijadwalkan", bg: "bg-blue-100", text: "text-blue-700" },
+    SCHEDULED: { label: "Dijadwalkan", bg: "bg-zinc-100", text: "text-zinc-700" },
     IN_PROGRESS: { label: "Sedang Berlangsung", bg: "bg-amber-100", text: "text-amber-700" },
     COMPLETED: { label: "Selesai", bg: "bg-emerald-100", text: "text-emerald-700" },
 }
 
 export default function CycleCountsPage() {
-    const { data: sessions, isLoading } = useCycleCounts()
+    const { data: sessions } = useCycleCounts()
     const { data: warehousesData } = useWarehouses()
     const warehouses = warehousesData ?? []
     const queryClient = useQueryClient()
@@ -157,7 +157,7 @@ export default function CycleCountsPage() {
         }
     }
 
-    if (isLoading) return <TablePageSkeleton accentColor="bg-amber-400" />
+    if (!sessions) return <TablePageSkeleton />
 
     return (
         <div className="mf-page">
@@ -175,7 +175,7 @@ export default function CycleCountsPage() {
                     </div>
                     <Button
                         onClick={() => setCreateOpen(true)}
-                        className="bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold text-[10px] tracking-wide hover:translate-y-[1px] hover:shadow-none transition-all h-9 rounded-none"
+                        className="bg-orange-500 text-white hover:bg-orange-600 border-2 border-orange-600 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold text-xs tracking-wide hover:translate-y-[1px] hover:shadow-none transition-all h-9 rounded-none"
                     >
                         <Plus className="mr-2 h-3.5 w-3.5" /> Buat Sesi Baru
                     </Button>
@@ -186,23 +186,23 @@ export default function CycleCountsPage() {
             <div className="bg-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
                 <div className="grid grid-cols-2 md:grid-cols-4">
                     <div className="relative p-4 md:p-5 border-r-2 border-b-2 md:border-b-0 border-zinc-100">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-blue-400" />
-                        <div className="flex items-center gap-2 mb-2"><Hash className="h-4 w-4 text-zinc-400" /><span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Sesi</span></div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-blue-600">{sessions?.length ?? 0}</div>
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-400" />
+                        <div className="flex items-center gap-2 mb-2"><Hash className="h-4 w-4 text-zinc-400" /><span className="text-xs font-black uppercase tracking-widest text-zinc-500">Total Sesi</span></div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900">{sessions?.length ?? 0}</div>
                     </div>
                     <div className="relative p-4 md:p-5 border-r-2 border-b-2 md:border-b-0 border-zinc-100">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-amber-400" />
-                        <div className="flex items-center gap-2 mb-2"><ClipboardList className="h-4 w-4 text-zinc-400" /><span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Berlangsung</span></div>
+                        <div className="flex items-center gap-2 mb-2"><ClipboardList className="h-4 w-4 text-zinc-400" /><span className="text-xs font-black uppercase tracking-widest text-zinc-500">Berlangsung</span></div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-amber-600">{sessions?.filter((s) => s.status !== "COMPLETED").length ?? 0}</div>
                     </div>
                     <div className="relative p-4 md:p-5 border-r-2 border-b-2 md:border-b-0 border-zinc-100">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
-                        <div className="flex items-center gap-2 mb-2"><CheckCircle2 className="h-4 w-4 text-zinc-400" /><span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Selesai</span></div>
+                        <div className="flex items-center gap-2 mb-2"><CheckCircle2 className="h-4 w-4 text-zinc-400" /><span className="text-xs font-black uppercase tracking-widest text-zinc-500">Selesai</span></div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-emerald-600">{sessions?.filter((s) => s.status === "COMPLETED").length ?? 0}</div>
                     </div>
                     <div className="relative p-4 md:p-5">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-red-400" />
-                        <div className="flex items-center gap-2 mb-2"><AlertTriangle className="h-4 w-4 text-zinc-400" /><span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Selisih Ditemukan</span></div>
+                        <div className="flex items-center gap-2 mb-2"><AlertTriangle className="h-4 w-4 text-zinc-400" /><span className="text-xs font-black uppercase tracking-widest text-zinc-500">Selisih Ditemukan</span></div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-red-600">{sessions?.reduce((acc, s) => acc + s.varianceCount, 0) ?? 0}</div>
                     </div>
                 </div>
@@ -213,13 +213,13 @@ export default function CycleCountsPage() {
                 <Table>
                     <TableHeader className="bg-zinc-50 border-b-2 border-black">
                         <TableRow className="hover:bg-zinc-50">
-                            <TableHead className="font-black text-black uppercase text-[10px] tracking-wider">Gudang</TableHead>
-                            <TableHead className="font-black text-black uppercase text-[10px] tracking-wider">Tanggal</TableHead>
-                            <TableHead className="font-black text-black uppercase text-[10px] tracking-wider text-center">Item</TableHead>
-                            <TableHead className="font-black text-black uppercase text-[10px] tracking-wider text-center">Dihitung</TableHead>
-                            <TableHead className="font-black text-black uppercase text-[10px] tracking-wider text-center">Selisih</TableHead>
-                            <TableHead className="font-black text-black uppercase text-[10px] tracking-wider text-center">Status</TableHead>
-                            <TableHead className="font-black text-black uppercase text-[10px] tracking-wider text-right">Aksi</TableHead>
+                            <TableHead className="font-black text-black uppercase text-xs tracking-wider">Gudang</TableHead>
+                            <TableHead className="font-black text-black uppercase text-xs tracking-wider">Tanggal</TableHead>
+                            <TableHead className="font-black text-black uppercase text-xs tracking-wider text-center">Item</TableHead>
+                            <TableHead className="font-black text-black uppercase text-xs tracking-wider text-center">Dihitung</TableHead>
+                            <TableHead className="font-black text-black uppercase text-xs tracking-wider text-center">Selisih</TableHead>
+                            <TableHead className="font-black text-black uppercase text-xs tracking-wider text-center">Status</TableHead>
+                            <TableHead className="font-black text-black uppercase text-xs tracking-wider text-right">Aksi</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -247,7 +247,7 @@ export default function CycleCountsPage() {
                                             <div className="flex items-center gap-1.5"><Calendar className="h-3 w-3" />{new Date(session.scheduledDate).toLocaleDateString("id-ID")}</div>
                                         </TableCell>
                                         <TableCell className="text-center font-black">{session.itemCount}</TableCell>
-                                        <TableCell className="text-center font-black text-blue-600">{session.countedCount}/{session.itemCount}</TableCell>
+                                        <TableCell className="text-center font-black text-zinc-900">{session.countedCount}/{session.itemCount}</TableCell>
                                         <TableCell className="text-center">
                                             {session.varianceCount > 0 ? (
                                                 <span className="font-black text-red-600">{session.varianceCount}</span>
@@ -258,14 +258,14 @@ export default function CycleCountsPage() {
                                             )}
                                         </TableCell>
                                         <TableCell className="text-center">
-                                            <Badge className={`${cfg.bg} ${cfg.text} border-0 rounded-none text-[9px] font-black uppercase`}>{cfg.label}</Badge>
+                                            <Badge className={`${cfg.bg} ${cfg.text} border-0 rounded-none text-xs font-black uppercase`}>{cfg.label}</Badge>
                                         </TableCell>
                                         <TableCell className="text-right">
                                             {session.status !== "COMPLETED" && (
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
-                                                    className="h-7 text-[9px] uppercase font-black border-2 border-black bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[1px] rounded-none"
+                                                    className="h-7 text-xs uppercase font-black border-2 border-black bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[1px] rounded-none"
                                                     onClick={() => handleOpenCount(session.id)}
                                                 >
                                                     Hitung
@@ -289,7 +289,7 @@ export default function CycleCountsPage() {
                     </DialogHeader>
                     <div className="p-5 space-y-4">
                         <div>
-                            <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Gudang <span className="text-red-500">*</span></label>
+                            <label className="text-xs font-black uppercase tracking-wider text-zinc-500 mb-1 block">Gudang <span className="text-red-500">*</span></label>
                             <Select value={newWarehouseId} onValueChange={setNewWarehouseId}>
                                 <SelectTrigger className="border-2 border-black font-bold h-10 rounded-none">
                                     <SelectValue placeholder="Pilih gudang..." />
@@ -302,11 +302,11 @@ export default function CycleCountsPage() {
                             </Select>
                         </div>
                         <div>
-                            <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Tanggal</label>
+                            <label className="text-xs font-black uppercase tracking-wider text-zinc-500 mb-1 block">Tanggal</label>
                             <Input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} className="border-2 border-black font-mono h-10 rounded-none" />
                         </div>
                         <div>
-                            <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Catatan</label>
+                            <label className="text-xs font-black uppercase tracking-wider text-zinc-500 mb-1 block">Catatan</label>
                             <Input value={newNotes} onChange={(e) => setNewNotes(e.target.value)} placeholder="Opsional..." className="border-2 border-black h-10 rounded-none" />
                         </div>
                         <Button onClick={handleCreate} disabled={creating} className="w-full bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs h-10 rounded-none">
@@ -328,16 +328,16 @@ export default function CycleCountsPage() {
                         <Table>
                             <TableHeader className="bg-zinc-50 border-b-2 border-black">
                                 <TableRow>
-                                    <TableHead className="font-black text-black uppercase text-[10px] tracking-wider">Produk</TableHead>
-                                    <TableHead className="font-black text-black uppercase text-[10px] tracking-wider text-right w-[100px]">Sistem</TableHead>
-                                    <TableHead className="font-black text-black uppercase text-[10px] tracking-wider text-right w-[120px]">Aktual</TableHead>
-                                    <TableHead className="font-black text-black uppercase text-[10px] tracking-wider text-center w-[80px]">Selisih</TableHead>
+                                    <TableHead className="font-black text-black uppercase text-xs tracking-wider">Produk</TableHead>
+                                    <TableHead className="font-black text-black uppercase text-xs tracking-wider text-right w-[100px]">Sistem</TableHead>
+                                    <TableHead className="font-black text-black uppercase text-xs tracking-wider text-right w-[120px]">Aktual</TableHead>
+                                    <TableHead className="font-black text-black uppercase text-xs tracking-wider text-center w-[80px]">Selisih</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {activeSession?.items.map((item) => {
                                     const actual = counts[item.id]
-                                    const variance = actual !== undefined && actual !== "" ? Number(actual) - item.expectedQty : null
+                                    const variance = actual !== undefined && actual !== "" ? Number(actual) - Number(item.expectedQty) : null
                                     return (
                                         <TableRow key={item.id} className="border-b border-zinc-100">
                                             <TableCell>

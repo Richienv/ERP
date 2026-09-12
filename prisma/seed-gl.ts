@@ -71,6 +71,7 @@ async function main() {
 
         // --- REVENUE (PENDAPATAN) ---
         { code: '4000', name: 'Pendapatan Penjualan', type: 'REVENUE', isSystem: true },
+        { code: '4010', name: 'Retur Penjualan', type: 'REVENUE', isSystem: true },
         { code: '4100', name: 'Diskon Penjualan', type: 'REVENUE', isSystem: true },
         { code: '4200', name: 'Pendapatan Jasa', type: 'REVENUE', isSystem: true },
         { code: '4300', name: 'Pendapatan Lain-lain', type: 'REVENUE', isSystem: true },
@@ -86,6 +87,7 @@ async function main() {
         // 6100 - Salary & Personnel Expenses
         { code: '6100', name: 'Beban Gaji', type: 'EXPENSE', isSystem: true },
         { code: '6110', name: 'Komisi Penjualan', type: 'EXPENSE', isSystem: false },
+        { code: '6130', name: 'Beban BPJS Perusahaan', type: 'EXPENSE', isSystem: true },
 
         // 6200 - General & Admin Expenses
         { code: '6200', name: 'Beban Gaji Kantor', type: 'EXPENSE', isSystem: false },

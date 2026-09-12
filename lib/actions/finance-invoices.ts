@@ -4,9 +4,11 @@ import { InvoiceStatus, InvoiceType } from "@prisma/client"
 import { withPrismaAuth, prisma } from "@/lib/db"
 import { postJournalEntry } from "./finance-gl"
 import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts-server"
+import { assertRole, FINANCE_POSTING_ROLES, getAuthzUser } from "@/lib/authz"
 import {
     getRequiredInvoicePostingSystemAccountCodes,
     INVOICE_POSTING_ACCOUNT_DEFS,
+    resolveVendorBillDebitAccount,
     type RequiredSystemAccountDef,
 } from "@/lib/invoice-posting-accounts"
 import {
@@ -20,6 +22,7 @@ import { getExchangeRate, convertToIDR } from "@/lib/currency-helpers"
 import { TAX_RATES } from "@/lib/tax-rates"
 import { toNum } from "@/lib/utils"
 import * as dueDateUtils from "@/lib/due-date-utils"
+import { planBillFromReceived } from "@/lib/bill-from-received"
 
 export interface InvoiceKanbanItem {
     id: string
@@ -313,6 +316,8 @@ export async function createCustomerInvoice(data: {
     accountId?: string // User-selected GL account UUID (looked up → glAccountCode on invoice)
 }) {
     try {
+        const user = await getAuthzUser()
+        assertRole(user, [...FINANCE_POSTING_ROLES])
         // Server-side validation: COA account is mandatory for manual invoices
         if (!data.accountId) {
             return { success: false, error: "Pilih akun pendapatan/beban (COA) terlebih dahulu" }
@@ -733,91 +738,124 @@ export async function recordPendingBillFromPO(
     options?: { forceCreate?: boolean; requireConfirmationOnDuplicate?: boolean }
 ) {
     try {
-        // Fiscal period check
+        // Fiscal period check — draft create/refresh still must land in an open period.
         await assertPeriodOpen(new Date())
 
         console.log("Creating/Updating Finance Bill for PO:", po.number)
 
         return await withPrismaAuth(async (prisma) => {
-            // Check if Bill already exists for this PO
-            const existingBill = await prisma.invoice.findFirst({
-                where: {
-                    type: 'INV_IN',
-                    OR: [{ orderId: po.id }, { purchaseOrderId: po.id }],
-                    status: { notIn: ['CANCELLED', 'VOID'] }
+            const livePo = await prisma.purchaseOrder.findUnique({
+                where: { id: po.id },
+                include: {
+                    items: { include: { product: true } },
                 },
-                orderBy: { createdAt: 'desc' }
+            })
+            if (!livePo) throw new Error("Purchase Order not found")
+
+            const existingBills = await prisma.invoice.findMany({
+                where: {
+                    type: "INV_IN",
+                    OR: [{ orderId: livePo.id }, { purchaseOrderId: livePo.id }],
+                    status: { notIn: ["CANCELLED", "VOID"] },
+                },
+                orderBy: { createdAt: "desc" },
+                include: { items: true },
             })
 
-            if (existingBill) {
-                console.log("Bill already exists:", existingBill.number)
-                if (!options?.forceCreate) {
-                    if (options?.requireConfirmationOnDuplicate) {
-                        return {
-                            success: false,
-                            code: 'INVOICE_ALREADY_EXISTS',
-                            requiresConfirmation: true,
-                            existingInvoiceId: existingBill.id,
-                            existingInvoiceNumber: existingBill.number,
-                            existingInvoiceStatus: existingBill.status,
-                            error: `Bill ${existingBill.number} already exists for this PO`
-                        } as const
-                    }
+            const plan = planBillFromReceived({
+                poItems: livePo.items,
+                taxMode: livePo.taxMode,
+                existingBills,
+                options,
+            })
 
-                    return {
-                        success: true,
-                        billId: existingBill.id,
-                        billNumber: existingBill.number,
-                        alreadyExists: true,
-                        existingStatus: existingBill.status
-                    } as const
-                }
+            if (plan.action === "skip") {
+                const latest = existingBills[0]
+                console.log("Bill from received skipped:", plan.reason, livePo.number)
+                return {
+                    success: true,
+                    skipped: true,
+                    alreadyExists: plan.reason === "fully_billed",
+                    billId: latest?.id,
+                    billNumber: latest?.number,
+                    existingStatus: latest?.status,
+                } as const
             }
 
-            const billBaseNumber = `BILL-${po.number}`
+            if (plan.action === "confirm") {
+                return {
+                    success: false,
+                    code: "INVOICE_ALREADY_EXISTS",
+                    requiresConfirmation: true,
+                    existingInvoiceId: plan.existing.id,
+                    existingInvoiceNumber: plan.existing.number,
+                    existingInvoiceStatus: plan.existing.status,
+                    error: `Bill ${plan.existing.number} already exists for this PO`,
+                } as const
+            }
+
+            const itemCreates = plan.lines.map((line) => ({
+                description: line.description,
+                quantity: line.quantity,
+                unitPrice: line.unitPrice,
+                amount: line.amount,
+                ...(line.productId ? { product: { connect: { id: line.productId } } } : {}),
+            }))
+
+            // DRAFT only — no journal entry until Setujui posts AP.
+            if (plan.action === "refresh") {
+                const bill = await prisma.invoice.update({
+                    where: { id: plan.draftId },
+                    data: {
+                        subtotal: plan.totals.subtotal,
+                        taxAmount: plan.totals.taxAmount,
+                        totalAmount: plan.totals.totalAmount,
+                        balanceDue: plan.totals.balanceDue,
+                        items: {
+                            deleteMany: {},
+                            create: itemCreates,
+                        },
+                    },
+                })
+                console.log("Bill refreshed from receivedQty:", bill.number)
+                return {
+                    success: true,
+                    billId: bill.id,
+                    billNumber: bill.number,
+                    alreadyExists: true,
+                    refreshed: true,
+                } as const
+            }
+
+            const billBaseNumber = `BILL-${livePo.number}`
             const duplicateCount = await prisma.invoice.count({
                 where: {
-                    type: 'INV_IN',
-                    number: { startsWith: billBaseNumber }
-                }
+                    type: "INV_IN",
+                    number: { startsWith: billBaseNumber },
+                },
             })
             const billNumber = duplicateCount > 0
-                ? `${billBaseNumber}-${String(duplicateCount + 1).padStart(2, '0')}`
+                ? `${billBaseNumber}-${String(duplicateCount + 1).padStart(2, "0")}`
                 : billBaseNumber
 
-            // When PO tax mode is INCLUSIVE, the item prices include PPN. Bill items
-            // must store net (DPP) amounts so GL posting (debit Expense + debit PPN
-            // Masukan + credit AP) stays balanced against bill.subtotal.
-            const isInclusive = po.taxMode === 'INCLUSIVE'
-            const netFactor = isInclusive ? 1 / (1 + TAX_RATES.PPN) : 1
-
-            // Create new Bill (Invoice Type IN) — relation connect for Prisma 6
             const bill = await prisma.invoice.create({
                 data: {
                     number: billNumber,
-                    type: 'INV_IN',
-                    ...(po.supplierId ? { supplier: { connect: { id: po.supplierId } } } : {}),
-                    purchaseOrder: { connect: { id: po.id } },
-                    status: 'DRAFT',
+                    type: "INV_IN",
+                    ...(livePo.supplierId ? { supplier: { connect: { id: livePo.supplierId } } } : {}),
+                    purchaseOrder: { connect: { id: livePo.id } },
+                    status: "DRAFT",
                     issueDate: new Date(),
                     dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
-                    subtotal: toNum(po.totalAmount),     // pre-tax DPP
-                    taxAmount: toNum(po.taxAmount),
-                    totalAmount: toNum(po.netAmount),    // DPP + PPN
-                    balanceDue: toNum(po.netAmount),     // what's actually owed
-                    items: {
-                        create: po.items.map((item: any) => ({
-                            description: item.product?.name || 'Unknown Item',
-                            quantity: item.quantity,
-                            unitPrice: Math.round(toNum(item.unitPrice) * netFactor),
-                            amount: Math.round(toNum(item.totalPrice) * netFactor),
-                            ...(item.productId ? { product: { connect: { id: item.productId } } } : {}),
-                        }))
-                    }
-                }
+                    subtotal: plan.totals.subtotal,
+                    taxAmount: plan.totals.taxAmount,
+                    totalAmount: plan.totals.totalAmount,
+                    balanceDue: plan.totals.balanceDue,
+                    items: { create: itemCreates },
+                },
             })
 
-            console.log("Bill Created:", bill.number)
+            console.log("Bill Created from receivedQty:", bill.number)
             return { success: true, billId: bill.id, billNumber: bill.number, alreadyExists: false } as const
         })
     } catch (error) {
@@ -1038,8 +1076,12 @@ export async function createBillFromPOId(
     options?: { forceCreate?: boolean }
 ) {
     try {
-        return await withPrismaAuth(async (prisma) => {
-            const po = await prisma.purchaseOrder.findUnique({
+        // Load the PO in its own short transaction, THEN create the bill.
+        // recordPendingBillFromPO starts withPrismaAuth itself — nesting the two
+        // interactive transactions deadlocks the Supabase pooler (outer holds a
+        // connection, inner waits for another).
+        const po = await withPrismaAuth(async (tx) => {
+            return tx.purchaseOrder.findUnique({
                 where: { id: poId },
                 include: {
                     items: {
@@ -1049,12 +1091,12 @@ export async function createBillFromPOId(
                     }
                 }
             })
+        })
 
-            if (!po) throw new Error("Purchase Order not found")
-            return await recordPendingBillFromPO(po, {
-                forceCreate: options?.forceCreate,
-                requireConfirmationOnDuplicate: true
-            })
+        if (!po) throw new Error("Purchase Order not found")
+        return await recordPendingBillFromPO(po, {
+            forceCreate: options?.forceCreate,
+            requireConfirmationOnDuplicate: true
         })
     } catch (error: any) {
         console.error("Failed to create bill from PO:", error)
@@ -1064,6 +1106,8 @@ export async function createBillFromPOId(
 
 export async function moveInvoiceToSent(invoiceId: string, _message?: string, _method?: 'WHATSAPP' | 'EMAIL') {
     try {
+        const user = await getAuthzUser()
+        assertRole(user, [...FINANCE_POSTING_ROLES])
         // Period lock: fail fast before mutation
         await assertPeriodOpen(new Date())
 
@@ -1195,9 +1239,10 @@ export async function moveInvoiceToSent(invoiceId: string, _message?: string, _m
                     }, prisma)
                 } else {
                     // AP Bill: DR [expense or GR/IR] + DR PPN Masukan, CR Hutang Usaha
-                    const debitAccount = goodsReceivedViaPO
-                        ? SYS_ACCOUNTS.GR_IR_CLEARING
-                        : (existing.glAccountCode || SYS_ACCOUNTS.EXPENSE_DEFAULT)
+                    const debitAccount = resolveVendorBillDebitAccount({
+                        goodsReceivedViaPO,
+                        glAccountCode: existing.glAccountCode,
+                    })
                     const debitLabel = goodsReceivedViaPO
                         ? `GR/IR Clearing - ${existing.number}`
                         : `Beban - ${existing.number}`
@@ -1311,6 +1356,8 @@ export async function recordInvoicePayment(data: {
     }
 }) {
     try {
+        const user = await getAuthzUser()
+        assertRole(user, [...FINANCE_POSTING_ROLES])
         const paymentDate = new Date(data.paymentDate)
         if (Number.isNaN(paymentDate.getTime())) {
             throw new Error("Tanggal pembayaran tidak valid")

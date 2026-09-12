@@ -6,10 +6,10 @@ import { ProductsPageClient } from "./products-client"
 import { CardPageSkeleton } from "@/components/ui/page-skeleton"
 
 export function ProductsPageHydrated() {
-    const { data, isLoading } = useProductsPage()
+    const { data } = useProductsPage()
 
-    if (isLoading || !data) {
-        return <CardPageSkeleton accentColor="bg-emerald-400" />
+    if (!data) {
+        return <CardPageSkeleton />
     }
 
     return (

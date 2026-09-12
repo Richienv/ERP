@@ -38,20 +38,6 @@ import { exportToExcel } from "@/lib/table-export"
 
 export const dynamic = "force-dynamic"
 
-/* ─── Animation variants ─── */
-const stagger = {
-    hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { staggerChildren: 0.07 } },
-}
-const fadeUp = {
-    hidden: { opacity: 0, y: 14 },
-    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
-}
-const fadeX = {
-    hidden: { opacity: 0, x: -12 },
-    show: { opacity: 1, x: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
-}
-
 const formatCurrency = (val: number) =>
     new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(val)
 
@@ -107,17 +93,9 @@ export default function PettyCashPage() {
     const disburseCount = allTransactions.filter((tx: any) => tx.type !== "TOPUP").length
 
     return (
-        <motion.div
-            className="mf-page"
-            variants={stagger}
-            initial="hidden"
-            animate="show"
-        >
+        <div className="mf-page">
             {/* ─── Unified Page Header Card ─── */}
-            <motion.div
-                variants={fadeUp}
-                className={NB.pageCard}
-            >
+            <div className={NB.pageCard}>
                 {/* Orange accent bar */}
                 <div className={NB.pageAccent} />
 
@@ -185,7 +163,7 @@ export default function PettyCashPage() {
                 <div className="flex items-center divide-x divide-zinc-200 dark:divide-zinc-800">
                     {[
                         { label: "Saldo Saat Ini", value: data.currentBalance, color: "emerald" },
-                        { label: "Top Up Bulan Ini", value: data.totalTopup, color: "blue" },
+                        { label: "Top Up Bulan Ini", value: data.totalTopup, color: "zinc" },
                         { label: "Pengeluaran Bulan Ini", value: data.totalDisbursement, color: "red" },
                         { label: "Transaksi Masuk", count: topUpCount, color: "zinc" },
                         { label: "Transaksi Keluar", count: disburseCount, color: "zinc" },
@@ -197,7 +175,6 @@ export default function PettyCashPage() {
                             <div className="flex items-center gap-1.5">
                                 <span className={`w-2 h-2 ${
                                     kpi.color === "emerald" ? "bg-emerald-500" :
-                                    kpi.color === "blue" ? "bg-blue-500" :
                                     kpi.color === "red" ? "bg-red-500" : "bg-zinc-400"
                                 }`} />
                                 <span className={NB.kpiLabel}>{kpi.label}</span>
@@ -225,8 +202,8 @@ export default function PettyCashPage() {
                                                     transition={{ type: "spring" as const, stiffness: 300, damping: 25 }}
                                                     className={`text-lg font-black ${
                                                         kpi.color === "emerald" ? "text-emerald-600 dark:text-emerald-400" :
-                                                        kpi.color === "blue" ? "text-blue-600 dark:text-blue-400" :
-                                                        "text-red-600 dark:text-red-400"
+                                                        kpi.color === "red" ? "text-red-600 dark:text-red-400" :
+                                                        "text-zinc-900 dark:text-white"
                                                     }`}
                                                 >
                                                     {formatCurrency(kpi.value!)}
@@ -297,18 +274,17 @@ export default function PettyCashPage() {
                         {transactions.length} transaksi{hasActiveFilter ? ` (dari ${allTransactions.length})` : ""}
                     </span>
                 </div>
-            </motion.div>
+            </div>
 
             {/* ─── Transaction Table ─── */}
-            <motion.div
-                variants={fadeUp}
+            <div
                 className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex flex-col"
                 style={{ minHeight: 480 }}
             >
                 {/* Table Header */}
                 <div className="hidden md:grid grid-cols-[120px_90px_1fr_1.5fr_130px_130px] gap-2 px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black">
                     {["Tanggal", "Tipe", "Nama", "Keterangan", "Jumlah", "Saldo"].map((h) => (
-                        <span key={h} className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{h}</span>
+                        <span key={h} className="text-xs font-black uppercase tracking-widest text-zinc-400">{h}</span>
                     ))}
                 </div>
 
@@ -333,13 +309,8 @@ export default function PettyCashPage() {
                                 const isTopUp = tx.type === "TOPUP"
 
                                 return (
-                                    <motion.div
+                                    <div
                                         key={tx.id}
-                                        custom={idx}
-                                        variants={fadeX}
-                                        initial="hidden"
-                                        animate="show"
-                                        transition={{ delay: idx * 0.03 }}
                                         className={`grid grid-cols-1 md:grid-cols-[120px_90px_1fr_1.5fr_130px_130px] gap-2 px-5 py-3 items-center transition-all hover:bg-orange-50/50 dark:hover:bg-orange-950/10 ${idx % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/60 dark:bg-zinc-800/20"}`}
                                     >
                                         {/* Date */}
@@ -385,7 +356,7 @@ export default function PettyCashPage() {
                                                 {formatCurrency(tx.balanceAfter)}
                                             </span>
                                         </div>
-                                    </motion.div>
+                                    </div>
                                 )
                             })}
                         </div>
@@ -423,14 +394,14 @@ export default function PettyCashPage() {
                         <div />
                     )}
                 </div>
-            </motion.div>
+            </div>
 
             {/* ─── Top-Up Dialog ─── */}
             <TopUpDialog open={topUpOpen} onOpenChange={setTopUpOpen} onSuccess={invalidateAll} />
 
             {/* ─── Disbursement Dialog ─── */}
             <DisburseDialog open={disburseOpen} onOpenChange={setDisburseOpen} onSuccess={invalidateAll} />
-        </motion.div>
+        </div>
     )
 }
 

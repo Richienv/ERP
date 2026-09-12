@@ -66,6 +66,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { exportToExcel } from "@/lib/table-export"
 import { NB } from "@/lib/dialog-styles"
+import { InlinePendingBar } from "@/components/ui/inline-pending"
 import { getDefaultRate, calculateWithholding } from "@/lib/pph-helpers"
 import type { PPhTypeValue } from "@/lib/pph-helpers"
 
@@ -76,19 +77,14 @@ import {
     type ActionButton,
 } from "@/components/module"
 
-/* ─── Animation variants ─── */
-const stagger = {
-    hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { staggerChildren: 0.07 } },
-}
-const fadeUp = {
-    hidden: { opacity: 0, y: 14 },
-    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
-}
-const fadeX = {
-    hidden: { opacity: 0, x: -12 },
-    show: { opacity: 1, x: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
-}
+const typeChipClass = (type: string, onDark = false) =>
+    type === "INV_OUT"
+        ? onDark
+            ? "bg-orange-900/50 border-orange-400 text-orange-300"
+            : "bg-orange-50 dark:bg-orange-950/30 border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-400"
+        : onDark
+            ? "bg-zinc-700/50 border-zinc-500 text-zinc-300"
+            : "bg-zinc-100 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-300"
 
 const emptyKanban: InvoiceKanbanData = { draft: [], sent: [], overdue: [], paid: [] }
 const PAGE_SIZE = 15
@@ -164,7 +160,9 @@ export function InvoicesPageClient() {
     const queryClient = useQueryClient()
 
     const q = (searchParams.get("q") || "").trim()
-    const { data: invoices = emptyKanban, isLoading: loading } = useInvoiceKanban({ q: q || undefined })
+    const { data: invoicesData, isLoading: loading, isFetching } = useInvoiceKanban({ q: q || undefined })
+    const invoices = invoicesData ?? emptyKanban
+    const hasInvoiceData = !!invoicesData
 
     // Auto-open create dialog from Cmd+K signal (?new=true)
     useEffect(() => {
@@ -605,14 +603,9 @@ export function InvoicesPageClient() {
     }
 
     return (
-        <motion.div
-            className="mf-page"
-            variants={stagger}
-            initial="hidden"
-            animate="show"
-        >
+        <div className="mf-page">
             {/* ─── Unified Page Header (ModulePageHeader) ─── */}
-            <motion.div variants={fadeUp}>
+            <div>
                 <ModulePageHeader
                     icon={<Receipt className="h-4.5 w-4.5 text-white" />}
                     title="Invoice Center"
@@ -651,7 +644,7 @@ export function InvoicesPageClient() {
                         {[
                             { label: 'Semua', count: counts.all, amount: totalAmount, color: 'orange' },
                             { label: 'Draft', count: counts.draft, amount: null, color: 'zinc' },
-                            { label: 'Terkirim', count: counts.sent, amount: null, color: 'blue' },
+                            { label: 'Terkirim', count: counts.sent, amount: null, color: 'zinc' },
                             { label: 'Jatuh Tempo', count: counts.overdue, amount: overdueAmount, color: 'red' },
                             { label: 'Lunas', count: counts.paid, amount: null, color: 'emerald' },
                         ].map((kpi) => (
@@ -663,7 +656,6 @@ export function InvoicesPageClient() {
                                     <span className={`w-2 h-2 ${
                                         kpi.color === 'orange' ? 'bg-orange-500' :
                                         kpi.color === 'zinc' ? 'bg-zinc-400' :
-                                        kpi.color === 'blue' ? 'bg-blue-500' :
                                         kpi.color === 'red' ? 'bg-red-500' : 'bg-emerald-500'
                                     }`} />
                                     <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{kpi.label}</span>
@@ -776,18 +768,18 @@ export function InvoicesPageClient() {
                         </span>
                     </div>
                 </ModulePageHeader>
-            </motion.div>
+            </div>
 
             {/* ─── Invoice Table ─── */}
-            <motion.div
-                variants={fadeUp}
-                className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex flex-col"
+            <div
+                className="relative border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex flex-col"
                 style={{ minHeight: 480 }}
             >
+                <InlinePendingBar active={isFetching && hasInvoiceData} />
                 {/* Table Header */}
                 <div className="hidden md:grid grid-cols-[1fr_1.2fr_90px_140px_120px_110px_120px] gap-2 px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black">
                     {['No. Invoice', 'Pihak', 'Tipe', 'Jumlah', 'Status', 'Jatuh Tempo', 'Aksi'].map((h) => (
-                        <span key={h} className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{h}</span>
+                        <span key={h} className="text-xs font-black uppercase tracking-widest text-zinc-400">{h}</span>
                     ))}
                 </div>
 
@@ -811,18 +803,13 @@ export function InvoicesPageClient() {
                             ))}
                         </div>
                     ) : pagedInvoices.length === 0 ? (
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ type: "spring" as const, stiffness: 300, damping: 25 }}
-                            className="flex-1 flex flex-col items-center justify-center py-16 text-zinc-400"
-                        >
+                        <div className="flex-1 flex flex-col items-center justify-center py-16 text-zinc-400">
                             <div className="w-16 h-16 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
                                 <Receipt className="h-7 w-7 text-zinc-200 dark:text-zinc-700" />
                             </div>
                             <span className="text-sm font-bold">Tidak ada invoice ditemukan</span>
                             <span className="text-xs text-zinc-400 mt-1">Coba ubah filter atau buat invoice baru</span>
-                        </motion.div>
+                        </div>
                     ) : (
                         <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
                             {pagedInvoices.map((invoice, idx) => {
@@ -830,14 +817,9 @@ export function InvoicesPageClient() {
                                 const invoiceDueToday = (invoice as any).isDueToday
 
                                 return (
-                                    <motion.div
+                                    <div
                                         key={invoice.id}
-                                        custom={idx}
-                                        variants={fadeX}
-                                        initial="hidden"
-                                        animate="show"
-                                        transition={{ delay: idx * 0.03 }}
-                                        className={`grid grid-cols-1 md:grid-cols-[1fr_1.2fr_90px_140px_120px_110px_120px] gap-2 px-5 py-3 items-center transition-all hover:bg-orange-50/50 dark:hover:bg-orange-950/10 cursor-pointer ${idx % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-zinc-50/60 dark:bg-zinc-800/20'} ${isOverdue ? 'border-l-4 border-l-red-500' : invoiceDueToday ? 'border-l-4 border-l-orange-400' : ''}`}
+                                        className={`grid grid-cols-1 md:grid-cols-[1fr_1.2fr_90px_140px_120px_110px_120px] gap-2 px-5 py-3 items-center hover:bg-orange-50/50 dark:hover:bg-orange-950/10 cursor-pointer ${idx % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-zinc-50/60 dark:bg-zinc-800/20'} ${isOverdue ? 'border-l-4 border-l-red-500' : invoiceDueToday ? 'border-l-4 border-l-orange-400' : ''}`}
                                         onClick={() => invoice.status === 'DRAFT' ? openEditDialog(invoice) : openViewDialog(invoice)}
                                     >
                                         <div>
@@ -847,10 +829,7 @@ export function InvoicesPageClient() {
                                             <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{invoice.partyName}</span>
                                         </div>
                                         <div>
-                                            <span className={`text-[9px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-none ${invoice.type === 'INV_OUT'
-                                                ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-700 text-blue-600 dark:text-blue-400'
-                                                : 'bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-700 text-purple-600 dark:text-purple-400'
-                                                }`}>
+                                            <span className={`text-xs font-black uppercase tracking-wide px-2 py-0.5 border rounded-none ${typeChipClass(invoice.type)}`}>
                                                 {invoice.type === 'INV_OUT' ? 'Invoice' : 'Bill'}
                                             </span>
                                         </div>
@@ -861,18 +840,26 @@ export function InvoicesPageClient() {
                                                 {formatIDR(invoice.amount)}
                                             </span>
                                             {(invoice.cnReduction ?? 0) > 0 && (
-                                                <span className="text-[9px] text-emerald-600 dark:text-emerald-400 block font-mono font-bold">
+                                                <span className="text-xs text-emerald-600 dark:text-emerald-400 block font-mono font-bold">
                                                     CN: -{formatIDR(invoice.cnReduction!)}
                                                 </span>
                                             )}
                                             {invoice.balanceDue != null && invoice.balanceDue > 0 && invoice.balanceDue < invoice.amount && (
-                                                <span className="text-[9px] text-zinc-400 block font-mono">Sisa {formatIDR(invoice.balanceDue)}</span>
+                                                <span className="text-xs text-zinc-400 block font-mono">Sisa {formatIDR(invoice.balanceDue)}</span>
                                             )}
                                         </div>
                                         <div>
                                             {invoiceDueToday ? (
-                                                <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-none bg-orange-50 dark:bg-orange-950/30 border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-400">
+                                                <span className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-wide px-2 py-0.5 border rounded-none bg-orange-50 dark:bg-orange-950/30 border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-400">
                                                     HARI INI
+                                                </span>
+                                            ) : invoice.status === "ISSUED" ? (
+                                                <span className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-wide px-2 py-0.5 border rounded-none bg-zinc-100 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-300">
+                                                    TERKIRIM
+                                                </span>
+                                            ) : invoice.status === "PARTIAL" ? (
+                                                <span className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-wide px-2 py-0.5 border rounded-none bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400">
+                                                    SEBAGIAN
                                                 </span>
                                             ) : (
                                                 <StatusBadge
@@ -881,7 +868,7 @@ export function InvoicesPageClient() {
                                                 />
                                             )}
                                             {invoice.status === 'ISSUED' && !invoiceDueToday && invoice.issueDate && (
-                                                <p className="text-[9px] text-zinc-400 mt-0.5 font-medium">
+                                                <p className="text-xs text-zinc-400 mt-0.5 font-medium">
                                                     {new Date(invoice.issueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
                                                 </p>
                                             )}
@@ -901,7 +888,7 @@ export function InvoicesPageClient() {
                                                 title="Lampiran"
                                                 className={`h-7 w-7 flex items-center justify-center border transition-colors rounded-none ${
                                                     attachmentInvoiceId === invoice.id
-                                                        ? "border-violet-500 text-violet-700 bg-violet-50 dark:bg-violet-950/30"
+                                                        ? "border-orange-500 text-orange-700 bg-orange-50 dark:bg-orange-950/30"
                                                         : "border-zinc-200 dark:border-zinc-600 text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:border-zinc-400 hover:text-zinc-600"
                                                 }`}
                                             >
@@ -924,7 +911,7 @@ export function InvoicesPageClient() {
                                                 </motion.div>
                                             )}
                                         </AnimatePresence>
-                                    </motion.div>
+                                    </div>
                                 )
                             })}
                         </div>
@@ -933,7 +920,7 @@ export function InvoicesPageClient() {
 
                 {/* Pagination */}
                 <div className="px-5 py-3 border-t border-zinc-200 dark:border-zinc-700 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
-                    <span className={NB.label + " !mb-0 !text-[10px]"}>
+                    <span className={NB.label + " !mb-0 !text-xs"}>
                         {filteredInvoices.length} invoice
                     </span>
                     {filteredInvoices.length > PAGE_SIZE ? (
@@ -962,7 +949,7 @@ export function InvoicesPageClient() {
                         <div />
                     )}
                 </div>
-            </motion.div>
+            </div>
 
             {/* Create Invoice Dialog */}
             <CreateInvoiceDialog open={isCreatorOpen} onOpenChange={setIsCreatorOpen} />
@@ -981,7 +968,7 @@ export function InvoicesPageClient() {
                         <div className="grid grid-cols-2 gap-2">
                             {([
                                 { key: 'WHATSAPP' as const, label: 'WhatsApp', desc: 'Langsung buka chat WA', color: 'green' },
-                                { key: 'EMAIL' as const, label: 'Email', desc: 'Kirim via SMTP (segera)', color: 'blue' },
+                                { key: 'EMAIL' as const, label: 'Email', desc: 'Kirim via SMTP (segera)', color: 'zinc' },
                             ]).map((m) => (
                                 <motion.button
                                     key={m.key}
@@ -994,7 +981,7 @@ export function InvoicesPageClient() {
                                     }`}
                                 >
                                     <span className={`text-[11px] font-black uppercase tracking-wider block ${sendMethod === m.key ? `text-${m.color}-700 dark:text-${m.color}-400` : 'text-zinc-500'}`}>{m.label}</span>
-                                    <span className="text-[9px] text-zinc-400 mt-0.5 block">{m.desc}</span>
+                                    <span className="text-xs text-zinc-400 mt-0.5 block">{m.desc}</span>
                                 </motion.button>
                             ))}
                         </div>
@@ -1076,7 +1063,7 @@ export function InvoicesPageClient() {
                                 className="flex items-center gap-2 mt-2"
                             >
                                 <span className="font-mono text-sm font-black bg-zinc-800 border border-zinc-600 text-white px-3 py-1">{editNumber}</span>
-                                <span className={`text-[10px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-none ${editInvoiceType === 'INV_OUT' ? 'bg-blue-900/50 border-blue-400 text-blue-300' : 'bg-purple-900/50 border-purple-400 text-purple-300'}`}>
+                                <span className={`text-xs font-black uppercase tracking-wide px-2 py-0.5 border rounded-none ${typeChipClass(editInvoiceType, true)}`}>
                                     {editInvoiceType === 'INV_OUT' ? 'Invoice' : 'Bill'}
                                 </span>
                             </motion.div>
@@ -1093,9 +1080,9 @@ export function InvoicesPageClient() {
                                 <span className="text-xs font-bold uppercase tracking-widest">Memuat detail invoice...</span>
                             </motion.div>
                         ) : (
-                            <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5">
+                            <div className="space-y-5">
                                 {/* Party Selector */}
-                                <motion.div variants={fadeUp} className="space-y-1.5">
+                                <div className="space-y-1.5">
                                     <Label className={NB.label}>
                                         {editInvoiceType === 'INV_OUT' ? 'Customer' : 'Vendor / Supplier'} <span className={NB.labelRequired}>*</span>
                                     </Label>
@@ -1112,10 +1099,10 @@ export function InvoicesPageClient() {
                                             }
                                         </SelectContent>
                                     </Select>
-                                </motion.div>
+                                </div>
 
                                 {/* Items Table */}
-                                <motion.div variants={fadeUp} className="space-y-3">
+                                <div className="space-y-3">
                                     <Label className={NB.label}>
                                         Item Invoice <span className={NB.labelRequired}>*</span>
                                     </Label>
@@ -1178,10 +1165,10 @@ export function InvoicesPageClient() {
                                     >
                                         <Plus className="h-3 w-3 mr-1" /> Tambah Item
                                     </Button>
-                                </motion.div>
+                                </div>
 
                                 {/* Dates */}
-                                <motion.div variants={fadeUp} className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1.5">
                                         <Label className={NB.label}>Tanggal Terbit</Label>
                                         <Input type="date" className={NB.input} value={editIssueDate} onChange={(e) => setEditIssueDate(e.target.value)} />
@@ -1190,10 +1177,10 @@ export function InvoicesPageClient() {
                                         <Label className={NB.label}>Jatuh Tempo</Label>
                                         <Input type="date" className={NB.input} value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} />
                                     </div>
-                                </motion.div>
+                                </div>
 
                                 {/* Discount */}
-                                <motion.div variants={fadeUp} className="space-y-1.5">
+                                <div className="space-y-1.5">
                                     <Label className={NB.label}>Diskon (Rp)</Label>
                                     <span className={NB.labelHint}>Potongan harga sebelum pajak</span>
                                     <div className="relative">
@@ -1202,10 +1189,10 @@ export function InvoicesPageClient() {
                                             onChange={(e) => setEditDiscount(Math.max(0, Number(e.target.value) || 0))}
                                         />
                                     </div>
-                                </motion.div>
+                                </div>
 
                                 {/* PPN Toggle */}
-                                <motion.div variants={fadeUp} className="flex items-center justify-between border-2 border-zinc-200 dark:border-zinc-700 px-4 py-2.5">
+                                <div className="flex items-center justify-between border-2 border-zinc-200 dark:border-zinc-700 px-4 py-2.5">
                                     <div>
                                         <span className={NB.label + " !mb-0"}>PPN 11%</span>
                                         <span className={NB.labelHint}>Pajak Pertambahan Nilai</span>
@@ -1221,10 +1208,10 @@ export function InvoicesPageClient() {
                                             className={`${NB.toggleThumb} ${editIncludeTax ? 'left-5' : 'left-0.5'}`}
                                         />
                                     </button>
-                                </motion.div>
+                                </div>
 
                                 {/* Totals Summary */}
-                                <motion.div variants={fadeUp}>
+                                <div>
                                     {(() => {
                                         const subtotal = editItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
                                         const afterDiscount = subtotal - editDiscount
@@ -1263,26 +1250,26 @@ export function InvoicesPageClient() {
                                             </div>
                                         )
                                     })()}
-                                </motion.div>
+                                </div>
 
                                 {/* Attachments */}
                                 {activeInvoice && (
-                                    <motion.div variants={fadeUp} className="border-t-2 border-zinc-200 dark:border-zinc-700 pt-4">
+                                    <div className="border-t-2 border-zinc-200 dark:border-zinc-700 pt-4">
                                         <InvoiceAttachmentSection invoiceId={activeInvoice.id} />
-                                    </motion.div>
+                                    </div>
                                 )}
 
                                 {/* Riwayat */}
                                 {activeInvoice && (
-                                    <motion.div variants={fadeUp} className={NB.section}>
+                                    <div className={NB.section}>
                                         <div className={NB.sectionHead}>
                                             <Clock className="h-4 w-4 text-zinc-500" />
                                             <span className={NB.sectionTitle}>Riwayat Perubahan</span>
                                         </div>
                                         <AuditLogTimeline entityType="Invoice" entityId={activeInvoice.id} />
-                                    </motion.div>
+                                    </div>
                                 )}
-                            </motion.div>
+                            </div>
                         )}
                     </div>
                     <DialogFooter className="p-6 pt-3 border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex gap-2">
@@ -1314,16 +1301,16 @@ export function InvoicesPageClient() {
                         {viewData && (
                             <div className="flex items-center gap-2 mt-2">
                                 <span className="font-mono text-sm font-black bg-zinc-800 border border-zinc-600 text-white px-3 py-1">{viewData.number}</span>
-                                <span className={`text-[10px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-none ${
+                                <span className={`text-xs font-black uppercase tracking-wide px-2 py-0.5 border rounded-none ${
                                     viewData.status === "PAID" ? "bg-emerald-900/50 border-emerald-400 text-emerald-300"
-                                    : viewData.status === "ISSUED" ? "bg-blue-900/50 border-blue-400 text-blue-300"
+                                    : viewData.status === "ISSUED" ? "bg-zinc-700/50 border-zinc-400 text-zinc-200"
                                     : viewData.status === "PARTIAL" ? "bg-amber-900/50 border-amber-400 text-amber-300"
                                     : viewData.status === "OVERDUE" ? "bg-red-900/50 border-red-400 text-red-300"
                                     : "bg-zinc-700/50 border-zinc-500 text-zinc-300"
                                 }`}>
                                     {viewData.status === "PAID" ? "Lunas" : viewData.status === "ISSUED" ? "Terkirim" : viewData.status === "PARTIAL" ? "Sebagian" : viewData.status === "OVERDUE" ? "Jatuh Tempo" : viewData.status}
                                 </span>
-                                <span className={`text-[10px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-none ${viewData.type === 'INV_OUT' ? 'bg-blue-900/50 border-blue-400 text-blue-300' : 'bg-purple-900/50 border-purple-400 text-purple-300'}`}>
+                                <span className={`text-xs font-black uppercase tracking-wide px-2 py-0.5 border rounded-none ${typeChipClass(viewData.type, true)}`}>
                                     {viewData.type === 'INV_OUT' ? 'Invoice' : 'Bill'}
                                 </span>
                             </div>
@@ -1736,7 +1723,7 @@ export function InvoicesPageClient() {
                                             />
                                         </div>
 
-                                        <div className="bg-blue-50 border-2 border-blue-300 p-2 text-xs">
+                                        <div className="bg-zinc-50 border-2 border-zinc-300 p-2 text-xs">
                                             <span className="font-bold">Diterima dari customer:</span>{" "}
                                             <span className="font-mono font-bold text-lg">{formatIDR(pphCalc?.netAmount || pphBaseAmount)}</span>
                                         </div>
@@ -1783,6 +1770,6 @@ export function InvoicesPageClient() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </motion.div>
+        </div>
     )
 }

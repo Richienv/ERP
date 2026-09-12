@@ -1,5 +1,6 @@
 "use client"
 
+import { Suspense } from "react"
 import dynamic from "next/dynamic"
 import { usePathname } from "next/navigation"
 
@@ -18,6 +19,7 @@ import { OfflineIndicator } from "@/components/offline-indicator"
 import { BackgroundRefresh } from "@/components/background-refresh"
 import { RealtimeProvider } from "@/components/realtime-provider"
 import { RouteProgress } from "@/components/route-progress"
+import { InPagePrefetch } from "@/components/in-page-prefetch"
 
 // Lazy-load non-critical shell components — these don't affect first paint
 const CommandPalette = dynamic(() => import("@/components/command-palette").then(m => ({ default: m.CommandPalette })), { ssr: false })
@@ -31,14 +33,15 @@ interface GlobalLayoutProps {
 
 const AUTH_PAGES = new Set(["/login", "/signup", "/forgot-password", "/auth/callback"])
 
-export function GlobalLayout({ children }: GlobalLayoutProps) {
-  const pathname = usePathname()
+function GlobalLayoutInner({ children }: GlobalLayoutProps) {
+  const pathname = usePathname() ?? ""
   const isAuthPage = AUTH_PAGES.has(pathname)
 
   return (
     <AuthProvider>
       <AIProvider>
         <RouteProgress />
+        {!isAuthPage && <InPagePrefetch />}
         <RouteGuard>
           {isAuthPage ? (
             <main className="min-h-screen bg-zinc-100 dark:bg-zinc-950">
@@ -70,5 +73,13 @@ export function GlobalLayout({ children }: GlobalLayoutProps) {
         <ShortcutCheatSheet />
       </AIProvider>
     </AuthProvider >
+  )
+}
+
+export function GlobalLayout({ children }: GlobalLayoutProps) {
+  return (
+    <Suspense fallback={null}>
+      <GlobalLayoutInner>{children}</GlobalLayoutInner>
+    </Suspense>
   )
 }

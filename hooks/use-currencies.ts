@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { CACHE_TIERS } from "@/lib/cache-tiers"
 import { toast } from "sonner"
 
 export type CurrencyRate = {
@@ -35,6 +36,7 @@ export function useCurrencies() {
             if (!json.success) throw new Error(json.error || "Gagal memuat")
             return json.data ?? []
         },
+        ...CACHE_TIERS.MASTER,
     })
 }
 

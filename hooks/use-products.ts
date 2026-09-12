@@ -2,6 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { CACHE_TIERS } from "@/lib/cache-tiers"
 import { ProductWithRelations, ProductFilters, PaginatedResponse, ApiResponse } from "@/lib/types"
 
 interface UseProductsReturn {
@@ -56,6 +57,7 @@ export function useProducts(filters?: ProductFilters): UseProductsReturn {
             }
             return data
         },
+        ...CACHE_TIERS.MASTER_PLUS,
     })
 
     const invalidate = () => {

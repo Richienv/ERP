@@ -20,6 +20,7 @@ import {
 import { Calendar, Lock, LockOpen } from "lucide-react"
 import { motion } from "framer-motion"
 import { ClosingYearDialog } from "@/components/finance/closing-year-dialog"
+import { MonthEndChecklist } from "@/components/finance/month-end-checklist"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -28,15 +29,6 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-
-const stagger = {
-    hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { staggerChildren: 0.07 } },
-}
-const fadeUp = {
-    hidden: { opacity: 0, y: 14 },
-    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
-}
 
 export default function FiscalPeriodsPage() {
     const currentYear = new Date().getFullYear()
@@ -47,6 +39,7 @@ export default function FiscalPeriodsPage() {
         period: FiscalPeriod
     } | null>(null)
     const [closingYear, setClosingYear] = useState<number | null>(null)
+    const [cockpitPeriodId, setCockpitPeriodId] = useState<string | null>(null)
 
     const { data: periods, isLoading } = useFiscalPeriods(filterYear)
     const generateMutation = useGenerateFiscalYear()
@@ -65,6 +58,20 @@ export default function FiscalPeriodsPage() {
     const allPeriods = periods ?? []
     const totalOpen = allPeriods.filter((p) => !p.isClosed).length
     const totalClosed = allPeriods.filter((p) => p.isClosed).length
+    const now = new Date()
+    const currentMonth = now.getMonth() + 1
+    const preferYear = filterYear ?? currentYear
+    const selectedCockpit = cockpitPeriodId
+        ? allPeriods.find((p) => p.id === cockpitPeriodId) ?? null
+        : null
+    const cockpitPeriod = selectedCockpit
+        ?? allPeriods.find((p) => p.year === preferYear && p.month === currentMonth)
+        ?? allPeriods.find((p) => p.year === preferYear && !p.isClosed)
+        ?? allPeriods.find((p) => !p.isClosed)
+        ?? allPeriods.find((p) => p.year === preferYear)
+        ?? null
+    const cockpitYear = cockpitPeriod?.year ?? preferYear
+    const cockpitMonth = cockpitPeriod?.month ?? currentMonth
 
     function handleConfirmAction() {
         if (!confirmAction) return
@@ -74,9 +81,9 @@ export default function FiscalPeriodsPage() {
     }
 
     return (
-        <motion.div className="mf-page" variants={stagger} initial="hidden" animate="show">
+        <div className="mf-page">
             {/* ─── Unified Page Header ─── */}
-            <motion.div variants={fadeUp} className={NB.pageCard}>
+            <div className={NB.pageCard}>
                 <div className={NB.pageAccent} />
 
                 {/* Row 1: Title + Actions */}
@@ -135,7 +142,7 @@ export default function FiscalPeriodsPage() {
                         { label: "Total Periode", count: allPeriods.length, dot: "bg-orange-500" },
                         { label: "Terbuka", count: totalOpen, dot: "bg-emerald-500" },
                         { label: "Ditutup", count: totalClosed, dot: "bg-zinc-400" },
-                        { label: "Tahun Fiskal", count: years.length, dot: "bg-blue-500" },
+                        { label: "Tahun Fiskal", count: years.length, dot: "bg-zinc-400" },
                     ].map((kpi) => (
                         <div key={kpi.label} className={NB.kpiCell}>
                             <div className="flex items-center gap-1.5">
@@ -186,12 +193,26 @@ export default function FiscalPeriodsPage() {
                         <span className="font-mono font-bold text-zinc-600 dark:text-zinc-300">{allPeriods.length}</span> periode
                     </span>
                 </div>
-            </motion.div>
+            </div>
+
+            <div>
+                <MonthEndChecklist
+                    year={cockpitYear}
+                    month={cockpitMonth}
+                    period={cockpitPeriod}
+                    periods={allPeriods}
+                    onSelectPeriod={(p) => setCockpitPeriodId(p.id)}
+                    onClosePeriod={(p) => {
+                        const full = allPeriods.find((item) => item.id === p.id)
+                        if (full) setConfirmAction({ type: "close", period: full })
+                    }}
+                    closePending={closeMutation.isPending}
+                />
+            </div>
 
             {/* ─── Period Grid per Year ─── */}
             {years.length === 0 ? (
-                <motion.div
-                    variants={fadeUp}
+                <div
                     className={NB.pageCard}
                 >
                     <div className="flex flex-col items-center justify-center py-16 text-zinc-400">
@@ -201,7 +222,7 @@ export default function FiscalPeriodsPage() {
                         <span className="text-sm font-bold">Belum ada periode fiskal</span>
                         <span className="text-xs text-zinc-400 mt-1">Masukkan tahun lalu klik &quot;Generate 12 Bulan&quot;</span>
                     </div>
-                </motion.div>
+                </div>
             ) : (
                 years.map((year) => {
                     const yearPeriods = periodsByYear[year]
@@ -209,7 +230,7 @@ export default function FiscalPeriodsPage() {
                     const openCount = yearPeriods.length - closedCount
 
                     return (
-                        <motion.div key={year} variants={fadeUp} className="space-y-3">
+                        <div key={year} className="space-y-3">
                             <div className="flex items-center justify-between px-1">
                                 <h2 className="text-sm font-black uppercase tracking-widest text-zinc-900 dark:text-white">
                                     Tahun Fiskal {year}
@@ -228,8 +249,11 @@ export default function FiscalPeriodsPage() {
                                 {yearPeriods.map((period, idx) => (
                                     <div
                                         key={period.id}
-                                        className={`p-4 flex flex-col gap-2 transition-colors ${
-                                            period.isClosed
+                                        onClick={() => setCockpitPeriodId(period.id)}
+                                        className={`p-4 flex flex-col gap-2 transition-colors cursor-pointer ${
+                                            cockpitPeriod?.id === period.id
+                                                ? "bg-orange-50 dark:bg-orange-950/20 ring-2 ring-inset ring-orange-500"
+                                                : period.isClosed
                                                 ? "bg-zinc-50/50 dark:bg-zinc-800/30"
                                                 : "hover:bg-orange-50/50 dark:hover:bg-orange-950/10"
                                         } ${idx < yearPeriods.length - 1 ? "border-r border-b border-zinc-200 dark:border-zinc-800" : "border-b border-zinc-200 dark:border-zinc-800"}`}
@@ -264,7 +288,10 @@ export default function FiscalPeriodsPage() {
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            onClick={() => setConfirmAction({ type: period.isClosed ? "reopen" : "close", period })}
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                setConfirmAction({ type: period.isClosed ? "reopen" : "close", period })
+                                            }}
                                             disabled={closeMutation.isPending || reopenMutation.isPending}
                                             className={`mt-auto h-7 text-[9px] font-black uppercase tracking-wider rounded-none border transition-colors ${
                                                 period.isClosed
@@ -281,7 +308,7 @@ export default function FiscalPeriodsPage() {
                                     </div>
                                 ))}
                             </div>
-                        </motion.div>
+                        </div>
                     )
                 })
             )}
@@ -330,6 +357,6 @@ export default function FiscalPeriodsPage() {
                     onComplete={() => { setClosingYear(null) }}
                 />
             )}
-        </motion.div>
+        </div>
     )
 }

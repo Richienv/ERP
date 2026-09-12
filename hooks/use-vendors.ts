@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { CACHE_TIERS } from "@/lib/cache-tiers"
 import { getVendors } from "@/app/actions/vendor"
 
 export function useVendorsList() {
@@ -11,6 +12,7 @@ export function useVendorsList() {
             const vendors = await getVendors()
             return vendors
         },
-        refetchInterval: 60_000, // Auto-refresh every 60s — vendor list rarely changes
+        ...CACHE_TIERS.MASTER_PLUS,
+        refetchInterval: 60_000,
     })
 }
