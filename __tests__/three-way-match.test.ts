@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buildThreeWayMatch, type ThreeWayMatchInput } from "@/lib/actions/finance-match"
+import { buildThreeWayMatch, type ThreeWayMatchInput } from "@/lib/three-way-match"
 
 function baseInput(overrides: Partial<ThreeWayMatchInput> = {}): ThreeWayMatchInput {
     return {

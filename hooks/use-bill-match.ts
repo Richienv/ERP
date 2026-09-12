@@ -2,7 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
-import { getThreeWayMatch, type ThreeWayMatch } from "@/lib/actions/finance-match"
+import { getThreeWayMatch } from "@/lib/actions/finance-match"
+import type { ThreeWayMatch } from "@/lib/three-way-match"
 
 /**
  * Load PO ↔ GRN ↔ Bill match for a draft bill detail dialog.

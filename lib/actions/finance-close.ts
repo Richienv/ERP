@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
+import type { MonthEndChecklistInput, MonthEndSignals } from "@/lib/month-end-signals"
 
 async function requireAuth() {
     const supabase = await createClient()
@@ -45,39 +46,6 @@ function periodBounds(year: number, month: number, startDate?: Date | null, endD
     const end = endDate ? new Date(endDate) : new Date(year, month, 0)
     return { start, end }
 }
-
-export type MonthEndIntegritySignal = {
-    failedChecks: number
-    draftJournals: number
-}
-
-export type MonthEndCountSignal = {
-    count: number
-    amount: number
-}
-
-export type MonthEndFlagSignal = {
-    unposted: boolean
-    amount: number
-}
-
-export type MonthEndSignals = {
-    year: number
-    month: number
-    periodId: string | null
-    periodName: string
-    isClosed: boolean
-    periodMissing: boolean
-    integrity: MonthEndIntegritySignal | null
-    draftBills: MonthEndCountSignal
-    draftInvoices: MonthEndCountSignal
-    payroll: MonthEndFlagSignal | null
-    depreciation: MonthEndFlagSignal | null
-}
-
-export type MonthEndChecklistInput =
-    | { year: number; month: number }
-    | { periodId: string }
 
 /**
  * Read-mostly month-end close signals.
