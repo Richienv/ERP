@@ -8,10 +8,10 @@ import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 
 export default function InventorySettingsPage() {
-  const { data, isLoading } = useInventorySettings()
+  const { data } = useInventorySettings()
   const mutation = useUpdateInventorySettings()
 
-  if (isLoading || !data) return <TablePageSkeleton accentColor="bg-blue-400" />
+  if (!data) return <TablePageSkeleton />
 
   function handleToggleNegativeStock(checked: boolean) {
     mutation.mutate(
@@ -35,7 +35,7 @@ export default function InventorySettingsPage() {
     <div className="mf-page">
       {/* Header */}
       <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white">
-        <div className="px-6 py-4 flex items-center gap-3 border-l-[6px] border-l-blue-500">
+        <div className="px-6 py-4 flex items-center gap-3 border-l-[6px] border-l-orange-500">
           <IconSettings className="h-6 w-6" />
           <div>
             <h1 className="text-xl font-black uppercase tracking-tight">
@@ -103,7 +103,7 @@ export default function InventorySettingsPage() {
 
           {/* Affected Operations */}
           <div className="space-y-2">
-            <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">
+            <p className="text-xs font-black uppercase tracking-wider text-zinc-500">
               Pengecekan berlaku pada:
             </p>
             <ul className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-zinc-700">

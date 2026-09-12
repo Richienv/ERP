@@ -13,10 +13,10 @@ import { CardPageSkeleton } from "@/components/ui/page-skeleton"
 import { CommandPulse, MiningSnapshotStrip } from "@/components/mining/command-pulse"
 
 export default function InventoryPage() {
-    const { data, isLoading } = useInventoryDashboard()
+    const { data } = useInventoryDashboard()
 
-    if (isLoading || !data) {
-        return <CardPageSkeleton accentColor="bg-emerald-400" />
+    if (!data) {
+        return <CardPageSkeleton />
     }
 
     const { warehouses, kpis, materialGap, procurement } = data
@@ -42,7 +42,7 @@ export default function InventoryPage() {
                             <h1 className="text-2xl md:text-3xl font-black text-zinc-900 dark:text-white tracking-tighter uppercase flex items-center gap-2">
                                 Logistik Command Center
                             </h1>
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mt-0.5">Real-time warehouse &amp; inventory monitoring</p>
+                            <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mt-0.5">Real-time warehouse &amp; inventory monitoring</p>
                         </div>
                         <div className="flex gap-2">
                             <MaterialInputForm />
@@ -53,7 +53,7 @@ export default function InventoryPage() {
                 mainLeftSlot={<MaterialTableWrapper data={materialGap ?? []} />}
                 mainRightSlot={
                     <div className="flex flex-col gap-2 h-full overflow-y-auto p-3">
-                        <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400 px-1">
+                        <div className="text-xs font-black uppercase tracking-widest text-zinc-400 px-1">
                             Gudang Aktif
                         </div>
                         {liveWarehouses.length === 0 ? (

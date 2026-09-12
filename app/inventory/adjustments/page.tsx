@@ -21,30 +21,30 @@ export default function StockAdjustmentsPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Link href="/inventory/movements" className="block">
                     <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-5 bg-white hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all">
-                        <ArrowRightLeft className="h-6 w-6 text-violet-500 mb-3" />
+                        <ArrowRightLeft className="h-6 w-6 text-zinc-700 mb-3" />
                         <h3 className="font-black uppercase text-sm mb-1">Pergerakan Stok</h3>
-                        <p className="text-[10px] text-zinc-500 font-medium">Buat penyesuaian dari halaman pergerakan stok dengan tombol &quot;Penyesuaian Stok&quot;.</p>
-                        <div className="flex items-center gap-1 mt-3 text-[10px] font-black uppercase text-black">
+                        <p className="text-xs text-zinc-500 font-medium">Buat penyesuaian dari halaman pergerakan stok dengan tombol &quot;Penyesuaian Stok&quot;.</p>
+                        <div className="flex items-center gap-1 mt-3 text-xs font-black uppercase text-black">
                             Buka <ArrowRight className="h-3 w-3" />
                         </div>
                     </div>
                 </Link>
                 <Link href="/inventory/stock" className="block">
                     <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-5 bg-white hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all">
-                        <ClipboardEdit className="h-6 w-6 text-blue-500 mb-3" />
+                        <ClipboardEdit className="h-6 w-6 text-zinc-700 mb-3" />
                         <h3 className="font-black uppercase text-sm mb-1">Level Stok</h3>
-                        <p className="text-[10px] text-zinc-500 font-medium">Buat penyesuaian langsung dari halaman level stok.</p>
-                        <div className="flex items-center gap-1 mt-3 text-[10px] font-black uppercase text-black">
+                        <p className="text-xs text-zinc-500 font-medium">Buat penyesuaian langsung dari halaman level stok.</p>
+                        <div className="flex items-center gap-1 mt-3 text-xs font-black uppercase text-black">
                             Buka <ArrowRight className="h-3 w-3" />
                         </div>
                     </div>
                 </Link>
                 <Link href="/inventory/products" className="block">
                     <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-5 bg-white hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all">
-                        <ClipboardEdit className="h-6 w-6 text-emerald-500 mb-3" />
+                        <ClipboardEdit className="h-6 w-6 text-orange-500 mb-3" />
                         <h3 className="font-black uppercase text-sm mb-1">Detail Produk</h3>
-                        <p className="text-[10px] text-zinc-500 font-medium">Buka halaman detail produk, lalu klik &quot;Penyesuaian&quot;.</p>
-                        <div className="flex items-center gap-1 mt-3 text-[10px] font-black uppercase text-black">
+                        <p className="text-xs text-zinc-500 font-medium">Buka halaman detail produk, lalu klik &quot;Penyesuaian&quot;.</p>
+                        <div className="flex items-center gap-1 mt-3 text-xs font-black uppercase text-black">
                             Buka <ArrowRight className="h-3 w-3" />
                         </div>
                     </div>

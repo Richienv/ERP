@@ -35,7 +35,7 @@ function createEmptyLine(): LineItem {
 }
 
 export default function OpeningStockPage() {
-    const { data, isLoading } = useOpeningStock()
+    const { data } = useOpeningStock()
     const submitMutation = useSubmitOpeningStock()
 
     const [lines, setLines] = useState<LineItem[]>([createEmptyLine()])
@@ -87,7 +87,7 @@ export default function OpeningStockPage() {
         }
     }
 
-    if (isLoading || !data) return <TablePageSkeleton accentColor="bg-emerald-400" />
+    if (!data) return <TablePageSkeleton />
 
     const { products, warehouses, existingTransactions } = data
 
@@ -112,7 +112,7 @@ export default function OpeningStockPage() {
         <div className="mf-page">
             {/* Page Header */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
-                <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-emerald-400">
+                <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-orange-500">
                     <div className="flex items-center gap-3">
                         <IconPackage className="h-6 w-6" />
                         <div>
@@ -136,7 +136,7 @@ export default function OpeningStockPage() {
                             size="sm"
                             onClick={handleSubmit}
                             disabled={submitMutation.isPending}
-                            className="bg-emerald-500 hover:bg-emerald-600 text-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none transition-shadow"
+                            className="bg-orange-500 hover:bg-orange-600 text-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none transition-shadow"
                         >
                             <IconDeviceFloppy className="h-4 w-4 mr-1" />
                             {submitMutation.isPending ? "Menyimpan..." : "Simpan Semua"}
@@ -151,7 +151,7 @@ export default function OpeningStockPage() {
                     <span className="text-sm font-bold uppercase tracking-wide">
                         Entri Saldo Awal
                     </span>
-                    <span className="text-sm font-mono font-bold text-emerald-600">
+                    <span className="text-sm font-mono font-bold text-zinc-900 dark:text-white">
                         Total: {formatCurrency(totalValue)}
                     </span>
                 </div>
@@ -249,7 +249,7 @@ export default function OpeningStockPage() {
                                 <td colSpan={5} className="px-4 py-3 text-right text-sm font-bold uppercase tracking-wide">
                                     Grand Total
                                 </td>
-                                <td className="px-4 py-3 text-right text-sm font-mono font-bold text-emerald-600">
+                                <td className="px-4 py-3 text-right text-sm font-mono font-bold text-zinc-900 dark:text-white">
                                     {formatCurrency(totalValue)}
                                 </td>
                                 <td></td>
