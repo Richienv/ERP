@@ -84,8 +84,9 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
 
             if (result.success) {
                 const billNumber = "billNumber" in result ? result.billNumber : undefined
+                const billAlreadyExists = "billAlreadyExists" in result && Boolean(result.billAlreadyExists)
                 const billed = billNumber
-                    ? result.billAlreadyExists
+                    ? billAlreadyExists
                         ? `Bill ${billNumber} sudah ada`
                         : `Draft bill ${billNumber} siap disetujui`
                     : "Stok & jurnal GR/IR sudah masuk"

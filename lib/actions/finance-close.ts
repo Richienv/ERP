@@ -2,7 +2,12 @@
 
 import { prisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
-import type { MonthEndChecklistInput, MonthEndSignals } from "@/lib/month-end-signals"
+import type {
+    MonthEndChecklistInput,
+    MonthEndFlagSignal,
+    MonthEndIntegritySignal,
+    MonthEndSignals,
+} from "@/lib/month-end-signals"
 
 async function requireAuth() {
     const supabase = await createClient()
