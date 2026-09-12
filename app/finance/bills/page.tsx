@@ -428,7 +428,7 @@ export default function APBillsStackPage() {
         }
     }
 
-    if (isLoading) return <TablePageSkeleton accentColor="bg-orange-400" />
+    if (isLoading && !billsData) return <TablePageSkeleton accentColor="bg-orange-400" />
 
     return (
         <div className="mf-page">

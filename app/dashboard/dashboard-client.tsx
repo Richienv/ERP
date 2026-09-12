@@ -68,9 +68,9 @@ function NonZeroStat({ label, value, accent, icon }: { label: string; value: str
 }
 
 export function DashboardPageClient() {
-    const { data, isLoading, isFetching } = useExecutiveDashboard()
+    const { data, isFetching } = useExecutiveDashboard()
 
-    if (isLoading || !data) {
+    if (!data) {
         return <CardPageSkeleton accentColor="bg-zinc-700" />
     }
 
