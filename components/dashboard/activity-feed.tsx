@@ -2,8 +2,6 @@
 
 import { cn } from "@/lib/utils";
 import {
-    CreditCard,
-    Package,
     UserPlus,
     AlertCircle,
     FileText,

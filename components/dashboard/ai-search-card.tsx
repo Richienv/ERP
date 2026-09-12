@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Sparkles, ArrowRight, Bot, BarChart3, TrendingUp, X, FileText, CheckCircle2, Send, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Search, Sparkles, ArrowRight, Bot, Send, ArrowUpRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
