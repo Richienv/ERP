@@ -116,7 +116,7 @@ export function ReceivingView({ pendingPOs, grns, warehouses, employees }: Recei
 
     // ── KPI cards ──
     const kpiCards: SummaryCard[] = [
-        { label: "PO Menunggu", value: pendingPOs.length, color: "blue", subValue: "siap terima" },
+        { label: "PO Menunggu", value: pendingPOs.length, color: "default", subValue: "siap terima" },
         { label: "SJ Masuk Draft", value: draftCount, color: "orange", subValue: "verifikasi" },
         { label: "Diterima", value: acceptedGRNs.length, color: "green", subValue: "SJ diterima" },
         { label: "Item Diterima", value: acceptedGRNs.reduce((s, g) => s + g.totalAccepted, 0), subValue: "unit bulan ini" },
@@ -173,7 +173,7 @@ export function ReceivingView({ pendingPOs, grns, warehouses, employees }: Recei
                             <tbody>
                                 {filteredPOs.map(po => (
                                     <tr key={po.id} className={ShellTableStyles.tr}>
-                                        <td className={ShellTableStyles.td + " font-mono font-bold text-blue-600"}>{po.number}</td>
+                                        <td className={ShellTableStyles.td + " font-mono font-bold text-zinc-800 dark:text-zinc-200"}>{po.number}</td>
                                         <td className={ShellTableStyles.td + " font-bold"}>{po.vendorName}</td>
                                         <td className={ShellTableStyles.td + " text-zinc-500 font-medium"}>
                                             {new Date(po.orderDate).toLocaleDateString("id-ID")}
@@ -241,7 +241,7 @@ export function ReceivingView({ pendingPOs, grns, warehouses, employees }: Recei
                                             onClick={() => setSelectedGRN(grn)}
                                         >
                                             <td className={ShellTableStyles.td + " font-mono font-bold text-emerald-600"}>{grn.number}</td>
-                                            <td className={ShellTableStyles.td + " font-mono text-xs text-blue-600"}>{grn.poNumber}</td>
+                                            <td className={ShellTableStyles.td + " font-mono text-xs text-zinc-800 dark:text-zinc-200"}>{grn.poNumber}</td>
                                             <td className={ShellTableStyles.td + " font-bold"}>{grn.vendorName}</td>
                                             <td className={ShellTableStyles.td + " text-zinc-500"}>{grn.warehouseName}</td>
                                             <td className={ShellTableStyles.td + " text-zinc-500 font-medium"}>
