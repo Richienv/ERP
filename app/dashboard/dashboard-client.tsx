@@ -7,7 +7,7 @@ import { TodaysTasks } from "@/components/dashboard/todays-tasks"
 import { CompactActivityFeed } from "@/components/dashboard/compact-activity-feed"
 import { useExecutiveDashboard } from "@/hooks/use-executive-dashboard"
 import { CardPageSkeleton } from "@/components/ui/page-skeleton"
-import { CommandPulse } from "@/components/mining/command-pulse"
+import { OperationsInbox } from "@/components/mining/command-pulse"
 import { formatCurrency } from "@/lib/utils"
 import Link from "next/link"
 import { AreaChart, Area, ResponsiveContainer } from "recharts"
@@ -151,9 +151,9 @@ export function DashboardPageClient() {
         <DashboardView
             heroSlot={
                 <div className="space-y-3">
-                    <CommandPulse
-                        title="Operasi tambang — langkah berikutnya"
-                        subtitle="Finance, armada, spare part, pengadaan, dan gaji dalam satu antrian"
+                    <OperationsInbox
+                        title="Kotak Masuk Operasi"
+                        subtitle="Antrian kerja KRI hari ini — kerjakan dari nomor 01, tiap tombol mendarat di layar kerjanya"
                     />
                     <GreetingBar
                         revenueMTD={sales?.totalRevenue ?? 0}
