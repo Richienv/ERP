@@ -122,7 +122,7 @@ export default async function VehicleDetailPage({
                     </CardHeader>
                     <CardContent className="grid grid-cols-2 gap-y-3 gap-x-6 text-sm">
                         <Detail label="Status" value={
-                            <Badge className="font-bold uppercase text-[10px] tracking-wider">{STATUS_LABEL[vehicle.status] || vehicle.status}</Badge>
+                            <Badge className="font-bold uppercase text-xs tracking-wider">{STATUS_LABEL[vehicle.status] || vehicle.status}</Badge>
                         } />
                         <Detail label="Tipe" value={vehicle.vehicleType} />
                         <Detail label="Warna" value={vehicle.color || "—"} />
@@ -148,11 +148,11 @@ export default async function VehicleDetailPage({
                     </CardHeader>
                     <CardContent className="space-y-3 text-sm">
                         <div>
-                            <div className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Harian</div>
+                            <div className="text-xs uppercase font-bold text-zinc-500 tracking-wider">Harian</div>
                             <div className="text-lg font-mono font-bold">{vehicle.dailyRate ? formatIDR(vehicle.dailyRate) : "—"}</div>
                         </div>
                         <div>
-                            <div className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Bulanan</div>
+                            <div className="text-xs uppercase font-bold text-zinc-500 tracking-wider">Bulanan</div>
                             <div className="text-lg font-mono font-bold">{vehicle.monthlyRate ? formatIDR(vehicle.monthlyRate) : "—"}</div>
                         </div>
                     </CardContent>
@@ -188,7 +188,7 @@ export default async function VehicleDetailPage({
 function Detail({ label, value }: { label: string; value: React.ReactNode }) {
     return (
         <div>
-            <div className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">{label}</div>
+            <div className="text-xs uppercase font-bold text-zinc-500 tracking-wider">{label}</div>
             <div className="text-sm">{value}</div>
         </div>
     )
@@ -207,7 +207,7 @@ function DocBlock({ title, number, expiry, insurer }: {
 
     return (
         <div className={`border-2 rounded-none p-3 ${border}`}>
-            <div className="text-[10px] uppercase font-bold text-zinc-600 tracking-wider mb-1">{title}</div>
+            <div className="text-xs uppercase font-bold text-zinc-600 tracking-wider mb-1">{title}</div>
             <div className="text-sm font-semibold">{number || "—"}</div>
             {insurer && <div className="text-xs text-zinc-500 mt-0.5">{insurer}</div>}
             {title !== "BPKB" && (

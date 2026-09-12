@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { CACHE_TIERS } from "@/lib/cache-tiers"
 import { getGLAccountsGrouped, checkOpeningBalanceExists } from "@/lib/actions/finance-gl"
 
 export function useOpeningBalances(year: number) {
@@ -19,5 +20,6 @@ export function useOpeningBalances(year: number) {
                 alreadyExists: existsResult.exists,
             }
         },
+        ...CACHE_TIERS.MASTER_PLUS,
     })
 }

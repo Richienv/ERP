@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { CACHE_TIERS } from "@/lib/cache-tiers"
 
 interface TransactionLine {
     id: string
@@ -65,6 +66,6 @@ export function useAccountTransactions(filters?: TransactionFilters) {
             if (!json.success) throw new Error(json.error || "Failed to load transactions")
             return { entries: json.entries ?? [], accounts: json.accounts ?? [] }
         },
-        staleTime: 2 * 60 * 1000,
+        ...CACHE_TIERS.TRANSACTIONAL,
     })
 }

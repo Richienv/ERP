@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { CACHE_TIERS } from "@/lib/cache-tiers"
 import { getDCNotes, getDCNoteById, getDCNoteFormData } from "@/lib/actions/finance-dcnotes"
 import type { DCNoteType, DCNoteStatus } from "@prisma/client"
 
@@ -9,6 +10,7 @@ export function useDCNotes(filters?: { type?: DCNoteType; status?: DCNoteStatus 
     return useQuery({
         queryKey: queryKeys.dcNotes.list(filters),
         queryFn: () => getDCNotes(filters),
+        ...CACHE_TIERS.TRANSACTIONAL,
     })
 }
 
