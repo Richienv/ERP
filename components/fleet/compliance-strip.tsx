@@ -21,17 +21,17 @@ export function VehicleComplianceStrip({
 }) {
     const docs = vehicleDocStatuses({ stnkExpiry, kirExpiry, insuranceExpiry })
     const worst = worstBucket(docs)
-    const accent = worst === "OVERDUE" ? "from-red-500 via-orange-400 to-red-500"
-        : worst === "DUE_SOON" ? "from-amber-500 via-orange-400 to-amber-500"
-        : worst === "MISSING" ? "from-zinc-400 via-zinc-300 to-zinc-400"
-        : "from-emerald-500 via-teal-400 to-emerald-500"
+    const accent = worst === "OVERDUE" ? "bg-red-500"
+        : worst === "DUE_SOON" ? "bg-orange-500"
+        : worst === "MISSING" ? "bg-zinc-400"
+        : "bg-emerald-500"
 
     return (
         <div className={`${NB.pageCard} md:col-span-3`}>
-            <div className={`h-1 bg-gradient-to-r ${accent}`} />
+            <div className={`h-1 ${accent}`} />
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-200">
                 <div>
-                    <h2 className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Kepatuhan dokumen</h2>
+                    <h2 className="text-xs font-black uppercase tracking-widest text-zinc-600">Kepatuhan dokumen</h2>
                     <p className="text-[11px] text-zinc-500">Hari tersisa dan jatuh tempo STNK / KIR / asuransi — bukan hanya kapitalisasi aset</p>
                 </div>
                 <Link
@@ -68,12 +68,12 @@ function DocCell({ doc }: { doc: DocStatus }) {
             <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
                     <Icon className={`w-3.5 h-3.5 ${tone.icon}`} />
-                    <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-600">{doc.label}</span>
+                    <span className="text-xs uppercase tracking-wider font-bold text-zinc-600">{doc.label}</span>
                 </div>
                 <div className={`text-sm font-black mt-1 ${tone.text}`}>
                     {formatDaysRemaining(doc.daysRemaining)}
                 </div>
-                <div className="text-[10px] font-mono font-bold text-zinc-500 mt-0.5">
+                <div className="text-xs font-mono font-bold text-zinc-500 mt-0.5">
                     {doc.expiry ? `Jatuh tempo ${formatExpiryDate(doc.expiry)}` : "Tanggal belum diisi"}
                 </div>
             </div>
@@ -83,7 +83,7 @@ function DocCell({ doc }: { doc: DocStatus }) {
 
 function cellTone(bucket: DocStatus["bucket"]) {
     if (bucket === "OVERDUE") return { icon: "text-red-600", text: "text-red-600" }
-    if (bucket === "DUE_SOON") return { icon: "text-amber-600", text: "text-amber-700" }
+    if (bucket === "DUE_SOON") return { icon: "text-orange-500", text: "text-orange-700" }
     if (bucket === "MISSING") return { icon: "text-zinc-400", text: "text-zinc-500" }
     return { icon: "text-emerald-600", text: "text-emerald-700" }
 }

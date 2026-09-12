@@ -66,6 +66,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { exportToExcel } from "@/lib/table-export"
 import { NB } from "@/lib/dialog-styles"
+import { InlinePendingBar } from "@/components/ui/inline-pending"
 import { getDefaultRate, calculateWithholding } from "@/lib/pph-helpers"
 import type { PPhTypeValue } from "@/lib/pph-helpers"
 
@@ -168,8 +169,9 @@ export function InvoicesPageClient() {
     const queryClient = useQueryClient()
 
     const q = (searchParams.get("q") || "").trim()
-    const { data: invoices = emptyKanban, isLoading: loading, isFetching } = useInvoiceKanban({ q: q || undefined })
-    const hasInvoiceData = invoices.draft.length + invoices.sent.length + invoices.overdue.length + invoices.paid.length > 0
+    const { data: invoicesData, isLoading: loading, isFetching } = useInvoiceKanban({ q: q || undefined })
+    const invoices = invoicesData ?? emptyKanban
+    const hasInvoiceData = !!invoicesData
 
     // Auto-open create dialog from Cmd+K signal (?new=true)
     useEffect(() => {
@@ -779,12 +781,10 @@ export function InvoicesPageClient() {
 
             {/* ─── Invoice Table ─── */}
             <div
-                className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex flex-col"
+                className="relative border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex flex-col"
                 style={{ minHeight: 480 }}
             >
-                {isFetching && hasInvoiceData && (
-                    <div className="h-0.5 w-full bg-orange-500 animate-pulse" aria-hidden />
-                )}
+                <InlinePendingBar active={isFetching && hasInvoiceData} />
                 {/* Table Header */}
                 <div className="hidden md:grid grid-cols-[1fr_1.2fr_90px_140px_120px_110px_120px] gap-2 px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black">
                     {['No. Invoice', 'Pihak', 'Tipe', 'Jumlah', 'Status', 'Jatuh Tempo', 'Aksi'].map((h) => (
@@ -861,6 +861,14 @@ export function InvoicesPageClient() {
                                             {invoiceDueToday ? (
                                                 <span className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-wide px-2 py-0.5 border rounded-none bg-orange-50 dark:bg-orange-950/30 border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-400">
                                                     HARI INI
+                                                </span>
+                                            ) : invoice.status === "ISSUED" ? (
+                                                <span className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-wide px-2 py-0.5 border rounded-none bg-zinc-100 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-300">
+                                                    TERKIRIM
+                                                </span>
+                                            ) : invoice.status === "PARTIAL" ? (
+                                                <span className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-wide px-2 py-0.5 border rounded-none bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400">
+                                                    SEBAGIAN
                                                 </span>
                                             ) : (
                                                 <StatusBadge
@@ -969,7 +977,7 @@ export function InvoicesPageClient() {
                         <div className="grid grid-cols-2 gap-2">
                             {([
                                 { key: 'WHATSAPP' as const, label: 'WhatsApp', desc: 'Langsung buka chat WA', color: 'green' },
-                                { key: 'EMAIL' as const, label: 'Email', desc: 'Kirim via SMTP (segera)', color: 'blue' },
+                                { key: 'EMAIL' as const, label: 'Email', desc: 'Kirim via SMTP (segera)', color: 'zinc' },
                             ]).map((m) => (
                                 <motion.button
                                     key={m.key}
@@ -982,7 +990,7 @@ export function InvoicesPageClient() {
                                     }`}
                                 >
                                     <span className={`text-[11px] font-black uppercase tracking-wider block ${sendMethod === m.key ? `text-${m.color}-700 dark:text-${m.color}-400` : 'text-zinc-500'}`}>{m.label}</span>
-                                    <span className="text-[9px] text-zinc-400 mt-0.5 block">{m.desc}</span>
+                                    <span className="text-xs text-zinc-400 mt-0.5 block">{m.desc}</span>
                                 </motion.button>
                             ))}
                         </div>

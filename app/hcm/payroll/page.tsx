@@ -6,7 +6,7 @@ import * as XLSX from "xlsx"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import Link from "next/link"
-import { motion, AnimatePresence, type Variants } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -21,20 +21,6 @@ import { NB } from "@/lib/dialog-styles"
 import { Eye, EyeOff } from "lucide-react"
 
 export const dynamic = "force-dynamic"
-
-/* ─── Animation variants ─── */
-const stagger = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.07 } },
-}
-const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 14 },
-  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 320, damping: 26 } },
-}
-const fadeX: Variants = {
-  hidden: { opacity: 0, x: -12 },
-  show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 320, damping: 26 } },
-}
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("id-ID", {
@@ -379,17 +365,9 @@ export default function PayrollPage() {
   const hasDraft = !!run
 
   return (
-    <motion.div
-      className="mf-page"
-      variants={stagger}
-      initial="hidden"
-      animate="show"
-    >
+    <div className="mf-page">
       {/* ─── Unified Page Header Card ─── */}
-      <motion.div
-        variants={fadeUp}
-        className={NB.pageCard}
-      >
+      <div className={NB.pageCard}>
         {/* Orange accent bar */}
         <div className={NB.pageAccent} />
 
@@ -456,7 +434,7 @@ export default function PayrollPage() {
         <div className={`flex items-center divide-x divide-zinc-200 dark:divide-zinc-800 ${NB.pageRowBorder}`}>
           {[
             { label: "Karyawan", count: employeeCount, amount: null, color: "orange" },
-            { label: "Gaji Kotor", count: null, amount: totalGrossSalary, color: "blue" },
+            { label: "Gaji Kotor", count: null, amount: totalGrossSalary, color: "zinc" },
             { label: "BPJS Perusahaan", count: null, amount: run?.journalPreview?.employerBpjs || run?.summary?.employerBpjs || 0, color: "orange" },
             { label: "Biaya Perusahaan", count: null, amount: run?.journalPreview?.companyCost || run?.summary?.companyCost || totalGrossSalary, color: "amber" },
             { label: "Gaji Bersih", count: null, amount: totalNetSalary, color: "emerald" },
@@ -466,7 +444,6 @@ export default function PayrollPage() {
               <div className="flex items-center gap-1.5">
                 <span className={`w-2 h-2 ${
                   kpi.color === "orange" ? "bg-orange-500" :
-                  kpi.color === "blue" ? "bg-blue-500" :
                   kpi.color === "red" ? "bg-red-500" :
                   kpi.color === "amber" ? "bg-amber-500" :
                   kpi.color === "emerald" ? "bg-emerald-500" : "bg-zinc-400"
@@ -494,9 +471,9 @@ export default function PayrollPage() {
                         exit={{ opacity: 0, x: -8 }}
                         transition={{ type: "spring", stiffness: 300, damping: 25 }}
                         className={`text-lg font-black ${
-                          kpi.color === "blue" ? "text-blue-600 dark:text-blue-400" :
                           kpi.color === "red" ? "text-red-600 dark:text-red-400" :
-                          "text-emerald-600 dark:text-emerald-400"
+                          kpi.color === "emerald" ? "text-emerald-600 dark:text-emerald-400" :
+                          "text-zinc-900 dark:text-white"
                         }`}
                       >
                         {formatCompact(kpi.amount!)}
@@ -578,7 +555,7 @@ export default function PayrollPage() {
             )}
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* ─── Alert Bars ─── */}
       <AnimatePresence>
@@ -659,7 +636,7 @@ export default function PayrollPage() {
       )}
 
       {/* ─── Tabs ─── */}
-      <motion.div variants={fadeUp}>
+      <div>
         <Tabs defaultValue="current" className="w-full">
           <TabsList className="grid w-full grid-cols-4 border-2 border-black bg-zinc-100 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:bg-zinc-800 rounded-none h-10">
             <TabsTrigger value="current" className="font-bold text-[10px] uppercase tracking-wider rounded-none data-[state=active]:bg-white data-[state=active]:shadow-none">Payroll Berjalan</TabsTrigger>
@@ -674,7 +651,7 @@ export default function PayrollPage() {
               {/* Table Header */}
               <div className="hidden md:grid grid-cols-[1.5fr_1fr_1fr_90px_90px_90px_1fr_70px] gap-2 px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black">
                 {["Karyawan", "Gaji Pokok", "Tunjangan", "Lembur", "BPJS", "PPh21", "Gaji Bersih", "Slip"].map((h) => (
-                  <span key={h} className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{h}</span>
+                  <span key={h} className="text-xs font-black uppercase tracking-widest text-zinc-400">{h}</span>
                 ))}
               </div>
 
@@ -711,13 +688,8 @@ export default function PayrollPage() {
                 ) : (
                   <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
                     {(run.lines ?? []).map((line, idx) => (
-                      <motion.div
+                      <div
                         key={line.employeeId}
-                        custom={idx}
-                        variants={fadeX}
-                        initial="hidden"
-                        animate="show"
-                        transition={{ delay: idx * 0.03 }}
                         className={`grid grid-cols-1 md:grid-cols-[1.5fr_1fr_1fr_90px_90px_90px_1fr_70px] gap-2 px-5 py-3 items-center transition-all hover:bg-orange-50/50 dark:hover:bg-orange-950/10 ${idx % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/60 dark:bg-zinc-800/20"}`}
                       >
                         <div>
@@ -746,7 +718,7 @@ export default function PayrollPage() {
                             <IconDownload className="h-3 w-3 mr-1" /> PDF
                           </motion.button>
                         </div>
-                      </motion.div>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -779,10 +751,10 @@ export default function PayrollPage() {
 
           {/* ── TAB: Perhitungan ── */}
           <TabsContent value="calculation" className="mt-4 space-y-4">
-            <motion.div variants={fadeUp} className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
               <div className="hidden md:grid grid-cols-[1fr_1fr_1fr] bg-black dark:bg-zinc-950 border-b-2 border-black">
                 {["Tunjangan", "BPJS Karyawan", "PPh 21 (UU HPP)"].map((h) => (
-                  <span key={h} className="px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-zinc-400 border-r border-zinc-800 last:border-r-0">{h}</span>
+                  <span key={h} className="px-5 py-2.5 text-xs font-black uppercase tracking-widest text-zinc-400 border-r border-zinc-800 last:border-r-0">{h}</span>
                 ))}
               </div>
               <div className="grid gap-0 md:grid-cols-3">
@@ -811,13 +783,13 @@ export default function PayrollPage() {
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
 
             {/* Overtime Formula */}
-            <motion.div variants={fadeUp} className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
               <div className="hidden md:grid grid-cols-2 bg-black dark:bg-zinc-950 border-b-2 border-black">
                 {["Lembur Hari Kerja", "Upah Per Jam"].map((h) => (
-                  <span key={h} className="px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-zinc-400 border-r border-zinc-800 last:border-r-0">{h}</span>
+                  <span key={h} className="px-5 py-2.5 text-xs font-black uppercase tracking-widest text-zinc-400 border-r border-zinc-800 last:border-r-0">{h}</span>
                 ))}
               </div>
               <div className="grid gap-0 md:grid-cols-2">
@@ -836,14 +808,14 @@ export default function PayrollPage() {
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </TabsContent>
 
           {/* ── TAB: Laporan ── */}
           <TabsContent value="reports" className="mt-4">
-            <motion.div variants={fadeUp} className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
               <div className="px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black">
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Laporan Payroll — {selectedLabel}</span>
+                <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Laporan Payroll — {selectedLabel}</span>
               </div>
 
               {!run ? (
@@ -924,14 +896,14 @@ export default function PayrollPage() {
                   )}
                 </div>
               )}
-            </motion.div>
+            </div>
           </TabsContent>
 
           {/* ── TAB: Pengaturan ── */}
           <TabsContent value="settings" className="mt-4">
-            <motion.div variants={fadeUp} className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
               <div className="px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black">
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Pengaturan Payroll</span>
+                <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Pengaturan Payroll</span>
               </div>
               <div className="p-5">
                 <div className="grid gap-4 md:grid-cols-2">
@@ -944,11 +916,11 @@ export default function PayrollPage() {
                   <p className="text-[10px] font-bold text-zinc-400">Pengaturan lanjutan (konfigurasi per karyawan, PTKP per status pernikahan, custom tunjangan) akan tersedia di update berikutnya.</p>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </TabsContent>
         </Tabs>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   )
 }
 

@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic"
 
 export default async function FleetPage() {
     return (
-        <Suspense fallback={<TablePageSkeleton accentColor="bg-amber-500" />}>
+        <Suspense fallback={<TablePageSkeleton accentColor="bg-orange-500" />}>
             <FleetPageInner />
         </Suspense>
     )

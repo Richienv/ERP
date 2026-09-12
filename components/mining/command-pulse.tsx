@@ -7,6 +7,7 @@ import { getMiningCommandPulse, type CommandAction, type CommandActionModule, ty
 import { queryKeys } from "@/lib/query-keys"
 import { formatIDR } from "@/lib/utils"
 import { NB } from "@/lib/dialog-styles"
+import { InlinePendingBar } from "@/components/ui/inline-pending"
 
 const TONE: Record<CommandAction["tone"], { bar: string; chip: string }> = {
     critical: { bar: "border-l-red-500", chip: "bg-red-50 text-red-700 border-red-200" },
@@ -55,10 +56,10 @@ function InboxRow({ action, index }: { action: CommandAction; index: number }) {
             </span>
             <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5">
-                    <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 border ${tone.chip}`}>
+                    <span className={`text-xs font-black uppercase tracking-widest px-1.5 py-0.5 border ${tone.chip}`}>
                         {SEVERITY_LABEL[action.tone]}
                     </span>
-                    <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 border border-zinc-200 dark:border-zinc-700 text-zinc-500">
+                    <span className="text-xs font-black uppercase tracking-widest px-1.5 py-0.5 border border-zinc-200 dark:border-zinc-700 text-zinc-500">
                         {MODULE_LABEL[action.module]}
                     </span>
                     <span className="text-sm font-bold truncate">{action.title}</span>
@@ -148,7 +149,7 @@ export function OperationsInbox({
     module?: CommandActionModule
     limit?: number
 }) {
-    const { data, isLoading, isError, refetch } = useMiningCommandPulse()
+    const { data, isLoading, isFetching, isError, refetch } = useMiningCommandPulse()
     const actions = (data?.actions ?? []).filter((action) => !module || action.module === module)
     const shown = actions.slice(0, limit)
     const overflow = actions.length - shown.length
@@ -159,8 +160,9 @@ export function OperationsInbox({
     const amountHeld = actions.reduce((sum, a) => sum + (a.amount ?? 0), 0)
 
     return (
-        <div className={NB.pageCard}>
+        <div className={`${NB.pageCard} relative`}>
             <div className={NB.pageAccent} />
+            <InlinePendingBar active={!!(isFetching && data)} />
 
             {/* Row 1: identitas inbox + status buku */}
             <div className={`flex items-start justify-between gap-4 px-4 py-3 ${NB.pageRowBorder}`}>
@@ -171,7 +173,7 @@ export function OperationsInbox({
                     <div className="min-w-0">
                         <div className="flex items-center gap-2">
                             <h2 className="text-sm font-black uppercase tracking-wider">{title}</h2>
-                            <span className="border border-zinc-300 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-zinc-500 dark:border-zinc-700">
+                            <span className="border border-zinc-300 px-1.5 py-0.5 text-xs font-black uppercase tracking-widest text-zinc-500 dark:border-zinc-700">
                                 {data ? `${actions.length} tugas` : "memuat"}
                             </span>
                         </div>
@@ -238,7 +240,7 @@ export function CommandPulse({
     module?: CommandActionModule
     compact?: boolean
 }) {
-    const { data, isLoading, isError, refetch } = useMiningCommandPulse()
+    const { data, isLoading, isFetching, isError, refetch } = useMiningCommandPulse()
     const actions = (data?.actions ?? []).filter((action) => !module || action.module === module)
 
     if (isLoading && !data) {
@@ -262,8 +264,9 @@ export function CommandPulse({
     if (!data) return null
 
     return (
-        <div className={NB.pageCard}>
+        <div className={`${NB.pageCard} relative`}>
             <div className={NB.pageAccent} />
+            <InlinePendingBar active={!!(isFetching && data)} />
             <div className={`flex items-start justify-between gap-4 px-4 py-3 ${NB.pageRowBorder}`}>
                 <div>
                     <div className="flex items-center gap-2">
@@ -290,7 +293,7 @@ export function CommandPulse({
 function IntegrityBadge({ pulse }: { pulse: MiningCommandPulse }) {
     const healthy = pulse.integrity.booksHealthy && !pulse.integrity.unpostedPayroll
     return (
-        <div className={`flex shrink-0 items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-2 py-1 border ${
+        <div className={`flex shrink-0 items-center gap-1.5 text-xs font-black uppercase tracking-widest px-2 py-1 border ${
             healthy ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-700 border-red-200"
         }`}>
             {healthy ? <CheckCircle2 className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
@@ -334,7 +337,7 @@ export function MiningMoneyLoop() {
                         href={step.href}
                         className="px-3 py-3 hover:bg-orange-50/70 min-w-0"
                     >
-                        <div className="text-[9px] font-black uppercase tracking-widest text-orange-600">
+                        <div className="text-xs font-black uppercase tracking-widest text-orange-600">
                             {queueNumber(index)} · {step.label}
                         </div>
                         <div className="text-sm font-black font-mono mt-1 truncate">

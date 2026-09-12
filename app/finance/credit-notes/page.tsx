@@ -32,20 +32,6 @@ import { DCNoteSettlementDialog } from "@/components/finance/dcnote-settlement-d
 import { NB } from "@/lib/dialog-styles"
 import { exportToExcel } from "@/lib/table-export"
 
-/* ─── Animation variants ─── */
-const stagger = {
-    hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { staggerChildren: 0.07 } },
-}
-const fadeUp = {
-    hidden: { opacity: 0, y: 14 },
-    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
-}
-const fadeX = {
-    hidden: { opacity: 0, x: -12 },
-    show: { opacity: 1, x: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
-}
-
 // ──────────────────────────────────────────
 // Type & Reason Labels (Bahasa Indonesia)
 // ──────────────────────────────────────────
@@ -230,17 +216,9 @@ export default function CreditDebitNotesPage() {
     if (isLoading) return <TablePageSkeleton accentColor="bg-orange-400" />
 
     return (
-        <motion.div
-            className="mf-page"
-            variants={stagger}
-            initial="hidden"
-            animate="show"
-        >
+        <div className="mf-page">
             {/* ─── Unified Page Header Card ─── */}
-            <motion.div
-                variants={fadeUp}
-                className={NB.pageCard}
-            >
+            <div className={NB.pageCard}>
                 {/* Orange accent bar */}
                 <div className={NB.pageAccent} />
 
@@ -301,7 +279,7 @@ export default function CreditDebitNotesPage() {
                 {/* Row 2: KPI Summary Strip */}
                 <div className={`flex items-center divide-x divide-zinc-200 dark:divide-zinc-800 ${NB.pageRowBorder}`}>
                     {[
-                        { label: "Nota Kredit", count: cnCount, amount: cnAmount, color: "blue" },
+                        { label: "Nota Kredit", count: cnCount, amount: cnAmount, color: "zinc" },
                         { label: "Nota Debit", count: dnCount, amount: dnAmount, color: "orange" },
                         { label: "Draft", count: draftCount, amount: null, color: "zinc" },
                         { label: "Diterapkan", count: appliedCount, amount: null, color: "emerald" },
@@ -312,7 +290,6 @@ export default function CreditDebitNotesPage() {
                         >
                             <div className="flex items-center gap-1.5">
                                 <span className={`w-2 h-2 ${
-                                    kpi.color === "blue" ? "bg-blue-500" :
                                     kpi.color === "orange" ? "bg-orange-500" :
                                     kpi.color === "zinc" ? "bg-zinc-400" : "bg-emerald-500"
                                 }`} />
@@ -426,18 +403,17 @@ export default function CreditDebitNotesPage() {
                         <span className="font-mono font-bold text-zinc-600 dark:text-zinc-300">{filtered.length}</span> nota
                     </span>
                 </div>
-            </motion.div>
+            </div>
 
             {/* ─── Nota Table ─── */}
-            <motion.div
-                variants={fadeUp}
+            <div
                 className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex flex-col"
                 style={{ minHeight: 480 }}
             >
                 {/* Table Header */}
                 <div className="hidden md:grid grid-cols-[1fr_80px_100px_1fr_120px_1fr_110px_90px_100px_100px_120px] gap-2 px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black">
                     {["No. Nota", "Tipe", "Tanggal", "Pihak", "Invoice", "Alasan", "Subtotal", "PPN", "Total", "Status", "Aksi"].map((h) => (
-                        <span key={h} className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{h}</span>
+                        <span key={h} className="text-xs font-black uppercase tracking-widest text-zinc-400">{h}</span>
                     ))}
                 </div>
 
@@ -466,13 +442,8 @@ export default function CreditDebitNotesPage() {
                                 const credit = isTypeCredit(note.type)
 
                                 return (
-                                    <motion.div
+                                    <div
                                         key={note.id}
-                                        custom={idx}
-                                        variants={fadeX}
-                                        initial="hidden"
-                                        animate="show"
-                                        transition={{ delay: idx * 0.03 }}
                                         className={`grid grid-cols-1 md:grid-cols-[1fr_80px_100px_1fr_120px_1fr_110px_90px_100px_100px_120px] gap-2 px-5 py-3 items-center transition-all hover:bg-orange-50/50 dark:hover:bg-orange-950/10 ${idx % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/60 dark:bg-zinc-800/20"}`}
                                     >
                                         {/* Number */}
@@ -604,7 +575,7 @@ export default function CreditDebitNotesPage() {
                                                 </motion.button>
                                             )}
                                         </div>
-                                    </motion.div>
+                                    </div>
                                 )
                             })}
                         </div>
@@ -642,7 +613,7 @@ export default function CreditDebitNotesPage() {
                         <div />
                     )}
                 </div>
-            </motion.div>
+            </div>
 
             {/* ─── Dialogs ─── */}
             <CreateDCNoteDialog open={createOpen} onOpenChange={setCreateOpen} />
@@ -653,6 +624,6 @@ export default function CreditDebitNotesPage() {
                     note={settlementNote}
                 />
             )}
-        </motion.div>
+        </div>
     )
 }

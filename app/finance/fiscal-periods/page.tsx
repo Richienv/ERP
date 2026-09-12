@@ -30,15 +30,6 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
-const stagger = {
-    hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { staggerChildren: 0.07 } },
-}
-const fadeUp = {
-    hidden: { opacity: 0, y: 14 },
-    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
-}
-
 export default function FiscalPeriodsPage() {
     const currentYear = new Date().getFullYear()
     const [filterYear, setFilterYear] = useState<number | undefined>(undefined)
@@ -90,9 +81,9 @@ export default function FiscalPeriodsPage() {
     }
 
     return (
-        <motion.div className="mf-page" variants={stagger} initial="hidden" animate="show">
+        <div className="mf-page">
             {/* ─── Unified Page Header ─── */}
-            <motion.div variants={fadeUp} className={NB.pageCard}>
+            <div className={NB.pageCard}>
                 <div className={NB.pageAccent} />
 
                 {/* Row 1: Title + Actions */}
@@ -151,7 +142,7 @@ export default function FiscalPeriodsPage() {
                         { label: "Total Periode", count: allPeriods.length, dot: "bg-orange-500" },
                         { label: "Terbuka", count: totalOpen, dot: "bg-emerald-500" },
                         { label: "Ditutup", count: totalClosed, dot: "bg-zinc-400" },
-                        { label: "Tahun Fiskal", count: years.length, dot: "bg-blue-500" },
+                        { label: "Tahun Fiskal", count: years.length, dot: "bg-zinc-400" },
                     ].map((kpi) => (
                         <div key={kpi.label} className={NB.kpiCell}>
                             <div className="flex items-center gap-1.5">
@@ -202,9 +193,9 @@ export default function FiscalPeriodsPage() {
                         <span className="font-mono font-bold text-zinc-600 dark:text-zinc-300">{allPeriods.length}</span> periode
                     </span>
                 </div>
-            </motion.div>
+            </div>
 
-            <motion.div variants={fadeUp}>
+            <div>
                 <MonthEndChecklist
                     year={cockpitYear}
                     month={cockpitMonth}
@@ -217,12 +208,11 @@ export default function FiscalPeriodsPage() {
                     }}
                     closePending={closeMutation.isPending}
                 />
-            </motion.div>
+            </div>
 
             {/* ─── Period Grid per Year ─── */}
             {years.length === 0 ? (
-                <motion.div
-                    variants={fadeUp}
+                <div
                     className={NB.pageCard}
                 >
                     <div className="flex flex-col items-center justify-center py-16 text-zinc-400">
@@ -232,7 +222,7 @@ export default function FiscalPeriodsPage() {
                         <span className="text-sm font-bold">Belum ada periode fiskal</span>
                         <span className="text-xs text-zinc-400 mt-1">Masukkan tahun lalu klik &quot;Generate 12 Bulan&quot;</span>
                     </div>
-                </motion.div>
+                </div>
             ) : (
                 years.map((year) => {
                     const yearPeriods = periodsByYear[year]
@@ -240,7 +230,7 @@ export default function FiscalPeriodsPage() {
                     const openCount = yearPeriods.length - closedCount
 
                     return (
-                        <motion.div key={year} variants={fadeUp} className="space-y-3">
+                        <div key={year} className="space-y-3">
                             <div className="flex items-center justify-between px-1">
                                 <h2 className="text-sm font-black uppercase tracking-widest text-zinc-900 dark:text-white">
                                     Tahun Fiskal {year}
@@ -318,7 +308,7 @@ export default function FiscalPeriodsPage() {
                                     </div>
                                 ))}
                             </div>
-                        </motion.div>
+                        </div>
                     )
                 })
             )}
@@ -367,6 +357,6 @@ export default function FiscalPeriodsPage() {
                     onComplete={() => { setClosingYear(null) }}
                 />
             )}
-        </motion.div>
+        </div>
     )
 }

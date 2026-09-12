@@ -27,7 +27,6 @@ import {
     ShieldCheck,
     ShieldAlert,
 } from "lucide-react"
-import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import {
     Dialog,
@@ -61,13 +60,8 @@ import { useBills, useBanks } from "@/hooks/use-bills"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
+import { InlinePendingBar } from "@/components/ui/inline-pending"
 import { useChartOfAccounts } from "@/hooks/use-chart-accounts"
-
-/* ─── Animation variants ─── */
-const fadeUp = {
-    hidden: { opacity: 0, y: 14 },
-    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
-}
 
 export default function APBillsStackPage() {
     const router = useRouter()
@@ -82,7 +76,7 @@ export default function APBillsStackPage() {
         pageSize: Number(searchParams.get("size") || "20"),
     }
 
-    const { data: billsData, isLoading } = useBills(queryParams)
+    const { data: billsData, isLoading, isFetching } = useBills(queryParams)
     const { data: banksData } = useBanks()
 
     const bills = billsData?.rows ?? []
@@ -461,12 +455,8 @@ export default function APBillsStackPage() {
             />
 
             {/* ─── Single unified card: KPI + Filter + Table ─── */}
-            <motion.div
-                variants={fadeUp}
-                initial="hidden"
-                animate="show"
-                className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden"
-            >
+            <div className="relative border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                <InlinePendingBar active={!!billsData && isFetching} />
                 {/* Row 1: Toolbar — Scan Bill button + count */}
                 <div className="px-5 py-2.5 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800">
                     <div className="flex items-center gap-3">
@@ -641,26 +631,24 @@ export default function APBillsStackPage() {
                                         </div>
                                         {/* Actions */}
                                         <div className="flex gap-1 justify-end">
-                                            <motion.button
-                                                whileHover={{ y: -1 }}
-                                                whileTap={{ scale: 0.92 }}
+                                            <button
+                                                type="button"
                                                 onClick={() => openBillDetail(bill)}
                                                 title="Detail"
                                                 className="h-7 w-7 flex items-center justify-center border border-zinc-200 dark:border-zinc-600 text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:border-zinc-400 hover:text-zinc-600 transition-colors rounded-none"
                                             >
                                                 <Eye className="h-3 w-3" />
-                                            </motion.button>
+                                            </button>
                                             {["ISSUED", "PARTIAL", "OVERDUE"].includes(bill.status) && bill.balanceDue > 0 && (
-                                                <motion.button
-                                                    whileHover={{ y: -1 }}
-                                                    whileTap={{ scale: 0.92 }}
+                                                <button
+                                                    type="button"
                                                     onClick={() => { setActiveBill(bill); setStamped(false); setIsPayOpen(true) }}
                                                     disabled={!!paymentPendingBillId}
                                                     title="Bayar"
                                                     className="h-7 px-2 flex items-center gap-1 border border-emerald-300 dark:border-emerald-600 text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:border-emerald-500 transition-colors rounded-none text-xs font-bold uppercase"
                                                 >
                                                     <CreditCard className="h-3 w-3" /> Bayar
-                                                </motion.button>
+                                                </button>
                                             )}
                                             {bill.status === "DRAFT" && (
                                                 <button
@@ -703,7 +691,7 @@ export default function APBillsStackPage() {
                         </div>
                     </div>
                 )}
-            </motion.div>
+            </div>
 
             {/* ═══ BILL DETAIL DIALOG ═══ */}
             <Dialog open={isDetailOpen} onOpenChange={(open) => {
@@ -849,8 +837,8 @@ export default function APBillsStackPage() {
                                         {activeBill.payments.map((p) => (
                                             <div key={p.id} className="px-4 py-2.5 flex items-center justify-between text-xs">
                                                 <div className="flex items-center gap-3">
-                                                    <span className={`text-[9px] font-bold uppercase px-2 py-0.5 border ${
-                                                        p.method === "TRANSFER" ? "border-blue-300 text-blue-600 bg-blue-50/50" :
+                                                    <span className={`text-xs font-bold uppercase px-2 py-0.5 border ${
+                                                        p.method === "TRANSFER" ? "border-zinc-300 text-zinc-600 bg-zinc-50" :
                                                         p.method === "CASH" ? "border-emerald-300 text-emerald-600 bg-emerald-50/50" :
                                                         "border-amber-300 text-amber-600 bg-amber-50/50"
                                                     }`}>{p.method}</span>
