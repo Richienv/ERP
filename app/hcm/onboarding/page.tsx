@@ -4,7 +4,6 @@ export const dynamic = "force-dynamic"
 
 import { useState, useCallback } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { motion, AnimatePresence, type Variants } from "framer-motion"
 import { toast } from "sonner"
 import {
     ClipboardCheck,
@@ -40,6 +39,7 @@ import {
 } from "@/lib/actions/hcm-onboarding"
 import { OnboardingChecklist } from "@/components/hcm/onboarding-checklist"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
+import { InlinePendingBar } from "@/components/ui/inline-pending"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -49,12 +49,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-
-/* ─── Animation ─── */
-const fadeUp: Variants = {
-    hidden: { opacity: 0, y: 14 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 320, damping: 26 } },
-}
 
 /* ═══════════════════════════════════════════════════
    Create Template Dialog
@@ -203,7 +197,7 @@ function CreateTemplateDialog({
                     <Button
                         variant="outline"
                         size="sm"
-                        className="border-dashed border-2 text-[10px] font-bold uppercase w-full hover:bg-teal-50 hover:border-teal-300 rounded-none mt-3"
+                        className="border-dashed border-2 text-xs font-bold uppercase w-full hover:bg-orange-50 hover:border-orange-300 rounded-none mt-3"
                         onClick={addTask}
                     >
                         <Plus className="h-3 w-3 mr-1" /> Tambah Tugas
@@ -326,7 +320,7 @@ function StartOnboardingDialog({
    ═══════════════════════════════════════════════════ */
 export default function OnboardingPage() {
     const queryClient = useQueryClient()
-    const { data, isLoading } = useOnboarding()
+    const { data, isFetching } = useOnboarding()
 
     const [activeTab, setActiveTab] = useState<"template" | "karyawan">("template")
     const [createOpen, setCreateOpen] = useState(false)
@@ -411,8 +405,8 @@ export default function OnboardingPage() {
         return result
     }
 
-    if (isLoading || !data) {
-        return <TablePageSkeleton accentColor="bg-teal-400" />
+    if (!data) {
+        return <TablePageSkeleton accentColor="bg-orange-400" />
     }
 
     const { templates } = data
@@ -422,13 +416,10 @@ export default function OnboardingPage() {
     )
 
     return (
-        <motion.div
-            className="mf-page"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-        >
+        <div className="mf-page">
             {/* ─── Page Header ─── */}
-            <motion.div variants={fadeUp} className={NB.pageCard}>
+            <div className={NB.pageCard}>
+                <InlinePendingBar active={isFetching} />
                 <div className={NB.pageAccent} />
 
                 {/* Title + Actions */}
@@ -436,14 +427,14 @@ export default function OnboardingPage() {
                     className={`px-5 py-3.5 flex items-center justify-between ${NB.pageRowBorder}`}
                 >
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-teal-500 flex items-center justify-center">
+                        <div className="w-9 h-9 bg-zinc-800 flex items-center justify-center">
                             <ClipboardCheck className="h-4.5 w-4.5 text-white" />
                         </div>
                         <div>
                             <h1 className="text-base font-black uppercase tracking-wider text-zinc-900 dark:text-white">
                                 Onboarding Karyawan
                             </h1>
-                            <p className="text-zinc-400 text-[11px] font-medium">
+                            <p className="text-zinc-400 text-xs font-medium">
                                 Kelola template dan progress onboarding
                             </p>
                         </div>
@@ -473,7 +464,7 @@ export default function OnboardingPage() {
                 <div className={`${NB.kpiStrip} ${NB.pageRowBorder}`}>
                     <div className={NB.kpiCell}>
                         <div className="flex items-center gap-1.5">
-                            <span className="w-2 h-2 bg-teal-500" />
+                            <span className="w-2 h-2 bg-zinc-400" />
                             <span className={NB.kpiLabel}>Template</span>
                         </div>
                         <span className={NB.kpiCount}>{templates.length}</span>
@@ -487,7 +478,7 @@ export default function OnboardingPage() {
                     </div>
                     <div className={NB.kpiCell}>
                         <div className="flex items-center gap-1.5">
-                            <span className="w-2 h-2 bg-emerald-500" />
+                            <span className="w-2 h-2 bg-zinc-400" />
                             <span className={NB.kpiLabel}>Karyawan Aktif</span>
                         </div>
                         <span className={NB.kpiCount}>{employeeOnboarding.length}</span>
@@ -508,7 +499,7 @@ export default function OnboardingPage() {
                                 setActiveTab(tab.key)
                                 if (tab.key === "karyawan") loadEmployees()
                             }}
-                            className={`flex items-center gap-1.5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider rounded-none transition-all ${
+                            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-none transition-all ${
                                 activeTab === tab.key
                                     ? "bg-black text-white dark:bg-white dark:text-black"
                                     : "text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
@@ -519,18 +510,11 @@ export default function OnboardingPage() {
                         </button>
                     ))}
                 </div>
-            </motion.div>
+            </div>
 
             {/* ─── Tab Content ─── */}
-            <AnimatePresence mode="wait">
-                {activeTab === "template" ? (
-                    <motion.div
-                        key="template"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden"
-                    >
+            {activeTab === "template" ? (
+                    <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
                         {templates.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-16 text-zinc-400">
                                 <div className="w-16 h-16 border-2 border-dashed border-zinc-300 dark:border-zinc-700 flex items-center justify-center mb-4">
@@ -544,7 +528,7 @@ export default function OnboardingPage() {
                                 </span>
                                 <Button
                                     onClick={() => setCreateOpen(true)}
-                                    className="mt-4 bg-teal-500 text-white border border-teal-600 hover:bg-teal-600 font-bold uppercase text-[10px] tracking-wider px-4 h-9 rounded-none"
+                                    className={`mt-4 ${NB.toolbarBtnPrimary} !ml-0`}
                                 >
                                     <Plus className="h-3.5 w-3.5 mr-1.5" /> Buat Template
                                 </Button>
@@ -558,22 +542,21 @@ export default function OnboardingPage() {
                                         taskCount: number
                                         createdAt: string
                                     }) => (
-                                        <motion.div
+                                        <div
                                             key={t.id}
-                                            whileHover={{ y: -2 }}
                                             className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden"
                                         >
-                                            <div className="h-1 bg-gradient-to-r from-teal-500 to-emerald-400" />
+                                            <div className="h-1 bg-zinc-300 dark:bg-zinc-600" />
                                             <div className="p-4">
                                                 <div className="flex items-center justify-between mb-2">
                                                     <span className="text-xs font-black">
                                                         {t.name}
                                                     </span>
-                                                    <span className="text-[9px] font-black px-2 py-0.5 bg-teal-50 border border-teal-200 text-teal-700">
+                                                    <span className="text-xs font-black px-2 py-0.5 bg-zinc-100 border border-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:border-zinc-600 dark:text-zinc-300">
                                                         {t.taskCount} tugas
                                                     </span>
                                                 </div>
-                                                <span className="text-[10px] text-zinc-400 font-bold">
+                                                <span className="text-xs text-zinc-400 font-bold">
                                                     Dibuat:{" "}
                                                     {new Date(t.createdAt).toLocaleDateString(
                                                         "id-ID",
@@ -585,20 +568,14 @@ export default function OnboardingPage() {
                                                     )}
                                                 </span>
                                             </div>
-                                        </motion.div>
+                                        </div>
                                     )
                                 )}
                             </div>
                         )}
-                    </motion.div>
+                    </div>
                 ) : (
-                    <motion.div
-                        key="karyawan"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden"
-                    >
+                    <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
                         <div className="p-5 space-y-4">
                             {/* Employee selector + Start button */}
                             <div className="flex items-end gap-3">
@@ -643,7 +620,7 @@ export default function OnboardingPage() {
                                         }
                                         setStartOpen(true)
                                     }}
-                                    className="bg-teal-500 text-white border border-teal-600 hover:bg-teal-600 font-bold uppercase text-[10px] tracking-wider px-4 h-10 rounded-none"
+                                    className={`${NB.toolbarBtnPrimary} !ml-0 !h-10`}
                                 >
                                     <UserPlus className="h-3.5 w-3.5 mr-1.5" /> Mulai
                                     Onboarding
@@ -692,9 +669,8 @@ export default function OnboardingPage() {
                                 </div>
                             )}
                         </div>
-                    </motion.div>
+                    </div>
                 )}
-            </AnimatePresence>
 
             {/* Dialogs */}
             <CreateTemplateDialog open={createOpen} onOpenChange={setCreateOpen} />
@@ -708,6 +684,6 @@ export default function OnboardingPage() {
                     fetchEmployeeOnboarding(empId)
                 }}
             />
-        </motion.div>
+        </div>
     )
 }

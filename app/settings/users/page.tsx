@@ -145,12 +145,12 @@ export default function UserManagementPage() {
                 <div className={NB.pageAccent} />
                 <div className={`px-5 py-4 ${NB.pageRowBorder}`}>
                     <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center bg-orange-500 text-white">
+                        <div className="flex h-9 w-9 items-center justify-center bg-zinc-800 text-white">
                             <Users className="h-5 w-5" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-black uppercase tracking-tight">Manajemen Pengguna</h2>
-                            <p className="text-xs text-muted-foreground">
+                            <h2 className="text-base font-black uppercase tracking-wider text-zinc-900 dark:text-white">Manajemen Pengguna</h2>
+                            <p className="text-xs font-medium text-zinc-400">
                                 Ubah peran akun. Perubahan disimpan ke data pengguna, bukan metadata login.
                             </p>
                         </div>
@@ -158,11 +158,17 @@ export default function UserManagementPage() {
                 </div>
                 <div className={`${NB.kpiStrip} ${NB.pageRowBorder}`}>
                     <div className={NB.kpiCell}>
-                        <span className={NB.kpiLabel}>Semua</span>
+                        <div className="flex items-center gap-1.5">
+                            <span className="h-2 w-2 bg-zinc-400" />
+                            <span className={NB.kpiLabel}>Semua</span>
+                        </div>
                         <span className={NB.kpiCount}>{loading ? "—" : users.length}</span>
                     </div>
                     <div className={NB.kpiCell}>
-                        <span className={NB.kpiLabel}>Admin</span>
+                        <div className="flex items-center gap-1.5">
+                            <span className="h-2 w-2 bg-zinc-400" />
+                            <span className={NB.kpiLabel}>Admin</span>
+                        </div>
                         <span className={NB.kpiCount}>{loading ? "—" : adminCount}</span>
                     </div>
                 </div>

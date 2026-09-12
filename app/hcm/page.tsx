@@ -18,6 +18,7 @@ import { DetailedPerformanceTable } from "@/components/hcm/detailed-performance-
 import type { PerformanceRow } from "@/components/hcm/detailed-performance-table"
 import { queryKeys } from "@/lib/query-keys"
 import { CommandPulse, MiningSnapshotStrip } from "@/components/mining/command-pulse"
+import { InlinePendingBar } from "@/components/ui/inline-pending"
 
 interface HCMDashboardData {
   attendance: {
@@ -83,7 +84,7 @@ const fallbackData: HCMDashboardData = {
 export default function HCMPage() {
   const queryClient = useQueryClient()
 
-  const { data, isLoading, isRefetching } = useQuery({
+  const { data, isLoading, isRefetching, isFetching } = useQuery({
     queryKey: queryKeys.hcmDashboard.list(),
     queryFn: async () => {
       const res = await fetch("/api/hcm/dashboard-data")
@@ -93,7 +94,7 @@ export default function HCMPage() {
   })
 
   // Fetch detailed attendance snapshot for staff activity & performance tables
-  const { data: snapshot } = useQuery({
+  const { data: snapshot, isFetching: snapshotFetching } = useQuery({
     queryKey: [...queryKeys.hcmAttendance.all, "snapshot"],
     queryFn: async () => {
       const res = await fetch("/api/hcm/attendance-snapshot")
@@ -168,7 +169,8 @@ export default function HCMPage() {
   const totalPresent = staffRows.filter((s) => s.status === "PRESENT" || s.status === "REMOTE").length
 
   return (
-    <div className="flex-1 min-h-screen space-y-6 bg-zinc-50/50 p-4 pt-6 dark:bg-black md:p-8">
+    <div className="relative flex-1 min-h-screen space-y-6 bg-zinc-50/50 p-4 pt-6 dark:bg-black md:p-8">
+      <InlinePendingBar active={(!!data && isFetching) || (!!snapshot && snapshotFetching)} />
       <CommandPulse
         module="hcm"
         compact

@@ -18,6 +18,7 @@ import { approvePayrollRun, createPayrollDisbursementBatch, generatePayrollDraft
 import { toast } from "sonner"
 import { usePayrollRun, usePayrollCompliance, type PayrollLine, type PayrollRunData } from "@/hooks/use-payroll"
 import { NB } from "@/lib/dialog-styles"
+import { InlinePendingBar } from "@/components/ui/inline-pending"
 import { Eye, EyeOff } from "lucide-react"
 
 export const dynamic = "force-dynamic"
@@ -96,7 +97,7 @@ export default function PayrollPage() {
 
   const periodOptions = React.useMemo(() => buildPeriodOptions(), [])
 
-  const { data: run = null, isLoading: loading, refetch: refetchRun } = usePayrollRun(selectedPeriod)
+  const { data: run = null, isLoading: loading, isFetching, refetch: refetchRun } = usePayrollRun(selectedPeriod)
   const { data: compliance = null, refetch: refetchCompliance } = usePayrollCompliance(selectedPeriod)
 
   const invalidatePayroll = () => {
@@ -368,6 +369,7 @@ export default function PayrollPage() {
     <div className="mf-page">
       {/* ─── Unified Page Header Card ─── */}
       <div className={NB.pageCard}>
+        <InlinePendingBar active={!!run && isFetching} />
         {/* Orange accent bar */}
         <div className={NB.pageAccent} />
 
@@ -509,7 +511,7 @@ export default function PayrollPage() {
           <div className="flex items-center gap-4">
             {/* Period */}
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Periode</span>
+              <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Periode</span>
               <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
                 <SelectTrigger className="w-[200px] border border-zinc-300 dark:border-zinc-700 font-bold h-9 rounded-none text-xs bg-white dark:bg-zinc-900">
                   <SelectValue />
@@ -604,7 +606,7 @@ export default function PayrollPage() {
                 size="sm"
                 onClick={handleCreateDisbursement}
                 disabled={processing}
-                className={NB.submitBtnBlue + " !h-8 !px-4 !text-[10px]"}
+                className={NB.submitBtnOrange + " !h-8 !px-4 !text-xs"}
               >
                 <IconCash className="mr-1.5 h-3.5 w-3.5" />
                 Buat Batch Disbursement
@@ -617,8 +619,8 @@ export default function PayrollPage() {
       {run?.journalPreview && (
         <div className="border-2 border-black bg-white shadow-[3px_3px_0_0_#000] overflow-hidden">
           <div className="px-4 py-2.5 border-b-2 border-black bg-zinc-950 text-white flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest">Preview jurnal yang akan diposting</span>
-            <span className={`text-[10px] font-black uppercase ${run.journalPreview.balanced ? "text-emerald-400" : "text-red-400"}`}>
+            <span className="text-xs font-black uppercase tracking-widest">Preview jurnal yang akan diposting</span>
+            <span className={`text-xs font-black uppercase ${run.journalPreview.balanced ? "text-emerald-400" : "text-red-400"}`}>
               {run.journalPreview.balanced ? "Seimbang" : "Tidak seimbang"}
             </span>
           </div>
@@ -639,10 +641,10 @@ export default function PayrollPage() {
       <div>
         <Tabs defaultValue="current" className="w-full">
           <TabsList className="grid w-full grid-cols-4 border-2 border-black bg-zinc-100 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:bg-zinc-800 rounded-none h-10">
-            <TabsTrigger value="current" className="font-bold text-[10px] uppercase tracking-wider rounded-none data-[state=active]:bg-white data-[state=active]:shadow-none">Payroll Berjalan</TabsTrigger>
-            <TabsTrigger value="calculation" className="font-bold text-[10px] uppercase tracking-wider rounded-none data-[state=active]:bg-white data-[state=active]:shadow-none">Perhitungan</TabsTrigger>
-            <TabsTrigger value="reports" className="font-bold text-[10px] uppercase tracking-wider rounded-none data-[state=active]:bg-white data-[state=active]:shadow-none">Laporan</TabsTrigger>
-            <TabsTrigger value="settings" className="font-bold text-[10px] uppercase tracking-wider rounded-none data-[state=active]:bg-white data-[state=active]:shadow-none">Pengaturan</TabsTrigger>
+            <TabsTrigger value="current" className="font-bold text-xs uppercase tracking-wider rounded-none data-[state=active]:bg-white data-[state=active]:shadow-none">Payroll Berjalan</TabsTrigger>
+            <TabsTrigger value="calculation" className="font-bold text-xs uppercase tracking-wider rounded-none data-[state=active]:bg-white data-[state=active]:shadow-none">Perhitungan</TabsTrigger>
+            <TabsTrigger value="reports" className="font-bold text-xs uppercase tracking-wider rounded-none data-[state=active]:bg-white data-[state=active]:shadow-none">Laporan</TabsTrigger>
+            <TabsTrigger value="settings" className="font-bold text-xs uppercase tracking-wider rounded-none data-[state=active]:bg-white data-[state=active]:shadow-none">Pengaturan</TabsTrigger>
           </TabsList>
 
           {/* ── TAB: Payroll Berjalan ── */}
@@ -727,20 +729,20 @@ export default function PayrollPage() {
               {/* Table Footer with Totals */}
               {run && (run.lines?.length ?? 0) > 0 && (
                 <div className="px-5 py-3 border-t border-zinc-200 dark:border-zinc-700 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
-                  <span className={NB.label + " !mb-0 !text-[10px]"}>
+                  <span className={NB.label + " !mb-0"}>
                     {employeeCount} karyawan
                   </span>
                   <div className="flex items-center gap-6">
                     <div className="text-right">
-                      <div className="text-[10px] font-bold uppercase text-zinc-400">Gaji Kotor</div>
+                      <div className="text-xs font-bold uppercase text-zinc-400">Gaji Kotor</div>
                       <div className="text-sm font-black tabular-nums font-mono">{formatCurrency(totalGrossSalary)}</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-[10px] font-bold uppercase text-zinc-400">Potongan</div>
+                      <div className="text-xs font-bold uppercase text-zinc-400">Potongan</div>
                       <div className="text-sm font-black tabular-nums font-mono text-red-600">{formatCurrency(totalDeductions)}</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-[10px] font-bold uppercase text-zinc-400">Gaji Bersih</div>
+                      <div className="text-xs font-bold uppercase text-zinc-400">Gaji Bersih</div>
                       <div className="text-lg font-black tabular-nums font-mono text-emerald-600">{formatCurrency(totalNetSalary)}</div>
                     </div>
                   </div>
@@ -872,7 +874,7 @@ export default function PayrollPage() {
                     <div className="border-2 border-black p-4">
                       <div className="mb-3 flex items-center gap-2">
                         <IconShieldCheck className="h-4 w-4 text-zinc-600" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Ringkasan Compliance</span>
+                        <span className="text-xs font-black uppercase tracking-widest text-zinc-600">Ringkasan Compliance</span>
                       </div>
                       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                         <ComplianceMetric label="BPJS Kesehatan" value={formatCurrency(compliance.totals.bpjsKesehatan ?? 0)} />
@@ -954,7 +956,7 @@ function FormulaRow({ label, value }: { label: string; value: string }) {
 function InfoItem({ label, value, badge }: { label: string; value: string; badge?: "emerald" | "amber" | "zinc" }) {
   return (
     <div>
-      <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{label}</div>
+      <div className="text-xs font-black uppercase tracking-widest text-zinc-400">{label}</div>
       {badge ? (
         <span className={`inline-flex items-center gap-1.5 mt-1 text-[9px] font-black uppercase tracking-wide px-2 py-1 border rounded-none ${
           badge === "emerald"
@@ -978,7 +980,7 @@ function InfoItem({ label, value, badge }: { label: string; value: string; badge
 function ComplianceMetric({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[10px] font-bold text-zinc-500">{label}</div>
+      <div className="text-xs font-bold text-zinc-500">{label}</div>
       <div className="text-sm font-black tabular-nums text-zinc-900 dark:text-white">{value}</div>
     </div>
   )
@@ -987,7 +989,7 @@ function ComplianceMetric({ label, value }: { label: string; value: string }) {
 function SettingItem({ label, value, description }: { label: string; value: string; description: string }) {
   return (
     <div className="border border-zinc-200 dark:border-zinc-700 p-3">
-      <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{label}</div>
+      <div className="text-xs font-black uppercase tracking-widest text-zinc-500">{label}</div>
       <div className="mt-1 text-sm font-bold text-zinc-900 dark:text-white">{value}</div>
       <div className="mt-1 text-[10px] text-zinc-400">{description}</div>
     </div>
