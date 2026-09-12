@@ -32,20 +32,6 @@ import { useJournal } from "@/hooks/use-journal"
 import { ClosingJournalDialog } from "@/components/finance/closing-journal-dialog"
 import { CreateJournalDialog } from "@/components/finance/journal/create-journal-dialog"
 
-/* ─── Animation variants ─── */
-const stagger = {
-    hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { staggerChildren: 0.07 } },
-}
-const fadeUp = {
-    hidden: { opacity: 0, y: 14 },
-    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
-}
-const fadeX = {
-    hidden: { opacity: 0, x: -12 },
-    show: { opacity: 1, x: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
-}
-
 export default function GeneralLedgerPage() {
     const { data, isLoading: loading } = useJournal()
     const entries = data?.entries ?? []
@@ -159,17 +145,9 @@ export default function GeneralLedgerPage() {
     }
 
     return (
-        <motion.div
-            className="mf-page"
-            variants={stagger}
-            initial="hidden"
-            animate="show"
-        >
+        <div className="mf-page">
             {/* ─── Unified Page Header ─── */}
-            <motion.div
-                variants={fadeUp}
-                className={NB.pageCard}
-            >
+            <div className={NB.pageCard}>
                 {/* Orange accent bar */}
                 <div className={NB.pageAccent} />
 
@@ -218,7 +196,7 @@ export default function GeneralLedgerPage() {
                         { label: "Semua", count: totalEntries, amount: sumDebit, color: "orange" },
                         { label: "Draft", count: draftCount, amount: null, color: "zinc" },
                         { label: "Posted", count: postedCount, amount: null, color: "emerald" },
-                        { label: "Total Debit", count: null, amount: sumDebit, color: "blue" },
+                        { label: "Total Debit", count: null, amount: sumDebit, color: "zinc" },
                         { label: "Total Kredit", count: null, amount: sumCredit, color: "red" },
                     ].map((kpi) => (
                         <div
@@ -234,9 +212,7 @@ export default function GeneralLedgerPage() {
                                               ? "bg-zinc-400"
                                               : kpi.color === "emerald"
                                                 ? "bg-emerald-500"
-                                                : kpi.color === "blue"
-                                                  ? "bg-blue-500"
-                                                  : "bg-red-500"
+                                                : "bg-red-500"
                                     }`}
                                 />
                                 <span className={NB.kpiLabel}>{kpi.label}</span>
@@ -264,9 +240,7 @@ export default function GeneralLedgerPage() {
                                                 className={`text-xs font-mono font-bold ${
                                                     kpi.color === "red"
                                                         ? "text-red-600 dark:text-red-400"
-                                                        : kpi.color === "blue"
-                                                          ? "text-blue-600 dark:text-blue-400"
-                                                          : "text-zinc-500 dark:text-zinc-400"
+                                                        : "text-zinc-500 dark:text-zinc-400"
                                                 }`}
                                             >
                                                 {formatIDR(kpi.amount)}
@@ -354,7 +328,7 @@ export default function GeneralLedgerPage() {
                         jurnal
                     </span>
                 </div>
-            </motion.div>
+            </div>
 
             {/* ─── Export Dialog ─── */}
             <Dialog open={exportOpen} onOpenChange={setExportOpen}>
@@ -408,8 +382,7 @@ export default function GeneralLedgerPage() {
             />
 
             {/* ─── Journal Entries Table ─── */}
-            <motion.div
-                variants={fadeUp}
+            <div
                 className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex flex-col"
                 style={{ minHeight: 420 }}
             >
@@ -418,7 +391,7 @@ export default function GeneralLedgerPage() {
                     {["Tanggal", "Deskripsi & Akun", "Jumlah", "Status"].map((h) => (
                         <span
                             key={h}
-                            className="text-[10px] font-black uppercase tracking-widest text-zinc-400"
+                            className="text-xs font-black uppercase tracking-widest text-zinc-400"
                         >
                             {h}
                         </span>
@@ -473,13 +446,8 @@ export default function GeneralLedgerPage() {
                                     })
                                 }
                                 return (
-                                    <motion.div
+                                    <div
                                         key={entry.id}
-                                        custom={idx}
-                                        variants={shouldVirtualize ? undefined : fadeX}
-                                        initial={shouldVirtualize ? undefined : "hidden"}
-                                        animate={shouldVirtualize ? undefined : "show"}
-                                        transition={shouldVirtualize ? undefined : { delay: idx * 0.03 }}
                                         style={style}
                                         className={`group/row transition-all duration-200 border-l-[3px] border-b border-zinc-100 dark:border-zinc-800 ${
                                             isExpanded
@@ -635,7 +603,7 @@ export default function GeneralLedgerPage() {
                                                 </div>
                                             </div>
                                         </div>
-                                    </motion.div>
+                                    </div>
                                 )
                             }
 
@@ -673,10 +641,10 @@ export default function GeneralLedgerPage() {
                         </span>
                     </span>
                 </div>
-            </motion.div>
+            </div>
 
             {/* Closing Journal Dialog */}
             <ClosingJournalDialog open={closingOpen} onOpenChange={setClosingOpen} />
-        </motion.div>
+        </div>
     )
 }

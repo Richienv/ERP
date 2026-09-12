@@ -1,8 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { FileText, Receipt, CreditCard, CalendarDays, Loader2, Package } from "lucide-react"
-import { motion, AnimatePresence } from "framer-motion"
+import { FileText, Receipt, CreditCard, CalendarDays, Loader2, Package, UserPlus } from "lucide-react"
 import { SelectItem } from "@/components/ui/select"
 import { toast } from "sonner"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
@@ -15,6 +14,7 @@ import {
     createInvoiceFromSalesOrder,
     createBillFromPOId,
 } from "@/lib/actions/finance-invoices"
+import { createCustomerQuick } from "@/lib/actions/master-data"
 import { NB } from "@/lib/dialog-styles"
 import {
     NBDialog,
@@ -54,13 +54,6 @@ interface AvailableOrdersData {
     purchaseOrders: PendingOrder[]
 }
 
-/* ─── Animation variants ─── */
-const sectionFade = {
-    hidden: { opacity: 0, y: 10 },
-    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 300, damping: 24 } },
-    exit: { opacity: 0, y: -10, transition: { duration: 0.15 } },
-}
-
 interface CreateInvoiceDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
@@ -89,6 +82,8 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
     const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0])
     const [dueDate, setDueDate] = useState("")
     const [selectedAccountId, setSelectedAccountId] = useState("")
+    const [quickCustomerName, setQuickCustomerName] = useState("")
+    const [creatingCustomer, setCreatingCustomer] = useState(false)
 
     // Single API call fetches all data — no withPrismaAuth transaction overhead
     const { data, isLoading: dataLoading } = useQuery<AvailableOrdersData>({
@@ -120,6 +115,34 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
         setDueDate("")
         setIssueDate(new Date().toISOString().split('T')[0])
         setSelectedAccountId("")
+        setQuickCustomerName("")
+    }
+
+    const handleQuickCreateCustomer = async () => {
+        const name = quickCustomerName.trim()
+        if (!name) {
+            toast.error("Masukkan nama pelanggan")
+            return
+        }
+        setCreatingCustomer(true)
+        try {
+            const customer = await createCustomerQuick(name)
+            queryClient.setQueryData<AvailableOrdersData>(queryKeys.invoiceAvailableOrders.list(), (old) => {
+                if (!old) return old
+                return {
+                    ...old,
+                    parties: [...old.parties, { id: customer.id, name: customer.name, type: "CUSTOMER" }],
+                }
+            })
+            setSelectedCustomer(customer.id)
+            setQuickCustomerName("")
+            queryClient.invalidateQueries({ queryKey: queryKeys.invoiceAvailableOrders.all })
+            toast.success(`Pelanggan "${customer.name}" berhasil ditambahkan`)
+        } catch (err: any) {
+            toast.error(err?.message || "Gagal menambah pelanggan")
+        } finally {
+            setCreatingCustomer(false)
+        }
     }
 
     const handleCreate = async () => {
@@ -159,6 +182,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                 queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.invoiceAvailableOrders.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.glAccounts.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.miningCommand.pulse() })
             } else {
                 toast.error(('error' in result ? result.error : "Gagal membuat invoice") || "Gagal membuat invoice")
             }
@@ -176,16 +200,15 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
 
     return (
         <NBDialog open={open} onOpenChange={(v) => { if (!v) resetForm(); onOpenChange(v) }} size="narrow">
-            <NBDialogHeader icon={FileText} title="Buat Invoice" subtitle="Buat invoice/bill baru dari order atau manual" />
+            <NBDialogHeader icon={FileText} title="Buat Invoice" subtitle="Tagih pelanggan dari Finance — tanpa pipeline penjualan" />
 
             <NBDialogBody>
                 {/* ── Section 1: Sumber Invoice ── */}
-                <NBSection icon={Receipt} title="Sumber Invoice">
-                    <div className="grid grid-cols-3 gap-2">
+                <NBSection icon={Receipt} title="Sumber dokumen">
+                    <div className="grid grid-cols-2 gap-2">
                         {([
-                            { key: 'SO' as const, title: 'Sales Order', desc: 'Dari pesanan penjualan' },
-                            { key: 'PO' as const, title: 'Purchase Order', desc: 'Dari pesanan pembelian' },
-                            { key: 'MANUAL' as const, title: 'Manual', desc: 'Input data sendiri' },
+                            { key: 'MANUAL' as const, title: 'Invoice Pelanggan', desc: 'Tagih sewa / jasa / spare part dari Finance' },
+                            { key: 'PO' as const, title: 'Bill dari PO', desc: 'Tagihan vendor setelah barang masuk' },
                         ]).map((opt) => (
                             <button
                                 key={opt.key}
@@ -195,22 +218,14 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                     : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-zinc-300 dark:hover:border-zinc-600'
                                 }`}
                             >
-                                <span className={`text-[10px] font-black uppercase tracking-wider block ${sourceType === opt.key ? 'text-orange-700 dark:text-orange-400' : 'text-zinc-500'}`}>{opt.title}</span>
-                                <span className={`text-[9px] mt-0.5 block ${sourceType === opt.key ? 'text-orange-500/70 dark:text-orange-400/60' : 'text-zinc-400'}`}>{opt.desc}</span>
+                                <span className={`text-xs font-black uppercase tracking-wider block ${sourceType === opt.key ? 'text-orange-700 dark:text-orange-400' : 'text-zinc-500'}`}>{opt.title}</span>
+                                <span className={`text-xs mt-0.5 block ${sourceType === opt.key ? 'text-orange-500/70 dark:text-orange-400/60' : 'text-zinc-400'}`}>{opt.desc}</span>
                             </button>
                         ))}
                     </div>
 
-                    <AnimatePresence mode="wait">
-                        {sourceType !== 'MANUAL' && (
-                            <motion.div
-                                key={sourceType}
-                                variants={sectionFade}
-                                initial="hidden"
-                                animate="show"
-                                exit="exit"
-                                className="space-y-2"
-                            >
+                    {sourceType !== 'MANUAL' && (
+                            <div className="space-y-2">
                                 <NBSelect
                                     label={`Pilih ${sourceType === 'SO' ? 'Sales Order' : 'Purchase Order'}`}
                                     required
@@ -238,18 +253,11 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                 <p className={NB.labelHint}>Hanya order yang belum di-invoice yang ditampilkan</p>
 
                                 {/* ── Item Preview ── */}
-                                <AnimatePresence>
-                                    {selectedOrder && selectedOrder.items.length > 0 && (
-                                        <motion.div
-                                            initial={{ opacity: 0, height: 0 }}
-                                            animate={{ opacity: 1, height: "auto" }}
-                                            exit={{ opacity: 0, height: 0 }}
-                                            className="overflow-hidden"
-                                        >
+                                {selectedOrder && selectedOrder.items.length > 0 && (
                                             <div className="border border-zinc-200 dark:border-zinc-700 mt-2">
                                                 <div className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700">
                                                     <Package className="h-3 w-3 text-zinc-400" />
-                                                    <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">
+                                                    <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">
                                                         Preview Item ({selectedOrder.items.length})
                                                     </span>
                                                 </div>
@@ -273,29 +281,18 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                                     ))}
                                                 </div>
                                                 <div className="border-t border-zinc-200 dark:border-zinc-700 px-3 py-2 flex justify-between items-center bg-zinc-50/50 dark:bg-zinc-800/30">
-                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Subtotal</span>
+                                                    <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">Subtotal</span>
                                                     <span className="font-mono font-bold text-sm text-zinc-700 dark:text-zinc-300">{formatIDR(selectedOrder.amount)}</span>
                                                 </div>
                                             </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                                )}
+                            </div>
+                    )}
                 </NBSection>
 
                 {/* ── Section 2+3: Manual Invoice Form ── */}
-                <AnimatePresence mode="wait">
                     {sourceType === 'MANUAL' && (
-                        <motion.div
-                            key="manual-form"
-                            variants={sectionFade}
-                            initial="hidden"
-                            animate="show"
-                            exit="exit"
-                            className="space-y-3"
-                        >
+                        <div className="space-y-3">
                             <NBSection icon={CreditCard} title="Detail Invoice">
                                 {/* Document Type Selector */}
                                 <div>
@@ -322,7 +319,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
 
                                 {/* Customer/Vendor */}
                                 <NBSelect
-                                    label={manualType === 'CUSTOMER' ? 'Customer' : 'Vendor'}
+                                    label={manualType === 'CUSTOMER' ? 'Pelanggan' : 'Vendor'}
                                     required
                                     value={selectedCustomer}
                                     onValueChange={setSelectedCustomer}
@@ -332,19 +329,45 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                         <SelectItem value="__loading__" disabled>Memuat data...</SelectItem>
                                     ) : parties.filter(c => c.type === manualType).length === 0 ? (
                                         <SelectItem value="__empty__" disabled>
-                                            Tidak ada {manualType.toLowerCase()} aktif
+                                            Tidak ada {manualType === 'CUSTOMER' ? 'pelanggan' : 'vendor'} aktif
                                         </SelectItem>
                                     ) : parties.filter(c => c.type === manualType).map((party) => (
                                         <SelectItem key={party.id} value={party.id}>{party.name}</SelectItem>
                                     ))}
                                 </NBSelect>
+                                {manualType === 'CUSTOMER' && !dataLoading && parties.filter(c => c.type === 'CUSTOMER').length === 0 && (
+                                    <div className="border border-orange-300 bg-orange-50/50 dark:border-orange-600 dark:bg-orange-950/20 p-3 space-y-2">
+                                        <p className="text-[10px] font-black uppercase tracking-wider text-orange-700 dark:text-orange-400">
+                                            Belum ada pelanggan
+                                        </p>
+                                        <NBInput
+                                            label="Tambah pelanggan cepat"
+                                            value={quickCustomerName}
+                                            onChange={setQuickCustomerName}
+                                            placeholder="Nama pelanggan"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleQuickCreateCustomer}
+                                            disabled={creatingCustomer || !quickCustomerName.trim()}
+                                            className={`${NB.toolbarBtnPrimary} ml-0 inline-flex items-center disabled:opacity-50`}
+                                        >
+                                            {creatingCustomer ? (
+                                                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                                            ) : (
+                                                <UserPlus className="h-3.5 w-3.5 mr-1.5" />
+                                            )}
+                                            Tambah pelanggan
+                                        </button>
+                                    </div>
+                                )}
 
                                 {/* Product/Description */}
                                 <NBInput
                                     label="Deskripsi / Produk"
                                     value={manualProduct}
                                     onChange={setManualProduct}
-                                    placeholder="Jasa Konsultasi"
+                                    placeholder="Sewa dump truck / angkutan / spare part"
                                 />
                             </NBSection>
 
@@ -370,17 +393,15 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                 {/* PPN Toggle */}
                                 <div className="flex items-center justify-between border border-zinc-200 dark:border-zinc-700 px-3 py-2">
                                     <div>
-                                        <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">PPN 11%</span>
-                                        <span className="text-[10px] font-medium text-zinc-400 dark:text-zinc-500 mt-0.5 block">Pajak Pertambahan Nilai</span>
+                                        <span className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">PPN 11%</span>
+                                        <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500 mt-0.5 block">Pajak Pertambahan Nilai</span>
                                     </div>
                                     <button
                                         type="button"
                                         onClick={() => setIncludeTax(!includeTax)}
                                         className={`${NB.toggle} ${includeTax ? NB.toggleActive : NB.toggleInactive}`}
                                     >
-                                        <motion.span
-                                            layout
-                                            transition={{ type: "spring" as const, stiffness: 500, damping: 30 }}
+                                        <span
                                             className={`${NB.toggleThumb} ${includeTax ? 'left-5' : 'left-0.5'}`}
                                         />
                                     </button>
@@ -412,16 +433,12 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                         </div>
                                     )}
                                     <div className="flex justify-between items-center border-t border-zinc-200 dark:border-zinc-700 pt-2 mt-1">
-                                        <span className="text-[11px] font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">Total</span>
-                                        <motion.span
-                                            key={total}
-                                            initial={{ scale: 1.05 }}
-                                            animate={{ scale: 1 }}
-                                            transition={{ type: "spring" as const, stiffness: 300 }}
+                                        <span className="text-xs font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">Total</span>
+                                        <span
                                             className={`font-mono font-black text-lg ${total > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'}`}
                                         >
                                             {formatIDR(total)}
-                                        </motion.span>
+                                        </span>
                                     </div>
                                 </div>
                             </NBSection>
@@ -448,9 +465,8 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                     />
                                 </div>
                             </NBSection>
-                        </motion.div>
+                        </div>
                     )}
-                </AnimatePresence>
             </NBDialogBody>
 
             <NBDialogFooter

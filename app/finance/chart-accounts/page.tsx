@@ -18,7 +18,6 @@ import {
     Layers,
     Lock,
 } from "lucide-react"
-import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { NB } from "@/lib/dialog-styles"
 import {
@@ -117,11 +116,6 @@ function flattenTree(nodes: GLAccountNode[]): GLAccountNode[] {
     }
     walk(nodes)
     return result
-}
-
-const fadeUp = {
-    hidden: { opacity: 0, y: 14 },
-    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
 }
 
 export default function CoALedgerPage() {
@@ -321,9 +315,9 @@ export default function CoALedgerPage() {
     }
 
     return (
-        <motion.div className="mf-page" initial="hidden" animate="show" variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.07 } } }}>
+        <div className="mf-page">
             {/* ─── Page Header Card ─── */}
-            <motion.div variants={fadeUp} className={NB.pageCard}>
+            <div className={NB.pageCard}>
                 <div className={NB.pageAccent} />
 
                 {/* Row 1: Title + Actions */}
@@ -420,21 +414,20 @@ export default function CoALedgerPage() {
                         <span className="font-mono font-bold text-zinc-600 dark:text-zinc-300">{filteredAccounts.length}</span> akun
                     </span>
                 </div>
-            </motion.div>
+            </div>
 
             {/* ─── Account Table ─── */}
-            <motion.div
-                variants={fadeUp}
+            <div
                 className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden"
             >
                 {/* Table header */}
                 <div className="grid grid-cols-[100px_1fr_120px_120px_160px_80px] items-center px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Kode</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Nama Akun</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Tipe</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Klasifikasi</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 text-right">Saldo (IDR)</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 text-center">Aksi</span>
+                    <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Kode</span>
+                    <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Nama Akun</span>
+                    <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Tipe</span>
+                    <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Klasifikasi</span>
+                    <span className="text-xs font-black uppercase tracking-widest text-zinc-400 text-right">Saldo (IDR)</span>
+                    <span className="text-xs font-black uppercase tracking-widest text-zinc-400 text-center">Aksi</span>
                 </div>
 
                 {loading ? (
@@ -516,7 +509,7 @@ export default function CoALedgerPage() {
                     </span>
                     <div />
                 </div>
-            </motion.div>
+            </div>
 
             {/* ─── Create Account Dialog ─── */}
             <NBDialog open={createOpen} onOpenChange={(open) => { if (!open) resetCreateForm(); setCreateOpen(open) }} size="default">
@@ -708,6 +701,6 @@ export default function CoALedgerPage() {
                     submitLabel="Hapus Akun"
                 />
             </NBDialog>
-        </motion.div>
+        </div>
     )
 }

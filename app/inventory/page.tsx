@@ -10,12 +10,13 @@ import { InventoryPerformanceProvider } from "@/components/inventory/inventory-p
 import { InventoryDashboardView } from "@/components/inventory/inventory-dashboard-view"
 import { useInventoryDashboard } from "@/hooks/use-inventory-dashboard"
 import { CardPageSkeleton } from "@/components/ui/page-skeleton"
+import { CommandPulse, MiningSnapshotStrip } from "@/components/mining/command-pulse"
 
 export default function InventoryPage() {
-    const { data, isLoading } = useInventoryDashboard()
+    const { data } = useInventoryDashboard()
 
-    if (isLoading || !data) {
-        return <CardPageSkeleton accentColor="bg-emerald-400" />
+    if (!data) {
+        return <CardPageSkeleton />
     }
 
     const { warehouses, kpis, materialGap, procurement } = data
@@ -23,6 +24,17 @@ export default function InventoryPage() {
 
     return (
         <InventoryPerformanceProvider currentPath="/inventory">
+            <div className="px-4 md:px-6 pt-4">
+                <CommandPulse
+                    module="inventory"
+                    compact
+                    title="Spare part yang harus bergerak"
+                    subtitle="Stok minimum, barang masuk, dan nilai gudang — tanpa tebak-tebakan"
+                />
+                <div className="mt-3">
+                    <MiningSnapshotStrip highlight={["inventoryValue", "apOpen"]} />
+                </div>
+            </div>
             <InventoryDashboardView
                 headerSlot={
                     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -30,7 +42,7 @@ export default function InventoryPage() {
                             <h1 className="text-2xl md:text-3xl font-black text-zinc-900 dark:text-white tracking-tighter uppercase flex items-center gap-2">
                                 Logistik Command Center
                             </h1>
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mt-0.5">Real-time warehouse &amp; inventory monitoring</p>
+                            <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mt-0.5">Real-time warehouse &amp; inventory monitoring</p>
                         </div>
                         <div className="flex gap-2">
                             <MaterialInputForm />
@@ -41,7 +53,7 @@ export default function InventoryPage() {
                 mainLeftSlot={<MaterialTableWrapper data={materialGap ?? []} />}
                 mainRightSlot={
                     <div className="flex flex-col gap-2 h-full overflow-y-auto p-3">
-                        <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400 px-1">
+                        <div className="text-xs font-black uppercase tracking-widest text-zinc-400 px-1">
                             Gudang Aktif
                         </div>
                         {liveWarehouses.length === 0 ? (

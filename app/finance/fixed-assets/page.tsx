@@ -39,18 +39,6 @@ const methodLabels: Record<string, string> = {
     UNITS_OF_PRODUCTION: "Unit Produksi",
 }
 
-const stagger = {
-    hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { staggerChildren: 0.07 } },
-}
-const fadeUp = {
-    hidden: { opacity: 0, y: 14 },
-    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
-}
-const fadeX = {
-    hidden: { opacity: 0, x: -12 },
-    show: { opacity: 1, x: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
-}
 
 export default function FixedAssetsPage() {
     const queryClient = useQueryClient()
@@ -93,15 +81,15 @@ export default function FixedAssetsPage() {
     const kpis = [
         { label: "Total Aset", value: String(summary.totalAssets), dot: "bg-orange-500" },
         { label: "Aktif", value: String(summary.activeCount), dot: "bg-emerald-500" },
-        { label: "Harga Perolehan", value: formatCurrency(summary.totalCost), dot: "bg-blue-500" },
+        { label: "Harga Perolehan", value: formatCurrency(summary.totalCost), dot: "bg-zinc-400" },
         { label: "Akum. Penyusutan", value: formatCurrency(summary.totalAccDep), dot: "bg-amber-500" },
-        { label: "Nilai Buku Bersih", value: formatCurrency(summary.totalNBV), dot: "bg-indigo-500" },
+        { label: "Nilai Buku Bersih", value: formatCurrency(summary.totalNBV), dot: "bg-zinc-400" },
     ]
 
     return (
-        <motion.div className="mf-page" variants={stagger} initial="hidden" animate="show">
+        <div className="mf-page">
             {/* ─── Unified Page Header ─── */}
-            <motion.div variants={fadeUp} className={NB.pageCard}>
+            <div className={NB.pageCard}>
                 <div className={NB.pageAccent} />
 
                 {/* Row 1: Title + Actions */}
@@ -218,18 +206,17 @@ export default function FixedAssetsPage() {
                         <span className="font-mono font-bold text-zinc-600 dark:text-zinc-300">{assets.length}</span> aset
                     </span>
                 </div>
-            </motion.div>
+            </div>
 
             {/* ─── Asset Table ─── */}
-            <motion.div
-                variants={fadeUp}
+            <div
                 className={NB.pageCard}
                 style={{ minHeight: 400 }}
             >
                 {/* Black header */}
                 <div className="hidden md:grid grid-cols-[100px_1fr_120px_140px_140px_140px_100px_110px_160px] gap-2 px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black">
                     {["Kode", "Nama Aset", "Kategori", "Harga Perolehan", "Akum. Penyusutan", "Nilai Buku", "Metode", "Status", "Aksi"].map((h) => (
-                        <span key={h} className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{h}</span>
+                        <span key={h} className="text-xs font-black uppercase tracking-widest text-zinc-400">{h}</span>
                     ))}
                 </div>
 
@@ -253,13 +240,8 @@ export default function FixedAssetsPage() {
                             {assets.map((asset: any, idx: number) => {
                                 const status = statusLabels[asset.status] || statusLabels.DRAFT
                                 return (
-                                    <motion.div
+                                    <div
                                         key={asset.id}
-                                        custom={idx}
-                                        variants={fadeX}
-                                        initial="hidden"
-                                        animate="show"
-                                        transition={{ delay: idx * 0.03 }}
                                         className={`grid grid-cols-1 md:grid-cols-[100px_1fr_120px_140px_140px_140px_100px_110px_160px] gap-2 px-5 py-3 items-center transition-all hover:bg-orange-50/50 dark:hover:bg-orange-950/10 ${
                                             idx % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/60 dark:bg-zinc-800/20"
                                         }`}
@@ -315,7 +297,7 @@ export default function FixedAssetsPage() {
                                                 </motion.button>
                                             )}
                                         </div>
-                                    </motion.div>
+                                    </div>
                                 )
                             })}
                         </div>
@@ -327,10 +309,10 @@ export default function FixedAssetsPage() {
                     <span className={NB.label + " !mb-0 !text-[10px]"}>{assets.length} aset</span>
                     <div />
                 </div>
-            </motion.div>
+            </div>
 
             <CreateAssetDialog open={createOpen} onOpenChange={setCreateOpen} />
             <AssetMovementDialog open={!!movementAsset} onOpenChange={(o) => !o && setMovementAsset(null)} asset={movementAsset} />
-        </motion.div>
+        </div>
     )
 }

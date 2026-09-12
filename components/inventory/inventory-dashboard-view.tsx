@@ -1,7 +1,6 @@
 "use client"
 
 import { ReactNode } from "react"
-import { motion } from "framer-motion"
 
 interface InventoryDashboardViewProps {
     headerSlot: ReactNode
@@ -10,11 +9,6 @@ interface InventoryDashboardViewProps {
     mainRightSlot: ReactNode
     bottomLeftSlot: ReactNode
     bottomRightSlot: ReactNode
-}
-
-const fadeIn = {
-    initial: { opacity: 0, y: 8 },
-    animate: { opacity: 1, y: 0 },
 }
 
 export function InventoryDashboardView({
@@ -30,20 +24,12 @@ export function InventoryDashboardView({
             <div className="flex flex-col gap-2 p-3 md:p-4 min-h-[calc(100svh-theme(spacing.16))]">
 
                 {/* Row 1: Header — standalone */}
-                <motion.div
-                    className="flex-none"
-                    {...fadeIn}
-                    transition={{ duration: 0.3 }}
-                >
+                <div className="flex-none">
                     {headerSlot}
-                </motion.div>
+                </div>
 
                 {/* UNIFIED CONTAINER — PulseBar + Main + Bottom as one connected box */}
-                <motion.div
-                    className="flex-1 flex flex-col min-h-0 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden"
-                    {...fadeIn}
-                    transition={{ duration: 0.3, delay: 0.05 }}
-                >
+                <div className="flex-1 flex flex-col min-h-0 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
                     {/* Row A: KPI PulseBar — top strip */}
                     <div className="flex-none border-b-2 border-black">
                         {pulseBarSlot}
@@ -70,7 +56,7 @@ export function InventoryDashboardView({
                             {bottomRightSlot}
                         </div>
                     </div>
-                </motion.div>
+                </div>
 
             </div>
         </div>

@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { CACHE_TIERS } from "@/lib/cache-tiers"
 import { getPayrollRun, getPayrollComplianceReport } from "@/app/actions/hcm"
 
 export interface PayrollLine {
@@ -23,10 +24,19 @@ export interface PayrollLine {
     bpjsKetenagakerjaan: number
     bpjsJHT: number
     bpjsJP: number
+    bpjsKesEmployer?: number
+    bpjsEmployerTotal?: number
     pph21: number
     grossSalary: number
     totalDeductions: number
     netSalary: number
+}
+
+export interface PayrollJournalPreviewLine {
+    accountCode: string
+    debit: number
+    credit: number
+    description: string
 }
 
 export interface PayrollRunData {
@@ -49,6 +59,16 @@ export interface PayrollRunData {
         net: number
         employees: number
         overtimeHours: number
+        employerBpjs?: number
+        companyCost?: number
+    }
+    journalPreview?: {
+        lines: PayrollJournalPreviewLine[]
+        totalDebit: number
+        totalCredit: number
+        balanced: boolean
+        employerBpjs: number
+        companyCost: number
     }
     lines: PayrollLine[]
 }
@@ -95,6 +115,7 @@ export function usePayrollRun(period: string) {
         queryKey: queryKeys.payroll.run(period),
         queryFn: () => fetchPayrollRun(period),
         enabled: !!period,
+        ...CACHE_TIERS.TRANSACTIONAL,
     })
 }
 
@@ -103,5 +124,6 @@ export function usePayrollCompliance(period: string) {
         queryKey: queryKeys.payroll.compliance(period),
         queryFn: () => fetchPayrollCompliance(period),
         enabled: !!period,
+        ...CACHE_TIERS.TRANSACTIONAL,
     })
 }

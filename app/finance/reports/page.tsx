@@ -153,14 +153,11 @@ function DrillDownPanel({ rows, loading, formatIDR: fmt, accountFilter, startDat
                     </tr>
                 </thead>
                 <tbody>
-                    {rows.map((row, idx) => {
+                    {rows.map((row) => {
                         const badge = SOURCE_BADGE[row.sourceType] || SOURCE_BADGE.JOURNAL
                         return (
-                            <motion.tr
+                            <tr
                                 key={row.id}
-                                initial={{ opacity: 0, y: -4 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: idx * 0.03 }}
                                 className="border-t border-zinc-100 dark:border-zinc-800 hover:bg-orange-50/40 dark:hover:bg-orange-950/10 group transition-colors text-xs"
                             >
                                 <td className="px-3 py-1.5 pl-10 font-mono text-zinc-500 whitespace-nowrap">{row.date}</td>
@@ -186,7 +183,7 @@ function DrillDownPanel({ rows, loading, formatIDR: fmt, accountFilter, startDat
                                         <ArrowRight className="h-3.5 w-3.5" />
                                     </Link>
                                 </td>
-                            </motion.tr>
+                            </tr>
                         )
                     })}
                 </tbody>
@@ -691,24 +688,20 @@ export default function FinancialReportsPage() {
 
     const reportLabel = sidebarGroups.flatMap(g => g.items).find(i => i.key === reportType)?.label ?? ""
 
-    /* ─── Animation variants ─── */
-    const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.07 } } } as const
-    const fadeUp = { hidden: { opacity: 0, y: 14 }, show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } } }
-
     const reportKpis = [
-        { label: "Pendapatan", value: kpiLoading ? null : formatIDR(kpi?.revenue || 0), color: "blue" },
+        { label: "Pendapatan", value: kpiLoading ? null : formatIDR(kpi?.revenue || 0), color: "zinc" },
         { label: "Laba Bersih", value: kpiLoading ? null : formatIDR(kpi?.netIncome || 0), color: (kpi?.netIncome || 0) >= 0 ? "emerald" : "red" },
         { label: "Piutang (AR)", value: kpiLoading ? null : formatIDR(kpi?.arOutstanding || 0), color: "orange" },
         { label: "Hutang (AP)", value: kpiLoading ? null : formatIDR(kpi?.apOutstanding || 0), color: "red" },
     ]
-    const dotColors: Record<string, string> = { blue: "bg-blue-500", emerald: "bg-emerald-500", orange: "bg-orange-500", red: "bg-red-500" }
-    const textColors: Record<string, string> = { blue: "text-zinc-900 dark:text-white", emerald: "text-emerald-600 dark:text-emerald-400", orange: "text-orange-600 dark:text-orange-400", red: "text-red-600 dark:text-red-400" }
+    const dotColors: Record<string, string> = { zinc: "bg-zinc-400", emerald: "bg-emerald-500", orange: "bg-orange-500", red: "bg-red-500" }
+    const textColors: Record<string, string> = { zinc: "text-zinc-900 dark:text-white", emerald: "text-emerald-600 dark:text-emerald-400", orange: "text-orange-600 dark:text-orange-400", red: "text-red-600 dark:text-red-400" }
 
     return (
-        <motion.div className="mf-page" variants={stagger} initial="hidden" animate="show">
+        <div className="mf-page">
 
             {/* ─── Unified Page Header ─── */}
-            <motion.div variants={fadeUp} className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
                 {/* Blue gradient accent bar */}
                 <div className="h-1 bg-gradient-to-r from-blue-500 via-indigo-400 to-blue-500" />
 
@@ -846,10 +839,10 @@ export default function FinancialReportsPage() {
                         </div>
                     ))}
                 </div>
-            </motion.div>
+            </div>
 
             {/* ─── SIDEBAR + REPORT CONTENT LAYOUT ─── */}
-            <motion.div variants={fadeUp} className="flex gap-4">
+            <div className="flex gap-4">
                 {/* Sidebar Navigation */}
                 <div className="hidden md:block w-[220px] shrink-0">
                     <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden sticky top-24">
@@ -2724,7 +2717,7 @@ export default function FinancialReportsPage() {
                         </>
                     )}
                 </div>
-            </motion.div>
-        </motion.div>
+            </div>
+        </div>
     )
 }

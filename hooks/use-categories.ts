@@ -2,6 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { CACHE_TIERS } from "@/lib/cache-tiers"
 import { getAllCategories, getCategories } from "@/app/actions/inventory"
 
 export function useCategories() {
@@ -17,6 +18,7 @@ export function useCategories() {
                 allCategories: (allCategories ?? []) as { id: string; name: string }[],
             }
         },
+        ...CACHE_TIERS.MASTER,
     })
 }
 

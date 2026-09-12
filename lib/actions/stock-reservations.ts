@@ -114,24 +114,75 @@ export async function reserveStockForWorkOrder(
       })
       const oldReservedQty = Number(existingReservation?.reservedQty ?? 0)
 
-      // Get current stock level for this product+warehouse
-      const stockLevel = await tx.stockLevel.findFirst({
-        where: {
-          productId: req.materialId,
-          warehouseId,
-          locationId: null, // Main warehouse level (not bin-specific)
-        },
-      })
+      // ATOMIC RESERVE — availableQty must be evaluated by the database inside
+      // the UPDATE, otherwise two work orders reserving the same free stock both
+      // pass an in-memory check and availableQty goes negative (stock is double
+      // reserved). We re-read + recompute on a lost race so the "reserve as much
+      // as is free" (PARTIAL) semantics are preserved.
+      const MAX_RESERVE_ATTEMPTS = 3
+      let reservedQty = oldReservedQty
+      let applied = false
 
-      const availableQty = Number(stockLevel?.availableQty ?? 0)
-      // True free = currently available + amount already reserved by THIS WO
-      // (we can re-allocate our own slice without "borrowing" from others).
-      const trueFreeQty = availableQty + oldReservedQty
-      const reservedQty = Math.min(req.requiredQty, trueFreeQty)
+      for (let attempt = 0; attempt < MAX_RESERVE_ATTEMPTS && !applied; attempt++) {
+        // Get current stock level for this product+warehouse
+        const stockLevel = await tx.stockLevel.findFirst({
+          where: {
+            productId: req.materialId,
+            warehouseId,
+            locationId: null, // Main warehouse level (not bin-specific)
+          },
+        })
+
+        const availableQty = Number(stockLevel?.availableQty ?? 0)
+        // True free = currently available + amount already reserved by THIS WO
+        // (we can re-allocate our own slice without "borrowing" from others).
+        const trueFreeQty = availableQty + oldReservedQty
+        const targetQty = Math.min(req.requiredQty, trueFreeQty)
+        const delta = targetQty - oldReservedQty
+
+        // Nothing to move (or no stock row to move it on) — accept as-is.
+        if (delta === 0 || !stockLevel) {
+          reservedQty = targetQty
+          applied = true
+          break
+        }
+
+        // Apply only the delta — positive = reserve more, negative = release some.
+        const moved = await tx.stockLevel.updateMany({
+          where: {
+            id: stockLevel.id,
+            // Reserving: never take more free stock than exists.
+            // Releasing: never push reservedQty below zero.
+            ...(delta > 0
+              ? { availableQty: { gte: delta } }
+              : { reservedQty: { gte: -delta } }),
+          },
+          data: {
+            availableQty: { decrement: delta },
+            reservedQty: { increment: delta },
+          },
+        })
+
+        if (moved.count === 0) {
+          // Lost the race — someone else changed the stock level. Retry with a
+          // fresh read so we reserve only what is genuinely still free.
+          continue
+        }
+
+        reservedQty = targetQty
+        applied = true
+      }
+
+      if (!applied) {
+        throw new Error(
+          `Stok tidak mencukupi untuk ${bomItem.material.name} — stok berubah oleh transaksi lain, silakan coba lagi`
+        )
+      }
+
       const shortfall = Math.max(0, req.requiredQty - reservedQty)
-      const delta = reservedQty - oldReservedQty
 
-      // Upsert reservation (unique on workOrderId+productId+warehouseId)
+      // Upsert reservation (unique on workOrderId+productId+warehouseId) with
+      // the quantity we actually managed to lock on the stock level.
       const reservation = await tx.stockReservation.upsert({
         where: {
           workOrderId_productId_warehouseId: {
@@ -152,17 +203,6 @@ export async function reserveStockForWorkOrder(
           status: "ACTIVE",
         },
       })
-
-      // Apply only the delta — positive = reserve more, negative = release some.
-      if (delta !== 0 && stockLevel) {
-        await tx.stockLevel.update({
-          where: { id: stockLevel.id },
-          data: {
-            availableQty: { decrement: delta },
-            reservedQty: { increment: delta },
-          },
-        })
-      }
 
       const status: ReservationResult["status"] =
         reservedQty === 0 ? "NONE" : shortfall === 0 ? "FULL" : "PARTIAL"
@@ -249,13 +289,27 @@ export async function consumeReservation(
       )
     }
 
-    await tx.stockLevel.update({
-      where: { id: stockLevel.id },
+    // ATOMIC GUARD — the read above can go stale (TOCTOU). Letting the database
+    // evaluate the guard inside the UPDATE means two concurrent consumptions of
+    // the same stock level cannot both succeed and drive quantity / reservedQty
+    // negative.
+    const consumed = await tx.stockLevel.updateMany({
+      where: {
+        id: stockLevel.id,
+        quantity: { gte: qty },
+        reservedQty: { gte: qty },
+      },
       data: {
         quantity: { decrement: qty },
         reservedQty: { decrement: qty },
       },
     })
+
+    if (consumed.count === 0) {
+      throw new Error(
+        `Stok tidak mencukupi untuk konsumsi ${qty} unit ${reservation.product.name} — stok atau reservasi berubah oleh transaksi lain, silakan coba lagi`
+      )
+    }
 
     // Create inventory transaction for audit trail (with cost data)
     const unitCost = reservation.product.costPrice ? Number(reservation.product.costPrice) : 0

@@ -128,7 +128,7 @@ export async function getReorderSuggestions(): Promise<ReorderSummary> {
 
         for (const p of products) {
             const totalStock = p.stockLevels.reduce(
-                (sum, sl) => sum + (sl.quantity - sl.reservedQty),
+                (sum, sl) => sum + (Number(sl.quantity) - Number(sl.reservedQty)),
                 0
             )
             const burnRate = Number(p.manualBurnRate) || 0
@@ -300,7 +300,7 @@ export async function createAutoReorderPR(
             // Calculate quantities and create PR
             const prItems = products.map((p) => {
                 const totalStock = p.stockLevels.reduce(
-                    (sum, sl) => sum + (sl.quantity - sl.reservedQty),
+                    (sum, sl) => sum + (Number(sl.quantity) - Number(sl.reservedQty)),
                     0
                 )
                 const burnRate = Number(p.manualBurnRate) || 0

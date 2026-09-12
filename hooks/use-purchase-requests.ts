@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { CACHE_TIERS } from "@/lib/cache-tiers"
 import { getPurchaseRequests } from "@/lib/actions/procurement"
 
 export function usePurchaseRequests() {
@@ -11,5 +12,6 @@ export function usePurchaseRequests() {
             const requests = await getPurchaseRequests()
             return requests
         },
+        ...CACHE_TIERS.TRANSACTIONAL,
     })
 }

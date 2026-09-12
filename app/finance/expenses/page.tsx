@@ -25,6 +25,7 @@ import { useExpenses } from "@/hooks/use-expenses"
 import { recordExpense } from "@/lib/actions/finance"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { InlinePendingBar } from "@/components/ui/inline-pending"
 
 const CATEGORIES = [
     "Operasional",
@@ -40,7 +41,7 @@ const CATEGORIES = [
 ]
 
 export default function ExpensesPage() {
-    const { data, isLoading } = useExpenses()
+    const { data, isFetching } = useExpenses()
     const queryClient = useQueryClient()
     const expenses = data?.expenses ?? []
     const expenseAccounts = data?.expenseAccounts ?? []
@@ -127,7 +128,8 @@ export default function ExpensesPage() {
     }
 
     return (
-        <div className="mf-page">
+        <div className="mf-page relative">
+            <InlinePendingBar active={!!data && isFetching} />
 
             {/* ═══ HEADER ═══ */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
@@ -302,7 +304,7 @@ export default function ExpensesPage() {
                     <div className="col-span-2 text-right">Jumlah</div>
                 </div>
 
-                {isLoading ? (
+                {!data ? (
                     <div className="p-12 text-center">
                         <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 animate-pulse">Memuat data...</p>
                     </div>

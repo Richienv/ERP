@@ -1,7 +1,8 @@
 "use server"
 
 import { prisma } from "@/lib/prisma"
-import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts"
+import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
+import { ensureSystemAccounts } from "@/lib/gl-accounts-server"
 import { postJournalEntry } from "@/lib/actions/finance-gl"
 
 // Garment industry WIP completion stages — aligned with GarmentStage enum

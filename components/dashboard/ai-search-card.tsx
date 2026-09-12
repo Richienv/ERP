@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Sparkles, ArrowRight, Bot, BarChart3, TrendingUp, X, FileText, CheckCircle2, Send, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Search, Sparkles, ArrowRight, Bot, Send, ArrowUpRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -268,16 +268,14 @@ export function AiSearchCard() {
                                                     <div className="h-64 pt-12 flex items-end gap-3 px-2 w-full">
                                                         {[40, 65, 55, 80, 70, 90, 100].map((h, i) => (
                                                             <div key={i} className="flex-1 h-full flex items-end group relative rounded-t-sm px-1">
-                                                                <motion.div
-                                                                    initial={{ height: 0 }}
-                                                                    animate={{ height: `${h}%` }}
-                                                                    transition={{ duration: 0.5, delay: i * 0.1 }}
+                                                                <div
+                                                                    style={{ height: `${h}%` }}
                                                                     className="w-full bg-white border-2 border-black rounded-xl relative shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 transition-all"
                                                                 >
                                                                     <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-white text-sm font-bold py-1.5 px-3 rounded-xl shadow-sm whitespace-nowrap z-10">
                                                                         {h}%
                                                                     </div>
-                                                                </motion.div>
+                                                                </div>
                                                             </div>
                                                         ))}
                                                     </div>

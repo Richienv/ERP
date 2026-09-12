@@ -3,6 +3,7 @@
 import { useReconciliation } from "@/hooks/use-reconciliation"
 import { BankReconciliationView } from "@/components/finance/bank-reconciliation-view"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
+import { InlinePendingBar } from "@/components/ui/inline-pending"
 import {
     createReconciliation,
     importBankStatementRows,
@@ -22,14 +23,15 @@ import {
 } from "@/lib/actions/finance-reconciliation"
 
 export default function ReconciliationPage() {
-    const { data, isLoading } = useReconciliation()
+    const { data, isFetching } = useReconciliation()
 
-    if (isLoading || !data) {
-        return <TablePageSkeleton accentColor="bg-purple-400" />
+    if (!data) {
+        return <TablePageSkeleton accentColor="bg-orange-400" />
     }
 
     return (
-        <div className="mf-page">
+        <div className="mf-page relative">
+            <InlinePendingBar active={isFetching} />
             <BankReconciliationView
                 reconciliations={data.reconciliations ?? []}
                 bankAccounts={data.bankAccounts ?? []}
