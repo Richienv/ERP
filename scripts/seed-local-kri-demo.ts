@@ -146,12 +146,100 @@ async function main() {
         })
     }
 
+    // PO 100 / GRN 60 / bill 100 → OVER_BILLED so Verifikasi 3 Arah is visible.
+    const matchPo = await prisma.purchaseOrder.upsert({
+        where: { number: "PO-DEMO-MATCH" },
+        create: {
+            number: "PO-DEMO-MATCH",
+            supplierId: supplier.id,
+            status: "PARTIAL_RECEIVED",
+            totalAmount: 42500000,
+            taxAmount: 4675000,
+            netAmount: 47175000,
+            items: {
+                create: [{
+                    productId: spare.id,
+                    quantity: 100,
+                    receivedQty: 60,
+                    unitPrice: 425000,
+                    totalPrice: 42500000,
+                }],
+            },
+        },
+        update: { status: "PARTIAL_RECEIVED" },
+    })
+    const matchPoItem = await prisma.purchaseOrderItem.findFirst({
+        where: { purchaseOrderId: matchPo.id, productId: spare.id },
+    })
+    if (matchPoItem && matchPoItem.receivedQty !== 60) {
+        await prisma.purchaseOrderItem.update({
+            where: { id: matchPoItem.id },
+            data: { receivedQty: 60, quantity: 100 },
+        })
+    }
+    if (matchPoItem) {
+        await prisma.goodsReceivedNote.upsert({
+            where: { number: "GRN-DEMO-MATCH" },
+            create: {
+                number: "GRN-DEMO-MATCH",
+                purchaseOrderId: matchPo.id,
+                warehouseId: warehouse.id,
+                status: "ACCEPTED",
+                acceptedAt: new Date(),
+                items: {
+                    create: [{
+                        poItemId: matchPoItem.id,
+                        productId: spare.id,
+                        quantityOrdered: 100,
+                        quantityReceived: 60,
+                        quantityAccepted: 60,
+                        unitCost: 425000,
+                    }],
+                },
+            },
+            update: { status: "ACCEPTED" },
+        })
+    }
+    const matchBill = await prisma.invoice.findFirst({ where: { number: "BILL-DEMO-MATCH" } })
+    if (!matchBill) {
+        await prisma.invoice.create({
+            data: {
+                number: "BILL-DEMO-MATCH",
+                type: "INV_IN",
+                supplierId: supplier.id,
+                purchaseOrderId: matchPo.id,
+                status: "DRAFT",
+                issueDate: new Date(),
+                dueDate: new Date(Date.now() + 7 * 86400000),
+                subtotal: 42500000,
+                taxAmount: 4675000,
+                totalAmount: 47175000,
+                balanceDue: 47175000,
+                items: {
+                    create: [{
+                        description: spare.name,
+                        quantity: 100,
+                        unitPrice: 425000,
+                        amount: 42500000,
+                        productId: spare.id,
+                    }],
+                },
+            },
+        })
+    } else if (!matchBill.purchaseOrderId) {
+        await prisma.invoice.update({
+            where: { id: matchBill.id },
+            data: { purchaseOrderId: matchPo.id, status: "DRAFT" },
+        })
+    }
+
     const { ensureSystemAccounts } = await import("../lib/gl-accounts-server")
     await ensureSystemAccounts()
 
     console.log("Local KRI demo seeded")
     console.log(`  user=${user.email} role=${user.role}`)
     console.log("  bill=BILL-DEMO-SETUJUI DRAFT")
+    console.log("  bill=BILL-DEMO-MATCH DRAFT (PO 100 / GRN 60 / bill 100)")
     console.log("  vehicle=KT 8801 TB (STNK habis, KIR ≤30 hari)")
     console.log("  vehicle=KT 8812 TB (asuransi habis, STNK ≤30 hari)")
 }
