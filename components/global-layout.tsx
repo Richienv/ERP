@@ -18,6 +18,7 @@ import { OfflineIndicator } from "@/components/offline-indicator"
 import { BackgroundRefresh } from "@/components/background-refresh"
 import { RealtimeProvider } from "@/components/realtime-provider"
 import { RouteProgress } from "@/components/route-progress"
+import { InPagePrefetch } from "@/components/in-page-prefetch"
 
 // Lazy-load non-critical shell components — these don't affect first paint
 const CommandPalette = dynamic(() => import("@/components/command-palette").then(m => ({ default: m.CommandPalette })), { ssr: false })
@@ -39,6 +40,7 @@ export function GlobalLayout({ children }: GlobalLayoutProps) {
     <AuthProvider>
       <AIProvider>
         <RouteProgress />
+        {!isAuthPage && <InPagePrefetch />}
         <RouteGuard>
           {isAuthPage ? (
             <main className="min-h-screen bg-zinc-100 dark:bg-zinc-950">

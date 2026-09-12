@@ -38,16 +38,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { searchCurrencies } from "@/lib/currency-search"
 import type { RankedCurrency } from "@/lib/currency-search"
 
-/* ─── Animation variants ─── */
-const stagger = {
-    hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { staggerChildren: 0.07 } },
-}
-const fadeUp = {
-    hidden: { opacity: 0, y: 14 },
-    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
-}
-
 function fmtRate(val: number | string) {
     return Number(val).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 4 })
 }
@@ -325,8 +315,7 @@ function CurrencyCard({ currency, onAddRate, onDelete }: { currency: Currency; o
     const latestRate = currency.rates[0]
 
     return (
-        <motion.div
-            variants={fadeUp}
+        <div
             className="border-2 border-black bg-white dark:bg-zinc-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden"
         >
             {/* Card header — black bar */}
@@ -388,11 +377,11 @@ function CurrencyCard({ currency, onAddRate, onDelete }: { currency: Currency; o
                     <table className="w-full text-xs">
                         <thead className="bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700 sticky top-0">
                             <tr>
-                                <th className="text-left px-3 py-1.5 font-black uppercase tracking-widest text-[10px] text-zinc-500">Tanggal</th>
-                                <th className="text-right px-3 py-1.5 font-black uppercase tracking-widest text-[10px] text-zinc-500">Beli</th>
-                                <th className="text-right px-3 py-1.5 font-black uppercase tracking-widest text-[10px] text-zinc-500">Jual</th>
-                                <th className="text-right px-3 py-1.5 font-black uppercase tracking-widest text-[10px] text-zinc-500">Tengah</th>
-                                <th className="text-center px-3 py-1.5 font-black uppercase tracking-widest text-[10px] text-zinc-500">Sumber</th>
+                                <th className="text-left px-3 py-1.5 font-black uppercase tracking-widest text-xs text-zinc-500">Tanggal</th>
+                                <th className="text-right px-3 py-1.5 font-black uppercase tracking-widest text-xs text-zinc-500">Beli</th>
+                                <th className="text-right px-3 py-1.5 font-black uppercase tracking-widest text-xs text-zinc-500">Jual</th>
+                                <th className="text-right px-3 py-1.5 font-black uppercase tracking-widest text-xs text-zinc-500">Tengah</th>
+                                <th className="text-center px-3 py-1.5 font-black uppercase tracking-widest text-xs text-zinc-500">Sumber</th>
                                 <th className="w-8"></th>
                             </tr>
                         </thead>
@@ -425,7 +414,7 @@ function CurrencyCard({ currency, onAddRate, onDelete }: { currency: Currency; o
                     </table>
                 </ScrollArea>
             )}
-        </motion.div>
+        </div>
     )
 }
 
@@ -444,9 +433,9 @@ export default function CurrenciesPage() {
     const totalRates = currencies.reduce((s, c) => s + c.rates.length, 0)
 
     return (
-        <motion.div className="mf-page" variants={stagger} initial="hidden" animate="show">
+        <div className="mf-page">
             {/* ─── Unified Page Header ─── */}
-            <motion.div variants={fadeUp} className={NB.pageCard}>
+            <div className={NB.pageCard}>
                 <div className={NB.pageAccent} />
 
                 {/* Row 1: Title + Actions */}
@@ -480,7 +469,7 @@ export default function CurrenciesPage() {
                     </div>
                     <div className="flex-1 px-4 py-3 flex items-center justify-between gap-3 cursor-default">
                         <div className="flex items-center gap-1.5">
-                            <span className="w-2 h-2 bg-blue-500" />
+                            <span className="w-2 h-2 bg-zinc-400" />
                             <span className={NB.kpiLabel}>Data Kurs</span>
                         </div>
                         <motion.span key={totalRates} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={NB.kpiCount}>{totalRates}</motion.span>
@@ -513,14 +502,11 @@ export default function CurrenciesPage() {
                         </div>
                     ))}
                 </div>
-            </motion.div>
+            </div>
 
             {/* ─── Currency Cards Grid ─── */}
             {currencies.length === 0 ? (
-                <motion.div
-                    variants={fadeUp}
-                    className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 p-12 text-center"
-                >
+                <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 p-12 text-center">
                     <div className="w-16 h-16 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center mx-auto mb-4">
                         <DollarSign className="h-7 w-7 text-zinc-200 dark:text-zinc-700" />
                     </div>
@@ -532,9 +518,9 @@ export default function CurrenciesPage() {
                     <Button className={NB.submitBtnOrange} onClick={() => setShowAddCurrency(true)}>
                         <Plus className="h-3.5 w-3.5 mr-1.5" /> Tambah Mata Uang Pertama
                     </Button>
-                </motion.div>
+                </div>
             ) : (
-                <motion.div variants={stagger} className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {currencies.map((c) => (
                         <CurrencyCard
                             key={c.id}
@@ -550,12 +536,12 @@ export default function CurrenciesPage() {
                             }}
                         />
                     ))}
-                </motion.div>
+                </div>
             )}
 
             {/* Dialogs */}
             <AddCurrencyDialog open={showAddCurrency} onOpenChange={setShowAddCurrency} />
             <AddRateDialog open={!!rateDialogCurrency} onOpenChange={(o) => !o && setRateDialogCurrency(null)} currency={rateDialogCurrency} />
-        </motion.div>
+        </div>
     )
 }

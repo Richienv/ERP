@@ -6,10 +6,10 @@ import { InventoryPerformanceProvider } from "@/components/inventory/inventory-p
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 
 export default function StockLevelPage() {
-    const { data, isLoading } = useProductsPage()
+    const { data } = useProductsPage()
 
-    if (isLoading || !data) {
-        return <TablePageSkeleton accentColor="bg-emerald-400" />
+    if (!data) {
+        return <TablePageSkeleton />
     }
 
     return (

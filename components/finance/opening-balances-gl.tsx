@@ -9,7 +9,6 @@ import { getGLAccountsList, postOpeningBalancesGL } from "@/lib/actions/finance-
 import type { OpeningBalanceGLRow } from "@/lib/actions/finance-gl"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
-import { motion, AnimatePresence } from "framer-motion"
 import { ComboboxWithCreate, type ComboboxOption } from "@/components/ui/combobox-with-create"
 
 interface GLAccountOption {
@@ -115,16 +114,12 @@ export function OpeningBalancesGL() {
 
             {/* Data Rows */}
             <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                <AnimatePresence>
                     {rows.map((row, idx) => {
                         const account = getAccountForCode(row.accountCode)
                         const badge = account ? TYPE_BADGE[account.type] : null
                         return (
-                            <motion.div
+                            <div
                                 key={idx}
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
                                 className="grid grid-cols-[36px_1fr_80px_170px_170px_36px] gap-0 items-center group hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors"
                             >
                                 <div className="px-2 py-2 text-[11px] text-zinc-300 font-black text-center">{idx + 1}</div>
@@ -180,10 +175,9 @@ export function OpeningBalancesGL() {
                                         <IconTrash size={13} />
                                     </button>
                                 </div>
-                            </motion.div>
+                            </div>
                         )
                     })}
-                </AnimatePresence>
             </div>
 
             {/* Totals Row */}
@@ -208,10 +202,8 @@ export function OpeningBalancesGL() {
                     </button>
 
                     {validRows.length > 0 && (
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border ${
+                        <div
+                            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-black uppercase tracking-wider border ${
                                 isBalanced
                                     ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800"
                                     : "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800"
@@ -219,7 +211,7 @@ export function OpeningBalancesGL() {
                         >
                             {isBalanced ? <IconCheck size={12} /> : <IconAlertTriangle size={12} />}
                             {isBalanced ? "Seimbang — siap posting" : `Selisih ${formatIDR(difference)}`}
-                        </motion.div>
+                        </div>
                     )}
                 </div>
 

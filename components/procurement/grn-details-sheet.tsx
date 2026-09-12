@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { CheckCircle2, XCircle, Package, Loader2, Calendar, User, Warehouse, Printer, AlertTriangle } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { NB } from "@/lib/dialog-styles"
@@ -57,6 +58,7 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
     const [sodMode, setSodMode] = useState(false)
     const [sodReason, setSodReason] = useState("")
     const queryClient = useQueryClient()
+    const router = useRouter()
 
     if (!grn) return null
 
@@ -81,7 +83,26 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
             const result = await acceptGRN(grn.id, sodMode ? sodReason : undefined)
 
             if (result.success) {
-                toast.success("Surat Jalan Masuk diterima dan stok diperbarui")
+                const billNumber = "billNumber" in result ? result.billNumber : undefined
+                const billAlreadyExists = "billAlreadyExists" in result && Boolean(result.billAlreadyExists)
+                const billed = billNumber
+                    ? billAlreadyExists
+                        ? `Bill ${billNumber} sudah ada`
+                        : `Draft bill ${billNumber} siap disetujui`
+                    : "Stok & jurnal GR/IR sudah masuk"
+                toast.success("Barang masuk diterima", {
+                    description: billed,
+                    ...(billNumber
+                        ? {
+                            action: {
+                                label: "Buka Tagihan",
+                                onClick: () => router.push(`/finance/bills?q=${encodeURIComponent(billNumber)}`),
+                            },
+                        }
+                        : {}),
+                })
+                queryClient.invalidateQueries({ queryKey: queryKeys.miningCommand.pulse() })
+                queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
                 setSodMode(false)
                 setSodReason("")
                 onClose()

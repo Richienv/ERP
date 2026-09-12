@@ -23,8 +23,10 @@ import {
     Banknote,
     Check,
     Minus,
+    GitCompare,
+    ShieldCheck,
+    ShieldAlert,
 } from "lucide-react"
-import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import {
     Dialog,
@@ -46,6 +48,9 @@ import { CheckboxFilter } from "@/components/ui/checkbox-filter"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { disputeBill, recordMultiBillPayment, type VendorBill } from "@/lib/actions/finance"
+import { moveInvoiceToSent } from "@/lib/actions/finance-invoices"
+import { getThreeWayMatch } from "@/lib/actions/finance-match"
+import { useBillMatch } from "@/hooks/use-bill-match"
 import { PaymentHistoryTable, type PaymentHistoryRow } from "@/components/finance/payment-history-table"
 import { processXenditPayout } from "@/lib/actions/xendit"
 import { formatIDR } from "@/lib/utils"
@@ -55,17 +60,8 @@ import { useBills, useBanks } from "@/hooks/use-bills"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
+import { InlinePendingBar } from "@/components/ui/inline-pending"
 import { useChartOfAccounts } from "@/hooks/use-chart-accounts"
-
-/* ─── Animation variants ─── */
-const fadeUp = {
-    hidden: { opacity: 0, y: 14 },
-    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
-}
-const fadeX = {
-    hidden: { opacity: 0, x: -12 },
-    show: { opacity: 1, x: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
-}
 
 export default function APBillsStackPage() {
     const router = useRouter()
@@ -80,7 +76,7 @@ export default function APBillsStackPage() {
         pageSize: Number(searchParams.get("size") || "20"),
     }
 
-    const { data: billsData, isLoading } = useBills(queryParams)
+    const { data: billsData, isLoading, isFetching } = useBills(queryParams)
     const { data: banksData } = useBanks()
 
     const bills = billsData?.rows ?? []
@@ -95,12 +91,19 @@ export default function APBillsStackPage() {
     const [activeBill, setActiveBill] = useState<VendorBill | null>(null)
     const [stamped, setStamped] = useState(false)
     const [processing, setProcessing] = useState(false)
+    const [approvingId, setApprovingId] = useState<string | null>(null)
     const [paymentPendingBillId, setPaymentPendingBillId] = useState<string | null>(null)
 
     const [isDetailOpen, setIsDetailOpen] = useState(false)
     const [isPayOpen, setIsPayOpen] = useState(false)
     const [isDisputeOpen, setIsDisputeOpen] = useState(false)
     const [disputeReason, setDisputeReason] = useState("")
+    const [approveAlasan, setApproveAlasan] = useState("")
+
+    const { data: billMatch, isLoading: matchLoading, isError: matchError } = useBillMatch(
+        activeBill?.id,
+        isDetailOpen && activeBill?.status === "DRAFT"
+    )
 
     const [paymentForm, setPaymentForm] = useState({
         bankCode: "",
@@ -241,6 +244,46 @@ export default function APBillsStackPage() {
         queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
     }
 
+    const invalidateAfterApprove = () => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.miningCommand.pulse() })
+    }
+
+    const handleApproveBill = async (bill: VendorBill) => {
+        if (!bill?.id || approvingId) return
+        setApprovingId(bill.id)
+        try {
+            const match = await queryClient.fetchQuery({
+                queryKey: queryKeys.bills.match(bill.id),
+                queryFn: () => getThreeWayMatch(bill.id),
+            })
+            let message: string | undefined
+            if (match.status === "OVER_BILLED") {
+                const reason = approveAlasan.trim()
+                if (reason.length < 10) {
+                    setActiveBill(bill)
+                    setIsDetailOpen(true)
+                    toast.error("Selisih penerimaan. Isi alasan persetujuan (min. 10 karakter).")
+                    return
+                }
+                message = reason
+            }
+            const result = await moveInvoiceToSent(bill.id, message)
+            if (result.success) {
+                toast.success(`${bill.number} berhasil disetujui`)
+                setIsDetailOpen(false)
+                setApproveAlasan("")
+                invalidateAfterApprove()
+            } else {
+                toast.error(("error" in result ? result.error : null) || "Gagal menyetujui tagihan")
+            }
+        } catch (err: any) {
+            toast.error(err?.message || "Gagal menyetujui tagihan")
+        } finally {
+            setApprovingId(null)
+        }
+    }
+
     const handleDisputeSubmit = async () => {
         if (!activeBill || !disputeReason.trim()) { toast.error("Masukkan alasan dispute"); return }
         setProcessing(true)
@@ -350,7 +393,15 @@ export default function APBillsStackPage() {
         }
     }
 
-    const openBillDetail = (bill: VendorBill) => { setActiveBill(bill); setStamped(false); setIsDetailOpen(true) }
+    const openBillDetail = (bill: VendorBill) => {
+        setActiveBill(bill)
+        setStamped(false)
+        setApproveAlasan("")
+        setIsDetailOpen(true)
+    }
+
+    const overBilledBlocked = billMatch?.status === "OVER_BILLED" && approveAlasan.trim().length < 10
+    const approveDisabled = !!approvingId || (activeBill?.status === "DRAFT" && (matchLoading || matchError || overBilledBlocked))
 
     // Separate active vs completed bills
     const activeBills = bills.filter((b) => b.status !== "PAID")
@@ -371,13 +422,13 @@ export default function APBillsStackPage() {
         switch (status) {
             case "PAID": return "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700"
             case "DISPUTED": return "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700"
-            case "PARTIAL": return "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border-blue-300 dark:border-blue-700"
+            case "PARTIAL": return "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-300 dark:border-zinc-700"
             case "DRAFT": return "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-700"
             default: return "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-300 dark:border-zinc-700"
         }
     }
 
-    if (isLoading) return <TablePageSkeleton accentColor="bg-orange-400" />
+    if (isLoading && !billsData) return <TablePageSkeleton accentColor="bg-orange-400" />
 
     return (
         <div className="mf-page">
@@ -404,19 +455,15 @@ export default function APBillsStackPage() {
             />
 
             {/* ─── Single unified card: KPI + Filter + Table ─── */}
-            <motion.div
-                variants={fadeUp}
-                initial="hidden"
-                animate="show"
-                className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden"
-            >
+            <div className="relative border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                <InlinePendingBar active={!!billsData && isFetching} />
                 {/* Row 1: Toolbar — Scan Bill button + count */}
                 <div className="px-5 py-2.5 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800">
                     <div className="flex items-center gap-3">
                         <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                             Tagihan Vendor
                         </span>
-                        <span className="text-[10px] font-mono font-bold text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5">
+                        <span className="text-xs font-mono font-bold text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5">
                             {billMeta.total}
                         </span>
                     </div>
@@ -428,42 +475,38 @@ export default function APBillsStackPage() {
                     </Button>
                 </div>
 
-                {/* Row 2: KPI Strip — big, colorful, attention-grabbing */}
-                <div className="grid grid-cols-4 border-b border-zinc-200 dark:border-zinc-800">
-                    {/* Total Tagihan */}
-                    <div className="px-5 py-4 border-r border-zinc-200 dark:border-zinc-800 bg-blue-50/50 dark:bg-blue-950/10">
-                        <div className="flex items-center gap-1.5 mb-1">
-                            <span className="w-2 h-2 bg-blue-500 rounded-full" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">Total Tagihan</span>
+                {/* Row 2: KPI Strip — zinc default, orange due-today, red overdue */}
+                <div className={`${NB.kpiStrip} border-b border-zinc-200 dark:border-zinc-800`}>
+                    <div className={NB.kpiCell}>
+                        <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 bg-zinc-400 rounded-full" />
+                            <span className={NB.kpiLabel}>Total Tagihan</span>
                         </div>
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-black text-blue-700 dark:text-blue-300 tabular-nums">{totalBills}</span>
-                            <span className="text-sm font-mono font-bold text-blue-500 dark:text-blue-400">{formatIDR(totalAmount)}</span>
+                        <div className="text-right">
+                            <span className={NB.kpiCount}>{totalBills}</span>
+                            <span className={`${NB.kpiAmount} block`}>{formatIDR(totalAmount)}</span>
                         </div>
                     </div>
-                    {/* Pending */}
-                    <div className="px-5 py-4 border-r border-zinc-200 dark:border-zinc-800">
-                        <div className="flex items-center gap-1.5 mb-1">
-                            <span className="w-2 h-2 bg-amber-500 rounded-full" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Pending</span>
+                    <div className={NB.kpiCell}>
+                        <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 bg-zinc-400 rounded-full" />
+                            <span className={NB.kpiLabel}>Pending</span>
                         </div>
-                        <span className="text-3xl font-black text-amber-600 dark:text-amber-400 tabular-nums">{pendingBills}</span>
+                        <span className={NB.kpiCount}>{pendingBills}</span>
                     </div>
-                    {/* Hari Ini / Due Today */}
-                    <div className={`px-5 py-4 border-r border-zinc-200 dark:border-zinc-800 ${dueTodayBills > 0 ? "bg-orange-50/50 dark:bg-orange-950/10" : ""}`}>
-                        <div className="flex items-center gap-1.5 mb-1">
+                    <div className={NB.kpiCell}>
+                        <div className="flex items-center gap-1.5">
                             <span className={`w-2 h-2 rounded-full ${dueTodayBills > 0 ? "bg-orange-500" : "bg-zinc-300"}`} />
-                            <span className={`text-[10px] font-black uppercase tracking-widest ${dueTodayBills > 0 ? "text-orange-600 dark:text-orange-400" : "text-zinc-400"}`}>Hari Ini</span>
+                            <span className={NB.kpiLabel}>Hari Ini</span>
                         </div>
-                        <span className={`text-3xl font-black tabular-nums ${dueTodayBills > 0 ? "text-orange-600 dark:text-orange-400" : "text-zinc-300 dark:text-zinc-600"}`}>{dueTodayBills}</span>
+                        <span className={`${NB.kpiCount} ${dueTodayBills > 0 ? "text-orange-600 dark:text-orange-400" : ""}`}>{dueTodayBills}</span>
                     </div>
-                    {/* Jatuh Tempo / Overdue */}
-                    <div className={`px-5 py-4 ${overdueBills > 0 ? "bg-red-50 dark:bg-red-950/20" : ""}`}>
-                        <div className="flex items-center gap-1.5 mb-1">
-                            <span className={`w-2 h-2 rounded-full ${overdueBills > 0 ? "bg-red-500 animate-pulse" : "bg-zinc-300"}`} />
-                            <span className={`text-[10px] font-black uppercase tracking-widest ${overdueBills > 0 ? "text-red-600 dark:text-red-400" : "text-zinc-400"}`}>Jatuh Tempo</span>
+                    <div className={NB.kpiCell}>
+                        <div className="flex items-center gap-1.5">
+                            <span className={`w-2 h-2 rounded-full ${overdueBills > 0 ? "bg-red-500" : "bg-zinc-300"}`} />
+                            <span className={NB.kpiLabel}>Jatuh Tempo</span>
                         </div>
-                        <span className={`text-3xl font-black tabular-nums ${overdueBills > 0 ? "text-red-600 dark:text-red-400" : "text-zinc-300 dark:text-zinc-600"}`}>{overdueBills}</span>
+                        <span className={`${NB.kpiCount} ${overdueBills > 0 ? "text-red-600 dark:text-red-400" : ""}`}>{overdueBills}</span>
                     </div>
                 </div>
 
@@ -507,7 +550,7 @@ export default function APBillsStackPage() {
                             <Filter className="h-3.5 w-3.5 mr-1.5" /> Terapkan
                         </Button>
                         {hasActiveFilters && (
-                            <Button variant="ghost" onClick={resetFilters} className="text-zinc-400 text-[10px] font-bold uppercase h-9 px-3 rounded-none hover:text-zinc-700 dark:hover:text-zinc-200 ml-1.5">
+                            <Button variant="ghost" onClick={resetFilters} className="text-zinc-400 text-xs font-bold uppercase h-9 px-3 rounded-none hover:text-zinc-700 dark:hover:text-zinc-200 ml-1.5">
                                 <RotateCcw className="h-3 w-3 mr-1" /> Reset
                             </Button>
                         )}
@@ -520,37 +563,29 @@ export default function APBillsStackPage() {
                 {/* ─── Table Header — black bar ─── */}
                 <div className="hidden md:grid grid-cols-[1fr_1.5fr_110px_100px_140px_110px] gap-2 px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black">
                     {["No. Bill", "Vendor", "Jatuh Tempo", "Status", "Jumlah", "Aksi"].map((h) => (
-                        <span key={h} className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{h}</span>
+                        <span key={h} className="text-xs font-black uppercase tracking-widest text-zinc-400">{h}</span>
                     ))}
                 </div>
 
                 {/* ─── Table Body (active bills only) ─── */}
                 <div className="min-h-[200px]">
                     {activeBills.length === 0 ? (
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="flex flex-col items-center justify-center py-16 text-zinc-400"
-                        >
+                        <div className="flex flex-col items-center justify-center py-16 text-zinc-400">
                             <div className="w-14 h-14 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-3">
                                 <CheckCircle2 className="h-6 w-6 text-zinc-200 dark:text-zinc-700" />
                             </div>
                             <span className="text-sm font-bold text-zinc-500 dark:text-zinc-400">Semua tagihan sudah terbayar</span>
                             <span className="text-xs text-zinc-400 mt-1">Tidak ada tagihan yang perlu diproses</span>
-                        </motion.div>
+                        </div>
                     ) : (
                         <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
                             {activeBills.map((bill, idx) => {
                                 const isOverdue = bill.isOverdue
                                 const billDueToday = (bill as any).isDueToday
                                 return (
-                                    <motion.div
+                                    <div
                                         key={bill.id}
-                                        variants={fadeX}
-                                        initial="hidden"
-                                        animate="show"
-                                        transition={{ delay: idx * 0.03 }}
-                                        className={`grid grid-cols-1 md:grid-cols-[1fr_1.5fr_110px_100px_140px_110px] gap-2 px-5 py-3 items-center transition-all hover:bg-orange-50/50 dark:hover:bg-orange-950/10 ${
+                                        className={`grid grid-cols-1 md:grid-cols-[1fr_1.5fr_110px_100px_140px_110px] gap-2 px-5 py-3 items-center hover:bg-orange-50/50 dark:hover:bg-orange-950/10 ${
                                             idx % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/60 dark:bg-zinc-800/20"
                                         } ${isOverdue ? "border-l-4 border-l-red-500" : billDueToday ? "border-l-4 border-l-orange-400" : ""}`}
                                     >
@@ -570,7 +605,7 @@ export default function APBillsStackPage() {
                                         </div>
                                         {/* Status */}
                                         <div>
-                                            <span className={`inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wide px-2 py-1 border rounded-none ${getStatusColor(bill.status, isOverdue, billDueToday)}`}>
+                                            <span className={`inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wide px-2 py-1 border rounded-none ${getStatusColor(bill.status, isOverdue, billDueToday)}`}>
                                                 <span className={`w-1.5 h-1.5 ${
                                                     isOverdue ? "bg-red-500" :
                                                     billDueToday ? "bg-orange-500" :
@@ -591,37 +626,48 @@ export default function APBillsStackPage() {
                                                 {formatIDR(bill.amount)}
                                             </span>
                                             {bill.balanceDue !== bill.amount && bill.balanceDue > 0 && (
-                                                <span className="text-[9px] text-zinc-400 block font-mono">Sisa {formatIDR(bill.balanceDue)}</span>
+                                                <span className="text-xs text-zinc-400 block font-mono">Sisa {formatIDR(bill.balanceDue)}</span>
                                             )}
                                         </div>
                                         {/* Actions */}
                                         <div className="flex gap-1 justify-end">
-                                            <motion.button
-                                                whileHover={{ y: -1 }}
-                                                whileTap={{ scale: 0.92 }}
+                                            <button
+                                                type="button"
                                                 onClick={() => openBillDetail(bill)}
                                                 title="Detail"
                                                 className="h-7 w-7 flex items-center justify-center border border-zinc-200 dark:border-zinc-600 text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:border-zinc-400 hover:text-zinc-600 transition-colors rounded-none"
                                             >
                                                 <Eye className="h-3 w-3" />
-                                            </motion.button>
+                                            </button>
                                             {["ISSUED", "PARTIAL", "OVERDUE"].includes(bill.status) && bill.balanceDue > 0 && (
-                                                <motion.button
-                                                    whileHover={{ y: -1 }}
-                                                    whileTap={{ scale: 0.92 }}
+                                                <button
+                                                    type="button"
                                                     onClick={() => { setActiveBill(bill); setStamped(false); setIsPayOpen(true) }}
                                                     disabled={!!paymentPendingBillId}
                                                     title="Bayar"
-                                                    className="h-7 px-2 flex items-center gap-1 border border-emerald-300 dark:border-emerald-600 text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:border-emerald-500 transition-colors rounded-none text-[9px] font-bold uppercase"
+                                                    className="h-7 px-2 flex items-center gap-1 border border-emerald-300 dark:border-emerald-600 text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:border-emerald-500 transition-colors rounded-none text-xs font-bold uppercase"
                                                 >
                                                     <CreditCard className="h-3 w-3" /> Bayar
-                                                </motion.button>
+                                                </button>
                                             )}
                                             {bill.status === "DRAFT" && (
-                                                <span className="text-[9px] italic text-zinc-400 dark:text-zinc-500 px-1">Perlu persetujuan</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleApproveBill(bill)}
+                                                    disabled={!!approvingId}
+                                                    title="Setujui"
+                                                    className={`${NB.toolbarBtnPrimary} ml-0 h-7 px-2 inline-flex items-center`}
+                                                >
+                                                    {approvingId === bill.id ? (
+                                                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                                    ) : (
+                                                        <Check className="h-3 w-3 mr-1" />
+                                                    )}
+                                                    Setujui
+                                                </button>
                                             )}
                                         </div>
-                                    </motion.div>
+                                    </div>
                                 )
                             })}
                         </div>
@@ -631,7 +677,7 @@ export default function APBillsStackPage() {
                 {/* Pagination footer */}
                 {billMeta.totalPages > 1 && (
                     <div className="px-5 py-3 border-t border-zinc-200 dark:border-zinc-700 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                        <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                             {billMeta.total} tagihan
                         </span>
                         <div className="flex items-center gap-2">
@@ -645,11 +691,14 @@ export default function APBillsStackPage() {
                         </div>
                     </div>
                 )}
-            </motion.div>
+            </div>
 
             {/* ═══ BILL DETAIL DIALOG ═══ */}
-            <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-                <DialogContent className={NB.contentNarrow}>
+            <Dialog open={isDetailOpen} onOpenChange={(open) => {
+                setIsDetailOpen(open)
+                if (!open) setApproveAlasan("")
+            }}>
+                <DialogContent className={NB.content}>
                     {activeBill && (<>
                         <DialogHeader className={NB.header}>
                             <div className="flex items-center justify-between">
@@ -667,13 +716,108 @@ export default function APBillsStackPage() {
                                 <div className="border-8 border-emerald-600 text-emerald-600 font-black text-5xl uppercase px-6 py-3 -rotate-12 opacity-70 tracking-widest">PAID</div>
                             </div>
                         )}
-                        <div className="px-6 py-5 space-y-4">
+                        <div className={`px-6 py-5 space-y-4 overflow-y-auto ${NB.scroll}`}>
                             <div className="grid grid-cols-2 gap-4">
                                 <div><label className={NB.label}>No. Invoice</label><p className="font-mono font-bold text-sm">{activeBill.number}</p></div>
                                 <div><label className={NB.label}>Jatuh Tempo</label><p className="font-bold text-sm">{new Date(activeBill.dueDate).toLocaleDateString("id-ID")}</p></div>
                                 <div><label className={NB.label}>Total Tagihan</label><p className="text-2xl font-black">{formatIDR(activeBill.amount)}</p></div>
                                 <div><label className={NB.label}>Sisa Bayar</label><p className="text-2xl font-black text-red-600">{formatIDR(activeBill.balanceDue)}</p></div>
                             </div>
+                            {activeBill.status === "DRAFT" && (
+                                <div className={NB.section}>
+                                    <div className={NB.sectionHead}>
+                                        <GitCompare className="h-3.5 w-3.5" />
+                                        <span className={NB.sectionTitle}>Verifikasi 3 Arah</span>
+                                        {billMatch?.poNumber && (
+                                            <span className={NB.sectionHint}>{billMatch.poNumber}</span>
+                                        )}
+                                    </div>
+                                    {matchLoading ? (
+                                        <div className="px-4 py-6 text-center text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                                            Memuat verifikasi PO ↔ GRN ↔ Bill…
+                                        </div>
+                                    ) : matchError ? (
+                                        <div className="px-4 py-4 text-[11px] font-bold text-red-600">
+                                            Gagal memuat verifikasi 3 arah. Tutup dan buka ulang detail.
+                                        </div>
+                                    ) : billMatch?.status === "NO_PO" ? (
+                                        <div className="px-4 py-3 text-[11px] font-bold text-zinc-500">
+                                            Tagihan manual — tidak terhubung ke PO
+                                        </div>
+                                    ) : billMatch ? (
+                                        <>
+                                            <div className={`px-4 py-2.5 flex items-center gap-2 text-[11px] font-black uppercase tracking-wider ${
+                                                billMatch.status === "MATCHED"
+                                                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
+                                                    : billMatch.status === "OVER_BILLED"
+                                                        ? "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400"
+                                                        : "bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-400"
+                                            }`}>
+                                                {billMatch.status === "MATCHED" ? (
+                                                    <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+                                                ) : (
+                                                    <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+                                                )}
+                                                {billMatch.status === "MATCHED"
+                                                    ? "Cocok — aman disetujui"
+                                                    : billMatch.status === "OVER_BILLED"
+                                                        ? `Selisih ${billMatch.totalVarianceQty} unit — ${formatIDR(billMatch.totalVarianceAmount)} ditagih tanpa barang`
+                                                        : "Penerimaan belum lengkap — tagihan sesuai barang diterima"}
+                                            </div>
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full">
+                                                    <thead>
+                                                        <tr className="bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700">
+                                                            <th className={`${NB.tableHeadCell} text-left`}>Barang</th>
+                                                            <th className={`${NB.tableHeadCell} text-right`}>Dipesan</th>
+                                                            <th className={`${NB.tableHeadCell} text-right`}>Diterima</th>
+                                                            <th className={`${NB.tableHeadCell} text-right`}>Ditagih</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {billMatch.lines.map((line, idx) => {
+                                                            const hasVariance = line.varianceQty !== 0
+                                                            return (
+                                                                <tr
+                                                                    key={`${line.productId ?? line.productName}-${idx}`}
+                                                                    className={`${NB.tableRow} ${hasVariance ? "bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400" : ""}`}
+                                                                >
+                                                                    <td className={NB.tableCell}>
+                                                                        <span className="font-bold">{line.productName}</span>
+                                                                        {line.productCode && (
+                                                                            <span className="block font-mono text-[10px] text-zinc-400">{line.productCode}</span>
+                                                                        )}
+                                                                    </td>
+                                                                    <td className={`${NB.tableCell} text-right font-mono`}>{line.ordered}</td>
+                                                                    <td className={`${NB.tableCell} text-right font-mono`}>{line.received}</td>
+                                                                    <td className={`${NB.tableCell} text-right font-mono font-black`}>{line.billed}</td>
+                                                                </tr>
+                                                            )
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            {billMatch.status === "OVER_BILLED" && (
+                                                <div className="p-4 border-t border-zinc-200 dark:border-zinc-700 space-y-1.5">
+                                                    <label className={NB.label}>
+                                                        Alasan menyetujui selisih <span className={NB.labelRequired}>*</span>
+                                                    </label>
+                                                    <Textarea
+                                                        placeholder="Contoh: sisa barang masih di jalan, tagihan sesuai kontrak..."
+                                                        value={approveAlasan}
+                                                        onChange={(e) => setApproveAlasan(e.target.value)}
+                                                        rows={3}
+                                                        className={`${NB.textarea} ${approveAlasan.trim() ? NB.inputActive : NB.inputEmpty}`}
+                                                    />
+                                                    <p className={NB.labelHint}>
+                                                        Wajib diisi (min. 10 karakter) sebelum Setujui — {approveAlasan.trim().length}/10
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </>
+                                    ) : null}
+                                </div>
+                            )}
                             {activeBill.vendor?.bankAccountNumber && (
                                 <div className={NB.section}>
                                     <div className={NB.sectionHead}><Building2 className="h-3.5 w-3.5" /><span className={NB.sectionTitle}>Info Bank Vendor</span></div>
@@ -693,8 +837,8 @@ export default function APBillsStackPage() {
                                         {activeBill.payments.map((p) => (
                                             <div key={p.id} className="px-4 py-2.5 flex items-center justify-between text-xs">
                                                 <div className="flex items-center gap-3">
-                                                    <span className={`text-[9px] font-bold uppercase px-2 py-0.5 border ${
-                                                        p.method === "TRANSFER" ? "border-blue-300 text-blue-600 bg-blue-50/50" :
+                                                    <span className={`text-xs font-bold uppercase px-2 py-0.5 border ${
+                                                        p.method === "TRANSFER" ? "border-zinc-300 text-zinc-600 bg-zinc-50" :
                                                         p.method === "CASH" ? "border-emerald-300 text-emerald-600 bg-emerald-50/50" :
                                                         "border-amber-300 text-amber-600 bg-amber-50/50"
                                                     }`}>{p.method}</span>
@@ -727,9 +871,17 @@ export default function APBillsStackPage() {
                                 </>
                             ) : activeBill.status === "DRAFT" ? (
                                 <>
-                                    <span className="text-[10px] italic text-zinc-400">Tagihan ini masih draft — perlu persetujuan sebelum dibayar</span>
                                     <Button variant="outline" onClick={() => setIsDetailOpen(false)} className={NB.cancelBtn}>
                                         Tutup
+                                    </Button>
+                                    <Button
+                                        onClick={() => handleApproveBill(activeBill)}
+                                        disabled={approveDisabled}
+                                        className={NB.submitBtnOrange}
+                                    >
+                                        {approvingId === activeBill.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        <Check className="mr-2 h-3.5 w-3.5" />
+                                        Setujui
                                     </Button>
                                 </>
                             ) : (

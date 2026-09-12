@@ -122,9 +122,9 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
     const getStatusStyle = (status: string) => {
         switch (status) {
             case 'COMPLETED': case 'RECEIVED':
-                return 'bg-zinc-100 text-zinc-600 border-zinc-300'
+                return 'bg-emerald-50 text-emerald-700 border-emerald-300'
             case 'ORDERED': case 'VENDOR_CONFIRMED': case 'SHIPPED': case 'SENT':
-                return 'bg-blue-50 text-blue-700 border-blue-300'
+                return 'bg-zinc-100 text-zinc-700 border-zinc-300'
             case 'APPROVED':
                 return 'bg-emerald-50 text-emerald-700 border-emerald-300'
             case 'PENDING_APPROVAL':
@@ -234,9 +234,9 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
 
             {/* ═══ COMMAND HEADER ═══ */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
-                <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-blue-400">
+                <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-orange-500">
                     <div className="flex items-center gap-3">
-                        <FileText className="h-5 w-5 text-blue-500" />
+                        <FileText className="h-5 w-5 text-orange-500" />
                         <div>
                             <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
                                 Pesanan Pembelian (PO)
@@ -261,7 +261,7 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
                                 ]
                                 exportToExcel(cols, filteredOrders as unknown as Record<string, unknown>[], { filename: "pesanan-pembelian" })
                             }}
-                            className="border-2 border-black font-bold uppercase text-[10px] tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all h-9 rounded-none"
+                            className="border-2 border-black font-bold uppercase text-xs tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all h-9 rounded-none"
                         >
                             <Download className="mr-2 h-3.5 w-3.5" /> Export
                         </Button>
@@ -275,40 +275,40 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
             <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
                 <div className="grid grid-cols-2 md:grid-cols-4">
                     <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-blue-400" />
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-orange-500" />
                         <div className="flex items-center gap-2 mb-2">
                             <ShoppingCart className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total PO</span>
+                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Total PO</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">{totalOrders}</div>
-                        <div className="text-[10px] font-bold text-blue-600 mt-1">Semua pesanan</div>
+                        <div className="text-xs font-bold text-orange-600 mt-1">Semua pesanan</div>
                     </div>
                     <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-amber-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <Clock className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Aktif</span>
+                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Aktif</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-amber-600">{activeOrders}</div>
-                        <div className="text-[10px] font-bold text-amber-600 mt-1">Dalam proses</div>
+                        <div className="text-xs font-bold text-amber-600 mt-1">Dalam proses</div>
                     </div>
                     <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <CheckCircle2 className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Disetujui</span>
+                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Disetujui</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-emerald-600">{approvedOrders}</div>
-                        <div className="text-[10px] font-bold text-emerald-600 mt-1">Siap kirim</div>
+                        <div className="text-xs font-bold text-emerald-600 mt-1">Siap kirim</div>
                     </div>
                     <div className="relative p-4 md:p-5">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <Truck className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Selesai</span>
+                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Selesai</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-600">{completedOrders}</div>
-                        <div className="text-[10px] font-bold text-zinc-500 mt-1">Diterima</div>
+                        <div className="text-xs font-bold text-zinc-500 mt-1">Diterima</div>
                     </div>
                 </div>
             </div>
@@ -330,7 +330,7 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
                             <button
                                 key={s}
                                 onClick={() => setFilterStatus(s)}
-                                className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all border-r border-black last:border-r-0 ${
+                                className={`px-3 py-2 text-xs font-black uppercase tracking-widest transition-all border-r border-black last:border-r-0 ${
                                     filterStatus === s
                                         ? "bg-black text-white"
                                         : "bg-white text-zinc-400 hover:bg-zinc-50"
@@ -340,7 +340,7 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
                             </button>
                         ))}
                     </div>
-                    <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hidden md:block">
+                    <div className="text-xs font-black uppercase tracking-widest text-zinc-400 hidden md:block">
                         {filteredOrders.length} pesanan
                     </div>
                 </div>
@@ -352,13 +352,13 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
                     <table className="w-full text-sm text-left">
                         <thead className="bg-zinc-50 dark:bg-zinc-800 border-b-2 border-black">
                             <tr>
-                                <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 w-[130px]">PO Number</th>
-                                <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Vendor</th>
-                                <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Tanggal</th>
-                                <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Req / Apprv</th>
-                                <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Status</th>
-                                <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Total</th>
-                                <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Action</th>
+                                <th className="h-10 px-4 text-xs font-black uppercase tracking-widest text-zinc-500 w-[130px]">PO Number</th>
+                                <th className="h-10 px-4 text-xs font-black uppercase tracking-widest text-zinc-500">Vendor</th>
+                                <th className="h-10 px-4 text-xs font-black uppercase tracking-widest text-zinc-500">Tanggal</th>
+                                <th className="h-10 px-4 text-xs font-black uppercase tracking-widest text-zinc-500">Req / Apprv</th>
+                                <th className="h-10 px-4 text-xs font-black uppercase tracking-widest text-zinc-500">Status</th>
+                                <th className="h-10 px-4 text-xs font-black uppercase tracking-widest text-zinc-500 text-right">Total</th>
+                                <th className="h-10 px-4 text-xs font-black uppercase tracking-widest text-zinc-500 text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -372,7 +372,7 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
                                             : ""
                                     }`}
                                 >
-                                    <td className="p-4 font-bold text-xs text-blue-600">{po.id}</td>
+                                    <td className="p-4 font-bold text-xs text-zinc-800 dark:text-zinc-200">{po.id}</td>
                                     <td className="p-4">
                                         <div className="font-bold text-xs text-zinc-900 dark:text-white">{po.vendor}</div>
                                         <div className="text-[10px] text-zinc-400 font-medium uppercase mt-0.5 flex items-center gap-1">
@@ -416,7 +416,7 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
                                             </a>
                                             {/* Status-specific action */}
                                             {po.status === 'PO_DRAFT' ? (
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white border border-blue-200" title="Finalisasi PO" onClick={(e) => { e.stopPropagation(); setFinalizePO(po) }}>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 bg-orange-50 text-orange-600 hover:bg-orange-500 hover:text-white border border-orange-200" title="Finalisasi PO" onClick={(e) => { e.stopPropagation(); setFinalizePO(po) }}>
                                                     <ArrowRight className="h-3.5 w-3.5" />
                                                 </Button>
                                             ) : po.status === 'PENDING_APPROVAL' ? (
@@ -467,7 +467,7 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
                                 <tr>
                                     <td colSpan={7} className="p-12 text-center">
                                         <FileText className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Tidak ada pesanan yang ditemukan</p>
+                                        <p className="text-xs font-black uppercase tracking-widest text-zinc-400">Tidak ada pesanan yang ditemukan</p>
                                     </td>
                                 </tr>
                             )}
@@ -524,14 +524,14 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
                     <Button
                         variant="outline"
                         onClick={() => setContactInput(null)}
-                        className="border border-zinc-300 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none"
+                        className="border border-zinc-300 text-zinc-500 font-bold uppercase text-xs tracking-wider px-4 h-8 rounded-none"
                     >
                         Batal
                     </Button>
                     <Button
                         onClick={handleContactSubmit}
                         disabled={!contactInput?.value || (contactInput?.channel === "whatsapp" ? contactInput.value.replace(/\D/g, "").length < 10 : !contactInput.value.includes("@"))}
-                        className="bg-emerald-600 text-white border border-emerald-700 hover:bg-emerald-700 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none gap-1.5 disabled:opacity-50 transition-colors"
+                        className="bg-emerald-600 text-white border border-emerald-700 hover:bg-emerald-700 font-black uppercase text-xs tracking-wider px-5 h-8 rounded-none gap-1.5 disabled:opacity-50 transition-colors"
                     >
                         {contactInput?.channel === "whatsapp" ? (
                             <><MessageSquare className="h-3.5 w-3.5" /> Kirim WhatsApp</>

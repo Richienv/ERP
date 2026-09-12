@@ -90,6 +90,25 @@ export type BankChannel = typeof BANK_CHANNELS[keyof typeof BANK_CHANNELS];
 
 ## 💸 **Step 3: Create Payout API Route**
 
+> ### ⛔ DO NOT COPY THE SNIPPET BELOW AS-IS
+>
+> `app/api/xendit/payout/route.ts` **was deleted on 2026-07-27 because it was a
+> critical vulnerability.** As written below it has **no authentication**, no upper
+> bound on `amount`, and spreads caller-supplied `metadata` into the Xendit payload —
+> i.e. anyone on the internet could disburse funds to any bank account. Because
+> `middleware.ts` excludes `/api/`, nothing gates it.
+>
+> **Do not recreate this route.** Payouts already have a safe path:
+> `processXenditPayout()` in `lib/actions/xendit.ts`, invoked as a server action from
+> the finance UI.
+>
+> If a payout HTTP endpoint is ever genuinely required, it must: authenticate the
+> session, assert a finance/treasury role, derive `amount` and `accountNumber`
+> **server-side from the bill being paid** (never from the request body), validate
+> with a Zod schema including a maximum amount, and write an audit record.
+>
+> The snippet below is retained only as a reference for the Xendit SDK call shape.
+
 Create `app/api/xendit/payout/route.ts` (App Router):
 
 ```typescript

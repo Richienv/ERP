@@ -2,27 +2,18 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
-import { getWeeklyShiftSchedule, getEmployeeShifts } from "@/lib/actions/hcm-shifts"
+import { CACHE_TIERS } from "@/lib/cache-tiers"
 
-function getCurrentWeekStart() {
-    const today = new Date()
-    const dayOfWeek = today.getDay()
-    const monday = new Date(today)
-    monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7))
-    return monday.toISOString().split("T")[0]
+export async function fetchShiftsPage() {
+    const res = await fetch("/api/hcm/shifts-data")
+    if (!res.ok) throw new Error("Failed to fetch shifts")
+    return res.json()
 }
 
 export function useShifts() {
-    const weekStart = getCurrentWeekStart()
-
     return useQuery({
         queryKey: queryKeys.hcmShifts.list(),
-        queryFn: async () => {
-            const [schedule, employees] = await Promise.all([
-                getWeeklyShiftSchedule(weekStart),
-                getEmployeeShifts(),
-            ])
-            return { schedule, employees, currentWeekStart: weekStart }
-        },
+        queryFn: fetchShiftsPage,
+        ...CACHE_TIERS.MASTER_PLUS,
     })
 }

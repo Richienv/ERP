@@ -17,6 +17,9 @@ import type { StaffActivityRow } from "@/components/hcm/detailed-staff-activity"
 import { DetailedPerformanceTable } from "@/components/hcm/detailed-performance-table"
 import type { PerformanceRow } from "@/components/hcm/detailed-performance-table"
 import { queryKeys } from "@/lib/query-keys"
+import { CACHE_TIERS } from "@/lib/cache-tiers"
+import { CommandPulse, MiningSnapshotStrip } from "@/components/mining/command-pulse"
+import { InlinePendingBar } from "@/components/ui/inline-pending"
 
 interface HCMDashboardData {
   attendance: {
@@ -82,17 +85,18 @@ const fallbackData: HCMDashboardData = {
 export default function HCMPage() {
   const queryClient = useQueryClient()
 
-  const { data, isLoading, isRefetching } = useQuery({
+  const { data, isLoading, isRefetching, isFetching } = useQuery({
     queryKey: queryKeys.hcmDashboard.list(),
     queryFn: async () => {
       const res = await fetch("/api/hcm/dashboard-data")
       if (!res.ok) throw new Error("Failed to fetch HCM dashboard data")
       return res.json() as Promise<HCMDashboardData>
     },
+    ...CACHE_TIERS.DASHBOARD,
   })
 
   // Fetch detailed attendance snapshot for staff activity & performance tables
-  const { data: snapshot } = useQuery({
+  const { data: snapshot, isFetching: snapshotFetching } = useQuery({
     queryKey: [...queryKeys.hcmAttendance.all, "snapshot"],
     queryFn: async () => {
       const res = await fetch("/api/hcm/attendance-snapshot")
@@ -114,6 +118,7 @@ export default function HCMPage() {
         departments: string[]
       }>
     },
+    ...CACHE_TIERS.REALTIME,
   })
 
   const dashboardData = data ?? fallbackData
@@ -167,7 +172,15 @@ export default function HCMPage() {
   const totalPresent = staffRows.filter((s) => s.status === "PRESENT" || s.status === "REMOTE").length
 
   return (
-    <div className="flex-1 min-h-screen space-y-6 bg-zinc-50/50 p-4 pt-6 dark:bg-black md:p-8">
+    <div className="relative flex-1 min-h-screen space-y-6 bg-zinc-50/50 p-4 pt-6 dark:bg-black md:p-8">
+      <InlinePendingBar active={(!!data && isFetching) || (!!snapshot && snapshotFetching)} />
+      <CommandPulse
+        module="hcm"
+        compact
+        title="Gaji yang masuk jurnal"
+        subtitle="Posting payroll termasuk BPJS perusahaan — jangan biarkan beban tertinggal"
+      />
+      <MiningSnapshotStrip highlight={["payrollCompanyCost", "cash"]} />
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Sumber Daya Manusia (SDM)</h2>

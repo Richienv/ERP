@@ -1129,7 +1129,7 @@ export async function generateInvoiceFromSalesOrder(salesOrderId: string) {
                     message: `Invoice ${(result as any).existingInvoiceNumber} already exists`
                 }
             }
-            return { success: false, error: result.error }
+            return { success: false, error: 'error' in result ? result.error : "Gagal membuat invoice" }
         }
 
         // Optionally update SO status to INVOICED
@@ -1140,11 +1140,16 @@ export async function generateInvoiceFromSalesOrder(salesOrderId: string) {
             })
         })
 
+        // `success` is a plain boolean on the action's return type and therefore
+        // cannot narrow the union — read the payload through an `in` guard.
+        const invoiceId = 'invoiceId' in result ? result.invoiceId : undefined
+        const invoiceNumber = 'invoiceNumber' in result ? result.invoiceNumber : undefined
+
         return {
             success: true,
-            invoiceId: result.invoiceId,
-            invoiceNumber: result.invoiceNumber,
-            message: `Invoice ${result.invoiceNumber} created successfully`
+            invoiceId,
+            invoiceNumber,
+            message: `Invoice ${invoiceNumber} created successfully`
         }
     } catch (error: any) {
         console.error("Failed to generate invoice:", error)

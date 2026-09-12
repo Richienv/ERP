@@ -11,6 +11,7 @@ import { useFinanceDashboard } from "@/hooks/use-finance-dashboard"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 import { AccountingModuleActions } from "@/components/finance/accounting-module-actions"
 import { CashFlowChart } from "@/components/finance/cash-flow-chart"
+import { CommandPulse, MiningMoneyLoop, MiningSnapshotStrip } from "@/components/mining/command-pulse"
 import { formatCompactNumber, formatIDR } from "@/lib/utils"
 
 export default function FinanceDashboardPage() {
@@ -24,6 +25,13 @@ export default function FinanceDashboardPage() {
 
     return (
         <div className="mf-page">
+
+            <CommandPulse
+                title="Finance Command — langkah yang menggerakkan buku"
+                subtitle="Invoice pelanggan, bill vendor, gaji, dan armada. Satu klik, jurnal ikut."
+            />
+            <MiningMoneyLoop />
+            <MiningSnapshotStrip />
 
             {/* COMMAND HEADER */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
@@ -62,7 +70,7 @@ export default function FinanceDashboardPage() {
                         <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <Wallet className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Posisi Kas</span>
+                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Posisi Kas</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-emerald-600">
                             Rp {formatCompactNumber(metrics.cashBalance)}
@@ -77,7 +85,7 @@ export default function FinanceDashboardPage() {
                         <div className="absolute top-0 left-0 right-0 h-1 bg-orange-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <FileText className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Piutang (AR)</span>
+                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Piutang (AR)</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-orange-600">
                             Rp {formatCompactNumber(metrics.receivables)}
@@ -92,7 +100,7 @@ export default function FinanceDashboardPage() {
                         <div className="absolute top-0 left-0 right-0 h-1 bg-red-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <CreditCard className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Utang (AP)</span>
+                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Utang (AP)</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-red-600">
                             Rp {formatCompactNumber(metrics.payables)}
@@ -107,7 +115,7 @@ export default function FinanceDashboardPage() {
                         <div className="absolute top-0 left-0 right-0 h-1 bg-amber-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <PiggyBank className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Laba Bersih (YTD)</span>
+                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Laba Bersih (YTD)</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-amber-600">
                             {metrics.netMargin}%

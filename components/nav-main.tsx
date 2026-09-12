@@ -25,20 +25,26 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 
-/* ── Accent color mapping ──────────────────────────────── */
-const accentMap: Record<string, { bg: string; text: string; border: string; borderLight: string; light: string; dot: string }> = {
-  "bg-blue-500":   { bg: "bg-blue-500",   text: "text-blue-600 dark:text-blue-400",   border: "border-blue-500",   borderLight: "border-blue-200 dark:border-blue-800",   light: "bg-blue-50 dark:bg-blue-950/40",   dot: "bg-blue-400" },
-  "bg-green-500":  { bg: "bg-green-500",  text: "text-green-600 dark:text-green-400",  border: "border-green-500",  borderLight: "border-green-200 dark:border-green-800",  light: "bg-green-50 dark:bg-green-950/40",  dot: "bg-green-400" },
-  "bg-orange-500": { bg: "bg-orange-500", text: "text-orange-600 dark:text-orange-400", border: "border-orange-500", borderLight: "border-orange-200 dark:border-orange-800", light: "bg-orange-50 dark:bg-orange-950/40", dot: "bg-orange-400" },
-  "bg-purple-500": { bg: "bg-purple-500", text: "text-purple-600 dark:text-purple-400", border: "border-purple-500", borderLight: "border-purple-200 dark:border-purple-800", light: "bg-purple-50 dark:bg-purple-950/40", dot: "bg-purple-400" },
-  "bg-slate-500":  { bg: "bg-slate-500",  text: "text-slate-600 dark:text-slate-400",  border: "border-slate-500",  borderLight: "border-slate-200 dark:border-slate-700",  light: "bg-slate-50 dark:bg-slate-900/40",  dot: "bg-slate-400" },
-  "bg-amber-700":  { bg: "bg-amber-600",  text: "text-amber-700 dark:text-amber-400",  border: "border-amber-600",  borderLight: "border-amber-200 dark:border-amber-800",  light: "bg-amber-50 dark:bg-amber-950/40",  dot: "bg-amber-400" },
-  "bg-zinc-400":   { bg: "bg-zinc-400",   text: "text-zinc-500 dark:text-zinc-400",   border: "border-zinc-400",   borderLight: "border-zinc-200 dark:border-zinc-700",   light: "bg-zinc-50 dark:bg-zinc-800/40",   dot: "bg-zinc-400" },
+/* ── 80/20 accent: zinc default, orange only when the group is active ── */
+const ZINC_ACCENT = {
+  bg: "bg-zinc-800",
+  text: "text-zinc-800 dark:text-zinc-100",
+  border: "border-zinc-800 dark:border-zinc-200",
+  borderLight: "border-zinc-200 dark:border-zinc-700",
+  light: "bg-zinc-50 dark:bg-zinc-800/50",
+  dot: "bg-zinc-400",
 }
-const defaultAccent = { bg: "bg-zinc-800", text: "text-zinc-600", border: "border-zinc-800", borderLight: "border-zinc-200 dark:border-zinc-700", light: "bg-zinc-50", dot: "bg-zinc-400" }
+const ORANGE_ACCENT = {
+  bg: "bg-orange-500",
+  text: "text-orange-700 dark:text-orange-400",
+  border: "border-orange-500",
+  borderLight: "border-orange-200 dark:border-orange-900",
+  light: "bg-orange-50 dark:bg-orange-950/30",
+  dot: "bg-orange-500",
+}
 
-function getAccent(accentColor?: string) {
-  return accentColor ? (accentMap[accentColor] || defaultAccent) : defaultAccent
+function accentFor(active: boolean) {
+  return active ? ORANGE_ACCENT : ZINC_ACCENT
 }
 
 export function NavMain({ items }: { items: SidebarNavItem[] }) {
@@ -67,7 +73,7 @@ export function NavMain({ items }: { items: SidebarNavItem[] }) {
           {items.map((item) => {
             const isActive = isPathActive(item.url)
             const hasSubItems = item.items && item.items.length > 0
-            const accent = getAccent(item.accentColor)
+            const accent = accentFor(isActive)
 
             if (hasSubItems) {
               if (item.locked) {
@@ -129,7 +135,7 @@ export function NavMain({ items }: { items: SidebarNavItem[] }) {
                               {subItem.group && (
                                 <div className="flex items-center gap-2 px-2.5 pt-3 pb-1">
                                   <div className={`size-1.5 rounded-full ${accent.dot}`} />
-                                  <p className={`text-[10px] font-bold uppercase tracking-wider ${accent.text} opacity-70`}>
+                                  <p className={`text-xs font-bold uppercase tracking-wider ${accent.text} opacity-70`}>
                                     {subItem.group}
                                   </p>
                                   <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
@@ -212,7 +218,7 @@ export function NavMain({ items }: { items: SidebarNavItem[] }) {
                                   {showGroupHeader && (
                                     <div className={`flex items-center gap-2 px-2.5 ${isFirstGroup ? "pt-1.5 pb-1.5" : "pt-4 pb-1.5"}`}>
                                       <div className={`size-1.5 rounded-full ${accent.dot}`} />
-                                      <span className={`text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${accent.text} opacity-70`}>{subItem.group}</span>
+                                      <span className={`text-xs font-bold uppercase tracking-wider whitespace-nowrap ${accent.text} opacity-70`}>{subItem.group}</span>
                                       {!isFirstGroup && <div className={`flex-1 h-px ${accent.bg} opacity-20`} />}
                                     </div>
                                   )}
@@ -230,7 +236,7 @@ export function NavMain({ items }: { items: SidebarNavItem[] }) {
                                 {showGroupHeader && (
                                   <div className={`flex items-center gap-2 px-2.5 ${isFirstGroup ? "pt-1.5 pb-1.5" : "pt-4 pb-1.5"}`}>
                                     <div className={`size-1.5 rounded-full ${accent.dot}`} />
-                                    <span className={`text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${accent.text} opacity-70`}>{subItem.group}</span>
+                                    <span className={`text-xs font-bold uppercase tracking-wider whitespace-nowrap ${accent.text} opacity-70`}>{subItem.group}</span>
                                     {!isFirstGroup && <div className={`flex-1 h-px ${accent.bg} opacity-20`} />}
                                   </div>
                                 )}

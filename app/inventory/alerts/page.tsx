@@ -1,27 +1,57 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
     AlertTriangle,
     Search,
     CheckCircle2,
     ChevronLeft,
     ChevronRight,
-    Loader2,
     ExternalLink,
     ShieldAlert,
+    ShoppingBag,
     TrendingDown,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useProductsPage } from "@/hooks/use-products-query";
 import { TablePageSkeleton } from "@/components/ui/page-skeleton";
+import { PurchaseRequestDialog } from "@/components/inventory/purchase-request-dialog";
+import { NB } from "@/lib/dialog-styles";
 
 const PAGE_SIZE = 10;
 
+function toPrItem(product: any) {
+    const gap = Math.max(0, (product.minStock ?? 0) - (product.currentStock ?? 0));
+    return {
+        id: product.id,
+        name: product.name,
+        sku: product.code ?? "",
+        category: product.category?.name ?? "",
+        unit: product.unit || "PCS",
+        cost: Number(product.costPrice ?? 0),
+        gap,
+        reorderPoint: Number(product.minStock ?? 0),
+        currentStock: Number(product.currentStock ?? 0),
+    };
+}
+
 export default function StockAlertsPage() {
-    const { data, isLoading } = useProductsPage();
+    return (
+        <Suspense fallback={<TablePageSkeleton />}>
+            <StockAlertsInner />
+        </Suspense>
+    );
+}
+
+function StockAlertsInner() {
+    const { data } = useProductsPage();
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
+    const [prProduct, setPrProduct] = useState<any | null>(null);
 
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState<"ALL" | "CRITICAL" | "LOW_STOCK">("ALL");
@@ -58,7 +88,14 @@ export default function StockAlertsPage() {
     const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
     const pagedItems = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
-    if (isLoading || !data) return <TablePageSkeleton accentColor="bg-rose-400" />;
+    useEffect(() => {
+        const buat = searchParams.get("buat");
+        if (!buat || !data?.products) return;
+        const found = data.products.find((p: any) => p.id === buat);
+        if (found) setPrProduct(found);
+    }, [data?.products, searchParams]);
+
+    if (!data) return <TablePageSkeleton />;
 
     return (
         <div className="mf-page">
@@ -67,9 +104,9 @@ export default function StockAlertsPage() {
             {/* COMMAND HEADER                              */}
             {/* ═══════════════════════════════════════════ */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
-                <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-rose-400">
+                <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-orange-500">
                     <div className="flex items-center gap-3">
-                        <AlertTriangle className="h-5 w-5 text-rose-500" />
+                        <AlertTriangle className="h-5 w-5 text-orange-500" />
                         <div>
                             <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
                                 Peringatan Stok
@@ -92,13 +129,13 @@ export default function StockAlertsPage() {
                         <div className="absolute top-0 left-0 right-0 h-1 bg-red-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <ShieldAlert className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Kritis</span>
+                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Kritis</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-red-600">
                             {criticalCount}
                         </div>
                         <div className="flex items-center gap-1 mt-1.5">
-                            <span className="text-[10px] font-bold text-red-600">Perlu tindakan segera</span>
+                            <span className="text-xs font-bold text-red-600">Perlu tindakan segera</span>
                         </div>
                     </div>
 
@@ -107,28 +144,28 @@ export default function StockAlertsPage() {
                         <div className="absolute top-0 left-0 right-0 h-1 bg-amber-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <TrendingDown className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Stok Rendah</span>
+                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Stok Rendah</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-amber-600">
                             {lowStockCount}
                         </div>
                         <div className="flex items-center gap-1 mt-1.5">
-                            <span className="text-[10px] font-bold text-amber-600">Segera restock</span>
+                            <span className="text-xs font-bold text-amber-600">Segera restock</span>
                         </div>
                     </div>
 
                     {/* Total Peringatan */}
                     <div className="relative p-4 md:p-5">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-rose-400" />
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <AlertTriangle className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Peringatan</span>
+                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Total Peringatan</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">
                             {alertProducts.length}
                         </div>
                         <div className="flex items-center gap-1 mt-1.5">
-                            <span className="text-[10px] font-bold text-zinc-500">Semua peringatan aktif</span>
+                            <span className="text-xs font-bold text-zinc-500">Semua peringatan aktif</span>
                         </div>
                     </div>
                 </div>
@@ -154,7 +191,7 @@ export default function StockAlertsPage() {
                             <button
                                 key={s}
                                 onClick={() => { setStatusFilter(s); setPage(0); }}
-                                className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all border-r border-black last:border-r-0 ${statusFilter === s
+                                className={`px-3 py-2 text-xs font-black uppercase tracking-widest transition-all border-r border-black last:border-r-0 ${statusFilter === s}
                                         ? "bg-black text-white"
                                         : "bg-white text-zinc-400 hover:bg-zinc-50"
                                     }`}
@@ -163,7 +200,7 @@ export default function StockAlertsPage() {
                             </button>
                         ))}
                     </div>
-                    <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hidden md:block">
+                    <div className="text-xs font-black uppercase tracking-widest text-zinc-400 hidden md:block">
                         {filtered.length} hasil
                     </div>
                 </div>
@@ -174,12 +211,12 @@ export default function StockAlertsPage() {
             {/* ═══════════════════════════════════════════ */}
             <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
                 {/* Section Header */}
-                <div className="bg-rose-50 dark:bg-rose-950/20 px-4 py-2.5 border-b-2 border-black flex items-center justify-between border-l-[5px] border-l-rose-400">
+                <div className="bg-zinc-50 dark:bg-zinc-800 px-4 py-2.5 border-b-2 border-black flex items-center justify-between border-l-[5px] border-l-orange-500">
                     <div className="flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4 text-rose-600" />
-                        <span className="text-xs font-black uppercase tracking-widest text-rose-800">Daftar Peringatan Stok</span>
+                        <AlertTriangle className="h-4 w-4 text-orange-500" />
+                        <span className="text-xs font-black uppercase tracking-widest text-zinc-800 dark:text-zinc-200">Daftar Peringatan Stok</span>
                     </div>
-                    <span className="text-[10px] font-black bg-rose-200 text-rose-800 border border-rose-300 px-2 py-0.5">
+                    <span className="text-xs font-black bg-zinc-200 text-zinc-800 border border-zinc-300 px-2 py-0.5">
                         {filtered.length}
                     </span>
                 </div>
@@ -189,13 +226,13 @@ export default function StockAlertsPage() {
                     <table className="w-full text-sm text-left">
                         <thead>
                             <tr className="bg-zinc-100 dark:bg-zinc-800 border-b-2 border-black">
-                                <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-500">Kode</th>
-                                <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-500">Nama Produk</th>
-                                <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-center">Stok Saat Ini</th>
-                                <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-center">Min Stok</th>
-                                <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-center">Selisih</th>
-                                <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-center">Status</th>
-                                <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-center">Aksi</th>
+                                <th className="px-4 py-3 text-xs font-black uppercase tracking-widest text-zinc-500">Kode</th>
+                                <th className="px-4 py-3 text-xs font-black uppercase tracking-widest text-zinc-500">Nama Produk</th>
+                                <th className="px-4 py-3 text-xs font-black uppercase tracking-widest text-zinc-500 text-center">Stok Saat Ini</th>
+                                <th className="px-4 py-3 text-xs font-black uppercase tracking-widest text-zinc-500 text-center">Min Stok</th>
+                                <th className="px-4 py-3 text-xs font-black uppercase tracking-widest text-zinc-500 text-center">Selisih</th>
+                                <th className="px-4 py-3 text-xs font-black uppercase tracking-widest text-zinc-500 text-center">Status</th>
+                                <th className="px-4 py-3 text-xs font-black uppercase tracking-widest text-zinc-500 text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -203,7 +240,7 @@ export default function StockAlertsPage() {
                                 <tr>
                                     <td colSpan={7} className="p-12 text-center">
                                         <CheckCircle2 className="h-8 w-8 mx-auto text-emerald-400 mb-2" />
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                                        <p className="text-xs font-black uppercase tracking-widest text-zinc-400">
                                             Semua stok dalam kondisi baik!
                                         </p>
                                     </td>
@@ -213,7 +250,7 @@ export default function StockAlertsPage() {
                                 return (
                                     <tr
                                         key={product.id}
-                                        className={`border-b border-zinc-100 last:border-b-0 hover:bg-rose-50/50 transition-colors ${idx % 2 === 1 ? "bg-zinc-50/50" : ""
+                                        className={`border-b border-zinc-100 last:border-b-0 hover:bg-zinc-50/80 transition-colors ${idx % 2 === 1 ? "bg-zinc-50/50" : ""
                                             }`}
                                     >
                                         {/* Kode */}
@@ -229,7 +266,7 @@ export default function StockAlertsPage() {
                                                 {product.name}
                                             </div>
                                             {product.category?.name && (
-                                                <span className="inline-block mt-1 text-[10px] font-black bg-zinc-100 border border-zinc-200 text-zinc-600 px-1.5 py-0.5">
+                                                <span className="inline-block mt-1 text-xs font-black bg-zinc-100 border border-zinc-200 text-zinc-600 px-1.5 py-0.5">
                                                     {product.category.name}
                                                 </span>
                                             )}
@@ -259,11 +296,11 @@ export default function StockAlertsPage() {
                                         {/* Status */}
                                         <td className="px-4 py-3 text-center">
                                             {product.status === "CRITICAL" ? (
-                                                <span className="inline-block bg-red-50 text-red-700 border-2 border-red-600 text-[10px] font-black uppercase tracking-wider px-2.5 py-1">
+                                                <span className="inline-block bg-red-50 text-red-700 border-2 border-red-600 text-xs font-black uppercase tracking-wider px-2.5 py-1">
                                                     KRITIS
                                                 </span>
                                             ) : (
-                                                <span className="inline-block bg-amber-50 text-amber-700 border-2 border-amber-600 text-[10px] font-black uppercase tracking-wider px-2.5 py-1">
+                                                <span className="inline-block bg-amber-50 text-amber-700 border-2 border-amber-600 text-xs font-black uppercase tracking-wider px-2.5 py-1">
                                                     RENDAH
                                                 </span>
                                             )}
@@ -271,16 +308,26 @@ export default function StockAlertsPage() {
 
                                         {/* Aksi */}
                                         <td className="px-4 py-3 text-center">
-                                            <Link href={`/inventory/products/${product.id}`}>
+                                            <div className="flex flex-col sm:flex-row items-center justify-center gap-1">
                                                 <Button
-                                                    variant="outline"
                                                     size="sm"
-                                                    className="border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all text-[10px] font-black uppercase tracking-wider h-8 px-3"
+                                                    onClick={() => setPrProduct(product)}
+                                                    className={`${NB.toolbarBtnPrimary} ml-0 h-8 px-3 text-[10px]`}
                                                 >
-                                                    <ExternalLink className="mr-1.5 h-3 w-3" />
-                                                    Lihat Detail
+                                                    <ShoppingBag className="mr-1.5 h-3 w-3" />
+                                                    Buat PR
                                                 </Button>
-                                            </Link>
+                                                <Link href={`/inventory/products/${product.id}`}>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all text-xs font-black uppercase tracking-wider h-8 px-3"
+                                                    >
+                                                        <ExternalLink className="mr-1.5 h-3 w-3" />
+                                                        Lihat Detail
+                                                    </Button>
+                                                </Link>
+                                            </div>
                                         </td>
                                     </tr>
                                 );
@@ -292,7 +339,7 @@ export default function StockAlertsPage() {
                 {/* Pagination */}
                 {filtered.length > PAGE_SIZE && (
                     <div className="border-t-2 border-black px-4 py-2.5 flex items-center justify-between bg-zinc-50">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                        <span className="text-xs font-black uppercase tracking-widest text-zinc-400">
                             Halaman {page + 1} dari {pageCount}
                         </span>
                         <div className="flex items-center gap-1">
@@ -314,6 +361,23 @@ export default function StockAlertsPage() {
                     </div>
                 )}
             </div>
+
+            {prProduct && (
+                <PurchaseRequestDialog
+                    item={toPrItem(prProduct)}
+                    hideTrigger
+                    open={!!prProduct}
+                    triggerLabel="Buat PR"
+                    onOpenChange={(next) => {
+                        if (!next) {
+                            setPrProduct(null);
+                            if (searchParams.get("buat")) {
+                                router.replace(pathname);
+                            }
+                        }
+                    }}
+                />
+            )}
 
         </div>
     );

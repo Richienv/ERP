@@ -3,6 +3,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useCallback } from "react"
 import { queryKeys } from "@/lib/query-keys"
+import { CACHE_TIERS } from "@/lib/cache-tiers"
 
 export interface BankAccountRecord {
     id: string
@@ -58,6 +59,7 @@ export function useReconciliation() {
                 currencies: Array<{ code: string; name: string; symbol: string }>
             }>
         },
+        ...CACHE_TIERS.TRANSACTIONAL,
     })
 }
 

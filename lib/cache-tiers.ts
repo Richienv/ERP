@@ -56,6 +56,7 @@ export type CacheTier = keyof typeof CACHE_TIERS
 export const ROUTE_TIERS: Record<string, CacheTier> = {
     // ── Dashboards (T4) ──
     "/dashboard":                     "DASHBOARD",
+    "/dashboard#pulse":               "REALTIME",
     "/inventory":                     "DASHBOARD",
     "/sales":                         "DASHBOARD",
     "/finance":                       "DASHBOARD",
@@ -73,6 +74,7 @@ export const ROUTE_TIERS: Record<string, CacheTier> = {
     "/finance/planning/aktual":       "DASHBOARD",
 
     // ── Master data (T2) ──
+    "/fleet/new":                     "MASTER",
     "/inventory/categories":          "MASTER",
     "/inventory/warehouses":          "MASTER",
     "/finance/chart-accounts":        "MASTER",
@@ -84,6 +86,8 @@ export const ROUTE_TIERS: Record<string, CacheTier> = {
 
     // ── Master+ data (T3) ──
     "/inventory/products":            "MASTER_PLUS",
+    "/inventory/stock":               "MASTER_PLUS",
+    "/inventory/alerts":              "MASTER_PLUS",
     "/inventory/fabric-rolls":        "MASTER_PLUS",
     "/inventory/opening-stock":       "MASTER_PLUS",
     "/sales/customers":               "MASTER_PLUS",
@@ -102,6 +106,7 @@ export const ROUTE_TIERS: Record<string, CacheTier> = {
     "/documents":                     "MASTER_PLUS",
 
     // ── Transactional (T5) ──
+    "/fleet":                         "TRANSACTIONAL",
     "/sales/orders":                  "TRANSACTIONAL",
     "/sales/leads":                   "TRANSACTIONAL",
     "/sales/quotations":              "TRANSACTIONAL",

@@ -24,24 +24,24 @@ const reportCards = [
         title: "Ringkasan Stok per Gudang",
         description: "Distribusi stok di setiap gudang",
         icon: Warehouse,
-        color: "bg-blue-500",
-        lightBg: "bg-blue-50",
+        color: "bg-zinc-800",
+        lightBg: "bg-zinc-50",
         href: "/inventory/warehouses",
     },
     {
         title: "Pergerakan Stok",
         description: "Riwayat masuk, keluar, dan transfer",
         icon: ArrowRightLeft,
-        color: "bg-emerald-500",
-        lightBg: "bg-emerald-50",
+        color: "bg-zinc-800",
+        lightBg: "bg-zinc-50",
         href: "/inventory/movements",
     },
     {
         title: "Stok Opname",
         description: "Hasil audit fisik vs sistem",
         icon: ClipboardList,
-        color: "bg-violet-500",
-        lightBg: "bg-violet-50",
+        color: "bg-zinc-800",
+        lightBg: "bg-zinc-50",
         href: "/inventory/audit",
     },
     {
@@ -56,14 +56,14 @@ const reportCards = [
         title: "Valuasi Inventori",
         description: "Nilai aset persediaan saat ini",
         icon: DollarSign,
-        color: "bg-cyan-500",
-        lightBg: "bg-cyan-50",
+        color: "bg-orange-500",
+        lightBg: "bg-orange-50",
         href: "/inventory/stock",
     },
 ]
 
 export default function InventoryReportsPage() {
-    const { data, isLoading } = useProductsPage()
+    const { data } = useProductsPage()
 
     const kpis = useMemo(() => {
         if (!data) return null
@@ -87,7 +87,7 @@ export default function InventoryReportsPage() {
         return { totalProduk, totalNilai, rataStok, gudangAktif }
     }, [data])
 
-    if (isLoading || !data) return <TablePageSkeleton accentColor="bg-cyan-400" />
+    if (!data) return <TablePageSkeleton />
 
     return (
         <div className="mf-page">
@@ -95,9 +95,9 @@ export default function InventoryReportsPage() {
             {/* COMMAND HEADER                              */}
             {/* ═══════════════════════════════════════════ */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
-                <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-cyan-400">
+                <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-orange-500">
                     <div className="flex items-center gap-3">
-                        <BarChart3 className="h-5 w-5 text-cyan-500" />
+                        <BarChart3 className="h-5 w-5 text-orange-500" />
                         <div>
                             <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
                                 Laporan Inventori
@@ -117,10 +117,10 @@ export default function InventoryReportsPage() {
                 <div className="grid grid-cols-2 md:grid-cols-4">
                     {/* Total Produk */}
                     <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-cyan-400" />
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <Package className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">
                                 Total Produk
                             </span>
                         </div>
@@ -128,16 +128,16 @@ export default function InventoryReportsPage() {
                             {kpis?.totalProduk ?? "—"}
                         </div>
                         <div className="flex items-center gap-1 mt-1.5">
-                            <span className="text-[10px] font-bold text-cyan-600">Semua SKU terdaftar</span>
+                            <span className="text-xs font-bold text-zinc-500">Semua SKU terdaftar</span>
                         </div>
                     </div>
 
                     {/* Total Nilai */}
                     <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-orange-500" />
                         <div className="flex items-center gap-2 mb-2">
                             <DollarSign className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">
                                 Total Nilai
                             </span>
                         </div>
@@ -145,16 +145,16 @@ export default function InventoryReportsPage() {
                             {kpis ? formatIDR(kpis.totalNilai) : "—"}
                         </div>
                         <div className="flex items-center gap-1 mt-1.5">
-                            <span className="text-[10px] font-bold text-emerald-600">Valuasi persediaan</span>
+                            <span className="text-xs font-bold text-zinc-500">Valuasi persediaan</span>
                         </div>
                     </div>
 
                     {/* Rata-rata Stok */}
                     <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-violet-400" />
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <TrendingUp className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">
                                 Rata-rata Stok
                             </span>
                         </div>
@@ -162,16 +162,16 @@ export default function InventoryReportsPage() {
                             {kpis?.rataStok ?? "—"}
                         </div>
                         <div className="flex items-center gap-1 mt-1.5">
-                            <span className="text-[10px] font-bold text-violet-600">Unit per produk</span>
+                            <span className="text-xs font-bold text-zinc-500">Unit per produk</span>
                         </div>
                     </div>
 
                     {/* Gudang Aktif */}
                     <div className="relative p-4 md:p-5">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-amber-400" />
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <Layers className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">
                                 Gudang Aktif
                             </span>
                         </div>
@@ -179,7 +179,7 @@ export default function InventoryReportsPage() {
                             {kpis?.gudangAktif ?? "—"}
                         </div>
                         <div className="flex items-center gap-1 mt-1.5">
-                            <span className="text-[10px] font-bold text-amber-600">Lokasi penyimpanan</span>
+                            <span className="text-xs font-bold text-zinc-500">Lokasi penyimpanan</span>
                         </div>
                     </div>
                 </div>

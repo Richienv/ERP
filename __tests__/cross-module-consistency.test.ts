@@ -296,7 +296,9 @@ describe('Cross-Module: Stock quantity consistency', () => {
     it('Zero stock triggers CRITICAL in inventory and positive gap in procurement', () => {
         const zeroStockProduct = {
             ...SHARED_PRODUCT,
-            stockLevels: [],
+            // Typed empty array — otherwise TS infers never[] and the reduce below
+            // cannot read sl.quantity.
+            stockLevels: [] as typeof SHARED_PRODUCT.stockLevels,
         }
 
         const totalStock = zeroStockProduct.stockLevels.reduce(

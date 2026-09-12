@@ -21,8 +21,12 @@ export const queryKeys = {
     },
     invoices: {
         all: ["invoices"] as const,
-        kanban: (params?: { q?: string; type?: string }) =>
-            [...queryKeys.invoices.all, "kanban", params ?? {}] as const,
+        kanban: (params?: { q?: string | null; type?: string | null }) => {
+            const q = typeof params?.q === "string" && params.q.trim() ? params.q.trim() : undefined
+            const type = params?.type && params.type !== "ALL" ? params.type : undefined
+            const normalized = q || type ? { ...(q ? { q } : {}), ...(type ? { type } : {}) } : {}
+            return [...queryKeys.invoices.all, "kanban", normalized] as const
+        },
         attachments: (invoiceId: string) =>
             [...queryKeys.invoices.all, "attachments", invoiceId] as const,
     },
@@ -80,6 +84,14 @@ export const queryKeys = {
         all: ["financeDashboard"] as const,
         list: () => [...queryKeys.financeDashboard.all, "list"] as const,
     },
+    miningCommand: {
+        all: ["miningCommand"] as const,
+        pulse: () => [...queryKeys.miningCommand.all, "pulse"] as const,
+    },
+    fleet: {
+        all: ["fleet"] as const,
+        list: () => [...queryKeys.fleet.all, "list"] as const,
+    },
     purchaseRequests: {
         all: ["purchaseRequests"] as const,
         list: () => [...queryKeys.purchaseRequests.all, "list"] as const,
@@ -87,6 +99,7 @@ export const queryKeys = {
     bills: {
         all: ["bills"] as const,
         list: () => [...queryKeys.bills.all, "list"] as const,
+        match: (billId: string) => [...queryKeys.bills.all, "match", billId] as const,
     },
     journal: {
         all: ["journal"] as const,
@@ -377,6 +390,11 @@ export const queryKeys = {
     fiscalPeriods: {
         all: ["fiscalPeriods"] as const,
         list: (year?: number) => [...["fiscalPeriods"], "list", year] as const,
+    },
+    monthEndClose: {
+        all: ["monthEndClose"] as const,
+        checklist: (year: number, month: number) =>
+            [...queryKeys.monthEndClose.all, "checklist", year, month] as const,
     },
     cashflowPlan: {
         all: ["cashflowPlan"] as const,

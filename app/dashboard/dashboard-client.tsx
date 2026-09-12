@@ -7,10 +7,13 @@ import { TodaysTasks } from "@/components/dashboard/todays-tasks"
 import { CompactActivityFeed } from "@/components/dashboard/compact-activity-feed"
 import { useExecutiveDashboard } from "@/hooks/use-executive-dashboard"
 import { CardPageSkeleton } from "@/components/ui/page-skeleton"
+import { InlinePendingBar } from "@/components/ui/inline-pending"
+import { OperationsInbox } from "@/components/mining/command-pulse"
 import { formatCurrency } from "@/lib/utils"
 import Link from "next/link"
 import { AreaChart, Area, ResponsiveContainer } from "recharts"
 import { FlagButton } from "@/components/dashboard/flag-button"
+import { isModuleEnabled } from "@/lib/sidebar-feature-flags"
 import {
     IconShoppingCart,
     IconTruck,
@@ -65,9 +68,9 @@ function NonZeroStat({ label, value, accent, icon }: { label: string; value: str
 }
 
 export function DashboardPageClient() {
-    const { data, isLoading } = useExecutiveDashboard()
+    const { data, isFetching } = useExecutiveDashboard()
 
-    if (isLoading || !data) {
+    if (!data) {
         return <CardPageSkeleton accentColor="bg-zinc-700" />
     }
 
@@ -136,7 +139,7 @@ export function DashboardPageClient() {
 
     const statusColors: Record<string, string> = {
         PAID: "text-emerald-600 bg-emerald-50",
-        ISSUED: "text-blue-600 bg-blue-50",
+        ISSUED: "text-zinc-600 bg-zinc-100",
         PARTIAL: "text-amber-600 bg-amber-50",
         OVERDUE: "text-red-600 bg-red-50",
         DRAFT: "text-zinc-500 bg-zinc-100",
@@ -146,15 +149,23 @@ export function DashboardPageClient() {
     const nonZeroPoStatus = Object.entries(poByStatus).filter(([, count]) => Number(count) > 0)
 
     return (
+        <div className="relative">
+        <InlinePendingBar active={isFetching} />
         <DashboardView
             heroSlot={
-                <GreetingBar
-                    revenueMTD={sales?.totalRevenue ?? 0}
-                    receivables={financials?.receivables ?? 0}
-                    payables={financials?.payables ?? 0}
-                    overdueCount={overdueCount}
-                    pendingApprovals={pendingApprovals}
-                />
+                <div className="space-y-3">
+                    <OperationsInbox
+                        title="Kotak Masuk Operasi"
+                        subtitle="Antrian kerja KRI hari ini — kerjakan dari nomor 01, tiap tombol mendarat di layar kerjanya"
+                    />
+                    <GreetingBar
+                        revenueMTD={sales?.totalRevenue ?? 0}
+                        receivables={financials?.receivables ?? 0}
+                        payables={financials?.payables ?? 0}
+                        overdueCount={overdueCount}
+                        pendingApprovals={pendingApprovals}
+                    />
+                </div>
             }
             alertSlot={
                 executiveAlerts.length > 0 ? (
@@ -179,14 +190,15 @@ export function DashboardPageClient() {
                         <div className="space-y-3">
 
                             {/* PENJUALAN */}
-                            <ModuleCard title="Penjualan" icon={IconShoppingCart} href="/sales/orders" accentColor="bg-cyan-600">
+                            {isModuleEnabled("sales") && (
+                            <ModuleCard title="Penjualan" icon={IconShoppingCart} href="/sales/orders" accentColor="bg-zinc-800">
                                 {/* Only show stats that have real data */}
                                 {((sales?.activeOrders ?? 0) > 0 || (sales?.totalRevenue ?? 0) > 0) && (
                                     <div className="flex flex-wrap gap-4 py-1 justify-center">
-                                        <NonZeroStat label="Pesanan Aktif" value={String(sales?.activeOrders ?? 0)} accent="text-cyan-600" />
+                                        <NonZeroStat label="Pesanan Aktif" value={String(sales?.activeOrders ?? 0)} accent="text-zinc-900 dark:text-zinc-100" />
                                         <NonZeroStat label="Revenue" value={formatCurrency(sales?.totalRevenue ?? 0)} accent="text-emerald-600" />
                                         {(operations?.salesFulfillment?.fulfillmentRate ?? 0) > 0 && (
-                                            <StatBlock label="Fulfillment" value={`${operations.salesFulfillment.fulfillmentRate}%`} accent="text-blue-600" />
+                                            <StatBlock label="Fulfillment" value={`${operations.salesFulfillment.fulfillmentRate}%`} accent="text-zinc-900 dark:text-zinc-100" />
                                         )}
                                     </div>
                                 )}
@@ -195,7 +207,7 @@ export function DashboardPageClient() {
                                     <ProgressBar
                                         value={operations?.salesFulfillment?.deliveredOrders ?? 0}
                                         max={operations?.salesFulfillment?.totalOrders ?? 1}
-                                        color="bg-cyan-500"
+                                        color="bg-orange-500"
                                         label="Fulfillment Rate"
                                     />
                                 )}
@@ -207,7 +219,7 @@ export function DashboardPageClient() {
                                             {(sales.recentOrders as any[]).slice(0, 4).map((order: any) => (
                                                 <Link key={order.id} href="/sales/orders" className="flex items-center justify-between text-[11px] hover:bg-zinc-50 dark:hover:bg-zinc-800 -mx-1 px-2 py-1.5 transition-colors group">
                                                     <div className="flex items-center gap-2 min-w-0">
-                                                        <span className="w-1.5 h-1.5 bg-cyan-500 rounded-full shrink-0" />
+                                                        <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full shrink-0" />
                                                         <span className="text-zinc-600 dark:text-zinc-400 truncate">{order.customer}</span>
                                                     </div>
                                                     <div className="flex items-center gap-2">
@@ -221,9 +233,10 @@ export function DashboardPageClient() {
                                     </>
                                 )}
                             </ModuleCard>
+                            )}
 
                             {/* PROFITABILITAS */}
-                            <ModuleCard title="Profitabilitas" icon={IconReportMoney} href="/finance/reports" accentColor="bg-emerald-700">
+                            <ModuleCard title="Profitabilitas" icon={IconReportMoney} href="/finance/reports" accentColor="bg-zinc-800">
                                 <div className="grid grid-cols-2 gap-x-4">
                                     <NonZeroMetric label="Laba Kotor" value={formatCurrency(profitability.grossProfit)} />
                                     <NonZeroMetric label="Revenue" value={formatCurrency(profitability.revenue)} />
@@ -291,7 +304,8 @@ export function DashboardPageClient() {
                             </ModuleCard>
 
                             {/* PELANGGAN */}
-                            <ModuleCard title="Pelanggan" icon={IconUsersGroup} href="/sales/customers" accentColor="bg-violet-700">
+                            {isModuleEnabled("sales") && (
+                            <ModuleCard title="Pelanggan" icon={IconUsersGroup} href="/sales/customers" accentColor="bg-zinc-800">
                                 <div className="grid grid-cols-2 gap-x-4">
                                     <CardMetric label="Pelanggan Aktif" value={String(customerInsights.totalActive)} />
                                     {customerInsights.newThisMonth > 0 && (
@@ -309,7 +323,7 @@ export function DashboardPageClient() {
                                             {(customerInsights.top3Customers as any[]).slice(0, 3).map((c: any, i: number) => (
                                                 <Link key={i} href={c.id ? `/sales/customers/${c.id}` : "/sales/customers"} className="flex items-center justify-between text-[11px] hover:bg-zinc-50 dark:hover:bg-zinc-800 -mx-1 px-2 py-1.5 transition-colors group">
                                                     <div className="flex items-center gap-2 min-w-0">
-                                                        <span className="w-4 h-4 flex items-center justify-center bg-violet-100 dark:bg-violet-900/30 text-violet-600 text-[9px] font-black shrink-0">{i + 1}</span>
+                                                        <span className="w-4 h-4 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-black shrink-0">{i + 1}</span>
                                                         <span className="text-zinc-600 dark:text-zinc-400 truncate">{c.name}</span>
                                                     </div>
                                                     <div className="flex items-center gap-2">
@@ -331,7 +345,7 @@ export function DashboardPageClient() {
                                                 <Link key={c.id} href={`/sales/customers/${c.id}`} className="flex items-center justify-between text-[11px] hover:bg-zinc-50 dark:hover:bg-zinc-800 -mx-1 px-2 py-1.5 transition-colors group">
                                                     <div className="flex items-center gap-2 min-w-0">
                                                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                                                            c.customerType === "COMPANY" ? "bg-blue-500" : c.customerType === "GOVERNMENT" ? "bg-purple-500" : "bg-green-500"
+                                                            c.customerType === "COMPANY" ? "bg-zinc-500" : c.customerType === "GOVERNMENT" ? "bg-orange-500" : "bg-zinc-400"
                                                         }`} />
                                                         <div className="min-w-0">
                                                             <span className="text-zinc-900 dark:text-zinc-100 font-medium truncate block">{c.name}</span>
@@ -350,13 +364,14 @@ export function DashboardPageClient() {
                                     </>
                                 )}
                             </ModuleCard>
+                            )}
 
                             {/* INVENTORI */}
                             <ModuleCard
                                 title="Inventori"
                                 icon={IconPackage}
                                 href="/inventory"
-                                accentColor="bg-violet-600"
+                                accentColor="bg-zinc-800"
                                 badge={lowStockCount > 0 ? lowStockCount : undefined}
                                 badgeColor="bg-red-500"
                             >
@@ -404,7 +419,7 @@ export function DashboardPageClient() {
                                             {(warehouses as any[]).slice(0, 3).map((wh: any, i: number) => (
                                                 <div key={i} className="flex items-center justify-between text-[11px] px-1 py-1">
                                                     <div className="flex items-center gap-2 min-w-0">
-                                                        <IconBuildingWarehouse className="w-3 h-3 text-violet-400 shrink-0" />
+                                                        <IconBuildingWarehouse className="w-3 h-3 text-zinc-400 shrink-0" />
                                                         <span className="text-zinc-600 dark:text-zinc-400 truncate">{wh.name}</span>
                                                     </div>
                                                     <div className="flex items-center gap-2">
@@ -443,7 +458,7 @@ export function DashboardPageClient() {
                                 title="Pengadaan"
                                 icon={IconTruck}
                                 href="/procurement/orders"
-                                accentColor="bg-amber-600"
+                                accentColor="bg-orange-500"
                                 badge={pendingPOs.length > 0 ? pendingPOs.length : undefined}
                                 badgeColor="bg-orange-500"
                             >
@@ -505,7 +520,7 @@ export function DashboardPageClient() {
                                                     <div className="flex items-center gap-2 min-w-0">
                                                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                                                             po.status === "APPROVED" || po.status === "COMPLETED" || po.status === "RECEIVED" ? "bg-emerald-500" :
-                                                            po.status === "ORDERED" || po.status === "SHIPPED" ? "bg-blue-500" :
+                                                            po.status === "ORDERED" || po.status === "SHIPPED" ? "bg-zinc-500" :
                                                             po.status === "PO_DRAFT" ? "bg-zinc-400" : "bg-amber-500"
                                                         }`} />
                                                         <div className="min-w-0">
@@ -525,11 +540,12 @@ export function DashboardPageClient() {
                             </ModuleCard>
 
                             {/* MANUFAKTUR */}
+                            {isModuleEnabled("manufacturing") && (
                             <ModuleCard
                                 title="Manufaktur"
                                 icon={IconTool}
                                 href="/manufacturing"
-                                accentColor="bg-orange-600"
+                                accentColor="bg-orange-500"
                                 badge={machineBreakdown > 0 ? machineBreakdown : undefined}
                                 badgeColor="bg-red-600"
                             >
@@ -545,7 +561,7 @@ export function DashboardPageClient() {
                                             />
                                         )}
                                         {woActive > 0 && <StatBlock label="WO Aktif" value={String(woActive)} accent="text-orange-600" />}
-                                        {efficiency > 0 && <StatBlock label="Efisiensi" value={`${efficiency}%`} accent="text-blue-600" />}
+                                        {efficiency > 0 && <StatBlock label="Efisiensi" value={`${efficiency}%`} accent="text-zinc-900 dark:text-zinc-100" />}
                                         {qualityRate > 0 && <StatBlock label="Quality" value={`${qualityRate}%`} accent={qualityRate >= 90 ? "text-emerald-600" : "text-red-600"} />}
                                     </div>
                                 )}
@@ -619,7 +635,7 @@ export function DashboardPageClient() {
                                                         <div className="flex items-center gap-1.5">
                                                             <span className={`text-[9px] font-black px-1.5 py-0.5 ${
                                                                 wo.status === "COMPLETED" ? "text-emerald-600 bg-emerald-50" :
-                                                                wo.status === "IN_PROGRESS" ? "text-blue-600 bg-blue-50" :
+                                                                wo.status === "IN_PROGRESS" ? "text-amber-700 bg-amber-50" :
                                                                 "text-zinc-500 bg-zinc-100"
                                                             }`}>
                                                                 {wo.status?.replace(/_/g, " ")}
@@ -634,7 +650,7 @@ export function DashboardPageClient() {
                                                     {wo.plannedQty > 0 && (
                                                         <div className="mt-1 h-1.5 bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
                                                             <div
-                                                                className={`h-full transition-all ${wo.progress >= 100 ? "bg-emerald-500" : wo.progress >= 50 ? "bg-blue-500" : "bg-orange-500"}`}
+                                                                className={`h-full transition-all ${wo.progress >= 100 ? "bg-emerald-500" : wo.progress >= 50 ? "bg-orange-500" : "bg-zinc-400"}`}
                                                                 style={{ width: `${Math.min(wo.progress ?? 0, 100)}%` }}
                                                             />
                                                         </div>
@@ -718,6 +734,7 @@ export function DashboardPageClient() {
                                     </div>
                                 )}
                             </ModuleCard>
+                            )}
                         </div>
 
                         {/* ═══ COLUMN 3: Keuangan + Arus Kas + SDM + Kepatuhan + Tugas ═══ */}
@@ -729,7 +746,7 @@ export function DashboardPageClient() {
                                     title="Keuangan"
                                     icon={IconCoin}
                                     href="/finance/invoices"
-                                    accentColor="bg-emerald-600"
+                                    accentColor="bg-zinc-800"
                                     badge={overdueCount > 0 ? overdueCount : undefined}
                                     badgeColor="bg-red-500"
                                 >
@@ -805,7 +822,7 @@ export function DashboardPageClient() {
                             )}
 
                             {/* ARUS KAS */}
-                            <ModuleCard title="Arus Kas" icon={IconCash} href="/finance/reports" accentColor="bg-blue-600">
+                            <ModuleCard title="Arus Kas" icon={IconCash} href="/finance/reports" accentColor="bg-zinc-800">
                                 <div className="grid grid-cols-2 gap-x-4">
                                     <NonZeroMetric label="Kas Masuk (7h)" value={formatCurrency(cashFlow.kasMasuk)} />
                                     <NonZeroMetric label="Kas Keluar (7h)" value={formatCurrency(cashFlow.kasKeluar)} />
@@ -832,8 +849,8 @@ export function DashboardPageClient() {
                                                     <Area
                                                         type="monotone"
                                                         dataKey="value"
-                                                        stroke="#2563eb"
-                                                        fill="#dbeafe"
+                                                        stroke="#f97316"
+                                                        fill="#ffedd5"
                                                         strokeWidth={1.5}
                                                     />
                                                 </AreaChart>
@@ -890,7 +907,7 @@ export function DashboardPageClient() {
                                     title="SDM"
                                     icon={IconUsers}
                                     href="/hcm"
-                                    accentColor="bg-blue-600"
+                                    accentColor="bg-zinc-800"
                                     badge={lateCount > 0 ? lateCount : undefined}
                                     badgeColor="bg-amber-500"
                                 >
@@ -905,7 +922,7 @@ export function DashboardPageClient() {
                                         <ProgressBar
                                             value={presentCount}
                                             max={totalStaff}
-                                            color="bg-blue-500"
+                                            color="bg-orange-500"
                                             label="Kehadiran Hari Ini"
                                         />
                                     )}
@@ -925,7 +942,7 @@ export function DashboardPageClient() {
                                                 {(topEmployees as any[]).slice(0, 3).map((emp: any, i: number) => (
                                                     <div key={i} className="flex items-center justify-between text-[11px] px-1 py-1">
                                                         <div className="flex items-center gap-2 min-w-0">
-                                                            <IconUserCheck className="w-3 h-3 text-blue-400 shrink-0" />
+                                                            <IconUserCheck className="w-3 h-3 text-zinc-400 shrink-0" />
                                                             <span className="text-zinc-600 dark:text-zinc-400 truncate">{emp.name}</span>
                                                         </div>
                                                         <span className="font-bold text-emerald-600 tabular-nums">{emp.attendance ?? emp.rate ?? "100%"}</span>
@@ -962,7 +979,7 @@ export function DashboardPageClient() {
                                 title="Kepatuhan"
                                 icon={IconShieldCheck}
                                 href="/finance/journal"
-                                accentColor="bg-rose-600"
+                                accentColor="bg-zinc-800"
                                 badge={compliance.totalIssues > 0 ? compliance.totalIssues : undefined}
                                 badgeColor="bg-red-500"
                             >
@@ -1014,5 +1031,6 @@ export function DashboardPageClient() {
                 </div>
             }
         />
+        </div>
     )
 }

@@ -6,10 +6,10 @@ import { InventoryPerformanceProvider } from "@/components/inventory/inventory-p
 import { CardPageSkeleton } from "@/components/ui/page-skeleton"
 
 export default function WarehousesPage() {
-    const { data, isLoading } = useWarehouses()
+    const { data } = useWarehouses()
 
-    if (isLoading || !data) {
-        return <CardPageSkeleton accentColor="bg-amber-400" />
+    if (!data) {
+        return <CardPageSkeleton />
     }
 
     return (

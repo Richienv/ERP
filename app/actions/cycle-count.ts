@@ -168,7 +168,9 @@ export async function finalizeCycleCount(sessionId: string): Promise<{
             }
 
             for (const item of session.items) {
-                const variance = item.actualQty! - item.expectedQty
+                // actualQty/expectedQty are Prisma Decimals; Number() makes the
+                // coercion that already happened implicitly explicit.
+                const variance = Number(item.actualQty!) - Number(item.expectedQty)
                 if (variance === 0) continue
 
                 adjustmentCount++

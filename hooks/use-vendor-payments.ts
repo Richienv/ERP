@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { CACHE_TIERS } from "@/lib/cache-tiers"
 import { getVendorPayments, getVendorBills, getVendorAPBalances } from "@/lib/actions/finance-ap"
 import { getVendors } from "@/lib/actions/procurement"
 
@@ -22,5 +23,6 @@ export function useVendorPayments() {
             )
             return { payments, vendors, openBills, apBalances }
         },
+        ...CACHE_TIERS.TRANSACTIONAL,
     })
 }

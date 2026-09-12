@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { routePrefetchMap, masterDataPrefetchMap } from "@/hooks/use-nav-prefetch"
 import { useAuth } from "@/lib/auth-context"
-import { ROUTE_TIERS, MASTER_DATA_TIERS, CACHE_TIERS, type CacheTier } from "@/lib/cache-tiers"
+import { ROUTE_TIERS, MASTER_DATA_TIERS, CACHE_TIERS, getTierForMasterData, type CacheTier } from "@/lib/cache-tiers"
 
 /**
  * Background data freshness — runs AFTER the app is interactive.
@@ -33,11 +33,11 @@ export function useBackgroundRefresh() {
         hasRefreshed.current = true
 
         // Fire all at once — no delay, no blocking
-        for (const [, config] of Object.entries(masterDataPrefetchMap)) {
+        for (const [key, config] of Object.entries(masterDataPrefetchMap)) {
             queryClient.prefetchQuery({
                 queryKey: config.queryKey,
                 queryFn: config.queryFn,
-                staleTime: 30 * 60 * 1000, // 30 min — master data rarely changes
+                staleTime: getTierForMasterData(key).staleTime,
             })
         }
     }, [isAuthenticated, queryClient])

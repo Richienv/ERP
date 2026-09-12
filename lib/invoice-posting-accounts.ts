@@ -26,7 +26,7 @@ export function getRequiredInvoicePostingSystemAccountCodes(input: {
     goodsReceivedViaPO: boolean
 }): string[] {
     if (input.type === "INV_OUT") {
-        const codes = [
+        const codes: string[] = [
             SYS_ACCOUNTS.AR,
             SYS_ACCOUNTS.REVENUE,
             SYS_ACCOUNTS.COGS,
@@ -36,10 +36,19 @@ export function getRequiredInvoicePostingSystemAccountCodes(input: {
         return codes
     }
 
-    const codes = [
+    const codes: string[] = [
         SYS_ACCOUNTS.AP,
         input.goodsReceivedViaPO ? SYS_ACCOUNTS.GR_IR_CLEARING : SYS_ACCOUNTS.EXPENSE_DEFAULT,
     ]
     if (input.taxAmount > 0) codes.push(SYS_ACCOUNTS.PPN_MASUKAN)
     return codes
+}
+
+/** AP bill approval debit: GR/IR when goods already received, else expense/COA. */
+export function resolveVendorBillDebitAccount(input: {
+    goodsReceivedViaPO: boolean
+    glAccountCode?: string | null
+}): string {
+    if (input.goodsReceivedViaPO) return SYS_ACCOUNTS.GR_IR_CLEARING
+    return input.glAccountCode || SYS_ACCOUNTS.EXPENSE_DEFAULT
 }

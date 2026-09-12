@@ -92,3 +92,10 @@ scripts/ralph/runs/
 # External repos accidentally placed in project root
 codex/
 .vercel
+
+# TypeScript incremental build cache — regenerated on every tsc run
+*.tsbuildinfo
+
+# Local ops notes that have contained credentials — never commit
+supabase-info.txt
+DB_CONNECTION_FIX.md
