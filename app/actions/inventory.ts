@@ -816,7 +816,7 @@ export async function getWarehouseDetails(id: string) {
 // ==========================================
 // GOODS RECEIPT ACTION
 // ==========================================
-export async function createWarehouse(data: { name: string, code: string, address: string, capacity: number, warehouseType?: string }) {
+export async function createWarehouse(data: { name: string, code: string, address: string, capacity: number, warehouseType?: string }): Promise<{ success: boolean; error?: string }> {
     try {
         return await withPrismaAuth(async (prisma) => {
             await prisma.warehouse.create({
@@ -1016,7 +1016,7 @@ export async function receiveGoodsFromPO(data: {
     try {
         console.log("Receiving Goods:", data)
 
-        return await withPrismaAuth(async (prisma) => {
+        const result = await withPrismaAuth(async (prisma) => {
             // 1. Get PO Item details
             const po = await prisma.purchaseOrder.findUnique({
                 where: { id: data.poId },
@@ -1167,6 +1167,33 @@ export async function receiveGoodsFromPO(data: {
             return { success: true, message: `Successfully received ${data.receivedQty} units.` }
         }, { maxWait: 5000, timeout: 20000 })
 
+        if (result.success) {
+            let billId: string | undefined
+            let billNumber: string | undefined
+            let billAlreadyExists = false
+            try {
+                const { createBillFromPOId } = await import("@/lib/actions/finance-invoices")
+                const bill = await createBillFromPOId(data.poId)
+                if (bill && "billId" in bill && bill.billId) {
+                    billId = bill.billId
+                    billNumber = "billNumber" in bill ? bill.billNumber : undefined
+                    billAlreadyExists = Boolean("alreadyExists" in bill && bill.alreadyExists)
+                } else if (bill && "existingInvoiceId" in bill && bill.existingInvoiceId) {
+                    billId = bill.existingInvoiceId
+                    billNumber = "existingInvoiceNumber" in bill ? bill.existingInvoiceNumber : undefined
+                    billAlreadyExists = true
+                }
+            } catch (billErr: any) {
+                console.error("[receiveGoodsFromPO] Draft bill failed (non-blocking):", billErr?.message)
+            }
+            revalidatePath("/finance/bills")
+            revalidatePath("/finance")
+            revalidatePath("/procurement")
+            return { ...result, billId, billNumber, billAlreadyExists }
+        }
+
+        return result
+
     } catch (error) {
         console.error("Error receiving goods:", error)
         return { success: false, error: "Failed to receive goods" }
@@ -1176,11 +1203,41 @@ export async function receiveGoodsFromPO(data: {
 // ==========================================
 // PURCHASE REQUEST ACTION
 // ==========================================
+/**
+ * Result of {@link requestPurchase}.
+ *
+ * Declared explicitly (rather than inferred) so that callers can read any
+ * branch's field without a type error — the absent fields are typed as
+ * `undefined`, which is exactly what they are at runtime.
+ */
+export type RequestPurchaseResult =
+    | {
+        success: true
+        pendingTask: { id: string; status: string; type: string }
+        message?: undefined
+        alreadyPending?: undefined
+        error?: undefined
+    }
+    | {
+        success: false
+        message: string
+        alreadyPending: true
+        pendingTask?: undefined
+        error?: undefined
+    }
+    | {
+        success: false
+        error: string
+        message?: undefined
+        alreadyPending?: undefined
+        pendingTask?: undefined
+    }
+
 export async function requestPurchase(data: {
     itemId: string,
     quantity: number,
     notes?: string
-}) {
+}): Promise<RequestPurchaseResult> {
     try {
         console.log("Requesting Purchase (PR):", data)
 
@@ -1511,7 +1568,7 @@ export async function createManualMovement(data: {
     }
 }
 
-export async function updateWarehouse(id: string, data: { name: string, code: string, address: string, capacity: number, warehouseType?: string }) {
+export async function updateWarehouse(id: string, data: { name: string, code: string, address: string, capacity: number, warehouseType?: string }): Promise<{ success: boolean; error?: string }> {
     try {
         return await withPrismaAuth(async (prisma) => {
             await prisma.warehouse.update({
@@ -2085,10 +2142,11 @@ export async function getWarehouseStaffing(warehouseId: string) {
             }
         }
 
-        // Get all users as potential manager candidates
+        // Get all users as potential manager candidates.
+        // NOTE: the User model has no `isActive` flag, so there is nothing to filter on here.
         const users = await prisma.user.findMany({
-            where: { isActive: true },
             select: { id: true, name: true },
+            orderBy: { name: 'asc' },
             take: 50
         })
 

@@ -13,7 +13,9 @@ export function useOpeningBalances(year: number) {
                 checkOpeningBalanceExists(year),
             ])
             return {
-                accounts: accountsResult.success ? accountsResult.data : null,
+                // `success` is a plain boolean on the action's return type, so it
+                // cannot discriminate the union — probe for the payload key too.
+                accounts: accountsResult.success && "data" in accountsResult ? accountsResult.data : null,
                 alreadyExists: existsResult.exists,
             }
         },
