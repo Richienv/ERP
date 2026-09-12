@@ -80,10 +80,37 @@ function seedBusyMine() {
         if (where.type === "INV_OUT") return { _sum: { balanceDue: 1_500_000_000 }, _count: { _all: 9 } }
         return { _sum: { balanceDue: 700_000_000 }, _count: { _all: 6 } }
     }
-    h.handlers["invoice.findMany"] = () => [
-        { id: "bill-1", number: "BILL-001", balanceDue: 50_000_000, dueDate: new Date() },
-        { id: "bill-2", number: "BILL-002", balanceDue: 25_000_000, dueDate: new Date() },
-    ]
+    h.handlers["invoice.findMany"] = (args) => {
+        const where = args?.where ?? {}
+        if (where.status === "DRAFT") {
+            return [{
+                id: "bill-over",
+                number: "BILL-DEMO-MATCH",
+                purchaseOrderId: "po-match",
+                orderId: null,
+                items: [{
+                    productId: "prod-solar",
+                    description: "Solar Industri",
+                    quantity: 100,
+                    unitPrice: 10_000,
+                }],
+                purchaseOrder: {
+                    number: "PO-MATCH",
+                    items: [{
+                        productId: "prod-solar",
+                        quantity: 100,
+                        receivedQty: 60,
+                        unitPrice: 10_000,
+                        product: { name: "Solar Industri", code: "SLR" },
+                    }],
+                },
+            }]
+        }
+        return [
+            { id: "bill-1", number: "BILL-001", balanceDue: 50_000_000, dueDate: new Date() },
+            { id: "bill-2", number: "BILL-002", balanceDue: 25_000_000, dueDate: new Date() },
+        ]
+    }
     h.handlers["vehicle.count"] = (args) => (args?.where?.fixedAssetId === null ? 2 : 3)
     h.handlers["vehicle.findFirst"] = () => BARE_VEHICLE
     h.handlers["vehicle.findMany"] = () => [EXPIRING_LATER, EXPIRING_SOON]
@@ -123,6 +150,33 @@ describe("Kotak Masuk Operasi — antrian aksi", () => {
         const criticals = pulse.actions.filter((a) => a.tone === "critical")
         const amounts = criticals.map((a) => a.amount ?? 0)
         expect(amounts).toEqual([...amounts].sort((a, b) => b - a))
+    })
+
+    it("memasukkan selisih 3-way ke Kotak Masuk dengan CTA Cek selisih", async () => {
+        seedBusyMine()
+        const pulse = await getMiningCommandPulse()
+        const mismatch = pulse.actions.find((a) => a.id === "bill-mismatch")
+
+        expect(mismatch).toBeDefined()
+        expect(mismatch?.href).toBe("/finance/bills?status=DRAFT")
+        expect(mismatch?.cta).toBe("Cek selisih")
+        expect(mismatch?.tone).toBe("warn")
+        expect(mismatch?.count).toBe(1)
+        expect(mismatch?.amount).toBeGreaterThan(0)
+        expect(mismatch?.owner).toBe("Finance — Utang")
+    })
+
+    it("mengarahkan stok rendah ke dialog Buat PR", async () => {
+        seedBusyMine()
+        h.handlers["stockLevel.findMany"] = () => [{
+            quantity: 2,
+            product: { id: "prod-filter", costPrice: 12_000, minStock: 10, isActive: true },
+        }]
+        const pulse = await getMiningCommandPulse()
+        const low = pulse.actions.find((a) => a.id === "low-stock")
+
+        expect(low?.href).toBe("/inventory/alerts?buat=prod-filter")
+        expect(low?.cta).toBe("Lihat & buat PR")
     })
 
     it("mengarahkan bill draft ke daftar bill yang sudah difilter DRAFT", async () => {

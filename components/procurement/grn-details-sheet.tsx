@@ -83,17 +83,22 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
             const result = await acceptGRN(grn.id, sodMode ? sodReason : undefined)
 
             if (result.success) {
-                const billed = "billNumber" in result && result.billNumber
+                const billNumber = "billNumber" in result ? result.billNumber : undefined
+                const billed = billNumber
                     ? result.billAlreadyExists
-                        ? `Bill ${result.billNumber} sudah ada`
-                        : `Draft bill ${result.billNumber} siap disetujui`
+                        ? `Bill ${billNumber} sudah ada`
+                        : `Draft bill ${billNumber} siap disetujui`
                     : "Stok & jurnal GR/IR sudah masuk"
                 toast.success("Barang masuk diterima", {
                     description: billed,
-                    action: {
-                        label: "Buka Tagihan",
-                        onClick: () => router.push("/finance/bills"),
-                    },
+                    ...(billNumber
+                        ? {
+                            action: {
+                                label: "Buka Tagihan",
+                                onClick: () => router.push(`/finance/bills?q=${encodeURIComponent(billNumber)}`),
+                            },
+                        }
+                        : {}),
                 })
                 queryClient.invalidateQueries({ queryKey: queryKeys.miningCommand.pulse() })
                 queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })

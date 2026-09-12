@@ -21,8 +21,12 @@ export const queryKeys = {
     },
     invoices: {
         all: ["invoices"] as const,
-        kanban: (params?: { q?: string; type?: string }) =>
-            [...queryKeys.invoices.all, "kanban", params ?? {}] as const,
+        kanban: (params?: { q?: string | null; type?: string | null }) => {
+            const q = typeof params?.q === "string" && params.q.trim() ? params.q.trim() : undefined
+            const type = params?.type && params.type !== "ALL" ? params.type : undefined
+            const normalized = q || type ? { ...(q ? { q } : {}), ...(type ? { type } : {}) } : {}
+            return [...queryKeys.invoices.all, "kanban", normalized] as const
+        },
         attachments: (invoiceId: string) =>
             [...queryKeys.invoices.all, "attachments", invoiceId] as const,
     },

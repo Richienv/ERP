@@ -1,27 +1,57 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
     AlertTriangle,
     Search,
     CheckCircle2,
     ChevronLeft,
     ChevronRight,
-    Loader2,
     ExternalLink,
     ShieldAlert,
+    ShoppingBag,
     TrendingDown,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useProductsPage } from "@/hooks/use-products-query";
 import { TablePageSkeleton } from "@/components/ui/page-skeleton";
+import { PurchaseRequestDialog } from "@/components/inventory/purchase-request-dialog";
+import { NB } from "@/lib/dialog-styles";
 
 const PAGE_SIZE = 10;
 
+function toPrItem(product: any) {
+    const gap = Math.max(0, (product.minStock ?? 0) - (product.currentStock ?? 0));
+    return {
+        id: product.id,
+        name: product.name,
+        sku: product.code ?? "",
+        category: product.category?.name ?? "",
+        unit: product.unit || "PCS",
+        cost: Number(product.costPrice ?? 0),
+        gap,
+        reorderPoint: Number(product.minStock ?? 0),
+        currentStock: Number(product.currentStock ?? 0),
+    };
+}
+
 export default function StockAlertsPage() {
+    return (
+        <Suspense fallback={<TablePageSkeleton />}>
+            <StockAlertsInner />
+        </Suspense>
+    );
+}
+
+function StockAlertsInner() {
     const { data } = useProductsPage();
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
+    const [prProduct, setPrProduct] = useState<any | null>(null);
 
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState<"ALL" | "CRITICAL" | "LOW_STOCK">("ALL");
@@ -57,6 +87,13 @@ export default function StockAlertsPage() {
 
     const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
     const pagedItems = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+    useEffect(() => {
+        const buat = searchParams.get("buat");
+        if (!buat || !data?.products) return;
+        const found = data.products.find((p: any) => p.id === buat);
+        if (found) setPrProduct(found);
+    }, [data?.products, searchParams]);
 
     if (!data) return <TablePageSkeleton />;
 
@@ -271,16 +308,26 @@ export default function StockAlertsPage() {
 
                                         {/* Aksi */}
                                         <td className="px-4 py-3 text-center">
-                                            <Link href={`/inventory/products/${product.id}`}>
+                                            <div className="flex flex-col sm:flex-row items-center justify-center gap-1">
                                                 <Button
-                                                    variant="outline"
                                                     size="sm"
-                                                    className="border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all text-xs font-black uppercase tracking-wider h-8 px-3"
+                                                    onClick={() => setPrProduct(product)}
+                                                    className={`${NB.toolbarBtnPrimary} ml-0 h-8 px-3 text-[10px]`}
                                                 >
-                                                    <ExternalLink className="mr-1.5 h-3 w-3" />
-                                                    Lihat Detail
+                                                    <ShoppingBag className="mr-1.5 h-3 w-3" />
+                                                    Buat PR
                                                 </Button>
-                                            </Link>
+                                                <Link href={`/inventory/products/${product.id}`}>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all text-xs font-black uppercase tracking-wider h-8 px-3"
+                                                    >
+                                                        <ExternalLink className="mr-1.5 h-3 w-3" />
+                                                        Lihat Detail
+                                                    </Button>
+                                                </Link>
+                                            </div>
                                         </td>
                                     </tr>
                                 );
@@ -314,6 +361,23 @@ export default function StockAlertsPage() {
                     </div>
                 )}
             </div>
+
+            {prProduct && (
+                <PurchaseRequestDialog
+                    item={toPrItem(prProduct)}
+                    hideTrigger
+                    open={!!prProduct}
+                    triggerLabel="Buat PR"
+                    onOpenChange={(next) => {
+                        if (!next) {
+                            setPrProduct(null);
+                            if (searchParams.get("buat")) {
+                                router.replace(pathname);
+                            }
+                        }
+                    }}
+                />
+            )}
 
         </div>
     );

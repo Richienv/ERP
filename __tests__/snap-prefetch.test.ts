@@ -1,3 +1,5 @@
+import fs from "node:fs"
+import path from "node:path"
 import { describe, expect, it } from "vitest"
 import { getTierForRoute, ROUTE_TIERS } from "@/lib/cache-tiers"
 import { queryKeys } from "@/lib/query-keys"
@@ -35,5 +37,20 @@ describe("SAP-snap cache map", () => {
         const qs = "".trim()
         const key = qs ? [...base, qs] : base
         expect(key).toEqual(base)
+    })
+
+    it("uses the same invoice kanban key for hover prefetch and an empty search", () => {
+        expect(queryKeys.invoices.kanban()).toEqual(["invoices", "kanban", {}])
+        expect(queryKeys.invoices.kanban({ q: undefined, type: "ALL" })).toEqual(["invoices", "kanban", {}])
+        expect(queryKeys.invoices.kanban({ q: "" })).toEqual(["invoices", "kanban", {}])
+    })
+
+    it("prefetches the same fetchers the daily hooks use", () => {
+        const src = fs.readFileSync(path.join(process.cwd(), "hooks/use-nav-prefetch.ts"), "utf8")
+        expect(src).toContain("getChartOfAccountsTree")
+        expect(src).toContain("getInvoiceKanbanData")
+        expect(src).toContain("fetchStockMovementsBundle")
+        expect(src).not.toContain("/api/finance/chart-accounts-tree")
+        expect(src).not.toContain("/api/finance/invoices/kanban")
     })
 })

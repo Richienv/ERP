@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
+import { getThreeWayMatchExceptionCount } from "@/lib/actions/finance-match"
 
 async function requireAuth() {
     const supabase = await createClient()
@@ -104,6 +105,7 @@ export async function getMiningCommandPulse(): Promise<MiningCommandPulse> {
         pendingPOFirst,
         acceptedGrnWithoutBill,
         pendingLeave,
+        matchExceptions,
     ] = await Promise.all([
         prisma.gLAccount.findMany({
             where: {
@@ -160,7 +162,7 @@ export async function getMiningCommandPulse(): Promise<MiningCommandPulse> {
         prisma.stockLevel.findMany({
             select: {
                 quantity: true,
-                product: { select: { costPrice: true, minStock: true, isActive: true } },
+                product: { select: { id: true, costPrice: true, minStock: true, isActive: true } },
             },
             take: 2000,
         }),
@@ -234,6 +236,7 @@ export async function getMiningCommandPulse(): Promise<MiningCommandPulse> {
             },
         }),
         prisma.leaveRequest.count({ where: { status: "PENDING" } }),
+        getThreeWayMatchExceptionCount(),
     ])
 
     const cash = cashAccounts.reduce((sum, a) => sum + toNum(a.balance), 0)
@@ -242,10 +245,12 @@ export async function getMiningCommandPulse(): Promise<MiningCommandPulse> {
     const inventoryValue = stockLevels.reduce((sum, row) => {
         return sum + toNum(row.quantity) * toNum(row.product?.costPrice)
     }, 0)
-    const lowStock = stockLevels.filter((row) => {
+    const lowStockRows = stockLevels.filter((row) => {
         const min = Number(row.product?.minStock || 0)
         return row.product?.isActive !== false && min > 0 && toNum(row.quantity) <= min
-    }).length
+    })
+    const lowStock = lowStockRows.length
+    const firstLowStockId = lowStockRows[0]?.product?.id
     const fleetAssetValue = toNum(fleetAssets._sum.netBookValue)
 
     let payrollCompanyCost = 0
@@ -357,6 +362,22 @@ export async function getMiningCommandPulse(): Promise<MiningCommandPulse> {
             impact: "Menaikkan Beban/HPP + PPN Masukan dan Utang Usaha",
         })
     }
+    if (matchExceptions.count > 0) {
+        actions.push({
+            id: "bill-mismatch",
+            module: "finance",
+            title: "Cek selisih 3-way tagihan vs barang masuk",
+            detail: `${matchExceptions.count} draft bill qty-nya lebih besar dari yang diterima — jangan Setujui sebelum dicek`,
+            href: "/finance/bills?status=DRAFT",
+            tone: "warn",
+            count: matchExceptions.count,
+            amount: matchExceptions.amount,
+            cta: "Cek selisih",
+            owner: "Finance — Utang",
+            due: "Hari ini",
+            impact: "Qty tagihan > qty diterima — jangan Setujui sebelum dicek",
+        })
+    }
     if (acceptedGrnWithoutBill > 0) {
         actions.push({
             id: "grn-bill",
@@ -413,7 +434,7 @@ export async function getMiningCommandPulse(): Promise<MiningCommandPulse> {
             module: "inventory",
             title: "Restock spare part di bawah stok minimum",
             detail: `${lowStock} item menipis — unit bisa berhenti kalau part habis`,
-            href: "/inventory/alerts",
+            href: firstLowStockId ? `/inventory/alerts?buat=${firstLowStockId}` : "/inventory/alerts",
             tone: "warn",
             count: lowStock,
             cta: "Lihat & buat PR",

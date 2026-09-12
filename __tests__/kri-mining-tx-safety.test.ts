@@ -34,6 +34,19 @@ describe("KRI mining GL posts share the caller transaction", () => {
         expect(fn).toContain("recordPendingBillFromPO(po")
     })
 
+    it("recordPendingBillFromPO bills receivedQty via the pure helper and does not post GL", () => {
+        const fn = sliceFn(
+            src("lib/actions/finance-invoices.ts"),
+            "export async function recordPendingBillFromPO",
+            "export async function createInvoiceFromSalesOrder",
+        )
+        expect(fn).toContain("planBillFromReceived")
+        expect(fn).toContain("skipped")
+        expect(fn).not.toContain("postJournalEntry")
+        expect(fn).not.toContain("po.totalAmount")
+        expect(fn).not.toContain("item.quantity")
+    })
+
     it("recordVendorPayment and approveAndPayBill pass tx client into postJournalEntry", () => {
         const ap = src("lib/actions/finance-ap.ts")
         const pay = sliceFn(ap, "export async function recordVendorPayment", "export async function recordMultiBillPayment")

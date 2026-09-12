@@ -11,7 +11,9 @@ import { getTierForRoute } from "@/lib/cache-tiers"
 import { getARPaymentRegistry, getARPaymentStats } from "@/lib/actions/finance-ar"
 import { getVendorBillsRegistry, getVendorPayments, getVendorBills, getVendorAPBalances } from "@/lib/actions/finance-ap"
 import { getVendors, getPurchaseRequests } from "@/lib/actions/procurement"
-import { getJournalEntries, getGLAccountsList } from "@/lib/actions/finance-gl"
+import { getJournalEntries, getGLAccountsList, getChartOfAccountsTree } from "@/lib/actions/finance-gl"
+import { getInvoiceKanbanData } from "@/lib/actions/finance-invoices"
+import { fetchStockMovementsBundle } from "@/hooks/use-stock-movements"
 import { getFinancialMetrics, getFinanceDashboardData } from "@/lib/actions/finance-reports"
 import { getPettyCashTransactions } from "@/lib/actions/finance-petty-cash"
 import { getExpenses, getExpenseAccounts, getARAgingReport, getAPAgingReport } from "@/lib/actions/finance"
@@ -189,7 +191,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/finance/chart-accounts": {
         queryKey: queryKeys.chartAccounts.list(),
-        queryFn: () => fetchJson("/api/finance/chart-accounts-tree", []),
+        queryFn: () => getChartOfAccountsTree(),
     },
     "/finance/vendor-payments": {
         queryKey: queryKeys.vendorPayments.list(),
@@ -465,23 +467,11 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     // --- Inventory routes ---
     "/inventory/movements": {
         queryKey: queryKeys.stockMovements.list(),
-        queryFn: async () => {
-            const [pageData, movements] = await Promise.all([
-                fetchJson("/api/inventory/page-data", {}),
-                fetchJson("/api/inventory/movements-data?limit=100", []),
-            ])
-            return { ...pageData, movements }
-        },
+        queryFn: () => fetchStockMovementsBundle(100),
     },
     "/inventory/adjustments": {
         queryKey: queryKeys.adjustments.list(),
-        queryFn: async () => {
-            const [pageData, movements] = await Promise.all([
-                fetchJson("/api/inventory/page-data", {}),
-                fetchJson("/api/inventory/movements-data?limit=50", []),
-            ])
-            return { ...pageData, movements }
-        },
+        queryFn: () => fetchStockMovementsBundle(50),
     },
     "/inventory/audit": {
         queryKey: queryKeys.inventoryAudit.list(),
@@ -506,7 +496,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     // --- Finance routes ---
     "/finance/invoices": {
         queryKey: queryKeys.invoices.kanban(),
-        queryFn: () => fetchJson("/api/finance/invoices/kanban", { draft: [], sent: [], overdue: [], paid: [] }),
+        queryFn: () => getInvoiceKanbanData({ q: null, type: "ALL" }),
     },
     "/finance/petty-cash": {
         queryKey: queryKeys.pettyCash.list(),
