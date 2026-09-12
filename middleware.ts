@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import modulesCatalog from '@/config/modules-catalog.json'
+import { isPublicApiPath } from '@/lib/api-public-paths'
+import { isKriHiddenPath } from '@/lib/kri-module-gates'
 import { isLocalDemoAllowed, LOCAL_DEMO_COOKIE } from '@/lib/local-demo'
 
 // Build route → moduleId mapping from catalog at startup
@@ -109,6 +111,30 @@ export async function middleware(request: NextRequest) {
     ]
 
     const { pathname } = request.nextUrl
+    const isApiRoute = pathname.startsWith("/api/")
+
+    // Business APIs stay in middleware so a missing session-check in a route
+    // file cannot leak invoices, stock, or payroll. Public exceptions are
+    // listed in lib/api-public-paths.ts. Never clear auth cookies on API 401 —
+    // concurrent token refresh can look like a failed getUser().
+    if (isApiRoute) {
+        if (isPublicApiPath(pathname)) {
+            return response
+        }
+        if (!user) {
+            return NextResponse.json(
+                { error: "Unauthorized" },
+                {
+                    status: 401,
+                    headers: {
+                        "cache-control": "no-store, must-revalidate",
+                        "x-auth-status": "unauthenticated",
+                    },
+                },
+            )
+        }
+        return response
+    }
 
     // Check if it's a protected route
     const isProtectedRoute = protectedRoutes.some(route =>
@@ -171,6 +197,10 @@ export async function middleware(request: NextRequest) {
                     return NextResponse.redirect(url)
                 }
             }
+        } else if (isKriHiddenPath(pathname)) {
+            const url = request.nextUrl.clone()
+            url.pathname = '/dashboard'
+            return NextResponse.redirect(url)
         }
     }
 
@@ -201,14 +231,13 @@ function clearAuthCookies(response: NextResponse, request: NextRequest) {
 export const config = {
     matcher: [
         /*
-         * Match all request paths except for the ones starting with:
-         * - api/ (API routes handle auth internally — excluding from middleware
-         *   prevents token refresh race conditions with concurrent requests)
+         * Match pages and /api. Public APIs are allowlisted in code.
+         * Unauthenticated APIs get 401 JSON — cookies are never cleared here.
          * - _next/static (static files)
          * - _next/image (image optimization files)
          * - favicon.ico (favicon file)
          * - public folder files
          */
-        "/((?!api/|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+        "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
     ],
 }

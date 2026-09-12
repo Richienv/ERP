@@ -6,6 +6,7 @@ import { ProcurementStatus } from "@prisma/client"
 import { assertRole, getAuthzUser } from "@/lib/authz"
 import { assertPOTransition, allowedNextStatuses } from "@/lib/po-state-machine"
 import { postInventoryGLEntry } from "@/lib/actions/inventory-gl"
+import { ensureSystemAccounts } from "@/lib/gl-accounts-server"
 import { revalidatePath } from "next/cache"
 import {
     FALLBACK_PENDING_POS,
@@ -457,6 +458,7 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
                 throw new Error('GRN sudah diproses atau tidak ditemukan. Refresh halaman.')
             }
             console.log("[acceptGRN] GRN status → ACCEPTED")
+            await ensureSystemAccounts(prisma)
 
             // 3. Update PO item received quantities — atomic over-receive guard.
             // updateMany with WHERE constraint ensures two concurrent GRN

@@ -416,9 +416,7 @@ export async function getMiningCommandPulse(): Promise<MiningCommandPulse> {
             detail: pendingPOFirst
                 ? `${pendingPO} PO menunggu approval, mulai dari ${pendingPOFirst.number}`
                 : `${pendingPO} PO menunggu approval`,
-            href: pendingPOFirst
-                ? `/procurement/orders?highlight=${pendingPOFirst.id}`
-                : "/procurement/orders",
+            href: "/procurement",
             tone: "warn",
             count: pendingPO,
             amount: pendingPOAmount,

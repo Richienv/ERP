@@ -961,3 +961,92 @@ export async function approveAndPayBill(
         return { success: false, error: error.message }
     }
 }
+
+/**
+ * Post AP payment GL for a Xendit payout that already succeeded.
+ * Called from the webhook (no user session) — token auth lives at the route.
+ * Idempotent: existing [GL:POSTED] notes or a journal on this payment skip.
+ */
+export async function settleSucceededXenditPayout(params: {
+    referenceId: string
+    xenditId?: string
+    statusMarker: string
+}) {
+    return withPrismaAuth(async (prisma) => {
+        const payment = await prisma.payment.findFirst({
+            where: { reference: params.referenceId },
+            include: { invoice: true },
+        })
+        if (!payment) {
+            return { success: false as const, error: "Payment not found" }
+        }
+
+        if (payment.notes?.includes("[GL:POSTED]")) {
+            return { success: true as const, duplicate: true }
+        }
+
+        const existingJE = await prisma.journalEntry.findFirst({
+            where: {
+                OR: [
+                    { paymentId: payment.id },
+                    { reference: payment.number },
+                ],
+            },
+            select: { id: true },
+        })
+        if (existingJE) {
+            await prisma.payment.update({
+                where: { id: payment.id },
+                data: {
+                    notes: `[GL:POSTED] ${params.statusMarker} ${payment.notes || ""}`.trim(),
+                },
+            })
+            return { success: true as const, duplicate: true }
+        }
+
+        await assertPeriodOpen(new Date())
+        await ensureSystemAccounts()
+
+        const amount = toNum(payment.amount)
+        if (amount <= 0) {
+            throw new Error("Jumlah payout Xendit tidak valid")
+        }
+
+        const glResult = await postJournalEntry({
+            description: `Vendor Payment Xendit ${payment.number}`,
+            date: new Date(),
+            reference: payment.number,
+            paymentId: payment.id,
+            invoiceId: payment.invoiceId ?? undefined,
+            sourceDocumentType: "PAYMENT",
+            lines: [
+                { accountCode: SYS_ACCOUNTS.AP, debit: amount, credit: 0, description: "Hutang Usaha" },
+                { accountCode: SYS_ACCOUNTS.BANK_BCA, debit: 0, credit: amount, description: "Bank BCA" },
+            ],
+        }, prisma)
+        if (!glResult?.success) {
+            throw new Error(`Jurnal Xendit gagal: ${(glResult as any)?.error || "GL error"}`)
+        }
+
+        if (payment.invoiceId) {
+            const currentDue = toNum(payment.invoice?.balanceDue)
+            const newBalance = Math.max(0, currentDue - amount)
+            await prisma.invoice.update({
+                where: { id: payment.invoiceId },
+                data: {
+                    balanceDue: newBalance,
+                    status: newBalance <= 0 ? "PAID" : "PARTIAL",
+                },
+            })
+        }
+
+        await prisma.payment.update({
+            where: { id: payment.id },
+            data: {
+                notes: `[GL:POSTED] ${params.statusMarker} ${payment.notes || ""}`.trim(),
+            },
+        })
+
+        return { success: true as const }
+    })
+}

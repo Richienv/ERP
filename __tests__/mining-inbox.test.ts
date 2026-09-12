@@ -205,12 +205,12 @@ describe("Kotak Masuk Operasi — antrian aksi", () => {
         expect(docs?.detail).toContain(EXPIRING_SOON.plateNumber)
     })
 
-    it("menyorot PO yang menunggu approval lewat deep link highlight", async () => {
+    it("mengarahkan Setujui PO ke halaman pengadaan yang punya tombol Setujui", async () => {
         seedBusyMine()
         const pulse = await getMiningCommandPulse()
         const po = pulse.actions.find((a) => a.id === "po-approve")
 
-        expect(po?.href).toBe("/procurement/orders?highlight=po-77")
+        expect(po?.href).toBe("/procurement")
         expect(po?.detail).toContain("PO-2026-077")
     })
 

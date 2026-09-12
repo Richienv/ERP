@@ -11,7 +11,6 @@ import {
     Loader2,
     CheckCircle2,
     AlertCircle,
-    Wallet,
     Search,
     FileText,
     Eye,
@@ -43,7 +42,6 @@ import {
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CheckboxFilter } from "@/components/ui/checkbox-filter"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
@@ -52,11 +50,10 @@ import { moveInvoiceToSent } from "@/lib/actions/finance-invoices"
 import { getThreeWayMatch } from "@/lib/actions/finance-match"
 import { useBillMatch } from "@/hooks/use-bill-match"
 import { PaymentHistoryTable, type PaymentHistoryRow } from "@/components/finance/payment-history-table"
-import { processXenditPayout } from "@/lib/actions/xendit"
 import { formatIDR } from "@/lib/utils"
 import { NB } from "@/lib/dialog-styles"
 import { toast } from "sonner"
-import { useBills, useBanks } from "@/hooks/use-bills"
+import { useBills } from "@/hooks/use-bills"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
@@ -77,12 +74,9 @@ export default function APBillsStackPage() {
     }
 
     const { data: billsData, isLoading, isFetching } = useBills(queryParams)
-    const { data: banksData } = useBanks()
 
     const bills = billsData?.rows ?? []
     const billMeta = billsData?.meta ?? { page: 1, pageSize: 20, total: 0, totalPages: 1 }
-    const banks = banksData?.banks ?? []
-    const ewallets = banksData?.ewallets ?? []
 
     const [searchText, setSearchText] = useState(searchParams.get("q") || "")
     const [selectedStatuses, setSelectedStatuses] = useState<string[]>(
@@ -105,15 +99,6 @@ export default function APBillsStackPage() {
         isDetailOpen && activeBill?.status === "DRAFT"
     )
 
-    const [paymentForm, setPaymentForm] = useState({
-        bankCode: "",
-        accountNumber: "",
-        accountHolderName: "",
-        description: "",
-    })
-
-    // Manual payment state
-    const [paymentTab, setPaymentTab] = useState<"manual" | "xendit">("manual")
     const [manualMethod, setManualMethod] = useState<"TRANSFER" | "CHECK" | "GIRO" | "CASH">("TRANSFER")
     const [manualBankAccount, setManualBankAccount] = useState("")
     const [manualReference, setManualReference] = useState("")
@@ -161,17 +146,6 @@ export default function APBillsStackPage() {
         return { bankAccounts: bank, cashAccounts: cash }
     }, [coaTree])
 
-    useEffect(() => {
-        if (activeBill && activeBill.vendor) {
-            setPaymentForm({
-                bankCode: activeBill.vendor.bankName?.toUpperCase().replace(/\s+/g, "_").replace(/^BANK_/, "") || "",
-                accountNumber: activeBill.vendor.bankAccountNumber || "",
-                accountHolderName: activeBill.vendor.bankAccountName || "",
-                description: `Payment for ${activeBill.number}`,
-            })
-        }
-    }, [activeBill])
-
     // Initialize manual allocations when pay dialog opens
     useEffect(() => {
         if (isPayOpen && activeBill && activeBill.vendor) {
@@ -189,7 +163,6 @@ export default function APBillsStackPage() {
                     allocatedAmount: b.id === activeBill.id ? b.balanceDue : 0,
                 }))
             setManualAllocations(vendorBills)
-            setPaymentTab("manual")
             setManualMethod("TRANSFER")
             setManualBankAccount("1010")
             setManualReference("")
@@ -292,21 +265,6 @@ export default function APBillsStackPage() {
             if (result.success) { toast.success("Bill disputed"); setIsDisputeOpen(false); setDisputeReason(""); invalidateAfterDispute() }
             else toast.error("Gagal dispute bill")
         } catch { toast.error("Terjadi kesalahan") } finally { setProcessing(false) }
-    }
-
-    const handlePaySubmit = async () => {
-        if (!activeBill) return
-        if (paymentPendingBillId) { toast.error("Pembayaran lain sedang diproses"); return }
-        if (!paymentForm.bankCode) { toast.error("Pilih bank"); return }
-        if (!paymentForm.accountNumber) { toast.error("Masukkan nomor rekening"); return }
-        if (!paymentForm.accountHolderName) { toast.error("Masukkan nama pemilik rekening"); return }
-        setPaymentPendingBillId(activeBill.id)
-        setProcessing(true)
-        try {
-            const result = await processXenditPayout({ billId: activeBill.id, amount: activeBill.balanceDue, bankCode: paymentForm.bankCode, accountNumber: paymentForm.accountNumber, accountHolderName: paymentForm.accountHolderName, description: paymentForm.description })
-            if (result.success) { setStamped(true); toast.success("message" in result ? result.message : "Pembayaran berhasil"); setIsPayOpen(false); setTimeout(() => { setStamped(false); invalidateAfterPayout() }, 2000) }
-            else toast.error("error" in result ? result.error : "Gagal bayar")
-        } catch (error: any) { toast.error(error.message || "Terjadi kesalahan") } finally { setProcessing(false); setPaymentPendingBillId(null) }
     }
 
     // Manual payment allocation helpers
@@ -940,20 +898,7 @@ export default function APBillsStackPage() {
                             </div>
                         </div>
 
-                        {/* Top-level tabs: MANUAL | XENDIT */}
-                        <div className="px-6 pt-4">
-                            <Tabs value={paymentTab} onValueChange={(v) => setPaymentTab(v as "manual" | "xendit")} className="w-full">
-                                <TabsList className="grid w-full grid-cols-2 border-2 border-black rounded-none">
-                                    <TabsTrigger value="manual" className="flex items-center gap-2 rounded-none font-black uppercase text-xs tracking-wider">
-                                        <Building2 className="h-4 w-4" /> Manual
-                                    </TabsTrigger>
-                                    <TabsTrigger value="xendit" className="flex items-center gap-2 rounded-none font-black uppercase text-xs tracking-wider">
-                                        <Wallet className="h-4 w-4" /> Xendit
-                                    </TabsTrigger>
-                                </TabsList>
-
-                                {/* ─── MANUAL TAB ─── */}
-                                <TabsContent value="manual" className="space-y-4 mt-4">
+                        <div className="px-6 pt-4 space-y-4">
                                     {!activeBill?.vendor?.id ? (
                                         <div className="p-8 text-center border-2 border-dashed border-zinc-300">
                                             <AlertCircle className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
@@ -1143,58 +1088,21 @@ export default function APBillsStackPage() {
                                             )}
                                         </>
                                     )}
-                                </TabsContent>
-
-                                {/* ─── XENDIT TAB ─── */}
-                                <TabsContent value="xendit" className="space-y-4 mt-4">
-                                    <Tabs defaultValue="bank" className="w-full">
-                                        <TabsList className="grid w-full grid-cols-2 border-2 border-black rounded-none">
-                                            <TabsTrigger value="bank" className="flex items-center gap-2 rounded-none font-black uppercase text-xs tracking-wider"><Building2 className="h-4 w-4" /> Bank Transfer</TabsTrigger>
-                                            <TabsTrigger value="ewallet" className="flex items-center gap-2 rounded-none font-black uppercase text-xs tracking-wider"><Wallet className="h-4 w-4" /> E-Wallet</TabsTrigger>
-                                        </TabsList>
-                                        <TabsContent value="bank" className="space-y-4 mt-4">
-                                            <div className="space-y-1"><label className={NB.label}>Bank <span className={NB.labelRequired}>*</span></label><Select value={paymentForm.bankCode} onValueChange={(v) => setPaymentForm({ ...paymentForm, bankCode: v })}><SelectTrigger className={NB.select}><SelectValue placeholder="Pilih bank..." /></SelectTrigger><SelectContent>{banks.map((bank) => <SelectItem key={bank.key} value={bank.key}>{bank.name}</SelectItem>)}</SelectContent></Select></div>
-                                            <div className="space-y-1"><label className={NB.label}>No. Rekening <span className={NB.labelRequired}>*</span></label><Input placeholder="1234567890" value={paymentForm.accountNumber} onChange={(e) => setPaymentForm({ ...paymentForm, accountNumber: e.target.value })} className={NB.inputMono} /></div>
-                                            <div className="space-y-1"><label className={NB.label}>Nama Pemilik Rekening <span className={NB.labelRequired}>*</span></label><Input placeholder="Nama sesuai rekening" value={paymentForm.accountHolderName} onChange={(e) => setPaymentForm({ ...paymentForm, accountHolderName: e.target.value })} className={NB.input} /><p className="text-[10px] font-bold text-zinc-400 mt-1">Harus sesuai data bank</p></div>
-                                        </TabsContent>
-                                        <TabsContent value="ewallet" className="space-y-4 mt-4">
-                                            <div className="space-y-1"><label className={NB.label}>E-Wallet <span className={NB.labelRequired}>*</span></label><Select value={paymentForm.bankCode} onValueChange={(v) => setPaymentForm({ ...paymentForm, bankCode: v })}><SelectTrigger className={NB.select}><SelectValue placeholder="Pilih e-wallet..." /></SelectTrigger><SelectContent>{ewallets.map((ew) => <SelectItem key={ew.key} value={ew.key}>{ew.name}</SelectItem>)}</SelectContent></Select></div>
-                                            <div className="space-y-1"><label className={NB.label}>No. Telepon <span className={NB.labelRequired}>*</span></label><Input placeholder="08123456789" value={paymentForm.accountNumber} onChange={(e) => setPaymentForm({ ...paymentForm, accountNumber: e.target.value })} className={NB.inputMono} /></div>
-                                            <div className="space-y-1"><label className={NB.label}>Nama Akun <span className={NB.labelRequired}>*</span></label><Input placeholder="Nama pemilik akun" value={paymentForm.accountHolderName} onChange={(e) => setPaymentForm({ ...paymentForm, accountHolderName: e.target.value })} className={NB.input} /></div>
-                                        </TabsContent>
-                                    </Tabs>
-                                    {/* Xendit fee summary */}
-                                    <div className={NB.section}>
-                                        <div className={NB.sectionHead}><CheckCircle2 className="h-3.5 w-3.5" /><span className={NB.sectionTitle}>Ringkasan</span></div>
-                                        <div className="p-4 space-y-2 text-sm">
-                                            <div className="flex justify-between"><span className="text-zinc-400 font-bold text-xs">Biaya Transfer (estimasi)</span><span className="font-bold font-mono text-xs">Rp 2.775</span></div>
-                                            <div className="flex justify-between border-t-2 border-black pt-2"><span className="font-black text-xs uppercase tracking-wider">Total Charge</span><span className="font-black font-mono">{activeBill ? formatIDR(activeBill.balanceDue + 2775) : "-"}</span></div>
-                                        </div>
-                                    </div>
-                                </TabsContent>
-                            </Tabs>
                         </div>
                     </div>
-                    {/* Footer — button changes based on active tab */}
+                    {/* Footer */}
                     <div className="px-6 py-4 border-t-2 border-black">
                         <div className={NB.footer}>
                             <Button variant="outline" onClick={() => setIsPayOpen(false)} disabled={processing} className={NB.cancelBtn}>Batal</Button>
-                            {paymentTab === "manual" ? (
-                                <Button
-                                    onClick={handleManualPaySubmit}
-                                    disabled={processing || manualSelectedCount === 0 || manualTotalAllocated <= 0 || !activeBill?.vendor?.id}
-                                    className={NB.submitBtn + " bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40"}
-                                >
-                                    {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    <Banknote className="h-4 w-4 mr-2" />
-                                    Bayar {manualSelectedCount} Tagihan — {formatIDR(manualTotalAllocated)}
-                                </Button>
-                            ) : (
-                                <Button onClick={handlePaySubmit} disabled={processing || !!paymentPendingBillId} className={NB.submitBtn}>
-                                    {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Konfirmasi Pembayaran
-                                </Button>
-                            )}
+                            <Button
+                                onClick={handleManualPaySubmit}
+                                disabled={processing || manualSelectedCount === 0 || manualTotalAllocated <= 0 || !activeBill?.vendor?.id}
+                                className={NB.submitBtn + " bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40"}
+                            >
+                                {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                <Banknote className="h-4 w-4 mr-2" />
+                                Bayar {manualSelectedCount} Tagihan — {formatIDR(manualTotalAllocated)}
+                            </Button>
                         </div>
                     </div>
                 </DialogContent>

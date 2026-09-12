@@ -1,5 +1,6 @@
 "use client"
 
+import { Suspense } from "react"
 import dynamic from "next/dynamic"
 import { usePathname } from "next/navigation"
 
@@ -32,8 +33,8 @@ interface GlobalLayoutProps {
 
 const AUTH_PAGES = new Set(["/login", "/signup", "/forgot-password", "/auth/callback"])
 
-export function GlobalLayout({ children }: GlobalLayoutProps) {
-  const pathname = usePathname()
+function GlobalLayoutInner({ children }: GlobalLayoutProps) {
+  const pathname = usePathname() ?? ""
   const isAuthPage = AUTH_PAGES.has(pathname)
 
   return (
@@ -72,5 +73,13 @@ export function GlobalLayout({ children }: GlobalLayoutProps) {
         <ShortcutCheatSheet />
       </AIProvider>
     </AuthProvider >
+  )
+}
+
+export function GlobalLayout({ children }: GlobalLayoutProps) {
+  return (
+    <Suspense fallback={null}>
+      <GlobalLayoutInner>{children}</GlobalLayoutInner>
+    </Suspense>
   )
 }

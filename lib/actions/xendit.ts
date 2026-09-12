@@ -38,6 +38,10 @@ export async function processXenditPayout(data: XenditPayoutRequest) {
                 throw new Error('Bill is already paid')
             }
 
+            if (bill.status === 'DRAFT' || bill.status === 'DISPUTED') {
+                throw new Error('Tagihan harus disetujui dulu sebelum dibayar via Xendit')
+            }
+
             // 2. Validate amount
             if (data.amount <= 0 || data.amount > Number(bill.balanceDue)) {
                 throw new Error('Invalid payment amount')
@@ -67,13 +71,9 @@ export async function processXenditPayout(data: XenditPayoutRequest) {
                 })
             }
 
-            // 7. Update bill status to ISSUED (processing)
-            if (bill.status === 'DRAFT' || bill.status === 'DISPUTED') {
-                await prisma.invoice.update({
-                    where: { id: data.billId },
-                    data: { status: 'ISSUED' }
-                })
-            }
+            // 7. Do not flip DRAFT → ISSUED here. Approval (and AP expense GL)
+            // must already have happened. Payout only creates a pending Payment;
+            // journal + PAID happen in settleSucceededXenditPayout on SUCCEEDED.
 
             // 8. Try to call Xendit API FIRST (before creating any payment record)
             let xenditResult: any = null
@@ -107,13 +107,6 @@ export async function processXenditPayout(data: XenditPayoutRequest) {
             } catch (err: any) {
                 console.error('Xendit Payout API Error:', err)
                 // Xendit failed — do NOT create payment record
-                // Revert bill status if we changed it
-                if (bill.status === 'DRAFT' || bill.status === 'DISPUTED') {
-                    await prisma.invoice.update({
-                        where: { id: data.billId },
-                        data: { status: bill.status } // revert to original
-                    })
-                }
                 return {
                     success: false,
                     error: `Xendit API gagal: ${err.message || 'Unknown error'}. Tidak ada pembayaran yang dibuat.`

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { settleSucceededXenditPayout } from '@/lib/actions/finance-ap';
 
 // Webhook handler for Xendit payout status updates
 export async function POST(req: NextRequest) {
@@ -56,28 +57,22 @@ export async function POST(req: NextRequest) {
 
                 // Update based on status
                 switch (status) {
-                    case 'SUCCEEDED':
-                        // Payment completed - update invoice to PAID
-                        if (payment.invoiceId) {
-                            await prisma.invoice.update({
-                                where: { id: payment.invoiceId },
-                                data: {
-                                    status: 'PAID',
-                                    balanceDue: 0
-                                }
-                            });
+                    case 'SUCCEEDED': {
+                        const settled = await settleSucceededXenditPayout({
+                            referenceId: reference_id,
+                            xenditId: id,
+                            statusMarker: `${statusMarker} completed at ${updated || new Date().toISOString()}`,
+                        })
+                        if (!settled.success) {
+                            console.error(`Xendit SUCCEEDED but GL settle failed for ${reference_id}:`, settled.error)
+                            return NextResponse.json(
+                                { error: settled.error || 'GL settle failed' },
+                                { status: 500 },
+                            )
                         }
-
-                        // Update payment notes
-                        await prisma.payment.update({
-                            where: { id: payment.id },
-                            data: {
-                                notes: `${statusMarker} ${payment.notes || ''}\n[Xendit] Payment completed at ${updated || new Date().toISOString()}`
-                            }
-                        });
-
                         console.log(`✅ Payment ${reference_id} completed successfully`);
                         break;
+                    }
 
                     case 'FAILED':
                         // Payment failed - revert invoice status
@@ -129,7 +124,12 @@ export async function POST(req: NextRequest) {
             }
         } catch (dbError) {
             console.error('Database update error:', dbError);
-            // Don't fail the webhook - just log
+            if (status === 'SUCCEEDED') {
+                return NextResponse.json(
+                    { error: 'GL settle failed' },
+                    { status: 500 },
+                )
+            }
         }
 
         // 5. Always return 200 to acknowledge receipt

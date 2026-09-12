@@ -61,6 +61,7 @@ export const SYS_ACCOUNTS = {
 
   // --- Revenue ---
   REVENUE:        "4000",  // Pendapatan Penjualan (seed: 4000)
+  SALES_RETURNS:  "4010",  // Retur Penjualan (contra-revenue)
   SERVICE_REVENUE: "4200",  // Pendapatan Jasa
   OTHER_INCOME:    "4300",  // Pendapatan Lain-lain
   INTEREST_INCOME: "4400",  // Pendapatan Bunga

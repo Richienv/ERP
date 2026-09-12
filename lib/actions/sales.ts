@@ -197,8 +197,9 @@ export async function updateQuotationStatus(id: string, newStatus: string) {
 }
 
 // 4. INVOICE ACTIONS
-import { postJournalEntry } from "@/lib/actions/finance"
-import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts-server"
+import { postJournalEntry } from "@/lib/actions/finance-gl"
+import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts-server"
+import { TAX_RATES } from "@/lib/tax-rates"
 import { assertPeriodOpen } from "@/lib/period-helpers"
 
 // Create Invoice (Draft)
@@ -210,7 +211,7 @@ export async function createInvoice(data: { customerId: string, items: { descrip
             const number = `INV-${year}-${String(count + 1).padStart(4, '0')}`
 
             const subtotal = data.items.reduce((acc, item) => acc + (item.quantity * item.price), 0)
-            const taxAmount = subtotal * 0.11
+            const taxAmount = subtotal * TAX_RATES.PPN
             const totalAmount = subtotal + taxAmount
 
             const invoice = await prisma.invoice.create({
@@ -250,14 +251,14 @@ export async function createInvoice(data: { customerId: string, items: { descrip
 // Approve Invoice -> Post to GL
 export async function approveInvoice(id: string) {
     try {
-        const invoice = await withPrismaAuth(async (prisma) => {
-            const inv = await prisma.invoice.findUnique({
+        await withPrismaAuth(async (prisma) => {
+            const invoice = await prisma.invoice.findUnique({
                 where: { id },
                 include: { customer: true, items: true }
             })
 
-            if (!inv) throw new Error("Invoice not found")
-            if (inv.status !== 'DRAFT') throw new Error("Invoice already processed")
+            if (!invoice) throw new Error("Invoice not found")
+            if (invoice.status !== 'DRAFT') throw new Error("Invoice already processed")
 
             // Period lock: fail fast before mutation
             await assertPeriodOpen(new Date())
@@ -267,36 +268,37 @@ export async function approveInvoice(id: string) {
                 data: { status: 'ISSUED' }
             })
 
-            return inv
-        })
+            const subtotal = Number(invoice.subtotal)
+            const taxAmount = Number(invoice.taxAmount)
+            const totalAmount = Number(invoice.totalAmount)
 
-        // Post Journal Entry for AR recognition
-        const subtotal = Number(invoice.subtotal)
-        const taxAmount = Number(invoice.taxAmount)
-        const totalAmount = Number(invoice.totalAmount)
-
-        await ensureSystemAccounts()
-        await postJournalEntry({
-            description: `Invoice ${invoice.number} issued to ${invoice.customer?.name || 'Customer'}`,
-            date: new Date(),
-            reference: id,
-            lines: [
-                {
-                    accountCode: SYS_ACCOUNTS.AR, // Piutang Usaha (AR)
-                    debit: totalAmount,
-                    credit: 0
-                },
-                {
-                    accountCode: SYS_ACCOUNTS.PPN_KELUARAN, // PPN Keluaran
-                    debit: 0,
-                    credit: taxAmount
-                },
-                {
-                    accountCode: SYS_ACCOUNTS.REVENUE, // Pendapatan Penjualan
-                    debit: 0,
-                    credit: subtotal
-                }
-            ]
+            await ensureSystemAccounts()
+            const glResult = await postJournalEntry({
+                description: `Invoice ${invoice.number} issued to ${invoice.customer?.name || 'Customer'}`,
+                date: new Date(),
+                reference: id,
+                invoiceId: id,
+                lines: [
+                    {
+                        accountCode: SYS_ACCOUNTS.AR,
+                        debit: totalAmount,
+                        credit: 0
+                    },
+                    {
+                        accountCode: SYS_ACCOUNTS.PPN_KELUARAN,
+                        debit: 0,
+                        credit: taxAmount
+                    },
+                    {
+                        accountCode: SYS_ACCOUNTS.REVENUE,
+                        debit: 0,
+                        credit: subtotal
+                    }
+                ]
+            }, prisma)
+            if (!glResult?.success) {
+                throw new Error(`Jurnal invoice gagal: ${(glResult as any)?.error || 'GL error'}`)
+            }
         })
 
         return { success: true }
@@ -350,30 +352,30 @@ export async function recordPayment(invoiceId: string, amount: number, method: s
                 }
             })
 
-            return { invoice, payment }
-        })
-
-        // 3. Post Journal Entry (outside transaction)
-        let debitAccount = '1110'
-        if (method === 'CASH') debitAccount = '1101'
-
-        await ensureSystemAccounts()
-        await postJournalEntry({
-            description: `Payment for ${result.invoice.number} (${method})`,
-            date: new Date(),
-            reference: result.payment.reference || "PAY",
-            lines: [
-                {
-                    accountCode: debitAccount,
-                    debit: amount,
-                    credit: 0
-                },
-                {
-                    accountCode: SYS_ACCOUNTS.AR, // Piutang Usaha (AR)
-                    credit: amount,
-                    debit: 0
-                }
-            ]
+            const debitAccount = getCashAccountCode(method)
+            await ensureSystemAccounts()
+            const glResult = await postJournalEntry({
+                description: `Payment for ${invoice.number} (${method})`,
+                date: new Date(),
+                reference: payment.reference || "PAY",
+                paymentId: payment.id,
+                invoiceId: invoice.id,
+                lines: [
+                    {
+                        accountCode: debitAccount,
+                        debit: amount,
+                        credit: 0
+                    },
+                    {
+                        accountCode: SYS_ACCOUNTS.AR,
+                        credit: amount,
+                        debit: 0
+                    }
+                ]
+            }, prisma)
+            if (!glResult?.success) {
+                throw new Error(`Jurnal pembayaran gagal: ${(glResult as any)?.error || 'GL error'}`)
+            }
         })
 
         return { success: true }
@@ -1107,7 +1109,7 @@ export async function recordPartialShipment(
 // SALES ORDER → INVOICE INTEGRATION
 // ==========================================
 
-import { createInvoiceFromSalesOrder } from "@/lib/actions/finance"
+import { createInvoiceFromSalesOrder } from "@/lib/actions/finance-invoices"
 
 /**
  * Generate customer invoice from a Sales Order
@@ -1237,7 +1239,7 @@ export async function createSalesReturn(
                 for (const item of input.items) {
                     subtotal += item.quantity * item.unitPrice
                 }
-                const ppnAmount = Math.round(subtotal * 0.11)
+                const ppnAmount = Math.round(subtotal * TAX_RATES.PPN)
                 const totalAmount = subtotal + ppnAmount
 
                 // 4. Generate credit note number
@@ -1279,7 +1281,7 @@ export async function createSalesReturn(
                             create: input.items.map((item) => {
                                 const soItem = so.items.find(i => i.id === item.salesOrderItemId)!
                                 const lineAmount = item.quantity * item.unitPrice
-                                const linePpn = Math.round(lineAmount * 0.11)
+                                const linePpn = Math.round(lineAmount * TAX_RATES.PPN)
                                 return {
                                     productId: item.productId,
                                     description: `Retur: ${soItem.product.name} (${soItem.product.code}) - ${item.reason}`,
@@ -1384,43 +1386,44 @@ export async function createSalesReturn(
                     })
                 }
 
+                const returnSubtotal = input.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0)
+                const returnPpn = Math.round(returnSubtotal * TAX_RATES.PPN)
+                const returnTotal = returnSubtotal + returnPpn
+
+                await ensureSystemAccounts()
+                const glResult = await postJournalEntry({
+                    description: `Retur Penjualan ${creditNote.number}`,
+                    date: new Date(),
+                    reference: creditNote.id,
+                    lines: [
+                        {
+                            accountCode: SYS_ACCOUNTS.SALES_RETURNS,
+                            debit: returnSubtotal,
+                            credit: 0,
+                            description: 'Retur Penjualan',
+                        },
+                        {
+                            accountCode: SYS_ACCOUNTS.PPN_KELUARAN,
+                            debit: returnPpn,
+                            credit: 0,
+                            description: 'Koreksi PPN Keluaran',
+                        },
+                        {
+                            accountCode: SYS_ACCOUNTS.AR,
+                            debit: 0,
+                            credit: returnTotal,
+                            description: 'Pengurangan Piutang',
+                        },
+                    ],
+                }, prisma)
+                if (!glResult?.success) {
+                    throw new Error(`Jurnal retur gagal: ${(glResult as any)?.error || 'GL error'}`)
+                }
+
                 return {
                     creditNoteId: creditNote.id,
                     creditNoteNumber: creditNote.number,
                 }
-        })
-
-        // 9. Post GL entry outside transaction
-        // DR Sales Returns (contra-revenue 4010), CR Accounts Receivable (1100)
-        const subtotal = input.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0)
-        const ppn = Math.round(subtotal * 0.11)
-        const total = subtotal + ppn
-
-        await ensureSystemAccounts()
-        await postJournalEntry({
-            description: `Retur Penjualan ${result.creditNoteNumber}`,
-            date: new Date(),
-            reference: result.creditNoteId,
-            lines: [
-                {
-                    accountCode: '4010', // Retur Penjualan (contra-revenue)
-                    debit: subtotal,
-                    credit: 0,
-                    description: 'Retur Penjualan',
-                },
-                {
-                    accountCode: SYS_ACCOUNTS.PPN_KELUARAN, // PPN Keluaran
-                    debit: ppn,
-                    credit: 0,
-                    description: 'Koreksi PPN Keluaran',
-                },
-                {
-                    accountCode: SYS_ACCOUNTS.AR, // Piutang Usaha (AR)
-                    debit: 0,
-                    credit: total,
-                    description: 'Pengurangan Piutang',
-                },
-            ],
         })
 
         return {

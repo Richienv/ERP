@@ -894,7 +894,7 @@ export async function postDepreciationRun(periodStart: string, periodEnd: string
                                 { accountCode: depExpAccount.code, debit: entry.depreciationAmount, credit: 0, description: `Beban penyusutan - ${assetInfo.name}` },
                                 { accountCode: accDepAccount.code, debit: 0, credit: entry.depreciationAmount, description: `Akumulasi penyusutan - ${assetInfo.name}` },
                             ],
-                        })
+                        }, prisma)
                         if (glResult?.success && (glResult as any).id) {
                             journalEntryId = (glResult as any).id
                         } else {
@@ -1216,7 +1216,7 @@ export async function createAssetMovement(data: MovementInput) {
                             reference: `FA-${data.type}-${asset.assetCode}`,
                             sourceDocumentType: 'FIXED_ASSET_DISPOSAL',
                             lines: glLines,
-                        })
+                        }, prisma)
                         if (glResult?.success && (glResult as any).id) {
                             journalEntryId = (glResult as any).id
                         } else {

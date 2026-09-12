@@ -41,6 +41,7 @@ const SYSTEM_ACCOUNT_DEFS: { code: string; name: string; type: "ASSET" | "LIABIL
   { code: SYS_ACCOUNTS.RETAINED_EARNINGS, name: "Laba Ditahan",                  type: "EQUITY" },
   { code: SYS_ACCOUNTS.OPENING_EQUITY,    name: "Saldo Awal Ekuitas",             type: "EQUITY" },
   { code: SYS_ACCOUNTS.REVENUE,          name: "Pendapatan Penjualan",          type: "REVENUE" },
+  { code: SYS_ACCOUNTS.SALES_RETURNS,    name: "Retur Penjualan",               type: "REVENUE" },
   { code: SYS_ACCOUNTS.SERVICE_REVENUE,  name: "Pendapatan Jasa",               type: "REVENUE" },
   { code: SYS_ACCOUNTS.OTHER_INCOME,     name: "Pendapatan Lain-lain",          type: "REVENUE" },
   { code: SYS_ACCOUNTS.INTEREST_INCOME,  name: "Pendapatan Bunga",              type: "REVENUE" },

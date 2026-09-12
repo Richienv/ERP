@@ -18,6 +18,8 @@ env:
   # on a missing env var. Do NOT point these at a real instance.
   DATABASE_URL: "postgresql://ci:ci@127.0.0.1:5432/ci?schema=public"
   DIRECT_URL: "postgresql://ci:ci@127.0.0.1:5432/ci?schema=public"
+  NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co"
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: "placeholder-anon-key"
   NEXT_TELEMETRY_DISABLED: "1"
   # Typst is only needed for PDF generation; its installer already degrades
   # gracefully, this just makes the intent explicit.
@@ -143,6 +145,20 @@ jobs:
           fi
 
           echo ":white_check_mark: Holding at baseline." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Production-gate tests
+        run: |
+          npx vitest run \
+            __tests__/api-auth-gate.test.ts \
+            __tests__/prod-ready-finance-paths.test.ts \
+            __tests__/accounting-integrity.test.ts \
+            __tests__/kri-mining-tx-safety.test.ts \
+            __tests__/mining-inbox.test.ts \
+            __tests__/three-way-match.test.ts \
+            __tests__/bill-from-received.test.ts
+
+      - name: Production build
+        run: npm run build
 
       - name: Upload typecheck report
         if: always()

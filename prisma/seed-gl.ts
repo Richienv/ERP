@@ -71,6 +71,7 @@ async function main() {
 
         // --- REVENUE (PENDAPATAN) ---
         { code: '4000', name: 'Pendapatan Penjualan', type: 'REVENUE', isSystem: true },
+        { code: '4010', name: 'Retur Penjualan', type: 'REVENUE', isSystem: true },
         { code: '4100', name: 'Diskon Penjualan', type: 'REVENUE', isSystem: true },
         { code: '4200', name: 'Pendapatan Jasa', type: 'REVENUE', isSystem: true },
         { code: '4300', name: 'Pendapatan Lain-lain', type: 'REVENUE', isSystem: true },
