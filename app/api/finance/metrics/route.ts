@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
+import { CASH_BANK_CODES } from "@/lib/gl-accounts"
 import { createClient } from "@/lib/supabase/server"
 
 export const dynamic = "force-dynamic"
@@ -16,11 +17,10 @@ export async function GET() {
         const openStatuses: ("ISSUED" | "PARTIAL" | "OVERDUE")[] = ["ISSUED", "PARTIAL", "OVERDUE"]
 
         const [
-            expenseAccounts, arTotal, arOverdue, apTotal, apUpcoming,
-            cashAccounts, recentExpenseLines, monthRevenue, monthExpenses,
+            arTotal, arOverdue, apTotal, apUpcoming,
+            cashAccounts, burnAgg, monthRevenue, monthExpenses,
             totalCollected, totalPaid
         ] = await Promise.all([
-            prisma.gLAccount.findMany({ where: { type: "EXPENSE" }, select: { id: true } }),
             prisma.invoice.aggregate({ _sum: { balanceDue: true }, where: { type: "INV_OUT", status: { in: openStatuses } } }),
             prisma.invoice.findMany({
                 where: { type: "INV_OUT", status: { in: openStatuses }, dueDate: { lt: now } },
@@ -34,12 +34,15 @@ export async function GET() {
                 orderBy: { dueDate: "asc" }, take: 3,
             }),
             prisma.gLAccount.findMany({
-                where: { type: "ASSET", code: { gte: "1000", lt: "1100" } },
+                where: { type: "ASSET", code: { in: [...CASH_BANK_CODES] } },
                 select: { balance: true, code: true },
             }),
-            prisma.journalLine.findMany({
-                where: { entry: { date: { gte: thirtyDaysAgo } } },
-                select: { debit: true, accountId: true },
+            prisma.journalLine.aggregate({
+                _sum: { debit: true },
+                where: {
+                    account: { type: "EXPENSE" },
+                    entry: { date: { gte: thirtyDaysAgo }, status: "POSTED" },
+                },
             }),
             prisma.invoice.aggregate({
                 _sum: { totalAmount: true },
@@ -53,11 +56,7 @@ export async function GET() {
             prisma.invoice.aggregate({ _sum: { totalAmount: true }, where: { type: "INV_IN", status: "PAID" } }),
         ])
 
-        // Transform
-        const expenseIds = new Set(expenseAccounts.map(a => a.id))
-        const burnRate = recentExpenseLines
-            .filter(l => expenseIds.has(l.accountId))
-            .reduce((sum, l) => sum + Number(l.debit || 0), 0)
+        const burnRate = Number(burnAgg._sum.debit || 0)
         const cashBalance = cashAccounts.reduce((sum, a) => sum + Number(a.balance || 0), 0)
 
         return NextResponse.json({

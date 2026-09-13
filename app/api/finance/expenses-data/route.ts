@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
+import { CASH_BANK_CODES } from "@/lib/gl-accounts"
 import { createClient } from "@/lib/supabase/server"
 
 export const dynamic = "force-dynamic"
@@ -33,7 +34,7 @@ export async function GET() {
                         { name: { contains: "kas", mode: "insensitive" } },
                         { name: { contains: "cash", mode: "insensitive" } },
                         { name: { contains: "bank", mode: "insensitive" } },
-                        { code: { in: ["1000", "1010", "1020", "1100", "1110"] } },
+                        { code: { in: [...CASH_BANK_CODES] } },
                     ],
                 },
                 select: { id: true, code: true, name: true },

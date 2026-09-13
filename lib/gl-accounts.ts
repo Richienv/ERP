@@ -107,6 +107,10 @@ export const CASH_BANK_CODES = [
   SYS_ACCOUNTS.BANK_MANDIRI,
 ] as const
 
+export function isCashBankCode(code?: string | null): boolean {
+  return !!code && (CASH_BANK_CODES as readonly string[]).includes(code)
+}
+
 /**
  * Resolves a cash/bank account code based on payment method.
  * For TRANSFER/CHECK/GIRO, uses the provided bankAccountCode or defaults to Bank BCA.

@@ -2,6 +2,8 @@
 
 import { withPrismaAuth, safeQuery, withRetry, prisma as basePrisma } from "@/lib/db"
 import { getFinancialMetrics } from "@/lib/actions/finance"
+import { CASH_BANK_CODES } from "@/lib/gl-accounts"
+import { queryWarehouseInventory } from "@/lib/stock-aggregates"
 import { PrismaClient } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
 import { isModuleEnabled } from "@/lib/sidebar-feature-flags"
@@ -76,9 +78,8 @@ async function fetchFinancialChartData(prisma: PrismaClient) {
     start6m.setHours(0, 0, 0, 0)
 
     const [cashAccounts, journalLines, arInvoices, apInvoices] = await Promise.all([
-        // Query all ASSET accounts starting with '1' (cash/bank accounts)
         prisma.gLAccount.findMany({
-            where: { type: 'ASSET', code: { startsWith: '1' } },
+            where: { type: 'ASSET', code: { in: [...CASH_BANK_CODES] } },
             select: { id: true, code: true, type: true, balance: true }
         }),
         prisma.journalLine.findMany({
@@ -86,7 +87,13 @@ async function fetchFinancialChartData(prisma: PrismaClient) {
                 entry: {
                     status: 'POSTED',
                     date: { gte: start6m, lte: addDays(today, 1) }
-                }
+                },
+                account: {
+                    OR: [
+                        { type: { in: ['REVENUE', 'EXPENSE'] } },
+                        { code: { in: [...CASH_BANK_CODES] } },
+                    ],
+                },
             },
             select: {
                 debit: true,
@@ -725,53 +732,8 @@ async function fetchExecutiveAlerts(prisma: PrismaClient) {
 }
 
 
-async function fetchTotalInventoryValue(prisma: PrismaClient) {
-    const stockLevels = await prisma.stockLevel.findMany({
-        include: {
-            product: { select: { costPrice: true, sellingPrice: true, isActive: true, name: true } },
-            warehouse: { select: { id: true, name: true, code: true, isActive: true } }
-        }
-    })
-    let value = 0
-    let itemCount = 0
-    const warehouseMap = new Map<string, { name: string; code: string; value: number; itemCount: number; productCount: number }>()
-
-    for (const sl of stockLevels) {
-        const slQty = Number(sl.quantity)
-        if (!sl.product.isActive || slQty <= 0) continue
-        if (!sl.warehouse.isActive) continue
-
-        // Use costPrice if set, otherwise fall back to sellingPrice
-        const costPrice = Number(sl.product.costPrice)
-        const sellingPrice = sl.product.sellingPrice === null || sl.product.sellingPrice === undefined ? 0 : Number(sl.product.sellingPrice)
-        const unitPrice = costPrice > 0 ? costPrice : sellingPrice
-
-        const lineValue = slQty * unitPrice
-        value += lineValue
-        itemCount += slQty
-
-        // Aggregate per warehouse
-        const whKey = sl.warehouse.id
-        const existing = warehouseMap.get(whKey)
-        if (existing) {
-            existing.value += lineValue
-            existing.itemCount += slQty
-            existing.productCount += 1
-        } else {
-            warehouseMap.set(whKey, {
-                name: sl.warehouse.name,
-                code: sl.warehouse.code,
-                value: lineValue,
-                itemCount: slQty,
-                productCount: 1
-            })
-        }
-    }
-
-    const warehouses = Array.from(warehouseMap.values())
-        .sort((a, b) => b.value - a.value)
-
-    return { value, itemCount, warehouses }
+async function fetchTotalInventoryValue(_prisma: PrismaClient) {
+    return queryWarehouseInventory()
 }
 
 async function fetchTaxMetrics(prisma: PrismaClient) {
@@ -834,58 +796,53 @@ async function fetchSalesFulfillment(prisma: PrismaClient) {
 
 async function fetchCashFlowSummary(prisma: PrismaClient) {
     const sevenDaysAgo = addDays(new Date(), -7)
-
-    // Get journal lines for last 7 days on cash/bank accounts (code starts with '1')
-    const lines = await prisma.journalLine.findMany({
-        where: {
-            entry: {
-                date: { gte: sevenDaysAgo },
-                status: 'POSTED',
-            },
-            account: {
-                code: { startsWith: '1' },
-            },
+    const cashWhere = {
+        entry: {
+            date: { gte: sevenDaysAgo },
+            status: 'POSTED' as const,
         },
-        include: {
-            account: { select: { code: true, name: true, type: true } },
+        account: {
+            type: 'ASSET' as const,
+            code: { in: [...CASH_BANK_CODES] },
         },
-    })
-
-    let kasMasuk = 0
-    let kasKeluar = 0
-
-    for (const line of lines) {
-        kasMasuk += Number(line.debit)
-        kasKeluar += Number(line.credit)
     }
 
-    // Top 3 expense accounts by amount (from expense journal lines this week)
-    const expenseLines = await prisma.journalLine.findMany({
-        where: {
-            entry: {
-                date: { gte: sevenDaysAgo },
-                status: 'POSTED',
+    const [inflow, outflow, expenseGroups] = await Promise.all([
+        prisma.journalLine.aggregate({
+            _sum: { debit: true },
+            where: cashWhere,
+        }),
+        prisma.journalLine.aggregate({
+            _sum: { credit: true },
+            where: cashWhere,
+        }),
+        prisma.journalLine.groupBy({
+            by: ['accountId'],
+            where: {
+                entry: { date: { gte: sevenDaysAgo }, status: 'POSTED' },
+                account: { type: 'EXPENSE' },
+                debit: { gt: 0 },
             },
-            account: {
-                type: 'EXPENSE',
-            },
-            debit: { gt: 0 },
-        },
-        include: {
-            account: { select: { name: true } },
-        },
-    })
+            _sum: { debit: true },
+            orderBy: { _sum: { debit: 'desc' } },
+            take: 3,
+        }),
+    ])
 
-    const expenseMap = new Map<string, number>()
-    for (const line of expenseLines) {
-        const name = line.account.name
-        expenseMap.set(name, (expenseMap.get(name) ?? 0) + Number(line.debit))
-    }
+    const expenseAccounts = expenseGroups.length > 0
+        ? await prisma.gLAccount.findMany({
+            where: { id: { in: expenseGroups.map((row) => row.accountId) } },
+            select: { id: true, name: true },
+        })
+        : []
+    const nameById = new Map(expenseAccounts.map((account) => [account.id, account.name]))
+    const topExpenses = expenseGroups.map((row) => ({
+        name: nameById.get(row.accountId) || row.accountId,
+        amount: Number(row._sum.debit || 0),
+    }))
 
-    const topExpenses = Array.from(expenseMap.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3)
-        .map(([name, amount]) => ({ name, amount }))
+    const kasMasuk = Number(inflow._sum.debit || 0)
+    const kasKeluar = Number(outflow._sum.credit || 0)
 
     return {
         kasMasuk,
@@ -1195,12 +1152,7 @@ export async function getDashboardFinancials() {
         }
     } catch (error) {
         console.error("getDashboardFinancials failed:", error)
-        return {
-            cashBalance: 0, revenue: 0, netMargin: 0, burnRate: 0,
-            receivables: 0, payables: 0, overdueInvoices: [], overdueInvoiceCount: 0, upcomingPayables: [],
-            recentInvoices: [] as Array<{ id: string; number: string; customer: string; date: string; total: number; status: string }>,
-            netCashIn: 0,
-        }
+        throw error
     }
 }
 
@@ -1226,14 +1178,14 @@ export async function getDashboardOperations() {
                 : Promise.resolve({ passRate: -1, totalInspections: 0, recentInspections: [] as any[] }),
             fetchWorkforceStatus(prisma).catch(() => ({ attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] })),
             fetchPendingLeaves(prisma).catch(() => 0),
-            fetchTotalInventoryValue(prisma).catch(() => ({ value: 0, itemCount: 0, warehouses: [] })),
+            fetchTotalInventoryValue(prisma),
             fetchHRMetrics(prisma).catch(() => ({ totalSalary: 0, lateEmployees: [] })),
             fetchTaxMetrics(prisma).catch(() => ({ ppnOut: 0, ppnIn: 0, ppnNet: 0 })),
             fetchInventorySummary(prisma).catch(() => ({ productCount: 0, warehouseCount: 0 })),
             salesVisible
                 ? fetchSalesFulfillment(prisma).catch(() => ({ totalOrders: 0, deliveredOrders: 0, fulfillmentRate: 0 }))
                 : Promise.resolve({ totalOrders: 0, deliveredOrders: 0, fulfillmentRate: 0 }),
-            fetchCashFlowSummary(prisma).catch(() => ({ kasMasuk: 0, kasKeluar: 0, netCashFlow: 0, topExpenses: [] as { name: string; amount: number }[] })),
+            fetchCashFlowSummary(prisma),
             salesVisible
                 ? fetchProfitability(prisma).catch(() => ({ grossProfit: 0, revenue: 0, marginPct: 0, marginTrend: 0, topProducts: [] as { name: string; revenue: number; marginPct: number }[] }))
                 : Promise.resolve({ grossProfit: 0, revenue: 0, marginPct: 0, marginTrend: 0, topProducts: [] as { name: string; revenue: number; marginPct: number }[] }),
@@ -1245,23 +1197,7 @@ export async function getDashboardOperations() {
         return { procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue, hr, tax, inventorySummary, salesFulfillment, cashFlow, profitability, customerInsights, compliance }
     } catch (error) {
         console.error("getDashboardOperations failed:", error)
-        return {
-            procurement: { activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], pendingApprovalCount: 0, totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, totalPRValue: 0, poByStatus: {} as Record<string, number> },
-            prodMetrics: { activeWorkOrders: 0, totalProduction: 0, efficiency: 0 },
-            materialStatus: [],
-            qualityStatus: { passRate: -1, totalInspections: 0, recentInspections: [] },
-            workforceStatus: { attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] },
-            leaves: 0,
-            inventoryValue: { value: 0, itemCount: 0, warehouses: [] },
-            hr: { totalSalary: 0, lateEmployees: [] },
-            tax: { ppnOut: 0, ppnIn: 0, ppnNet: 0 },
-            inventorySummary: { productCount: 0, warehouseCount: 0 },
-            salesFulfillment: { totalOrders: 0, deliveredOrders: 0, fulfillmentRate: 0 },
-            cashFlow: { kasMasuk: 0, kasKeluar: 0, netCashFlow: 0, topExpenses: [] as { name: string; amount: number }[] },
-            profitability: { grossProfit: 0, revenue: 0, marginPct: 0, marginTrend: 0, topProducts: [] as { name: string; revenue: number; marginPct: number }[] },
-            customerInsights: { totalActive: 0, newThisMonth: 0, top3Customers: [] as { name: string; total: number }[], repeatRate: 0 },
-            compliance: { draftInvoices: 0, draftJournals: 0, overdueAP: 0, missingTax: 0, status: 'green' as const, totalIssues: 0 },
-        }
+        throw error
     }
 }
 
@@ -1288,7 +1224,7 @@ export async function getDashboardCharts() {
         return await fetchFinancialChartData(basePrisma)
     } catch (error) {
         console.error("getDashboardCharts failed:", error)
-        return { dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] }
+        throw error
     }
 }
 

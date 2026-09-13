@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { CACHE_TIERS } from "@/lib/cache-tiers"
 import { toast } from "sonner"
+import { apiFetch } from "@/lib/http/api-fetch"
 
 export interface FiscalPeriod {
     id: string
@@ -24,9 +25,7 @@ export function useFiscalPeriods(year?: number) {
         queryKey: queryKeys.fiscalPeriods.list(year),
         queryFn: async () => {
             const params = year ? `?year=${year}` : ""
-            const res = await fetch(`/api/finance/fiscal-periods${params}`)
-            const json = await res.json()
-            if (!res.ok) throw new Error(json.error)
+            const json = await apiFetch<{ data?: FiscalPeriod[]; error?: string }>(`/api/finance/fiscal-periods${params}`)
             return json.data as FiscalPeriod[]
         },
         ...CACHE_TIERS.CONFIG,

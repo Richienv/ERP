@@ -33,6 +33,7 @@ export const queryKeys = {
     products: {
         all: ["products"] as const,
         list: () => [...queryKeys.products.all, "list"] as const,
+        stats: () => [...queryKeys.products.all, "stats"] as const,
         detail: (id: string) => [...queryKeys.products.all, id] as const,
         manufacturing: (id: string) => [...queryKeys.products.all, "manufacturing", id] as const,
     },
@@ -180,6 +181,7 @@ export const queryKeys = {
     inventoryDashboard: {
         all: ["inventoryDashboard"] as const,
         list: () => [...queryKeys.inventoryDashboard.all, "list"] as const,
+        stats: () => [...queryKeys.inventoryDashboard.all, "stats"] as const,
     },
     inventorySettings: {
         all: ["inventorySettings"] as const,

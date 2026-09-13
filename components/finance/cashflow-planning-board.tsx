@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { isCashBankCode } from "@/lib/gl-accounts"
 import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -86,7 +87,7 @@ function formatCompact(amount: number): string {
 }
 
 function shortBankName(glAccountName?: string, glAccountCode?: string): string | null {
-    if (!glAccountCode?.startsWith("10")) return null
+    if (!isCashBankCode(glAccountCode)) return null
     if (!glAccountName) return glAccountCode
     const name = glAccountName.replace(/^(Bank|Rek\.?|Rekening)\s+/i, "").trim()
     return name.length > 10 ? name.substring(0, 9) + "…" : name
@@ -225,7 +226,7 @@ export function CashflowPlanningBoard({
     }
 
     // ─── Data Preparation ────────────────────────────────────────
-    const bankAccounts = glAccounts.filter(a => a.code.startsWith("10"))
+    const bankAccounts = glAccounts.filter(a => isCashBankCode(a.code))
     const autoItems = data.autoItems ?? []
     const manualItems = data.manualItems ?? []
     const actualItems = data.actualItems ?? []

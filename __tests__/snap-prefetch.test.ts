@@ -50,6 +50,7 @@ describe("SAP-snap cache map", () => {
         const src = fs.readFileSync(path.join(process.cwd(), "hooks/use-nav-prefetch.ts"), "utf8")
         expect(src).toContain("getChartOfAccountsTree")
         expect(src).toContain("/api/finance/lists/invoices")
+        expect(src).toContain("/api/inventory/stats")
         expect(src).toContain("fetchStockMovementsBundle")
         expect(src).not.toContain("/api/finance/chart-accounts-tree")
         expect(src).not.toContain("/api/finance/invoices/kanban")

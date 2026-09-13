@@ -89,7 +89,13 @@ function makeQueryClient() {
                 // unaffected.
                 staleTime: 60 * 1000,
                 gcTime: 7 * 24 * 60 * 60 * 1000,  // 7 days — keep unused cache entries for persistence
-                retry: 1,
+                retry: (failureCount, error) => {
+                    const status = typeof (error as { status?: unknown })?.status === "number"
+                        ? (error as { status: number }).status
+                        : undefined
+                    if (status === 401 || status === 403 || status === 404) return false
+                    return failureCount < 1
+                },
                 // Refetch when the user returns to the tab. Tiers that opt out
                 // (CONFIG / MASTER / MASTER_PLUS) set this to false themselves.
                 refetchOnWindowFocus: true,
@@ -98,7 +104,13 @@ function makeQueryClient() {
                 networkMode: "offlineFirst",
             },
             mutations: {
-                retry: 2,
+                retry: (failureCount, error) => {
+                    const status = typeof (error as { status?: unknown })?.status === "number"
+                        ? (error as { status: number }).status
+                        : undefined
+                    if (status === 401 || status === 403 || status === 404 || status === 409) return false
+                    return failureCount < 2
+                },
                 retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
                 networkMode: "offlineFirst",
             },

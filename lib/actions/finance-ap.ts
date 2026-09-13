@@ -1004,6 +1004,22 @@ export async function settleSucceededXenditPayout(params: {
             return { success: true as const, duplicate: true }
         }
 
+        const claimed = await prisma.payment.updateMany({
+            where: {
+                id: payment.id,
+                AND: [
+                    { NOT: { notes: { contains: "[GL:POSTED]" } } },
+                    { NOT: { notes: { contains: "[GL:POSTING]" } } },
+                ],
+            },
+            data: {
+                notes: `[GL:POSTING] ${params.statusMarker} ${payment.notes || ""}`.trim(),
+            },
+        })
+        if (claimed.count === 0) {
+            return { success: true as const, duplicate: true }
+        }
+
         await assertPeriodOpen(new Date())
         await ensureSystemAccounts()
 

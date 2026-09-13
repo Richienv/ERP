@@ -3,14 +3,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import type { CashflowScenarioSummary, CashflowScenarioFull, ScenarioConfig } from "@/lib/actions/finance-cashflow"
+import { apiFetch } from "@/lib/http/api-fetch"
 
 export function useCashflowScenarios(month: number, year: number) {
     return useQuery<CashflowScenarioSummary[]>({
         queryKey: queryKeys.cashflowScenarios.list(month, year),
         queryFn: async () => {
-            const res = await fetch(`/api/finance/cashflow-scenarios?month=${month}&year=${year}`)
-            if (!res.ok) throw new Error("Failed to fetch scenarios")
-            const json = await res.json()
+            const json = await apiFetch<{ scenarios?: CashflowScenarioSummary[] }>(`/api/finance/cashflow-scenarios?month=${month}&year=${year}`)
             return json.scenarios ?? []
         },
     })
@@ -21,9 +20,7 @@ export function useCashflowScenario(id: string | null) {
         queryKey: queryKeys.cashflowScenarios.detail(id ?? ""),
         queryFn: async () => {
             if (!id) return null
-            const res = await fetch(`/api/finance/cashflow-scenarios/${id}`)
-            if (!res.ok) throw new Error("Failed to fetch scenario")
-            const json = await res.json()
+            const json = await apiFetch<{ scenario?: CashflowScenarioFull }>(`/api/finance/cashflow-scenarios/${id}`)
             return json.scenario ?? null
         },
         enabled: !!id,

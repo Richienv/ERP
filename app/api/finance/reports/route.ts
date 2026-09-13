@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
 import { inferSubType } from '@/lib/account-subtype-helpers'
+import { CASH_BANK_CODES } from '@/lib/gl-accounts'
 import { TAX_RATES } from '@/lib/tax-rates'
 
 // Pad account code to 4 digits for reliable string comparison (e.g. '900' → '0900')
@@ -281,11 +282,11 @@ async function fetchBalanceSheet(asOfDate: Date) {
 async function fetchCashFlow(start: Date, end: Date) {
     const pnlData = await fetchPnL(start, end)
 
-    // Include all cash & bank accounts (10xx series): 1000 Kas, 1010 BCA, 1020 Mandiri, 1050 Petty Cash, etc.
+    // Kas + bank (111x). Do not use 10xx–11xx ranges — that drops BCA/Mandiri or pulls AR/inventory.
     const cashAccounts = await prisma.gLAccount.findMany({
         where: {
             type: 'ASSET',
-            code: { gte: '1000', lt: '1100' },
+            code: { in: [...CASH_BANK_CODES] },
         },
         include: {
             lines: {

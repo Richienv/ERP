@@ -9,6 +9,7 @@ import { assertPOTransition } from "@/lib/po-state-machine"
 import { canApproveForDepartment, resolveEmployeeContext } from "@/lib/employee-context"
 import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
 import { ensureSystemAccounts } from "@/lib/gl-accounts-server"
+import { queryStockHealth } from "@/lib/stock-aggregates"
 import { postJournalEntry } from "@/lib/actions/finance-gl"
 import { postInventoryGLEntry } from "@/lib/actions/inventory-gl"
 import { assertPeriodOpen } from "@/lib/period-helpers"
@@ -165,8 +166,8 @@ export async function getVendors() {
 // ==========================================
 
 export async function getProcurementStats(input?: ProcurementStatsInput) {
+    await getAuthzUser()
     try {
-        await getAuthzUser()
 
         const safe = async <T,>(label: string, promise: Promise<T>, fallback: T): Promise<T> =>
             promise.catch((error) => {
@@ -214,21 +215,16 @@ export async function getProcurementStats(input?: ProcurementStatsInput) {
             poFilteredTotal,
             prFilteredTotal,
         ] = await Promise.all([
-            safe("current-month-pos", prisma.purchaseOrder.findMany({
+            safe("current-month-pos", prisma.purchaseOrder.aggregate({
+                _sum: { totalAmount: true },
                 where: { status: { in: activeSpendStatuses }, createdAt: { gte: startOfCurrentMonth, lt: startOfNextMonth } },
-                select: { totalAmount: true }
-            }), [] as Array<{ totalAmount: any }>),
-            safe("previous-month-pos", prisma.purchaseOrder.findMany({
+            }), { _sum: { totalAmount: null } } as { _sum: { totalAmount: unknown } }),
+            safe("previous-month-pos", prisma.purchaseOrder.aggregate({
+                _sum: { totalAmount: true },
                 where: { status: { in: activeSpendStatuses }, createdAt: { gte: startOfPreviousMonth, lt: startOfCurrentMonth } },
-                select: { totalAmount: true }
-            }), [] as Array<{ totalAmount: any }>),
+            }), { _sum: { totalAmount: null } } as { _sum: { totalAmount: unknown } }),
             safe("vendors-health", prisma.supplier.findMany({ where: { isActive: true }, select: { rating: true, onTimeRate: true } }), [] as Array<{ rating: number | null; onTimeRate: number | null }>),
-            safe("urgent-needs", prisma.$queryRaw<[{ count: bigint }]>`
-                    SELECT COUNT(DISTINCT p.id)::bigint as count
-                    FROM public."Product" p
-                    LEFT JOIN (SELECT "productId", SUM(quantity) as total_qty FROM public."StockLevel" GROUP BY "productId") sl ON sl."productId" = p.id
-                    WHERE p."isActive" = true AND p."minStock" > 0 AND COALESCE(sl.total_qty, 0) <= p."minStock"
-                `.then(rows => Number(rows[0]?.count || 0)), 0),
+            safe("urgent-needs", queryStockHealth().then((health) => health.lowStock), 0),
             safe("po-filtered-total", prisma.purchaseOrder.count({ where: poWhere }), 0),
             safe("pr-filtered-total", prisma.purchaseRequest.count({ where: prWhere }), 0),
         ])
@@ -264,8 +260,8 @@ export async function getProcurementStats(input?: ProcurementStatsInput) {
             safe("receiving-filtered-total", prisma.goodsReceivedNote.count({ where: receivingWhere }), 0),
         ])
 
-        const currentSpend = currentMonthPOs.reduce((sum, po) => sum + Number(po.totalAmount || 0), 0)
-        const previousSpend = previousMonthPOs.reduce((sum, po) => sum + Number(po.totalAmount || 0), 0)
+        const currentSpend = Number(currentMonthPOs._sum.totalAmount || 0)
+        const previousSpend = Number(previousMonthPOs._sum.totalAmount || 0)
         const growth = previousSpend > 0 ? ((currentSpend - previousSpend) / previousSpend) * 100 : 0
 
         const avgRating = vendors.length > 0 ? vendors.reduce((sum, v) => sum + (v.rating || 0), 0) / vendors.length : 0
@@ -419,36 +415,7 @@ export async function getProcurementStats(input?: ProcurementStatsInput) {
 
     } catch (error) {
         console.error("Error fetching procurement stats:", error)
-        return {
-            spend: { current: 0, growth: 0 },
-            needsApproval: 0,
-            urgentNeeds: 0,
-            vendorHealth: { rating: 0, onTime: 0 },
-            incomingCount: 0,
-            recentActivity: [],
-            purchaseOrders: {
-                summary: { draft: 0, pendingApproval: 0, approved: 0, inProgress: 0, received: 0, completed: 0, rejected: 0, cancelled: 0 },
-                recent: []
-            },
-            purchaseRequests: {
-                summary: { draft: 0, pending: 0, approved: 0, poCreated: 0, rejected: 0, cancelled: 0 },
-                recent: []
-            },
-            receiving: {
-                summary: { draft: 0, inspecting: 0, partialAccepted: 0, accepted: 0, rejected: 0 },
-                recent: []
-            },
-            registryMeta: {
-                purchaseOrders: { page: 1, pageSize: 6, total: 0, totalPages: 1 },
-                purchaseRequests: { page: 1, pageSize: 6, total: 0, totalPages: 1 },
-                receiving: { page: 1, pageSize: 6, total: 0, totalPages: 1 },
-            },
-            registryQuery: {
-                purchaseOrders: { status: null, page: 1, pageSize: 6 },
-                purchaseRequests: { status: null, page: 1, pageSize: 6 },
-                receiving: { status: null, page: 1, pageSize: 6 },
-            }
-        }
+        throw error
     }
 }
 

@@ -299,6 +299,10 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryKey: queryKeys.inventoryDashboard.list(),
         queryFn: () => apiFetch("/api/inventory/dashboard"),
     },
+    "/inventory#stats": {
+        queryKey: queryKeys.inventoryDashboard.stats(),
+        queryFn: () => apiFetch("/api/inventory/stats"),
+    },
     "/procurement": {
         queryKey: queryKeys.procurementDashboard.list(),
         queryFn: () => apiFetch("/api/procurement/dashboard"),
@@ -375,15 +379,21 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/finance/reconciliation": {
         queryKey: queryKeys.reconciliation.list(),
-        queryFn: () => fetch("/api/finance/reconciliation").then((r) => r.json()),
+        queryFn: () => apiFetch("/api/finance/reconciliation"),
     },
     "/finance/currencies": {
         queryKey: queryKeys.currencies.list(),
-        queryFn: () => fetch("/api/finance/currencies").then((r) => r.json()).then((p) => p.data ?? []),
+        queryFn: async () => {
+            const p = await apiFetch<{ data?: unknown[]; success?: boolean }>("/api/finance/currencies")
+            return p.data ?? []
+        },
     },
     "/finance/fiscal-periods": {
         queryKey: queryKeys.fiscalPeriods.list(),
-        queryFn: () => fetch("/api/finance/fiscal-periods").then((r) => r.json()).then((p) => p.data ?? []),
+        queryFn: async () => {
+            const p = await apiFetch<{ data?: unknown[] }>("/api/finance/fiscal-periods")
+            return p.data ?? []
+        },
     },
     "/documents": {
         queryKey: queryKeys.documents.list(),
@@ -408,15 +418,14 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/finance/cashflow-forecast": {
         queryKey: queryKeys.cashflowForecast.list(6),
-        queryFn: () => fetch("/api/finance/cashflow-forecast?months=6").then((r) => r.json()),
+        queryFn: () => apiFetch("/api/finance/cashflow-forecast?months=6"),
     },
     "/finance/planning": {
         queryKey: [...queryKeys.cashflowPlan.list(new Date().getMonth() + 1, new Date().getFullYear()), false],
         queryFn: async () => {
             const m = new Date().getMonth() + 1
             const y = new Date().getFullYear()
-            const res = await fetch(`/api/finance/cashflow-plan?month=${m}&year=${y}`)
-            return res.json()
+            return apiFetch(`/api/finance/cashflow-plan?month=${m}&year=${y}`)
         },
     },
     // Companion queries for /finance/planning page
@@ -433,17 +442,17 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryFn: async () => {
             const m = new Date().getMonth() + 1
             const y = new Date().getFullYear()
-            const res = await fetch(`/api/finance/cashflow-plan?month=${m}&year=${y}&allStatuses=true`)
-            return res.json()
+            return apiFetch(`/api/finance/cashflow-plan?month=${m}&year=${y}&allStatuses=true`)
         },
     },
     // Companion — simulasi page also needs scenarios list
     "/finance/planning/simulasi#scenarios": {
         queryKey: queryKeys.cashflowScenarios.list(new Date().getMonth() + 1, new Date().getFullYear()),
-        queryFn: () => {
+        queryFn: async () => {
             const m = new Date().getMonth() + 1
             const y = new Date().getFullYear()
-            return fetch(`/api/finance/cashflow-scenarios?month=${m}&year=${y}`).then(r => r.json()).then(p => p.scenarios ?? [])
+            const p = await apiFetch<{ scenarios?: unknown[] }>(`/api/finance/cashflow-scenarios?month=${m}&year=${y}`)
+            return p.scenarios ?? []
         },
     },
     "/finance/planning/aktual": {
@@ -451,8 +460,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryFn: async () => {
             const m = new Date().getMonth() + 1
             const y = new Date().getFullYear()
-            const res = await fetch(`/api/finance/cashflow-actual?month=${m}&year=${y}`)
-            return res.json()
+            return apiFetch(`/api/finance/cashflow-actual?month=${m}&year=${y}`)
         },
     },
     // --- Inventory routes ---
@@ -474,15 +482,22 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/inventory/opening-stock": {
         queryKey: queryKeys.openingStock.list(),
-        queryFn: () => fetch("/api/inventory/opening-stock").then((r) => r.json()).then((p) => ({
-            products: p.products ?? [],
-            warehouses: p.warehouses ?? [],
-            existingTransactions: p.existingTransactions ?? [],
-        })),
+        queryFn: async () => {
+            const p = await apiFetch<{
+                products?: unknown[]
+                warehouses?: unknown[]
+                existingTransactions?: unknown[]
+            }>("/api/inventory/opening-stock")
+            return {
+                products: p.products ?? [],
+                warehouses: p.warehouses ?? [],
+                existingTransactions: p.existingTransactions ?? [],
+            }
+        },
     },
     "/inventory/settings": {
         queryKey: queryKeys.inventorySettings.list(),
-        queryFn: () => fetch("/api/inventory/settings").then((r) => r.json()),
+        queryFn: () => apiFetch("/api/inventory/settings"),
     },
     // --- Finance routes ---
     "/finance/invoices": {

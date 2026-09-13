@@ -21,6 +21,7 @@ import {
     getBudgetVsActual,
     getBudgets,
 } from "@/lib/actions/finance-budget"
+import { apiFetch } from "@/lib/http/api-fetch"
 
 type ReportType = "pnl" | "bs" | "cf" | "tb" | "equity_changes" | "ar_aging" | "ap_aging" | "inventory_turnover" | "tax_report" | "budget_vs_actual"
 
@@ -42,9 +43,10 @@ export function useFinanceReportsAll(startDate: Date, endDate: Date) {
     return useQuery<AllReportsData>({
         queryKey: queryKeys.financeReports.list(startISO, endISO),
         queryFn: async () => {
-            const res = await fetch(`/api/finance/reports?start=${startISO}&end=${endISO}`)
-            const json = await res.json()
-            if (!json.success) throw new Error(json.error || "Failed to load reports")
+            const json = await apiFetch<AllReportsData & { success?: boolean; error?: string }>(
+                `/api/finance/reports?start=${startISO}&end=${endISO}`
+            )
+            if (json.success === false) throw new Error(json.error || "Failed to load reports")
             return { kpi: json.kpi, reports: json.reports, period: json.period }
         },
         staleTime: 2 * 60 * 1000,

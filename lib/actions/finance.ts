@@ -68,13 +68,6 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
             return Number(val) || 0
         }
 
-        // 1. Expense Account IDs (needed for burn rate query)
-        const expenseAccounts = await basePrisma.gLAccount.findMany({
-            where: { type: 'EXPENSE' },
-            select: { id: true },
-        })
-        const expenseAccountIds = expenseAccounts.map(a => a.id)
-
         const openStatuses: InvoiceStatus[] = ['ISSUED', 'PARTIAL', 'OVERDUE']
 
         // Parallel Fetching
@@ -133,16 +126,14 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
                 select: { balance: true, code: true },
             }),
 
-            // 6. Burn Rate (Expenses last 30 days) — journal lines with debit on expense accounts
-            expenseAccountIds.length > 0
-                ? basePrisma.journalLine.findMany({
-                    where: {
-                        accountId: { in: expenseAccountIds },
-                        entry: { date: { gte: thirtyDaysAgo } },
-                    },
-                    select: { debit: true },
-                })
-                : Promise.resolve([]),
+            // 6. Burn Rate — posted expense debits last 30 days (no draft journals)
+            basePrisma.journalLine.aggregate({
+                _sum: { debit: true },
+                where: {
+                    account: { type: "EXPENSE" },
+                    entry: { date: { gte: thirtyDaysAgo }, status: "POSTED" },
+                },
+            }),
 
             // 7. Revenue (This Month)
             basePrisma.invoice.aggregate({
@@ -202,7 +193,7 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
         const cashBal = cashAccounts.length > 0 ? cashFromGL : (cashFromPaid > 0 ? cashFromPaid : Math.max(0, revVal - receivables))
 
         // Burn Rate — try journal-based first, fallback to expense invoices (INV_IN) last 30 days
-        const burnFromJournals = (burnLines as any[]).reduce((sum: number, item: any) => sum + toNum(item.debit), 0)
+        const burnFromJournals = toNum((burnLines as { _sum?: { debit?: unknown } })._sum?.debit)
         // If no journal-based burn, compute from expense invoices (INV_IN)
         const burnFromInvoices = expVal
         const burnTotal = burnFromJournals > 0 ? burnFromJournals : burnFromInvoices
@@ -872,14 +863,11 @@ export async function getCashFlowStatement(startDate?: Date | string, endDate?: 
         const pnlData = await getProfitLossStatement(start, end)
         const netIncome = pnlData.netIncome
 
-        // ── Step B: Cash/Bank account IDs (EXCLUDED accounts, codes 1000-1199) ───
+        // ── Step B: Kas + bank (111x). Range 1000–1199 pulls prepaid/AR-adjacent 11xx.
         const cashAccounts = await basePrisma.gLAccount.findMany({
             where: {
                 type: 'ASSET',
-                OR: [
-                    { code: { gte: '1000', lt: '1100' } },
-                    { code: { gte: '1100', lt: '1200' } },
-                ],
+                code: { in: [...CASH_BANK_CODES] },
             },
             select: { id: true },
         })
@@ -895,18 +883,20 @@ export async function getCashFlowStatement(startDate?: Date | string, endDate?: 
                 accountId: { in: accountIds },
                 entry: { status: 'POSTED', ...(dateLt ? { date: { lt: dateLt } } : dateLte ? { date: { lte: dateLte } } : {}) },
             }
-            const lines = await basePrisma.journalLine.findMany({ where, select: { debit: true, credit: true } })
-            // ASSET balance = debit - credit; LIABILITY/EQUITY = credit - debit
-            return lines.reduce((s, l) => s + Number(l.debit) - Number(l.credit), 0)
+            const agg = await basePrisma.journalLine.aggregate({
+                where,
+                _sum: { debit: true, credit: true },
+            })
+            return Number(agg._sum.debit || 0) - Number(agg._sum.credit || 0)
         }
 
         // Helper: get point-in-time balance for a single account
         async function getBalance(accountId: string, asOf: Date, type: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE'): Promise<number> {
-            const lines = await basePrisma.journalLine.findMany({
+            const agg = await basePrisma.journalLine.aggregate({
                 where: { accountId, entry: { status: 'POSTED', date: { lte: asOf } } },
-                select: { debit: true, credit: true },
+                _sum: { debit: true, credit: true },
             })
-            const net = lines.reduce((s, l) => s + Number(l.debit) - Number(l.credit), 0)
+            const net = Number(agg._sum.debit || 0) - Number(agg._sum.credit || 0)
             // For ASSET/EXPENSE: positive = debit balance; for LIABILITY/EQUITY/REVENUE: positive = credit balance
             return (type === 'ASSET' || type === 'EXPENSE') ? net : -net
         }

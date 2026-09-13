@@ -21,14 +21,17 @@ export default async function InventoryProductsPage() {
     await queryClient.prefetchQuery({
         queryKey: queryKeys.products.list(),
         queryFn: async () => {
-            try {
-                const res = await fetch(`${baseUrl}/api/inventory/page-data`, {
-                    headers: { Cookie: cookieHeader },
-                })
-                if (!res.ok) return FALLBACK
-                return res.json()
-            } catch {
-                return FALLBACK
+            const res = await fetch(`${baseUrl}/api/inventory/page-data`, {
+                headers: { Cookie: cookieHeader },
+            })
+            if (!res.ok) throw new Error("inventory page-data failed")
+            const json = await res.json()
+            if (json.success === false) throw new Error(json.error || "inventory page-data failed")
+            return {
+                products: json.products ?? [],
+                categories: json.categories ?? [],
+                warehouses: json.warehouses ?? [],
+                stats: json.stats ?? FALLBACK.stats,
             }
         },
     })
