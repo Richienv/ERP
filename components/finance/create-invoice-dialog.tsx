@@ -11,7 +11,6 @@ import { formatIDR } from "@/lib/utils"
 import { TAX_RATES } from "@/lib/tax-rates"
 import {
     createCustomerInvoice,
-    createInvoiceFromSalesOrder,
     createBillFromPOId,
 } from "@/lib/actions/finance-invoices"
 import { createCustomerQuick } from "@/lib/actions/master-data"
@@ -50,7 +49,6 @@ interface PendingOrder {
 interface AvailableOrdersData {
     parties: Array<{ id: string; name: string; type: "CUSTOMER" | "SUPPLIER" }>
     accounts: Array<{ id: string; code: string; name: string }>
-    salesOrders: PendingOrder[]
     purchaseOrders: PendingOrder[]
 }
 
@@ -71,7 +69,9 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
     const queryClient = useQueryClient()
     const [creating, setCreating] = useState(false)
 
-    const [sourceType, setSourceType] = useState<'SO' | 'PO' | 'MANUAL'>('MANUAL')
+    // Sales orders are not an invoice source here — the sales pipeline is hidden
+    // for KRI, so Finance bills customers directly (MANUAL) or from a PO.
+    const [sourceType, setSourceType] = useState<'PO' | 'MANUAL'>('MANUAL')
     const [selectedOrderId, setSelectedOrderId] = useState("")
     const [selectedCustomer, setSelectedCustomer] = useState("")
     const [manualType, setManualType] = useState<'CUSTOMER' | 'SUPPLIER'>('CUSTOMER')
@@ -98,10 +98,8 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
 
     const parties = data?.parties ?? []
     const accounts = data?.accounts ?? []
-    const pendingSOs = data?.salesOrders ?? []
-    const pendingPOs = data?.purchaseOrders ?? []
+    const pendingOrders = data?.purchaseOrders ?? []
 
-    const pendingOrders = sourceType === 'SO' ? pendingSOs : pendingPOs
     const selectedOrder = pendingOrders.find(o => o.id === selectedOrderId)
 
     const resetForm = () => {
@@ -152,9 +150,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
         setCreating(true)
         try {
             let result: any
-            if (sourceType === 'SO') {
-                result = await createInvoiceFromSalesOrder(selectedOrderId)
-            } else if (sourceType === 'PO') {
+            if (sourceType === 'PO') {
                 result = await createBillFromPOId(selectedOrderId)
             } else {
                 result = await createCustomerInvoice({
@@ -227,11 +223,11 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                     {sourceType !== 'MANUAL' && (
                             <div className="space-y-2">
                                 <NBSelect
-                                    label={`Pilih ${sourceType === 'SO' ? 'Sales Order' : 'Purchase Order'}`}
+                                    label="Pilih Purchase Order"
                                     required
                                     value={selectedOrderId}
                                     onValueChange={setSelectedOrderId}
-                                    placeholder={`Pilih ${sourceType === 'SO' ? 'Order' : 'PO'}`}
+                                    placeholder="Pilih PO"
                                 >
                                     {dataLoading ? (
                                         <SelectItem value="__loading__" disabled>
@@ -242,7 +238,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                         </SelectItem>
                                     ) : pendingOrders.length === 0 ? (
                                         <SelectItem value="__empty__" disabled>
-                                            Tidak ada {sourceType === 'SO' ? 'order' : 'PO'} pending
+                                            Tidak ada PO pending
                                         </SelectItem>
                                     ) : pendingOrders.map((order) => (
                                         <SelectItem key={order.id} value={order.id}>

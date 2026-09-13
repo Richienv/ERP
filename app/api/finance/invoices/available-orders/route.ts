@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
+import { isModuleEnabled } from "@/lib/sidebar-feature-flags"
 
 export const dynamic = "force-dynamic"
 
@@ -10,7 +11,7 @@ export const dynamic = "force-dynamic"
  * Returns all data the "Buat Invoice" dialog needs in ONE request:
  * - customers & suppliers (for manual invoice)
  * - revenue/expense/cash GL accounts (for COA picker)
- * - pending Sales Orders (not yet invoiced)
+ * - pending Sales Orders (not yet invoiced) — empty while sales is hidden
  * - pending Purchase Orders (not yet billed)
  *
  * Uses prisma singleton directly (no $transaction) to avoid pool exhaustion.
@@ -57,32 +58,37 @@ export async function GET() {
                 select: { id: true, code: true, name: true },
                 orderBy: { code: "asc" },
             }),
-            // Pending Sales Orders (not yet invoiced with active INV_OUT)
-            prisma.salesOrder.findMany({
-                where: {
-                    status: { in: ["CONFIRMED", "IN_PROGRESS", "DELIVERED", "COMPLETED"] },
-                    invoices: {
-                        none: {
-                            type: "INV_OUT",
-                            status: { notIn: ["CANCELLED", "VOID"] },
+            // Pending Sales Orders (not yet invoiced with active INV_OUT).
+            // Skipped when the sales pipeline is hidden — the "Buat Invoice"
+            // dialog then has no Sales Order source, so this 100-row nested
+            // read would be paid for on every dialog open and rendered nowhere.
+            isModuleEnabled("sales")
+                ? prisma.salesOrder.findMany({
+                    where: {
+                        status: { in: ["CONFIRMED", "IN_PROGRESS", "DELIVERED", "COMPLETED"] },
+                        invoices: {
+                            none: {
+                                type: "INV_OUT",
+                                status: { notIn: ["CANCELLED", "VOID"] },
+                            },
                         },
                     },
-                },
-                include: {
-                    customer: { select: { id: true, name: true } },
-                    items: {
-                        select: {
-                            id: true,
-                            description: true,
-                            quantity: true,
-                            unitPrice: true,
-                            product: { select: { name: true, code: true } },
+                    include: {
+                        customer: { select: { id: true, name: true } },
+                        items: {
+                            select: {
+                                id: true,
+                                description: true,
+                                quantity: true,
+                                unitPrice: true,
+                                product: { select: { name: true, code: true } },
+                            },
                         },
                     },
-                },
-                orderBy: { orderDate: "desc" },
-                take: 100,
-            }),
+                    orderBy: { orderDate: "desc" },
+                    take: 100,
+                })
+                : Promise.resolve([]),
             // Pending Purchase Orders (not yet billed with active INV_IN)
             prisma.purchaseOrder.findMany({
                 where: {
