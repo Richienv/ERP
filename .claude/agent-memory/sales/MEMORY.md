@@ -1,0 +1,2 @@
+- [KRI hides the sales pipeline](kri_hidden_sales_scope.md) — sales/POS/manufacturing off; customers billed from Finance; no customer master page yet
+- [Shared worktree hazard](multi_session_worktree_hazard.md) — parallel agents can move HEAD under you; commit via your own worktree
