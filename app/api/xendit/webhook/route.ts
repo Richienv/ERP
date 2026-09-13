@@ -43,7 +43,12 @@ export async function POST(req: NextRequest) {
         try {
             // Try to find a payment with this reference
             const payment = await prisma.payment.findFirst({
-                where: { reference: reference_id },
+                where: {
+                    OR: [
+                        { number: reference_id },
+                        { reference: reference_id },
+                    ],
+                },
                 include: { invoice: true }
             });
 
@@ -121,6 +126,12 @@ export async function POST(req: NextRequest) {
                 }
             } else {
                 console.warn(`Payment not found for reference: ${reference_id}`);
+                if (status === 'SUCCEEDED') {
+                    return NextResponse.json(
+                        { error: 'Payment not found for SUCCEEDED payout' },
+                        { status: 500 },
+                    )
+                }
             }
         } catch (dbError) {
             console.error('Database update error:', dbError);

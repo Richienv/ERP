@@ -3,7 +3,8 @@
 import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 import { AlertTriangle, CheckCircle2, ChevronRight, Inbox, RefreshCw, Sparkles } from "lucide-react"
-import { getMiningCommandPulse, type CommandAction, type CommandActionModule, type MiningCommandPulse } from "@/lib/actions/mining-command"
+import { type CommandAction, type CommandActionModule, type MiningCommandPulse } from "@/lib/actions/mining-command"
+import { apiFetch } from "@/lib/http/api-fetch"
 import { queryKeys } from "@/lib/query-keys"
 import { formatIDR } from "@/lib/utils"
 import { NB } from "@/lib/dialog-styles"
@@ -38,7 +39,7 @@ export function queueNumber(index: number) {
 export function useMiningCommandPulse() {
     return useQuery({
         queryKey: queryKeys.miningCommand.pulse(),
-        queryFn: () => getMiningCommandPulse(),
+        queryFn: () => apiFetch<MiningCommandPulse>("/api/mining/pulse"),
         staleTime: 30_000,
     })
 }

@@ -7,15 +7,12 @@ import {
 } from "@/app/actions/dashboard"
 import { getSalesStats } from "@/lib/actions/sales"
 import { prisma } from "@/lib/db"
+import { jsonFail } from "@/lib/http/api-response"
+import { requireApiUser } from "@/lib/http/require-api-user"
 import { isModuleEnabled } from "@/lib/sidebar-feature-flags"
 
 export const dynamic = "force-dynamic"
 
-const FALLBACK_FINANCIALS = {
-    cashBalance: 0, revenue: 0, netMargin: 0, burnRate: 0,
-    receivables: 0, payables: 0, overdueInvoices: [] as any[], overdueInvoiceCount: 0, upcomingPayables: [] as any[],
-    recentInvoices: [] as any[], netCashIn: 0,
-}
 const FALLBACK_OPERATIONS = {
     procurement: { activeCount: 0, delays: [], pendingApproval: [], pendingApprovalCount: 0, totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, totalPRValue: 0, poByStatus: {} },
     prodMetrics: { activeWorkOrders: 0, totalProduction: 0, efficiency: 0 },
@@ -33,17 +30,12 @@ const FALLBACK_OPERATIONS = {
     customerInsights: { totalActive: 0, newThisMonth: 0, top3Customers: [] as { name: string; total: number }[], repeatRate: 0 },
     compliance: { draftInvoices: 0, draftJournals: 0, overdueAP: 0, missingTax: 0, status: 'green' as const, totalIssues: 0 },
 }
-const FALLBACK_SALES = { totalRevenue: 0, totalOrders: 0, activeOrders: 0, recentOrders: [] }
-const FALLBACK_CHARTS = { dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] }
-const FALLBACK_ACTIVITY = { activityFeed: [], executiveAlerts: [] }
-
-function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T, label?: string): Promise<T> {
+function withTimeout<T>(promise: Promise<T>, ms: number, label?: string): Promise<T> {
     return Promise.race([
         promise,
-        new Promise<T>((resolve) => setTimeout(() => {
-            if (label) console.warn(`[Dashboard API] ${label} timed out after ${ms}ms`)
-            resolve(fallback)
-        }, ms))
+        new Promise<T>((_, reject) => setTimeout(() => {
+            reject(new Error(`[Dashboard API] ${label ?? "lane"} timed out after ${ms}ms`))
+        }, ms)),
     ])
 }
 
@@ -316,6 +308,9 @@ async function fetchCardDetails() {
 }
 
 export async function GET() {
+    const user = await requireApiUser()
+    if (!user) return jsonFail(401, "Unauthorized", "UNAUTHORIZED")
+
     try {
         const start = Date.now()
 
@@ -324,26 +319,11 @@ export async function GET() {
         const detailsPromise = fetchCardDetails()
 
         const [financials, operations, activity, charts, sales] = await Promise.all([
-            withTimeout(
-                getDashboardFinancials().catch((e) => { console.error("[Dashboard] financials error:", e?.message ?? e); return FALLBACK_FINANCIALS }),
-                4000, FALLBACK_FINANCIALS, "financials"
-            ),
-            withTimeout(
-                getDashboardOperations().catch((e) => { console.error("[Dashboard] operations error:", e?.message ?? e); return FALLBACK_OPERATIONS }),
-                8000, FALLBACK_OPERATIONS, "operations"
-            ),
-            withTimeout(
-                getDashboardActivity().catch((e) => { console.error("[Dashboard] activity error:", e?.message ?? e); return FALLBACK_ACTIVITY }),
-                4000, FALLBACK_ACTIVITY, "activity"
-            ),
-            withTimeout(
-                getDashboardCharts().catch((e) => { console.error("[Dashboard] charts error:", e?.message ?? e); return FALLBACK_CHARTS }),
-                4000, FALLBACK_CHARTS, "charts"
-            ),
-            withTimeout(
-                getSalesStats().catch((e) => { console.error("[Dashboard] sales error:", e?.message ?? e); return FALLBACK_SALES }),
-                4000, FALLBACK_SALES, "sales"
-            ),
+            withTimeout(getDashboardFinancials(), 4000, "financials"),
+            withTimeout(getDashboardOperations(), 8000, "operations"),
+            withTimeout(getDashboardActivity(), 4000, "activity"),
+            withTimeout(getDashboardCharts(), 4000, "charts"),
+            withTimeout(getSalesStats(), 4000, "sales"),
         ])
 
         // Enhance operations with direct DB fallback if server action returned zeros
@@ -395,18 +375,6 @@ export async function GET() {
         })
     } catch (error) {
         console.error("Dashboard API error:", error)
-        return NextResponse.json({
-            financials: FALLBACK_FINANCIALS,
-            operations: FALLBACK_OPERATIONS,
-            activity: FALLBACK_ACTIVITY,
-            charts: FALLBACK_CHARTS,
-            sales: FALLBACK_SALES,
-            hr: { totalSalary: 0, lateEmployees: [] },
-            tax: { ppnOut: 0, ppnIn: 0, ppnNet: 0 },
-            details: {
-                recentPOs: [], recentCustomers: [], products: [],
-                recentPayments: [], topRevenueSources: [], activeWorkOrders: [],
-            },
-        })
+        return jsonFail(500, "Gagal memuat dasbor", "INTERNAL")
     }
 }

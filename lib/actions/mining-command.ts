@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import { CASH_BANK_CODES } from "@/lib/gl-accounts"
 import { getThreeWayMatchExceptionCount } from "@/lib/actions/finance-match"
+import { queryStockHealth } from "@/lib/stock-aggregates"
 
 async function requireAuth() {
     const supabase = await createClient()
@@ -92,7 +93,7 @@ export async function getMiningCommandPulse(): Promise<MiningCommandPulse> {
         billsDueSoon,
         draftBillsAgg,
         draftInvoicesAgg,
-        stockLevels,
+        stockHealth,
         fleetAssets,
         fleetBare,
         fleetBareFirst,
@@ -152,12 +153,7 @@ export async function getMiningCommandPulse(): Promise<MiningCommandPulse> {
             _sum: { totalAmount: true },
             _count: { _all: true },
         }),
-        prisma.stockLevel.findMany({
-            select: {
-                quantity: true,
-                product: { select: { id: true, costPrice: true, minStock: true, isActive: true } },
-            },
-        }),
+        queryStockHealth(),
         prisma.fixedAsset.aggregate({
             where: { status: { in: ["ACTIVE", "FULLY_DEPRECIATED"] }, vehicle: { isNot: null } },
             _sum: { netBookValue: true },
@@ -234,15 +230,9 @@ export async function getMiningCommandPulse(): Promise<MiningCommandPulse> {
     const cash = cashAccounts.reduce((sum, a) => sum + toNum(a.balance), 0)
     const arOpen = toNum(arAgg._sum.balanceDue)
     const apOpen = toNum(apAgg._sum.balanceDue)
-    const inventoryValue = stockLevels.reduce((sum, row) => {
-        return sum + toNum(row.quantity) * toNum(row.product?.costPrice)
-    }, 0)
-    const lowStockRows = stockLevels.filter((row) => {
-        const min = Number(row.product?.minStock || 0)
-        return row.product?.isActive !== false && min > 0 && toNum(row.quantity) <= min
-    })
-    const lowStock = lowStockRows.length
-    const firstLowStockId = lowStockRows[0]?.product?.id
+    const inventoryValue = stockHealth.inventoryValue
+    const lowStock = stockHealth.lowStock
+    const firstLowStockId = stockHealth.firstLowStockId
     const fleetAssetValue = toNum(fleetAssets._sum.netBookValue)
 
     let payrollCompanyCost = 0

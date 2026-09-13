@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { CACHE_TIERS } from "@/lib/cache-tiers"
+import { apiFetch } from "@/lib/http/api-fetch"
 
 export function useProcurementDashboard(searchParams?: string) {
     const qs = searchParams?.trim()
@@ -14,9 +15,7 @@ export function useProcurementDashboard(searchParams?: string) {
             const url = qs
                 ? `/api/procurement/dashboard?${qs}`
                 : "/api/procurement/dashboard"
-            const res = await fetch(url)
-            if (!res.ok) throw new Error("Failed to fetch procurement dashboard")
-            return await res.json()
+            return apiFetch(url)
         },
         ...CACHE_TIERS.DASHBOARD,
     })

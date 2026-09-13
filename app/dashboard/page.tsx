@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic"
  *
  * Three-layer cache strategy:
  * 1. IndexedDB (returning users) → instant render (<200ms)
- * 2. API fetch /api/dashboard (new users) → skeleton → data (<2s)
+ * 2. Parallel thin BFFs /api/dashboard/{financials,operations,activity,charts,details} (<2s)
  * 3. Background revalidation keeps data fresh silently
  *
  * Previously, this page awaited 5 server actions (20+ DB queries) in a blocking

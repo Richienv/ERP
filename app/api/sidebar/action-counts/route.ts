@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
-import { calculateProductStatus } from "@/lib/inventory-logic"
+import { jsonFail } from "@/lib/http/api-response"
+import { requireApiUser } from "@/lib/http/require-api-user"
+import { queryStockHealth } from "@/lib/stock-aggregates"
 
 export const dynamic = "force-dynamic"
 
 export async function GET() {
+    const user = await requireApiUser()
+    if (!user) return jsonFail(401, "Unauthorized", "UNAUTHORIZED")
+
     try {
         const results = await Promise.allSettled([
             // 1. Vendors incomplete: active suppliers missing phone AND email AND address
@@ -36,20 +41,7 @@ export async function GET() {
                 },
             }),
 
-            // 4. Low stock products: fetch active products with stock levels to calculate status
-            prisma.product.findMany({
-                where: { isActive: true },
-                select: {
-                    id: true,
-                    minStock: true,
-                    reorderLevel: true,
-                    manualAlert: true,
-                    createdAt: true,
-                    stockLevels: {
-                        select: { quantity: true },
-                    },
-                },
-            }),
+            queryStockHealth(),
 
             // 5. Pending purchase requests
             prisma.purchaseRequest.count({
@@ -81,31 +73,8 @@ export async function GET() {
         const customersIncomplete = valueOf(results[2], 0)
 
         // Calculate low stock count from product data
-        const productsWithStock = valueOf(results[3], []) as Array<{
-            id: string
-            minStock: number
-            reorderLevel: number
-            manualAlert: boolean
-            createdAt: Date
-            stockLevels: Array<{ quantity: { toString(): string } | number }>
-        }>
-
-        let lowStockProducts = 0
-        for (const product of productsWithStock) {
-            // StockLevel.quantity is now Decimal — coerce via Number() so the
-            // running sum stays numeric (otherwise '0' + Decimal coerces to string).
-            const totalStock = product.stockLevels.reduce((sum, sl) => sum + Number(sl.quantity), 0)
-            const status = calculateProductStatus({
-                totalStock,
-                minStock: product.minStock,
-                reorderLevel: product.reorderLevel,
-                manualAlert: product.manualAlert,
-                createdAt: product.createdAt,
-            })
-            if (status === "LOW_STOCK" || status === "CRITICAL") {
-                lowStockProducts++
-            }
-        }
+        const stockHealth = valueOf(results[3], { inventoryValue: 0, lowStock: 0, firstLowStockId: null })
+        const lowStockProducts = stockHealth.lowStock
 
         const pendingPurchaseRequests = valueOf(results[4], 0)
         const pendingApprovals = valueOf(results[5], 0)
@@ -119,20 +88,11 @@ export async function GET() {
             pendingPurchaseRequests,
             pendingApprovals,
             pendingInvoices,
+        }, {
+            headers: { "Cache-Control": "private, max-age=0, s-maxage=15, stale-while-revalidate=15" },
         })
     } catch (error) {
         console.error("[API] sidebar/action-counts error:", error)
-        return NextResponse.json(
-            {
-                vendorsIncomplete: 0,
-                productsIncomplete: 0,
-                customersIncomplete: 0,
-                lowStockProducts: 0,
-                pendingPurchaseRequests: 0,
-                pendingApprovals: 0,
-                pendingInvoices: 0,
-            },
-            { status: 500 }
-        )
+        return jsonFail(500, "Gagal memuat badge sidebar", "INTERNAL")
     }
 }

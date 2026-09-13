@@ -17,6 +17,7 @@ describe("SAP-snap cache map", () => {
         expect(queryKeys.fleet.list()).toEqual(["fleet", "list"])
         expect(queryKeys.miningCommand.pulse()).toEqual(["miningCommand", "pulse"])
         expect(queryKeys.executiveDashboard.list()).toEqual(["executiveDashboard", "list"])
+        expect(queryKeys.executiveDashboard.financials()).toEqual(["executiveDashboard", "financials"])
     })
 
     it("treats hash companions as the same sidebar click", () => {
@@ -48,7 +49,7 @@ describe("SAP-snap cache map", () => {
     it("prefetches the same fetchers the daily hooks use", () => {
         const src = fs.readFileSync(path.join(process.cwd(), "hooks/use-nav-prefetch.ts"), "utf8")
         expect(src).toContain("getChartOfAccountsTree")
-        expect(src).toContain("getInvoiceKanbanData")
+        expect(src).toContain("/api/finance/lists/invoices")
         expect(src).toContain("fetchStockMovementsBundle")
         expect(src).not.toContain("/api/finance/chart-accounts-tree")
         expect(src).not.toContain("/api/finance/invoices/kanban")

@@ -282,6 +282,8 @@ export async function GET() {
             categories,
             warehouses,
             stats,
+        }, {
+            headers: { "Cache-Control": "private, max-age=0, s-maxage=30, stale-while-revalidate=30" },
         })
     } catch (error) {
         console.error("Error fetching inventory page data:", error)
