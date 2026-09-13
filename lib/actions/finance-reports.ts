@@ -381,8 +381,9 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
                 .in('code', [...CASH_BANK_CODES]),
 
             expenseAccountIds.length > 0 ? supabase.from('journal_lines')
-                .select('debit, journal_entries!inner(date)')
+                .select('debit, journal_entries!inner(date, status)')
                 .in('accountId', expenseAccountIds)
+                .eq('journal_entries.status', 'POSTED')
                 .gte('journal_entries.date', thirtyDaysAgoIso) : Promise.resolve({ data: [] }),
 
             supabase.from('invoices')
@@ -1006,7 +1007,7 @@ export async function getUnreconciledBankEntryCount(
     startDate: Date,
     endDate: Date
 ): Promise<{ count: number; totalAmount: number }> {
-    // Bank accounts use codes starting with 111 (Kas & Bank)
+    // Kas + bank (CASH_BANK_CODES) — 111x alone drops Kas 1000 / Kas Kecil 1050
     const unreconciledLines = await basePrisma.journalLine.findMany({
         where: {
             entry: {
@@ -1018,7 +1019,7 @@ export async function getUnreconciledBankEntryCount(
                 },
             },
             account: {
-                code: { startsWith: '111' },
+                code: { in: [...CASH_BANK_CODES] },
             },
         },
         select: {

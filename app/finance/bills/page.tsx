@@ -50,6 +50,7 @@ import { moveInvoiceToSent } from "@/lib/actions/finance-invoices"
 import { getThreeWayMatch } from "@/lib/actions/finance-match"
 import { useBillMatch } from "@/hooks/use-bill-match"
 import { PaymentHistoryTable, type PaymentHistoryRow } from "@/components/finance/payment-history-table"
+import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
 import { formatIDR } from "@/lib/utils"
 import { NB } from "@/lib/dialog-styles"
 import { toast } from "sonner"
@@ -165,7 +166,7 @@ export default function APBillsStackPage() {
                 }))
             setManualAllocations(vendorBills)
             setManualMethod("TRANSFER")
-            setManualBankAccount("1010")
+            setManualBankAccount(SYS_ACCOUNTS.BANK_BCA)
             setManualReference("")
             setManualNotes("")
         }

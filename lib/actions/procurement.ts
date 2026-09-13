@@ -183,7 +183,7 @@ export async function getProcurementStats(input?: ProcurementStatsInput) {
         const prQuery = normalizeRegistryQuery(input?.registryQuery?.purchaseRequests)
         const receivingQuery = normalizeRegistryQuery(input?.registryQuery?.receiving)
 
-        const activeSpendStatuses: ProcurementStatus[] = ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'RECEIVED', 'COMPLETED']
+        const activeSpendStatuses: ProcurementStatus[] = ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'PARTIAL_RECEIVED', 'RECEIVED', 'COMPLETED']
         const poWhere = poQuery.status ? { status: poQuery.status as ProcurementStatus } : {}
         const prWhere = prQuery.status ? { status: prQuery.status as any } : {}
         const receivingWhere = receivingQuery.status ? { status: receivingQuery.status as any } : {}

@@ -572,10 +572,13 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/finance/payables#banks": {
         queryKey: ["banks", "list"] as const,
-        queryFn: () => fetch("/api/xendit/banks").then(r => r.json()).then(p => ({
-            banks: p.data?.banks ?? [],
-            ewallets: p.data?.ewallets ?? [],
-        })),
+        queryFn: async () => {
+            const p = await apiFetch<{ data?: { banks?: unknown[]; ewallets?: unknown[] } }>("/api/xendit/banks")
+            return {
+                banks: p.data?.banks ?? [],
+                ewallets: p.data?.ewallets ?? [],
+            }
+        },
     },
     // --- Pages previously missing from prefetch (audit 2026-03-27) ---
     "/finance/payments": {

@@ -973,8 +973,8 @@ export async function settleSucceededXenditPayout(params: {
     statusMarker: string
 }) {
     return basePrisma.$transaction(async (prisma) => {
-        const payment = await prisma.payment.findFirst({
-            where: { reference: params.referenceId },
+        const payment = await prisma.payment.findUnique({
+            where: { number: params.referenceId },
             include: { invoice: true },
         })
         if (!payment) {

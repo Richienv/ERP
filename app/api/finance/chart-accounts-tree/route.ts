@@ -14,6 +14,7 @@ export async function GET() {
             prisma.gLAccount.findMany({ orderBy: { code: "asc" } }),
             prisma.journalLine.groupBy({
                 by: ["accountId"],
+                where: { entry: { status: "POSTED" } },
                 _sum: { debit: true, credit: true },
             }),
         ])

@@ -13,7 +13,7 @@ export async function GET() {
 
         const [expenses, expenseAccounts, revenueAccounts, cashAccounts] = await Promise.all([
             prisma.journalEntry.findMany({
-                where: { description: { startsWith: "[EXPENSE]" } },
+                where: { description: { startsWith: "[EXPENSE]" }, status: "POSTED" },
                 include: { lines: { include: { account: { select: { id: true, code: true, name: true } } } } },
                 orderBy: { date: "desc" }, take: 200,
             }),

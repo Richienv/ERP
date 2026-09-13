@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
+import { CASH_BANK_CODES, SYS_ACCOUNTS } from "@/lib/gl-accounts"
 import { createClient } from "@/lib/supabase/server"
 
 export const dynamic = "force-dynamic"
@@ -13,19 +14,17 @@ export async function GET() {
         const data = await prisma.gLAccount.findMany({
             where: {
                 type: "ASSET",
-                code: { not: "1050" },
+                code: { not: SYS_ACCOUNTS.PETTY_CASH },
                 OR: [
-                    { code: { startsWith: "1" } },
+                    { code: { in: [...CASH_BANK_CODES] } },
+                    { code: { startsWith: "111" } },
                     { name: { contains: "Bank", mode: "insensitive" } },
-                    { name: { contains: "Kas", mode: "insensitive" } },
                 ],
             },
             orderBy: { code: "asc" },
             select: { code: true, name: true },
         })
-        // Filter to only bank-type accounts (10xx codes)
-        const filtered = data.filter((a: { code: string }) => /^10\d{2}$/.test(a.code))
-        return NextResponse.json(filtered)
+        return NextResponse.json(data)
     } catch (error) {
         console.error("[API] master/bank-accounts", error)
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })

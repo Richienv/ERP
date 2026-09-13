@@ -167,7 +167,10 @@ export async function POST(req: NextRequest) {
                 )
             }
 
-            return NextResponse.json({ success: true, year })
+            return NextResponse.json(
+                { error: "Tutup tahun belum diimplementasi — jurnal laba ditahan belum dibuat" },
+                { status: 501 }
+            )
         }
 
         return NextResponse.json({ error: "Aksi tidak dikenali" }, { status: 400 })

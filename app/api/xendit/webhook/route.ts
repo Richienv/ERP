@@ -42,13 +42,8 @@ export async function POST(req: NextRequest) {
         // Find the payment record by reference
         try {
             // Try to find a payment with this reference
-            const payment = await prisma.payment.findFirst({
-                where: {
-                    OR: [
-                        { number: reference_id },
-                        { reference: reference_id },
-                    ],
-                },
+            const payment = await prisma.payment.findUnique({
+                where: { number: reference_id },
                 include: { invoice: true }
             });
 
@@ -80,28 +75,10 @@ export async function POST(req: NextRequest) {
                     }
 
                     case 'FAILED':
-                        // Payment failed - revert invoice status
-                        if (payment.invoiceId) {
-                            await prisma.invoice.update({
-                                where: { id: payment.invoiceId },
-                                data: { status: 'ISSUED' } // Back to issued
-                            });
-                        }
-
-                        // Log failure
-                        await prisma.payment.update({
-                            where: { id: payment.id },
-                            data: {
-                                notes: `${statusMarker} ${payment.notes || ''}\n[Xendit] Payment FAILED: ${failure_code || 'Unknown error'}`
-                            }
-                        });
-
-                        console.error(`❌ Payment ${reference_id} failed: ${failure_code}`);
-                        break;
-
-                    case 'VOIDED':
-                        // Payment voided
-                        if (payment.invoiceId) {
+                    case 'VOIDED': {
+                        // Do not un-pay a bill after the AP cash journal is already posted
+                        const alreadyPosted = payment.notes?.includes('[GL:POSTED]')
+                        if (payment.invoiceId && !alreadyPosted) {
                             await prisma.invoice.update({
                                 where: { id: payment.invoiceId },
                                 data: { status: 'ISSUED' }
@@ -111,12 +88,19 @@ export async function POST(req: NextRequest) {
                         await prisma.payment.update({
                             where: { id: payment.id },
                             data: {
-                                notes: `${statusMarker} ${payment.notes || ''}\n[Xendit] Payment voided`
+                                notes: status === 'FAILED'
+                                    ? `${statusMarker} ${payment.notes || ''}\n[Xendit] Payment FAILED: ${failure_code || 'Unknown error'}`
+                                    : `${statusMarker} ${payment.notes || ''}\n[Xendit] Payment voided`
                             }
                         });
 
-                        console.log(`⚠️ Payment ${reference_id} voided`);
+                        if (status === 'FAILED') {
+                            console.error(`❌ Payment ${reference_id} failed: ${failure_code}`);
+                        } else {
+                            console.log(`⚠️ Payment ${reference_id} voided`);
+                        }
                         break;
+                    }
 
                     case 'ACCEPTED':
                     case 'PENDING':

@@ -1168,7 +1168,7 @@ export async function getDashboardOperations() {
         const manufacturingVisible = isModuleEnabled("manufacturing")
         const salesVisible = isModuleEnabled("sales")
         const [procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue, hr, tax, inventorySummary, salesFulfillment, cashFlow, profitability, customerInsights, compliance] = await Promise.all([
-            fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], pendingApprovalCount: 0, totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, totalPRValue: 0, poByStatus: {} as Record<string, number> })),
+            fetchProcurementMetrics(prisma),
             manufacturingVisible
                 ? fetchProductionMetrics(prisma).catch(() => ({ activeWorkOrders: 0, totalProduction: 0, efficiency: 0 }))
                 : Promise.resolve({ activeWorkOrders: 0, totalProduction: 0, efficiency: 0 }),
@@ -1179,9 +1179,9 @@ export async function getDashboardOperations() {
             fetchWorkforceStatus(prisma).catch(() => ({ attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] })),
             fetchPendingLeaves(prisma).catch(() => 0),
             fetchTotalInventoryValue(prisma),
-            fetchHRMetrics(prisma).catch(() => ({ totalSalary: 0, lateEmployees: [] })),
-            fetchTaxMetrics(prisma).catch(() => ({ ppnOut: 0, ppnIn: 0, ppnNet: 0 })),
-            fetchInventorySummary(prisma).catch(() => ({ productCount: 0, warehouseCount: 0 })),
+            fetchHRMetrics(prisma),
+            fetchTaxMetrics(prisma),
+            fetchInventorySummary(prisma),
             salesVisible
                 ? fetchSalesFulfillment(prisma).catch(() => ({ totalOrders: 0, deliveredOrders: 0, fulfillmentRate: 0 }))
                 : Promise.resolve({ totalOrders: 0, deliveredOrders: 0, fulfillmentRate: 0 }),
@@ -1192,7 +1192,7 @@ export async function getDashboardOperations() {
             salesVisible
                 ? fetchCustomerInsights(prisma).catch(() => ({ totalActive: 0, newThisMonth: 0, top3Customers: [] as { name: string; total: number }[], repeatRate: 0 }))
                 : Promise.resolve({ totalActive: 0, newThisMonth: 0, top3Customers: [] as { name: string; total: number }[], repeatRate: 0 }),
-            fetchComplianceStatus(prisma).catch(() => ({ draftInvoices: 0, draftJournals: 0, overdueAP: 0, missingTax: 0, status: 'green' as const, totalIssues: 0 })),
+            fetchComplianceStatus(prisma),
         ])
         return { procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue, hr, tax, inventorySummary, salesFulfillment, cashFlow, profitability, customerInsights, compliance }
     } catch (error) {
