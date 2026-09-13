@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Search, Package, Users, FileText, Wrench, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { isModuleEnabled } from "@/lib/sidebar-feature-flags"
 
 type SearchResult = {
     id: string
@@ -56,19 +57,28 @@ export default function SearchPage() {
                 }
             } catch { /* skip */ }
 
-            // Search customers
+            // Search customers.
+            // With the sales module hidden there is no customer detail page, so
+            // send the user to that customer's invoices in Finance instead of a
+            // /sales/customers link that middleware bounces to /dashboard.
+            const customerPage = isModuleEnabled("sales")
             try {
                 const res = await fetch(`/api/sales/customers?search=${encodeURIComponent(q)}&limit=5`)
                 const json = await res.json()
                 const customers = (json.customers || json.data || []).slice(0, 5)
                 if (customers.length > 0) {
-                    grouped.pelanggan = customers.map((c: any) => ({
-                        id: c.id,
-                        title: c.name || c.companyName || "—",
-                        subtitle: c.email || c.phone || c.type || "",
-                        module: "pelanggan",
-                        url: `/sales/customers/${c.id}`,
-                    }))
+                    grouped.pelanggan = customers.map((c: any) => {
+                        const name = c.name || c.companyName || "—"
+                        return {
+                            id: c.id,
+                            title: name,
+                            subtitle: c.email || c.phone || c.type || "",
+                            module: "pelanggan",
+                            url: customerPage
+                                ? `/sales/customers/${c.id}`
+                                : `/finance/invoices?q=${encodeURIComponent(name)}`,
+                        }
+                    })
                 }
             } catch { /* skip */ }
 
