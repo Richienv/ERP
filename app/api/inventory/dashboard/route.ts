@@ -1,37 +1,27 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { jsonFail } from "@/lib/http/api-response"
+import { requireApiUser } from "@/lib/http/require-api-user"
 import { getWarehouses, getInventoryKPIs, getMaterialGapAnalysis, getProcurementInsights } from "@/app/actions/inventory"
 
 export const dynamic = "force-dynamic"
 
 export async function GET() {
-    try {
-        const supabase = await createClient()
-        const { data: { user }, error: authError } = await supabase.auth.getUser()
-        if (authError || !user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-        }
+    const user = await requireApiUser()
+    if (!user) return jsonFail(401, "Unauthorized", "UNAUTHORIZED")
 
+    try {
         const [warehouses, kpis, materialGap, procurement] = await Promise.all([
-            getWarehouses().catch(() => []),
-            getInventoryKPIs().catch(() => ({
-                totalValue: 0, totalProducts: 0, lowStock: 0, accuracy: 0,
-                pendingMovements: 0, recentMovements: 0, avgTurnover: 0,
-            })),
-            getMaterialGapAnalysis().catch(() => []),
-            getProcurementInsights().catch(() => ({
-                summary: { totalRestockCost: 0, itemsCriticalCount: 0, totalIncoming: 0, totalPending: 0, pendingApproval: 0 },
-            })),
+            getWarehouses(),
+            getInventoryKPIs(),
+            getMaterialGapAnalysis(),
+            getProcurementInsights(),
         ])
 
-        return NextResponse.json({ warehouses, kpis, materialGap, procurement })
+        return NextResponse.json({ warehouses, kpis, materialGap, procurement }, {
+            headers: { "Cache-Control": "private, max-age=0, s-maxage=30, stale-while-revalidate=30" },
+        })
     } catch (error) {
         console.error("Inventory dashboard API error:", error)
-        return NextResponse.json({
-            warehouses: [],
-            kpis: { totalValue: 0, totalProducts: 0, lowStock: 0, accuracy: 0, pendingMovements: 0, recentMovements: 0, avgTurnover: 0 },
-            materialGap: [],
-            procurement: { summary: { totalRestockCost: 0, itemsCriticalCount: 0, totalIncoming: 0, totalPending: 0, pendingApproval: 0 } },
-        })
+        return jsonFail(500, "Gagal memuat dasbor gudang", "INTERNAL")
     }
 }

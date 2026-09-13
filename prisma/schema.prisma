@@ -1587,6 +1587,8 @@ model LeaveRequest {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([employeeId])
+  @@index([status])
   @@map("leave_requests")
 }
 
@@ -1904,6 +1906,7 @@ model Invoice {
   updatedAt DateTime @updatedAt
 
   @@index([type, status])
+  @@index([type, status, dueDate])
   @@index([issueDate])
   @@index([dueDate])
   @@index([customerId])
@@ -2333,6 +2336,7 @@ model JournalEntry {
   updatedAt DateTime @updatedAt
 
   @@index([date])
+  @@index([status, date])
   @@index([isReconciled])
   // Traceability joins: invoice→GL, payment→GL, SO/PO→GL, stock move→GL.
   // Postgres does not auto-index FK columns, so these were sequential scans.

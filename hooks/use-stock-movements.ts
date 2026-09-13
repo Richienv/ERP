@@ -2,13 +2,12 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { getStockMovements } from "@/app/actions/inventory"
+import { apiFetch } from "@/lib/http/api-fetch"
 import { queryKeys } from "@/lib/query-keys"
 import { CACHE_TIERS } from "@/lib/cache-tiers"
 
 async function fetchProductsAndWarehouses() {
-    const res = await fetch("/api/inventory/page-data")
-    if (!res.ok) return { products: [], warehouses: [] }
-    const json = await res.json()
+    const json = await apiFetch<{ products?: unknown[]; warehouses?: unknown[] }>("/api/inventory/page-data")
     return { products: json.products ?? [], warehouses: json.warehouses ?? [] }
 }
 

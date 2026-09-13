@@ -3,18 +3,17 @@
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { CACHE_TIERS } from "@/lib/cache-tiers"
-import { getJournalEntries, getGLAccountsList } from "@/lib/actions/finance-gl"
+import { apiFetch } from "@/lib/http/api-fetch"
+
+type JournalPageData = {
+    entries: Awaited<ReturnType<typeof import("@/lib/actions/finance-gl").getJournalEntries>>
+    accounts: Awaited<ReturnType<typeof import("@/lib/actions/finance-gl").getGLAccountsList>>
+}
 
 export function useJournal() {
     return useQuery({
         queryKey: queryKeys.journal.list(),
-        queryFn: async () => {
-            const [entries, accounts] = await Promise.all([
-                getJournalEntries(50),
-                getGLAccountsList(),
-            ])
-            return { entries, accounts }
-        },
+        queryFn: () => apiFetch<JournalPageData>("/api/finance/lists/journal"),
         ...CACHE_TIERS.TRANSACTIONAL,
     })
 }

@@ -3,14 +3,13 @@
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { CACHE_TIERS } from "@/lib/cache-tiers"
+import { apiFetch } from "@/lib/http/api-fetch"
 
 export function useProductsPage() {
     return useQuery({
         queryKey: queryKeys.products.list(),
         queryFn: async () => {
-            const res = await fetch("/api/inventory/page-data")
-            if (!res.ok) throw new Error("Failed to fetch inventory data")
-            const json = await res.json()
+            const json = await apiFetch("/api/inventory/page-data")
             return {
                 products: json.products ?? [],
                 categories: json.categories ?? [],
