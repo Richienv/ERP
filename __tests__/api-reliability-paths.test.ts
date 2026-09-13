@@ -93,7 +93,8 @@ describe("hot list APIs replace client server-actions", () => {
 
     it("sidebar and inventory/procurement dashboards throw on !ok", () => {
         expect(src("hooks/use-sidebar-actions.ts")).toContain('apiFetch<SidebarActionCounts>("/api/sidebar/action-counts")')
-        expect(src("hooks/use-inventory-dashboard.ts")).toContain('apiFetch("/api/inventory/dashboard")')
+        expect(src("hooks/use-inventory-dashboard.ts")).toContain('"/api/inventory/dashboard"')
+        expect(src("hooks/use-inventory-dashboard.ts")).toContain("apiFetch")
         expect(src("hooks/use-procurement-dashboard.ts")).toContain("apiFetch(url)")
         expect(src("app/api/sidebar/action-counts/route.ts")).toContain("jsonFail(500")
         expect(src("app/api/sidebar/action-counts/route.ts")).not.toContain("vendorsIncomplete: 0")

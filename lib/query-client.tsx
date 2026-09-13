@@ -66,6 +66,12 @@ export { CACHE_TIERS, type CacheTier } from "@/lib/cache-tiers"
  *   rather than answered from a possibly hours-old cache.
  * - short `gcTime` — these entries are not worth persisting to IndexedDB.
  */
+function errorStatus(error: unknown): number | undefined {
+    if (!error || typeof error !== "object" || !("status" in error)) return undefined
+    const status = (error as { status?: unknown }).status
+    return typeof status === "number" ? status : undefined
+}
+
 export const MONEY_TIER = {
     staleTime: 0,
     gcTime: 5 * 60 * 1000,
@@ -90,9 +96,7 @@ function makeQueryClient() {
                 staleTime: 60 * 1000,
                 gcTime: 7 * 24 * 60 * 60 * 1000,  // 7 days — keep unused cache entries for persistence
                 retry: (failureCount, error) => {
-                    const status = typeof (error as { status?: unknown })?.status === "number"
-                        ? (error as { status: number }).status
-                        : undefined
+                    const status = errorStatus(error)
                     if (status === 401 || status === 403 || status === 404) return false
                     return failureCount < 1
                 },
@@ -105,9 +109,7 @@ function makeQueryClient() {
             },
             mutations: {
                 retry: (failureCount, error) => {
-                    const status = typeof (error as { status?: unknown })?.status === "number"
-                        ? (error as { status: number }).status
-                        : undefined
+                    const status = errorStatus(error)
                     if (status === 401 || status === 403 || status === 404 || status === 409) return false
                     return failureCount < 2
                 },

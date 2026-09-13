@@ -18,7 +18,7 @@ type InventoryDashboardPayload = {
     warehouses?: unknown[]
     kpis?: InventoryStats & { inventoryAccuracy?: number }
     materialGap?: unknown[]
-    procurement?: unknown
+    procurement?: any
 }
 
 function kpisFromStats(stats: InventoryStats) {
@@ -50,7 +50,7 @@ export function useInventoryDashboard() {
             warehouses: rest.data?.warehouses ?? [],
             kpis,
             materialGap: rest.data?.materialGap ?? [],
-            procurement: rest.data?.procurement ?? {},
+            procurement: rest.data?.procurement,
         }
         : undefined
 
