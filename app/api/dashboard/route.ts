@@ -7,6 +7,7 @@ import {
 } from "@/app/actions/dashboard"
 import { getSalesStats } from "@/lib/actions/sales"
 import { prisma } from "@/lib/db"
+import { isModuleEnabled } from "@/lib/sidebar-feature-flags"
 
 export const dynamic = "force-dynamic"
 
@@ -243,16 +244,20 @@ async function fetchCardDetails() {
                 take: 3,
             }).catch(() => [] as any[]),
 
-            prisma.workOrder.findMany({
-                where: { status: { in: ["PLANNED", "IN_PROGRESS"] } },
-                select: {
-                    id: true, number: true, status: true,
-                    product: { select: { name: true } },
-                    plannedQty: true, actualQty: true,
-                },
-                orderBy: { createdAt: "desc" },
-                take: 3,
-            }).catch(() => [] as any[]),
+            // Work-order previews only render inside the manufacturing card,
+            // which is hidden for KRI — skip the join when the module is off.
+            isModuleEnabled("manufacturing")
+                ? prisma.workOrder.findMany({
+                    where: { status: { in: ["PLANNED", "IN_PROGRESS"] } },
+                    select: {
+                        id: true, number: true, status: true,
+                        product: { select: { name: true } },
+                        plannedQty: true, actualQty: true,
+                    },
+                    orderBy: { createdAt: "desc" },
+                    take: 3,
+                }).catch(() => [] as any[])
+                : Promise.resolve([] as any[]),
         ])
 
         // Transform products: aggregate stock across warehouses, sort low-stock first

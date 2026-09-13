@@ -4,6 +4,7 @@ import { withPrismaAuth, safeQuery, withRetry, prisma as basePrisma } from "@/li
 import { getFinancialMetrics } from "@/lib/actions/finance"
 import { PrismaClient } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
+import { isModuleEnabled } from "@/lib/sidebar-feature-flags"
 
 async function requireAuth() {
     const supabase = await createClient()
@@ -1202,18 +1203,30 @@ export async function getDashboardOperations() {
     try {
         await requireAuth()
         const prisma = basePrisma
+        // Work orders, QC and sales-order fulfillment only render inside cards
+        // gated on the manufacturing/sales flags. When those modules are hidden
+        // (KRI mining edition) the queries are pure cost on the slowest group of
+        // the dashboard, so resolve the fallback shape instead of hitting the DB.
+        const manufacturingVisible = isModuleEnabled("manufacturing")
+        const salesVisible = isModuleEnabled("sales")
         const [procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue, hr, tax, inventorySummary, salesFulfillment, cashFlow, profitability, customerInsights, compliance] = await Promise.all([
             fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, totalPRValue: 0, poByStatus: {} as Record<string, number> })),
-            fetchProductionMetrics(prisma).catch(() => ({ activeWorkOrders: 0, totalProduction: 0, efficiency: 0 })),
+            manufacturingVisible
+                ? fetchProductionMetrics(prisma).catch(() => ({ activeWorkOrders: 0, totalProduction: 0, efficiency: 0 }))
+                : Promise.resolve({ activeWorkOrders: 0, totalProduction: 0, efficiency: 0 }),
             fetchMaterialStatus(prisma).catch(() => []),
-            fetchQualityStatus(prisma).catch(() => ({ passRate: -1, totalInspections: 0, recentInspections: [] })),
+            manufacturingVisible
+                ? fetchQualityStatus(prisma).catch(() => ({ passRate: -1, totalInspections: 0, recentInspections: [] }))
+                : Promise.resolve({ passRate: -1, totalInspections: 0, recentInspections: [] as any[] }),
             fetchWorkforceStatus(prisma).catch(() => ({ attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] })),
             fetchPendingLeaves(prisma).catch(() => 0),
             fetchTotalInventoryValue(prisma).catch(() => ({ value: 0, itemCount: 0, warehouses: [] })),
             fetchHRMetrics(prisma).catch(() => ({ totalSalary: 0, lateEmployees: [] })),
             fetchTaxMetrics(prisma).catch(() => ({ ppnOut: 0, ppnIn: 0, ppnNet: 0 })),
             fetchInventorySummary(prisma).catch(() => ({ productCount: 0, warehouseCount: 0 })),
-            fetchSalesFulfillment(prisma).catch(() => ({ totalOrders: 0, deliveredOrders: 0, fulfillmentRate: 0 })),
+            salesVisible
+                ? fetchSalesFulfillment(prisma).catch(() => ({ totalOrders: 0, deliveredOrders: 0, fulfillmentRate: 0 }))
+                : Promise.resolve({ totalOrders: 0, deliveredOrders: 0, fulfillmentRate: 0 }),
             fetchCashFlowSummary(prisma).catch(() => ({ kasMasuk: 0, kasKeluar: 0, netCashFlow: 0, topExpenses: [] as { name: string; amount: number }[] })),
             fetchProfitability(prisma).catch(() => ({ grossProfit: 0, revenue: 0, marginPct: 0, marginTrend: 0, topProducts: [] as { name: string; revenue: number; marginPct: number }[] })),
             fetchCustomerInsights(prisma).catch(() => ({ totalActive: 0, newThisMonth: 0, top3Customers: [] as { name: string; total: number }[], repeatRate: 0 })),
