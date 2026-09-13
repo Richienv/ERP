@@ -2,7 +2,8 @@
 
 import { useEffect, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { routePrefetchMap, masterDataPrefetchMap } from "@/hooks/use-nav-prefetch"
+import { routePrefetchMap, masterDataPrefetchMap, isHiddenMasterDataKey } from "@/hooks/use-nav-prefetch"
+import { isKriHiddenPath } from "@/lib/kri-module-gates"
 import { useAuth } from "@/lib/auth-context"
 import { ROUTE_TIERS, MASTER_DATA_TIERS, CACHE_TIERS, getTierForMasterData, type CacheTier } from "@/lib/cache-tiers"
 
@@ -34,6 +35,7 @@ export function useBackgroundRefresh() {
 
         // Fire all at once — no delay, no blocking
         for (const [key, config] of Object.entries(masterDataPrefetchMap)) {
+            if (isHiddenMasterDataKey(key)) continue
             queryClient.prefetchQuery({
                 queryKey: config.queryKey,
                 queryFn: config.queryFn,
@@ -53,6 +55,7 @@ export function useBackgroundRefresh() {
         for (const [route, tierName] of Object.entries(ROUTE_TIERS)) {
             const tier = CACHE_TIERS[tierName as CacheTier]
             if (!tier.refetchOnWindowFocus) continue
+            if (isKriHiddenPath(route.split("#")[0])) continue
             const config = routePrefetchMap[route]
             if (config) focusRefetchKeys.push(config.queryKey)
         }
@@ -61,6 +64,7 @@ export function useBackgroundRefresh() {
         for (const [key, tierName] of Object.entries(MASTER_DATA_TIERS)) {
             const tier = CACHE_TIERS[tierName as CacheTier]
             if (!tier.refetchOnWindowFocus) continue
+            if (isHiddenMasterDataKey(key)) continue
             const config = masterDataPrefetchMap[key]
             if (config) focusRefetchKeys.push(config.queryKey)
         }
