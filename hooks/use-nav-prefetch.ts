@@ -20,7 +20,6 @@ import { getWarehouses } from "@/app/actions/inventory"
 import { getVendors as getVendorList } from "@/app/actions/vendor"
 import { getPayrollRun, getPayrollComplianceReport, getEmployees } from "@/app/actions/hcm"
 import { getVehicles, getVehicleStats } from "@/lib/actions/vehicles"
-import { fetchExecutiveDashboard } from "@/hooks/use-executive-dashboard"
 import { apiFetch } from "@/lib/http/api-fetch"
 
 /** Helper: fetch JSON from an API route. Throws on error so TanStack Query
@@ -278,8 +277,8 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         })),
     },
     "/dashboard": {
-        queryKey: queryKeys.executiveDashboard.list(),
-        queryFn: fetchExecutiveDashboard,
+        queryKey: queryKeys.executiveDashboard.financials(),
+        queryFn: () => apiFetch("/api/dashboard/financials"),
     },
     // Companion — mining command pulse rendered on the executive dashboard
     "/dashboard#pulse": {
@@ -401,7 +400,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/finance/opening-balances": {
         queryKey: queryKeys.openingBalances.list(),
-        queryFn: () => fetch("/api/finance/opening-balances").then((r) => r.json()).then((p) => p.success ? p.data : {}),
+        queryFn: () => apiFetch("/api/finance/opening-balances"),
     },
     "/inventory/warehouses": {
         queryKey: queryKeys.warehouses.list(),

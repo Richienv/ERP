@@ -32,13 +32,15 @@ describe("HTTP kernel", () => {
 })
 
 describe("thin dashboard and mining pulse", () => {
-    it("CEO dashboard loads five thin BFFs, not the mega timeout-to-zero route", () => {
+    it("CEO dashboard loads five thin BFFs independently, not one Promise.all", () => {
         const hook = src("hooks/use-executive-dashboard.ts")
         expect(hook).toContain('apiFetch("/api/dashboard/financials")')
         expect(hook).toContain('apiFetch("/api/dashboard/operations")')
         expect(hook).toContain('apiFetch("/api/dashboard/activity")')
         expect(hook).toContain('apiFetch("/api/dashboard/charts")')
         expect(hook).toContain('apiFetch("/api/dashboard/details")')
+        expect(hook).toContain("queryKeys.executiveDashboard.financials()")
+        expect(hook).not.toContain("Promise.all")
         expect(hook).not.toContain('apiFetch("/api/dashboard")')
         expect(hook).not.toMatch(/fetch\("\/api\/dashboard"\)/)
     })
@@ -134,5 +136,35 @@ describe("hot query indexes", () => {
         expect(migration).toContain("journal_entries_status_date_idx")
         expect(migration).toContain("leave_requests_status_idx")
         expect(migration).toContain("leave_requests_employeeId_idx")
+        expect(migration).toContain("payments_date_idx")
+        expect(src("prisma/schema.prisma")).toContain("@@index([date])")
+    })
+})
+
+describe("write-path leftovers from the reliability audit", () => {
+    it("Xendit SUCCEEDED without a Payment returns 500 so Xendit retries", () => {
+        const webhook = src("app/api/xendit/webhook/route.ts")
+        expect(webhook).toContain("Payment not found for SUCCEEDED payout")
+        expect(webhook).toContain("{ number: reference_id }")
+        const missing = webhook.slice(webhook.indexOf("Payment not found for reference"))
+        expect(missing).toContain('status === \'SUCCEEDED\'')
+        expect(missing).toContain("status: 500")
+    })
+
+    it("opening-balance POST refuses a second journal instead of delete-and-increment", () => {
+        const route = src("app/api/finance/opening-balances/route.ts")
+        const post = route.slice(route.indexOf("export async function POST"))
+        expect(post).toContain("status: 409")
+        expect(post).toContain("OPENING-BALANCE-${year}")
+        expect(post).not.toContain("journalEntry.delete")
+    })
+
+    it("three-way inbox count uses SQL and keeps the JS fallback", () => {
+        const match = src("lib/actions/finance-match.ts")
+        expect(match).toContain("$queryRaw")
+        expect(match).toContain("OVER_BILLED")
+        expect(match).toContain("falling back")
+        expect(match).toContain("fromLoadedBill")
+        expect(match).toContain("countOverBilledDraftsFromLoaded")
     })
 })

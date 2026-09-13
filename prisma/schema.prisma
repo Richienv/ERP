@@ -1982,6 +1982,7 @@ model Payment {
   @@index([invoiceId])
   @@index([customerId])
   @@index([supplierId])
+  @@index([date])
   @@map("payments")
 }
 

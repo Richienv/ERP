@@ -17,6 +17,7 @@ describe("SAP-snap cache map", () => {
         expect(queryKeys.fleet.list()).toEqual(["fleet", "list"])
         expect(queryKeys.miningCommand.pulse()).toEqual(["miningCommand", "pulse"])
         expect(queryKeys.executiveDashboard.list()).toEqual(["executiveDashboard", "list"])
+        expect(queryKeys.executiveDashboard.financials()).toEqual(["executiveDashboard", "financials"])
     })
 
     it("treats hash companions as the same sidebar click", () => {

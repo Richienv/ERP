@@ -171,6 +171,11 @@ export const queryKeys = {
     executiveDashboard: {
         all: ["executiveDashboard"] as const,
         list: () => [...queryKeys.executiveDashboard.all, "list"] as const,
+        financials: () => [...queryKeys.executiveDashboard.all, "financials"] as const,
+        operations: () => [...queryKeys.executiveDashboard.all, "operations"] as const,
+        activity: () => [...queryKeys.executiveDashboard.all, "activity"] as const,
+        charts: () => [...queryKeys.executiveDashboard.all, "charts"] as const,
+        details: () => [...queryKeys.executiveDashboard.all, "details"] as const,
     },
     inventoryDashboard: {
         all: ["inventoryDashboard"] as const,

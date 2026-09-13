@@ -5,3 +5,4 @@ CREATE INDEX "invoices_type_status_dueDate_idx" ON "invoices"("type", "status", 
 CREATE INDEX "journal_entries_status_date_idx" ON "journal_entries"("status", "date");
 CREATE INDEX "leave_requests_employeeId_idx" ON "leave_requests"("employeeId");
 CREATE INDEX "leave_requests_status_idx" ON "leave_requests"("status");
+CREATE INDEX "payments_date_idx" ON "payments"("date");

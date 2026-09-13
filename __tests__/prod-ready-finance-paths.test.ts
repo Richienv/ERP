@@ -56,6 +56,7 @@ describe("Xendit AP payout posts GL on success", () => {
     it("webhook SUCCEEDED goes through settleSucceededXenditPayout", () => {
         const webhook = src("app/api/xendit/webhook/route.ts")
         expect(webhook).toContain("settleSucceededXenditPayout")
+        expect(webhook).toContain("Payment not found for SUCCEEDED payout")
         expect(webhook).not.toMatch(/case 'SUCCEEDED':[\s\S]*status:\s*'PAID'/)
     })
 

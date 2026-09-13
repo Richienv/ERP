@@ -139,15 +139,19 @@ export async function POST(req: NextRequest) {
             ? new Date(fiscalYearStart)
             : new Date(2026, 0, 1) // Default: 1 Jan 2026
 
-        // Delete existing opening balance entry if it exists
+        const year = date.getFullYear()
+        const reference = `OPENING-BALANCE-${year}`
         const existing = await prisma.journalEntry.findFirst({
-            where: { reference: "OPENING-BALANCE-2026" },
+            where: { reference },
+            select: { id: true },
         })
-
         if (existing) {
-            await prisma.journalEntry.delete({
-                where: { id: existing.id },
-            })
+            return NextResponse.json(
+                {
+                    error: `Saldo awal untuk tahun ${year} sudah pernah diposting. Hapus jurnal ${reference} terlebih dahulu jika ingin mengulang.`,
+                },
+                { status: 409 },
+            )
         }
 
         // Create the new journal entry with lines
@@ -155,7 +159,7 @@ export async function POST(req: NextRequest) {
             data: {
                 date,
                 description: "Saldo Awal",
-                reference: "OPENING-BALANCE-2026",
+                reference,
                 status: "POSTED",
                 lines: {
                     create: nonZeroLines.map((l) => ({
