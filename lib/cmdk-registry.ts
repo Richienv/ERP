@@ -2,6 +2,8 @@
 // Single source-of-truth for all Cmd+K Command Palette actions.
 // See docs/features/cmdk-design.md for the full design specification.
 
+import { isKriHiddenPath } from "@/lib/kri-module-gates"
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -585,6 +587,22 @@ export const CMDK_BY_ID: ReadonlyMap<string, CmdKAction> = new Map(
 
 /** Actions marked as pinned — shown in "Aksi Cepat" group */
 export const PINNED_ACTIONS: CmdKAction[] = CMDK_ACTIONS.filter((a) => a.pinned)
+
+/**
+ * Actions whose route belongs to a module that is currently visible.
+ * The registry itself stays complete so a tenant with sales or manufacturing
+ * turned on keeps every entry; the palette renders this filtered view so a KRI
+ * user is never offered a route that middleware bounces to /dashboard.
+ */
+export const VISIBLE_CMDK_ACTIONS: CmdKAction[] = CMDK_ACTIONS.filter(
+  (a) => !isKriHiddenPath(a.route),
+)
+
+export const VISIBLE_CMDK_BY_ID: ReadonlyMap<string, CmdKAction> = new Map(
+  VISIBLE_CMDK_ACTIONS.map((a) => [a.id, a]),
+)
+
+export const VISIBLE_PINNED_ACTIONS: CmdKAction[] = VISIBLE_CMDK_ACTIONS.filter((a) => a.pinned)
 
 /** Actions grouped by module */
 export function getActionsByModule(mod: Module): CmdKAction[] {

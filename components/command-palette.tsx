@@ -16,9 +16,9 @@ import {
 } from "@tabler/icons-react"
 import { usePageHistory } from "@/hooks/use-page-history"
 import {
-  CMDK_ACTIONS,
-  CMDK_BY_ID,
-  PINNED_ACTIONS,
+  VISIBLE_CMDK_ACTIONS,
+  VISIBLE_CMDK_BY_ID,
+  VISIBLE_PINNED_ACTIONS,
   MODULE_META,
   buildActionUrl,
   type CmdKAction,
@@ -29,8 +29,8 @@ import { cn } from "@/lib/utils"
 
 // ─── Derived collections (computed once at module level) ─────────────────────
 
-const NAV_ACTIONS = CMDK_ACTIONS.filter((a) => a.type === "navigate")
-const CREATE_ACTIONS = CMDK_ACTIONS.filter((a) => a.type !== "navigate")
+const NAV_ACTIONS = VISIBLE_CMDK_ACTIONS.filter((a) => a.type === "navigate")
+const CREATE_ACTIONS = VISIBLE_CMDK_ACTIONS.filter((a) => a.type !== "navigate")
 
 // ─── Module Badge ────────────────────────────────────────────────────────────
 
@@ -203,7 +203,7 @@ export function CommandPalette() {
   const inputRef = useRef<HTMLInputElement>(null)
 
   // Custom filter using our scoring engine
-  const cmdkFilter = useMemo(() => createCmdKFilter(CMDK_BY_ID), [])
+  const cmdkFilter = useMemo(() => createCmdKFilter(VISIBLE_CMDK_BY_ID), [])
 
   // Cmd+K listener
   useEffect(() => {
@@ -232,7 +232,7 @@ export function CommandPalette() {
     if (!open) return []
     const ids = getRecentActionIds(5)
     return ids
-      .map((id) => CMDK_BY_ID.get(id))
+      .map((id) => VISIBLE_CMDK_BY_ID.get(id))
       .filter((a): a is CmdKAction => a !== undefined)
   }, [open])
 
@@ -393,7 +393,7 @@ export function CommandPalette() {
 
                     {/* Aksi Cepat — pinned */}
                     <SpotlightGroup heading="Aksi Cepat">
-                      {PINNED_ACTIONS.map((action) => (
+                      {VISIBLE_PINNED_ACTIONS.map((action) => (
                         <ActionItem
                           key={action.id}
                           action={action}
