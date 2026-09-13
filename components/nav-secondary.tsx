@@ -40,6 +40,7 @@ export function NavSecondary({
                 <Link
                   href={item.url}
                   prefetch
+                  onPointerDown={() => prefetchRoute(item.url)}
                   onMouseEnter={() => prefetchRoute(item.url)}
                   data-slot="sidebar-menu-button"
                   data-sidebar="menu-button"

@@ -68,6 +68,8 @@ describe("Xendit AP payout posts GL on success", () => {
         expect(fn).toContain("SYS_ACCOUNTS.BANK_BCA")
         expect(fn).toContain("[GL:POSTED]")
         expect(fn).toContain("ensureSystemAccounts")
+        expect(fn).toContain("$transaction")
+        expect(fn).not.toContain("withPrismaAuth")
     })
 
     it("bills payment dialog no longer exposes the Xendit tab", () => {

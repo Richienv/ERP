@@ -205,6 +205,15 @@ describe("Kotak Masuk Operasi — antrian aksi", () => {
         expect(docs?.detail).toContain(EXPIRING_SOON.plateNumber)
     })
 
+    it("mengarahkan review cuti ke tab Cuti & Izin", async () => {
+        seedBusyMine()
+        const pulse = await getMiningCommandPulse()
+        const leave = pulse.actions.find((a) => a.id === "leave")
+
+        expect(leave?.href).toBe("/hcm/attendance?tab=leave")
+        expect(leave?.cta).toBe("Review cuti")
+    })
+
     it("mengarahkan Setujui PO ke halaman pengadaan yang punya tombol Setujui", async () => {
         seedBusyMine()
         const pulse = await getMiningCommandPulse()

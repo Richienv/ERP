@@ -64,6 +64,7 @@ import { AuditLogTimeline } from "@/components/audit-log-timeline"
 import { InvoiceAttachmentSection } from "@/components/finance/invoice-attachments"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { invalidateOpsLoop } from "@/lib/invalidate-ops-loop"
 import { exportToExcel } from "@/lib/table-export"
 import { NB } from "@/lib/dialog-styles"
 import { InlinePendingBar } from "@/components/ui/inline-pending"
@@ -199,6 +200,7 @@ export function InvoicesPageClient() {
         queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
         queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
         queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
+        invalidateOpsLoop(queryClient)
     }
     const invalidateAfterPayment = () => {
         queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
@@ -211,6 +213,7 @@ export function InvoicesPageClient() {
         queryClient.invalidateQueries({ queryKey: queryKeys.arPayments.all })
         queryClient.invalidateQueries({ queryKey: queryKeys.arAging.all })
         queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
+        invalidateOpsLoop(queryClient)
     }
 
     const allInvoices = useMemo(() => {

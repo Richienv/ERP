@@ -1,7 +1,7 @@
 'use server'
 
 import { InvoiceStatus } from "@prisma/client"
-import { withPrismaAuth } from "@/lib/db"
+import { withPrismaAuth, prisma as basePrisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import { logAudit } from "@/lib/audit-helpers"
 import { postJournalEntry } from "./finance-gl"
@@ -972,7 +972,7 @@ export async function settleSucceededXenditPayout(params: {
     xenditId?: string
     statusMarker: string
 }) {
-    return withPrismaAuth(async (prisma) => {
+    return basePrisma.$transaction(async (prisma) => {
         const payment = await prisma.payment.findFirst({
             where: { reference: params.referenceId },
             include: { invoice: true },

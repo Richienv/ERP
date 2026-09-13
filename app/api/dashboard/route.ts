@@ -7,16 +7,17 @@ import {
 } from "@/app/actions/dashboard"
 import { getSalesStats } from "@/lib/actions/sales"
 import { prisma } from "@/lib/db"
+import { isModuleEnabled } from "@/lib/sidebar-feature-flags"
 
 export const dynamic = "force-dynamic"
 
 const FALLBACK_FINANCIALS = {
     cashBalance: 0, revenue: 0, netMargin: 0, burnRate: 0,
-    receivables: 0, payables: 0, overdueInvoices: [] as any[], upcomingPayables: [] as any[],
+    receivables: 0, payables: 0, overdueInvoices: [] as any[], overdueInvoiceCount: 0, upcomingPayables: [] as any[],
     recentInvoices: [] as any[], netCashIn: 0,
 }
 const FALLBACK_OPERATIONS = {
-    procurement: { activeCount: 0, delays: [], pendingApproval: [], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, totalPRValue: 0, poByStatus: {} },
+    procurement: { activeCount: 0, delays: [], pendingApproval: [], pendingApprovalCount: 0, totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, totalPRValue: 0, poByStatus: {} },
     prodMetrics: { activeWorkOrders: 0, totalProduction: 0, efficiency: 0 },
     materialStatus: [],
     qualityStatus: { passRate: -1, totalInspections: 0, recentInspections: [] },
@@ -243,16 +244,20 @@ async function fetchCardDetails() {
                 take: 3,
             }).catch(() => [] as any[]),
 
-            prisma.workOrder.findMany({
-                where: { status: { in: ["PLANNED", "IN_PROGRESS"] } },
-                select: {
-                    id: true, number: true, status: true,
-                    product: { select: { name: true } },
-                    plannedQty: true, actualQty: true,
-                },
-                orderBy: { createdAt: "desc" },
-                take: 3,
-            }).catch(() => [] as any[]),
+            // Work-order previews only render inside the manufacturing card,
+            // which is hidden for KRI — skip the join when the module is off.
+            isModuleEnabled("manufacturing")
+                ? prisma.workOrder.findMany({
+                    where: { status: { in: ["PLANNED", "IN_PROGRESS"] } },
+                    select: {
+                        id: true, number: true, status: true,
+                        product: { select: { name: true } },
+                        plannedQty: true, actualQty: true,
+                    },
+                    orderBy: { createdAt: "desc" },
+                    take: 3,
+                }).catch(() => [] as any[])
+                : Promise.resolve([] as any[]),
         ])
 
         // Transform products: aggregate stock across warehouses, sort low-stock first

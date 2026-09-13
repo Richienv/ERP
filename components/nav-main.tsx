@@ -2,7 +2,7 @@
 
 import React, { useState } from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { IconChevronRight, IconLock } from "@tabler/icons-react"
 import { useNavPrefetch } from "@/hooks/use-nav-prefetch"
 import type { SidebarNavItem } from "@/lib/sidebar-nav-data"
@@ -49,7 +49,6 @@ function accentFor(active: boolean) {
 
 export function NavMain({ items }: { items: SidebarNavItem[] }) {
   const pathname = usePathname()
-  const router = useRouter()
   const { prefetchRoute } = useNavPrefetch()
   const { state } = useSidebar()
   const isCollapsed = state === "collapsed"
@@ -141,12 +140,11 @@ export function NavMain({ items }: { items: SidebarNavItem[] }) {
                                   <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
                                 </div>
                               )}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setOpenPopover(null)
-                                  router.push(subItem.url)
-                                }}
+                              <Link
+                                href={subItem.url}
+                                prefetch
+                                onClick={() => setOpenPopover(null)}
+                                onPointerDown={() => prefetchRoute(subItem.url)}
                                 onMouseEnter={() => prefetchRoute(subItem.url)}
                                 className={`flex w-full items-center gap-2 px-2.5 py-1.5 text-[12.5px] rounded-r-sm transition-all duration-150 ease-out ${
                                   isSubActive
@@ -161,7 +159,7 @@ export function NavMain({ items }: { items: SidebarNavItem[] }) {
                                     {subItem.badge > 99 ? "99+" : subItem.badge}
                                   </span>
                                 ) : null}
-                              </button>
+                              </Link>
                             </React.Fragment>
                           )
                         })}
@@ -243,6 +241,7 @@ export function NavMain({ items }: { items: SidebarNavItem[] }) {
                                 <Link
                                   href={subItem.url}
                                   prefetch
+                                  onPointerDown={() => prefetchRoute(subItem.url)}
                                   onMouseEnter={() => prefetchRoute(subItem.url)}
                                   className={`relative flex items-center gap-2 px-2.5 py-[7px] rounded-r-sm text-[12.5px] transition-all duration-150 ease-out ${
                                     isSubActive
@@ -275,6 +274,7 @@ export function NavMain({ items }: { items: SidebarNavItem[] }) {
                 <Link
                   href={item.url}
                   prefetch
+                  onPointerDown={() => prefetchRoute(item.url)}
                   onMouseEnter={() => prefetchRoute(item.url)}
                   data-slot="sidebar-menu-button"
                   data-sidebar="menu-button"

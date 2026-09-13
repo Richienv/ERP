@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import modulesCatalog from '@/config/modules-catalog.json'
 import { isPublicApiPath } from '@/lib/api-public-paths'
-import { isKriHiddenPath } from '@/lib/kri-module-gates'
+import { isKriHiddenApiPath, isKriHiddenPath } from '@/lib/kri-module-gates'
 import { isLocalDemoAllowed, LOCAL_DEMO_COOKIE } from '@/lib/local-demo'
 
 // Build route → moduleId mapping from catalog at startup
@@ -131,6 +131,16 @@ export async function middleware(request: NextRequest) {
                         "x-auth-status": "unauthenticated",
                     },
                 },
+            )
+        }
+        // Hidden-module APIs (sales pipeline, manufacturing, cutting,
+        // subcontract, costing) are unreachable through the UI. A hit means a
+        // stray prefetch or stale client, so refuse before touching the DB.
+        // Skipped when ENABLED_MODULES is set — that env decides per tenant.
+        if (!getEnabledModules() && isKriHiddenApiPath(pathname)) {
+            return NextResponse.json(
+                { error: 'Modul tidak aktif' },
+                { status: 404, headers: { 'cache-control': 'no-store' } },
             )
         }
         return response

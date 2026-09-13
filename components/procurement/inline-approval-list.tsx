@@ -10,6 +10,7 @@ import { approvePurchaseOrder, rejectPurchaseOrder, approveAndCreatePOFromPR, re
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { invalidateOpsLoop } from "@/lib/invalidate-ops-loop"
 
 interface PendingItem {
     id: string
@@ -61,6 +62,7 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
                 queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
+                invalidateOpsLoop(queryClient)
             } else {
                 toast.error(result.error || "Gagal menyetujui")
             }
@@ -95,6 +97,7 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
                 queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
+                invalidateOpsLoop(queryClient)
             } else {
                 toast.error(result.error || "Gagal menolak")
             }

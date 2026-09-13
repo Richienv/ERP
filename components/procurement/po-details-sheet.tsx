@@ -18,6 +18,7 @@ import { rejectPurchaseOrder, submitPOForApproval, approvePurchaseOrder, markAsO
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { invalidateOpsLoop } from "@/lib/invalidate-ops-loop"
 
 interface PODetailsSheetProps {
     order: any
@@ -85,6 +86,7 @@ export function PODetailsSheet({ order, isOpen, onClose, userRole }: PODetailsSh
                 queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
+                invalidateOpsLoop(queryClient)
             } else {
                 if (prevOrders) queryClient.setQueryData(queryKeys.purchaseOrders.list(), prevOrders)
                 toast.error("Action failed")

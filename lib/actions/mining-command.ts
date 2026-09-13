@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
-import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
+import { CASH_BANK_CODES } from "@/lib/gl-accounts"
 import { getThreeWayMatchExceptionCount } from "@/lib/actions/finance-match"
 
 async function requireAuth() {
@@ -109,14 +109,7 @@ export async function getMiningCommandPulse(): Promise<MiningCommandPulse> {
     ] = await Promise.all([
         prisma.gLAccount.findMany({
             where: {
-                code: {
-                    in: [
-                        SYS_ACCOUNTS.CASH,
-                        SYS_ACCOUNTS.PETTY_CASH,
-                        SYS_ACCOUNTS.BANK_BCA,
-                        SYS_ACCOUNTS.BANK_MANDIRI,
-                    ],
-                },
+                code: { in: [...CASH_BANK_CODES] },
             },
             select: { balance: true },
         }),
@@ -164,7 +157,6 @@ export async function getMiningCommandPulse(): Promise<MiningCommandPulse> {
                 quantity: true,
                 product: { select: { id: true, costPrice: true, minStock: true, isActive: true } },
             },
-            take: 2000,
         }),
         prisma.fixedAsset.aggregate({
             where: { status: { in: ["ACTIVE", "FULLY_DEPRECIATED"] }, vehicle: { isNot: null } },
@@ -496,7 +488,7 @@ export async function getMiningCommandPulse(): Promise<MiningCommandPulse> {
             module: "hcm",
             title: "Putuskan pengajuan cuti karyawan",
             detail: `${pendingLeave} pengajuan cuti menunggu — jadwal shift site ikut tertahan`,
-            href: "/hcm/attendance",
+            href: "/hcm/attendance?tab=leave",
             tone: "warn",
             count: pendingLeave,
             cta: "Review cuti",

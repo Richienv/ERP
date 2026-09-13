@@ -33,6 +33,7 @@ import { toast } from "sonner"
 import { useVendorPayments } from "@/hooks/use-vendor-payments"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { invalidateOpsLoop } from "@/lib/invalidate-ops-loop"
 import { VendorMultiPaymentDialog } from "@/components/finance/vendor-multi-payment-dialog"
 import { useChartOfAccounts } from "@/hooks/use-chart-accounts"
 import { exportToExcel } from "@/lib/table-export"
@@ -265,6 +266,7 @@ export default function APCheckbookPage() {
                 queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.accountTransactions.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
+                invalidateOpsLoop(queryClient)
             } else {
                 toast.error(("error" in result ? result.error : "Failed to record payment") || "Failed to record payment")
             }

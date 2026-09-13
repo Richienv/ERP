@@ -41,7 +41,11 @@ export function InPagePrefetch() {
         }
 
         document.addEventListener("pointerenter", onPointerEnter, true)
-        return () => document.removeEventListener("pointerenter", onPointerEnter, true)
+        document.addEventListener("pointerdown", onPointerEnter, true)
+        return () => {
+            document.removeEventListener("pointerenter", onPointerEnter, true)
+            document.removeEventListener("pointerdown", onPointerEnter, true)
+        }
     }, [pathname, prefetchRoute])
 
     useEffect(() => {

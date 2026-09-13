@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { getTierForRoute } from "@/lib/cache-tiers"
+import { isKriHiddenPath } from "@/lib/kri-module-gates"
+import { isModuleEnabled, type ModuleKey } from "@/lib/sidebar-feature-flags"
 // Most prefetch queries use fetch() to API routes.
 // Finance pages with server-action-based hooks must use the same server actions
 // in prefetch to guarantee matching data shapes (prevents cache hydration crashes).
@@ -646,6 +648,11 @@ export const masterDataPrefetchMap: Record<string, { queryKey: readonly unknown[
         queryKey: queryKeys.glAccounts.bankAccounts(),
         queryFn: () => fetchJson("/api/master/bank-accounts"),
     },
+    // Sales pipeline dropdowns. `/api/sales/options` reads every active
+    // customer, every active product with its stock levels, quotations,
+    // salespeople and sales staff — only the hidden /sales/leads/new form uses
+    // it, so it is registered here for hover prefetch but excluded from the
+    // login-time warm (see isHiddenMasterDataKey).
     salesOptions: {
         queryKey: queryKeys.salesOptions.list(),
         queryFn: async () => {
@@ -672,12 +679,30 @@ export const masterDataPrefetchMap: Record<string, { queryKey: readonly unknown[
     },
 }
 
+/**
+ * Master data keys that belong to a hidden module. Kept out of the login-time
+ * warm so a KRI session never pays for sales pipeline dropdowns.
+ */
+const MASTER_DATA_MODULE_KEYS: Record<string, ModuleKey> = {
+    salesOptions: "sales",
+}
+
+export function isHiddenMasterDataKey(key: string): boolean {
+    const moduleKey = MASTER_DATA_MODULE_KEYS[key]
+    return moduleKey ? !isModuleEnabled(moduleKey) : false
+}
+
 export function useNavPrefetch() {
     const router = useRouter()
     const queryClient = useQueryClient()
 
     const prefetchRoute = useCallback(
         (url: string) => {
+            // Hidden modules redirect to /dashboard in middleware. Warming them
+            // costs an RSC round trip plus a multi-join query for a page the
+            // user can never open.
+            if (isKriHiddenPath(url)) return
+
             router.prefetch(url)
 
             const companionPrefix = `${url}#`

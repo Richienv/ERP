@@ -5,7 +5,7 @@
 import { isStaleSystemAccountName, SYS_ACCOUNTS } from "@/lib/gl-accounts"
 
 // Re-export everything from gl-accounts so callers can import from one place
-export { SYS_ACCOUNTS, getCashAccountCode, isCOGSAccount, isStaleSystemAccountName } from "@/lib/gl-accounts"
+export { SYS_ACCOUNTS, CASH_BANK_CODES, getCashAccountCode, isCOGSAccount, isStaleSystemAccountName } from "@/lib/gl-accounts"
 
 const SYSTEM_ACCOUNT_DEFS: { code: string; name: string; type: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE" }[] = [
   { code: SYS_ACCOUNTS.CASH,             name: "Kas & Setara Kas",              type: "ASSET" },

@@ -35,6 +35,7 @@ import { recordMultiBillPayment } from "@/lib/actions/finance"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { invalidateOpsLoop } from "@/lib/invalidate-ops-loop"
 import { useChartOfAccounts } from "@/hooks/use-chart-accounts"
 import type { VendorBill } from "@/lib/actions/finance-ap"
 
@@ -235,6 +236,7 @@ export function VendorMultiPaymentDialog({
                 queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
+                invalidateOpsLoop(queryClient)
             } else {
                 const errMsg = "error" in result ? result.error : "Gagal mencatat pembayaran"
                 toast.error(errMsg || "Gagal mencatat pembayaran")

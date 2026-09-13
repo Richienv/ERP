@@ -191,10 +191,11 @@ function StockAlertsInner() {
                             <button
                                 key={s}
                                 onClick={() => { setStatusFilter(s); setPage(0); }}
-                                className={`px-3 py-2 text-xs font-black uppercase tracking-widest transition-all border-r border-black last:border-r-0 ${statusFilter === s}
+                                className={`px-3 py-2 text-xs font-black uppercase tracking-widest transition-all border-r border-black last:border-r-0 ${
+                                    statusFilter === s
                                         ? "bg-black text-white"
                                         : "bg-white text-zinc-400 hover:bg-zinc-50"
-                                    }`}
+                                }`}
                             >
                                 {s === "ALL" ? "Semua" : s === "CRITICAL" ? "Kritis" : "Stok Rendah"}
                             </button>

@@ -70,16 +70,28 @@ function NonZeroStat({ label, value, accent, icon }: { label: string; value: str
 export function DashboardPageClient() {
     const { data, isFetching } = useExecutiveDashboard()
 
+    const inbox = (
+        <OperationsInbox
+            title="Kotak Masuk Operasi"
+            subtitle="Antrian kerja KRI hari ini — kerjakan dari nomor 01, tiap tombol mendarat di layar kerjanya"
+        />
+    )
+
     if (!data) {
-        return <CardPageSkeleton accentColor="bg-zinc-700" />
+        return (
+            <div className="relative space-y-3">
+                {inbox}
+                <CardPageSkeleton accentColor="bg-zinc-700" />
+            </div>
+        )
     }
 
     const { financials, operations, sales, hr, activity, tax: taxFromRoot, details } = data as any
     const tax = taxFromRoot ?? operations?.tax ?? { ppnOut: 0, ppnIn: 0, ppnNet: 0 }
 
-    const pendingApprovals = (operations?.procurement?.pendingApproval?.length ?? 0) + (operations?.procurement?.pendingPRs ?? 0)
+    const pendingApprovals = (operations?.procurement?.pendingApprovalCount ?? operations?.procurement?.pendingApproval?.length ?? 0) + (operations?.procurement?.pendingPRs ?? 0)
     const lowStockCount = operations?.materialStatus?.length ?? 0
-    const overdueCount = financials?.overdueInvoices?.length ?? 0
+    const overdueCount = financials?.overdueInvoiceCount ?? financials?.overdueInvoices?.length ?? 0
     const pendingPOs = operations?.procurement?.pendingApproval ?? []
     const overdueInvoices = financials?.overdueInvoices ?? []
     const upcomingPayables = financials?.upcomingPayables ?? []
@@ -154,10 +166,7 @@ export function DashboardPageClient() {
         <DashboardView
             heroSlot={
                 <div className="space-y-3">
-                    <OperationsInbox
-                        title="Kotak Masuk Operasi"
-                        subtitle="Antrian kerja KRI hari ini — kerjakan dari nomor 01, tiap tombol mendarat di layar kerjanya"
-                    />
+                    {inbox}
                     <GreetingBar
                         revenueMTD={sales?.totalRevenue ?? 0}
                         receivables={financials?.receivables ?? 0}

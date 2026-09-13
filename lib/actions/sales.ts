@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { postInventoryGLEntry } from "@/lib/actions/inventory-gl"
 import { revalidatePath } from "next/cache"
 import { ensureCustomerCategories } from "@/lib/customer-category-defaults"
+import { isModuleEnabled } from "@/lib/sidebar-feature-flags"
 
 import { InvoiceStatus, SalesOrderStatus } from "@prisma/client"
 
@@ -25,6 +26,12 @@ export async function getSalesStats(): Promise<SalesStats> {
         startOfMonth.setDate(1)
         startOfMonth.setHours(0, 0, 0, 0)
 
+        // Revenue is invoice-based, so it stays even when the sales pipeline is
+        // hidden (KRI bills from Finance). The SalesOrder queries only feed the
+        // "Penjualan" card, which is gated on the same flag — skip them instead
+        // of paying for three joins that render nowhere.
+        const salesPipelineVisible = isModuleEnabled("sales")
+
         const [revenueAgg, activeOrdersCount, totalOrdersCount, recentOrders] = await Promise.all([
             // 1. Total Revenue (This Month) - Based on Invoices to match GL
             basePrisma.invoice.aggregate({
@@ -36,25 +43,31 @@ export async function getSalesStats(): Promise<SalesStats> {
                 }
             }),
             // 2. Active Orders (Sales Orders that are confirmed but not completed)
-            basePrisma.salesOrder.count({
-                where: {
-                    status: { in: [SalesOrderStatus.CONFIRMED, SalesOrderStatus.IN_PROGRESS, SalesOrderStatus.DELIVERED] }
-                }
-            }),
+            salesPipelineVisible
+                ? basePrisma.salesOrder.count({
+                    where: {
+                        status: { in: [SalesOrderStatus.CONFIRMED, SalesOrderStatus.IN_PROGRESS, SalesOrderStatus.DELIVERED] }
+                    }
+                })
+                : Promise.resolve(0),
             // 3. Total Orders (This Month)
-            basePrisma.salesOrder.count({
-                where: {
-                    orderDate: { gte: startOfMonth }
-                }
-            }),
+            salesPipelineVisible
+                ? basePrisma.salesOrder.count({
+                    where: {
+                        orderDate: { gte: startOfMonth }
+                    }
+                })
+                : Promise.resolve(0),
             // 4. Recent Orders
-            basePrisma.salesOrder.findMany({
-                take: 5,
-                orderBy: { orderDate: 'desc' },
-                include: {
-                    customer: { select: { name: true } }
-                }
-            }),
+            salesPipelineVisible
+                ? basePrisma.salesOrder.findMany({
+                    take: 5,
+                    orderBy: { orderDate: 'desc' },
+                    include: {
+                        customer: { select: { name: true } }
+                    }
+                })
+                : Promise.resolve([]),
         ])
 
         return {
@@ -211,7 +224,9 @@ export async function createInvoice(data: { customerId: string, items: { descrip
             const number = `INV-${year}-${String(count + 1).padStart(4, '0')}`
 
             const subtotal = data.items.reduce((acc, item) => acc + (item.quantity * item.price), 0)
-            const taxAmount = subtotal * TAX_RATES.PPN
+            // Round to whole rupiah — an unrounded PPN leaves sub-rupiah
+            // fractions on the AR / PPN Keluaran journal lines at approval.
+            const taxAmount = Math.round(subtotal * TAX_RATES.PPN)
             const totalAmount = subtotal + taxAmount
 
             const invoice = await prisma.invoice.create({

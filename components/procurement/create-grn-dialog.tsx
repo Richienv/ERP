@@ -9,6 +9,7 @@ import { createGRN } from "@/lib/actions/grn"
 import { useAuth } from "@/lib/auth-context"
 import { NB } from "@/lib/dialog-styles"
 import { queryKeys } from "@/lib/query-keys"
+import { invalidateOpsLoop } from "@/lib/invalidate-ops-loop"
 import {
     NBDialog,
     NBDialogHeader,
@@ -192,6 +193,7 @@ export function CreateGRNDialog({ purchaseOrder, warehouses, employees: _employe
                 queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all })
+                invalidateOpsLoop(queryClient)
             } else {
                 toast.error(result.error || "Gagal membuat Surat Jalan Masuk")
             }
