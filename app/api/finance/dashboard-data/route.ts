@@ -1,23 +1,26 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
-import { createClient } from "@/lib/supabase/server"
+import { CASH_BANK_CODES } from "@/lib/gl-accounts"
+import { jsonFail } from "@/lib/http/api-response"
+import { requireApiUser } from "@/lib/http/require-api-user"
 
 export const dynamic = "force-dynamic"
 
 export async function GET() {
     try {
-        const supabase = await createClient()
-        const { data: { user }, error } = await supabase.auth.getUser()
-        if (error || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+        const user = await requireApiUser()
+        if (!user) return jsonFail(401, "Unauthorized", "UNAUTHORIZED")
 
         const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+        const cashCodes = new Set<string>(CASH_BANK_CODES)
 
         const [cashflowEntries, recentEntries, overdueCount, pendingBillCount] = await Promise.all([
             prisma.journalEntry.findMany({
-                where: { date: { gte: sevenDaysAgo } },
+                where: { date: { gte: sevenDaysAgo }, status: "POSTED" },
                 include: { lines: { include: { account: { select: { code: true, type: true } } } } },
             }),
             prisma.journalEntry.findMany({
+                where: { status: "POSTED" },
                 orderBy: { date: "desc" }, take: 5,
                 include: { lines: { take: 2, include: { account: { select: { name: true, code: true, type: true } } } } },
             }),
@@ -35,7 +38,7 @@ export async function GET() {
             const dateKey = entry.date.toISOString().slice(0, 10)
             if (!days[dateKey]) continue
             for (const line of entry.lines) {
-                if (!line.account.code.startsWith("10")) continue
+                if (!cashCodes.has(line.account.code)) continue
                 days[dateKey].inflow += Number(line.debit || 0)
                 days[dateKey].outflow += Number(line.credit || 0)
             }
@@ -56,9 +59,11 @@ export async function GET() {
             cashflow: Object.entries(days).map(([date, v]) => ({ date, ...v })),
             recentTransactions,
             actionItems: { overdueInvoices: overdueCount, pendingBills: pendingBillCount },
+        }, {
+            headers: { "Cache-Control": "private, max-age=0, s-maxage=30, stale-while-revalidate=30" },
         })
     } catch (error) {
         console.error("[API] finance/dashboard-data error:", error)
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+        return jsonFail(500, "Gagal memuat data dasbor keuangan", "INTERNAL")
     }
 }

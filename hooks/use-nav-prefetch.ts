@@ -7,32 +7,25 @@ import { queryKeys } from "@/lib/query-keys"
 import { getTierForRoute } from "@/lib/cache-tiers"
 import { isKriHiddenPath } from "@/lib/kri-module-gates"
 import { isModuleEnabled, type ModuleKey } from "@/lib/sidebar-feature-flags"
-// Most prefetch queries use fetch() to API routes.
-// Finance pages with server-action-based hooks must use the same server actions
-// in prefetch to guarantee matching data shapes (prevents cache hydration crashes).
+// KRI hot reads go through HTTP + apiFetch so a failed prefetch throws
+// (TanStack keeps stale) instead of caching empty tables.
 import { getARPaymentRegistry, getARPaymentStats } from "@/lib/actions/finance-ar"
-import { getVendorBillsRegistry, getVendorPayments, getVendorBills, getVendorAPBalances } from "@/lib/actions/finance-ap"
-import { getVendors, getPurchaseRequests } from "@/lib/actions/procurement"
-import { getJournalEntries, getGLAccountsList, getChartOfAccountsTree } from "@/lib/actions/finance-gl"
-import { getInvoiceKanbanData } from "@/lib/actions/finance-invoices"
+import { getPurchaseRequests } from "@/lib/actions/procurement"
+import { getChartOfAccountsTree } from "@/lib/actions/finance-gl"
 import { fetchStockMovementsBundle } from "@/hooks/use-stock-movements"
-import { getFinancialMetrics, getFinanceDashboardData } from "@/lib/actions/finance-reports"
 import { getPettyCashTransactions } from "@/lib/actions/finance-petty-cash"
 import { getExpenses, getExpenseAccounts, getARAgingReport, getAPAgingReport } from "@/lib/actions/finance"
 import { fetchPurchaseOrdersPage } from "@/hooks/use-purchase-orders"
 import { getWarehouses } from "@/app/actions/inventory"
 import { getVendors as getVendorList } from "@/app/actions/vendor"
 import { getPayrollRun, getPayrollComplianceReport, getEmployees } from "@/app/actions/hcm"
-import { getMiningCommandPulse } from "@/lib/actions/mining-command"
 import { getVehicles, getVehicleStats } from "@/lib/actions/vehicles"
-import { fetchExecutiveDashboard } from "@/hooks/use-executive-dashboard"
+import { apiFetch } from "@/lib/http/api-fetch"
 
 /** Helper: fetch JSON from an API route. Throws on error so TanStack Query
  *  treats failures as errors (keeps stale data) instead of caching empty fallbacks. */
 const fetchJson = async (url: string, _fallback?: unknown) => {
-    const res = await fetch(url)
-    if (!res.ok) throw new Error(`Prefetch ${url} failed: ${res.status}`)
-    return await res.json()
+    return apiFetch(url)
 }
 /**
  * Maps sidebar routes to their data prefetch config.
@@ -92,30 +85,54 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/inventory/products": {
         queryKey: queryKeys.products.list(),
-        queryFn: () => fetch("/api/inventory/page-data").then((r) => r.json()).then((p) => ({
-            products: p.products ?? [],
-            categories: p.categories ?? [],
-            warehouses: p.warehouses ?? [],
-            stats: p.stats ?? { total: 0, healthy: 0, lowStock: 0, critical: 0, newArrivals: 0, planning: 0, incoming: 0, totalValue: 0 },
-        })),
+        queryFn: async () => {
+            const p = await apiFetch<{
+                products?: unknown[]
+                categories?: unknown[]
+                warehouses?: unknown[]
+                stats?: Record<string, number>
+            }>("/api/inventory/page-data")
+            return {
+                products: p.products ?? [],
+                categories: p.categories ?? [],
+                warehouses: p.warehouses ?? [],
+                stats: p.stats ?? { total: 0, healthy: 0, lowStock: 0, critical: 0, newArrivals: 0, planning: 0, incoming: 0, totalValue: 0 },
+            }
+        },
     },
     "/inventory/stock": {
         queryKey: queryKeys.products.list(),
-        queryFn: () => fetch("/api/inventory/page-data").then((r) => r.json()).then((p) => ({
-            products: p.products ?? [],
-            categories: p.categories ?? [],
-            warehouses: p.warehouses ?? [],
-            stats: p.stats ?? { total: 0, healthy: 0, lowStock: 0, critical: 0, newArrivals: 0, planning: 0, incoming: 0, totalValue: 0 },
-        })),
+        queryFn: async () => {
+            const p = await apiFetch<{
+                products?: unknown[]
+                categories?: unknown[]
+                warehouses?: unknown[]
+                stats?: Record<string, number>
+            }>("/api/inventory/page-data")
+            return {
+                products: p.products ?? [],
+                categories: p.categories ?? [],
+                warehouses: p.warehouses ?? [],
+                stats: p.stats ?? { total: 0, healthy: 0, lowStock: 0, critical: 0, newArrivals: 0, planning: 0, incoming: 0, totalValue: 0 },
+            }
+        },
     },
     "/inventory/alerts": {
         queryKey: queryKeys.products.list(),
-        queryFn: () => fetch("/api/inventory/page-data").then((r) => r.json()).then((p) => ({
-            products: p.products ?? [],
-            categories: p.categories ?? [],
-            warehouses: p.warehouses ?? [],
-            stats: p.stats ?? { total: 0, healthy: 0, lowStock: 0, critical: 0, newArrivals: 0, planning: 0, incoming: 0, totalValue: 0 },
-        })),
+        queryFn: async () => {
+            const p = await apiFetch<{
+                products?: unknown[]
+                categories?: unknown[]
+                warehouses?: unknown[]
+                stats?: Record<string, number>
+            }>("/api/inventory/page-data")
+            return {
+                products: p.products ?? [],
+                categories: p.categories ?? [],
+                warehouses: p.warehouses ?? [],
+                stats: p.stats ?? { total: 0, healthy: 0, lowStock: 0, critical: 0, newArrivals: 0, planning: 0, incoming: 0, totalValue: 0 },
+            }
+        },
     },
     "/manufacturing/bom": {
         queryKey: queryKeys.productionBom.list(),
@@ -161,13 +178,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/finance": {
         queryKey: queryKeys.financeDashboard.list(),
-        queryFn: async () => {
-            const [metrics, dashboardData] = await Promise.all([
-                getFinancialMetrics(),
-                getFinanceDashboardData(),
-            ])
-            return { metrics, dashboardData }
-        },
+        queryFn: () => apiFetch("/api/finance/lists/dashboard"),
     },
     "/procurement/requests": {
         queryKey: queryKeys.purchaseRequests.list(),
@@ -183,13 +194,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/finance/journal": {
         queryKey: queryKeys.journal.list(),
-        queryFn: async () => {
-            const [entries, accounts] = await Promise.all([
-                getJournalEntries(50),
-                getGLAccountsList(),
-            ])
-            return { entries, accounts }
-        },
+        queryFn: () => apiFetch("/api/finance/lists/journal"),
     },
     "/finance/chart-accounts": {
         queryKey: queryKeys.chartAccounts.list(),
@@ -197,19 +202,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/finance/vendor-payments": {
         queryKey: queryKeys.vendorPayments.list(),
-        queryFn: async () => {
-            const [payments, vendorsRaw, allBills, apBalances] = await Promise.all([
-                getVendorPayments(),
-                getVendors(),
-                getVendorBills(),
-                getVendorAPBalances(),
-            ])
-            const vendors = vendorsRaw.map((v: any) => ({ id: v.id, name: v.name }))
-            const openBills = allBills.filter((b: any) =>
-                ['ISSUED', 'PARTIAL', 'OVERDUE'].includes(b.status)
-            )
-            return { payments, vendors, openBills, apBalances }
-        },
+        queryFn: () => apiFetch("/api/finance/lists/vendor-payments"),
     },
     // Companion — vendor-payments page also needs bank accounts dropdown
     "/finance/vendor-payments#banks": {
@@ -249,7 +242,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/finance/bills": {
         queryKey: [...queryKeys.bills.list(), { q: null, status: null, page: 1, pageSize: 20 }],
-        queryFn: () => getVendorBillsRegistry({ q: undefined, status: undefined, page: 1, pageSize: 20 }),
+        queryFn: () => apiFetch("/api/finance/lists/bills?page=1&pageSize=20"),
     },
     "/finance/credit-notes": {
         queryKey: queryKeys.dcNotes.list(),
@@ -284,13 +277,13 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         })),
     },
     "/dashboard": {
-        queryKey: queryKeys.executiveDashboard.list(),
-        queryFn: fetchExecutiveDashboard,
+        queryKey: queryKeys.executiveDashboard.financials(),
+        queryFn: () => apiFetch("/api/dashboard/financials"),
     },
     // Companion — mining command pulse rendered on the executive dashboard
     "/dashboard#pulse": {
         queryKey: queryKeys.miningCommand.pulse(),
-        queryFn: () => getMiningCommandPulse(),
+        queryFn: () => apiFetch("/api/mining/pulse"),
     },
     "/fleet": {
         queryKey: queryKeys.fleet.list(),
@@ -304,14 +297,15 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/inventory": {
         queryKey: queryKeys.inventoryDashboard.list(),
-        queryFn: () => fetch("/api/inventory/dashboard").then((r) => r.json()),
+        queryFn: () => apiFetch("/api/inventory/dashboard"),
+    },
+    "/inventory#stats": {
+        queryKey: queryKeys.inventoryDashboard.stats(),
+        queryFn: () => apiFetch("/api/inventory/stats"),
     },
     "/procurement": {
         queryKey: queryKeys.procurementDashboard.list(),
-        queryFn: () => fetch("/api/procurement/dashboard").then((r) => {
-            if (!r.ok) throw new Error(`Prefetch /procurement failed: ${r.status}`)
-            return r.json()
-        }),
+        queryFn: () => apiFetch("/api/procurement/dashboard"),
     },
     "/sales": {
         queryKey: queryKeys.salesPage.list(),
@@ -378,23 +372,28 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
             new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10),
             new Date().toISOString().slice(0, 10)
         ),
-        queryFn: () => fetch("/api/finance/reports").then((r) => r.json()).then((p) => ({
-            kpi: p.kpi,
-            reports: p.reports,
-            period: p.period,
-        })),
+        queryFn: async () => {
+            const p = await apiFetch<{ kpi?: unknown; reports?: unknown; period?: unknown }>("/api/finance/reports")
+            return { kpi: p.kpi, reports: p.reports, period: p.period }
+        },
     },
     "/finance/reconciliation": {
         queryKey: queryKeys.reconciliation.list(),
-        queryFn: () => fetch("/api/finance/reconciliation").then((r) => r.json()),
+        queryFn: () => apiFetch("/api/finance/reconciliation"),
     },
     "/finance/currencies": {
         queryKey: queryKeys.currencies.list(),
-        queryFn: () => fetch("/api/finance/currencies").then((r) => r.json()).then((p) => p.data ?? []),
+        queryFn: async () => {
+            const p = await apiFetch<{ data?: unknown[]; success?: boolean }>("/api/finance/currencies")
+            return p.data ?? []
+        },
     },
     "/finance/fiscal-periods": {
         queryKey: queryKeys.fiscalPeriods.list(),
-        queryFn: () => fetch("/api/finance/fiscal-periods").then((r) => r.json()).then((p) => p.data ?? []),
+        queryFn: async () => {
+            const p = await apiFetch<{ data?: unknown[] }>("/api/finance/fiscal-periods")
+            return p.data ?? []
+        },
     },
     "/documents": {
         queryKey: queryKeys.documents.list(),
@@ -411,7 +410,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/finance/opening-balances": {
         queryKey: queryKeys.openingBalances.list(),
-        queryFn: () => fetch("/api/finance/opening-balances").then((r) => r.json()).then((p) => p.success ? p.data : {}),
+        queryFn: () => apiFetch("/api/finance/opening-balances"),
     },
     "/inventory/warehouses": {
         queryKey: queryKeys.warehouses.list(),
@@ -419,15 +418,14 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/finance/cashflow-forecast": {
         queryKey: queryKeys.cashflowForecast.list(6),
-        queryFn: () => fetch("/api/finance/cashflow-forecast?months=6").then((r) => r.json()),
+        queryFn: () => apiFetch("/api/finance/cashflow-forecast?months=6"),
     },
     "/finance/planning": {
         queryKey: [...queryKeys.cashflowPlan.list(new Date().getMonth() + 1, new Date().getFullYear()), false],
         queryFn: async () => {
             const m = new Date().getMonth() + 1
             const y = new Date().getFullYear()
-            const res = await fetch(`/api/finance/cashflow-plan?month=${m}&year=${y}`)
-            return res.json()
+            return apiFetch(`/api/finance/cashflow-plan?month=${m}&year=${y}`)
         },
     },
     // Companion queries for /finance/planning page
@@ -444,17 +442,17 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryFn: async () => {
             const m = new Date().getMonth() + 1
             const y = new Date().getFullYear()
-            const res = await fetch(`/api/finance/cashflow-plan?month=${m}&year=${y}&allStatuses=true`)
-            return res.json()
+            return apiFetch(`/api/finance/cashflow-plan?month=${m}&year=${y}&allStatuses=true`)
         },
     },
     // Companion — simulasi page also needs scenarios list
     "/finance/planning/simulasi#scenarios": {
         queryKey: queryKeys.cashflowScenarios.list(new Date().getMonth() + 1, new Date().getFullYear()),
-        queryFn: () => {
+        queryFn: async () => {
             const m = new Date().getMonth() + 1
             const y = new Date().getFullYear()
-            return fetch(`/api/finance/cashflow-scenarios?month=${m}&year=${y}`).then(r => r.json()).then(p => p.scenarios ?? [])
+            const p = await apiFetch<{ scenarios?: unknown[] }>(`/api/finance/cashflow-scenarios?month=${m}&year=${y}`)
+            return p.scenarios ?? []
         },
     },
     "/finance/planning/aktual": {
@@ -462,8 +460,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryFn: async () => {
             const m = new Date().getMonth() + 1
             const y = new Date().getFullYear()
-            const res = await fetch(`/api/finance/cashflow-actual?month=${m}&year=${y}`)
-            return res.json()
+            return apiFetch(`/api/finance/cashflow-actual?month=${m}&year=${y}`)
         },
     },
     // --- Inventory routes ---
@@ -485,20 +482,27 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/inventory/opening-stock": {
         queryKey: queryKeys.openingStock.list(),
-        queryFn: () => fetch("/api/inventory/opening-stock").then((r) => r.json()).then((p) => ({
-            products: p.products ?? [],
-            warehouses: p.warehouses ?? [],
-            existingTransactions: p.existingTransactions ?? [],
-        })),
+        queryFn: async () => {
+            const p = await apiFetch<{
+                products?: unknown[]
+                warehouses?: unknown[]
+                existingTransactions?: unknown[]
+            }>("/api/inventory/opening-stock")
+            return {
+                products: p.products ?? [],
+                warehouses: p.warehouses ?? [],
+                existingTransactions: p.existingTransactions ?? [],
+            }
+        },
     },
     "/inventory/settings": {
         queryKey: queryKeys.inventorySettings.list(),
-        queryFn: () => fetch("/api/inventory/settings").then((r) => r.json()),
+        queryFn: () => apiFetch("/api/inventory/settings"),
     },
     // --- Finance routes ---
     "/finance/invoices": {
         queryKey: queryKeys.invoices.kanban(),
-        queryFn: () => getInvoiceKanbanData({ q: null, type: "ALL" }),
+        queryFn: () => apiFetch("/api/finance/lists/invoices"),
     },
     "/finance/petty-cash": {
         queryKey: queryKeys.pettyCash.list(),
@@ -506,10 +510,10 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/finance/transactions": {
         queryKey: [...queryKeys.accountTransactions.list(), {}],
-        queryFn: () => fetch("/api/finance/transactions?limit=500").then((r) => r.json()).then((p) => ({
-            entries: p.entries ?? [],
-            accounts: p.accounts ?? [],
-        })),
+        queryFn: async () => {
+            const p = await apiFetch<{ entries?: unknown[]; accounts?: unknown[] }>("/api/finance/transactions?limit=500")
+            return { entries: p.entries ?? [], accounts: p.accounts ?? [] }
+        },
     },
     "/finance/expenses": {
         queryKey: queryKeys.expenses.list(),
@@ -564,14 +568,17 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     // Companion queries for payables default tab (bills)
     "/finance/payables#bills": {
         queryKey: [...queryKeys.bills.list(), { q: null, status: null, page: 1, pageSize: 20 }],
-        queryFn: () => getVendorBillsRegistry({ q: undefined, status: undefined, page: 1, pageSize: 20 }),
+        queryFn: () => apiFetch("/api/finance/lists/bills?page=1&pageSize=20"),
     },
     "/finance/payables#banks": {
         queryKey: ["banks", "list"] as const,
-        queryFn: () => fetch("/api/xendit/banks").then(r => r.json()).then(p => ({
-            banks: p.data?.banks ?? [],
-            ewallets: p.data?.ewallets ?? [],
-        })),
+        queryFn: async () => {
+            const p = await apiFetch<{ data?: { banks?: unknown[]; ewallets?: unknown[] } }>("/api/xendit/banks")
+            return {
+                banks: p.data?.banks ?? [],
+                ewallets: p.data?.ewallets ?? [],
+            }
+        },
     },
     // --- Pages previously missing from prefetch (audit 2026-03-27) ---
     "/finance/payments": {
@@ -663,11 +670,7 @@ export const masterDataPrefetchMap: Record<string, { queryKey: readonly unknown[
     },
     sidebarActions: {
         queryKey: queryKeys.sidebarActions.list(),
-        queryFn: async () => {
-            const res = await fetch("/api/sidebar/action-counts")
-            if (!res.ok) return null
-            return res.json()
-        },
+        queryFn: () => apiFetch("/api/sidebar/action-counts"),
     },
     paymentTerms: {
         queryKey: queryKeys.paymentTerms.list(),

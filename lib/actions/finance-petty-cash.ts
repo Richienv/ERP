@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { postJournalEntry } from "./finance-gl"
 import { ensureSystemAccounts } from "@/lib/gl-accounts-server"
 import { assertPeriodOpen } from "@/lib/period-helpers"
-import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
+import { CASH_BANK_CODES, SYS_ACCOUNTS } from "@/lib/gl-accounts"
 
 async function requireAuth() {
     const supabase = await createClient()
@@ -291,9 +291,8 @@ export async function getBankAccounts() {
                 type: "ASSET",
                 code: { not: SYS_ACCOUNTS.PETTY_CASH },
                 OR: [
-                    // Cash/bank range 1000–1199 (before AR at 1200)
-                    { code: { gte: "1000", lt: "1200" } },
-                    // Any asset named as a bank (e.g. user-created outside 1xxx range)
+                    { code: { in: [...CASH_BANK_CODES] } },
+                    { code: { startsWith: "111" } },
                     { name: { contains: "Bank", mode: "insensitive" } },
                 ],
             },
@@ -311,20 +310,22 @@ export async function createBankAccount(name: string) {
     try {
         await requireAuth()
 
-        // Auto-generate next bank code (10xx series, skip 1050 petty cash)
+        // Next 111x bank (BCA 1110, Mandiri 1111, then 1112…) — never 10xx / petty cash
         const lastBank = await basePrisma.gLAccount.findFirst({
             where: {
                 type: "ASSET",
-                code: { startsWith: "10", not: SYS_ACCOUNTS.PETTY_CASH },
+                code: { startsWith: "111" },
             },
             orderBy: { code: "desc" },
             select: { code: true },
         })
 
-        let nextCode = "1010"
+        let nextCode = "1112"
         if (lastBank) {
-            let candidate = Number(lastBank.code) + 10
-            if (String(candidate) === SYS_ACCOUNTS.PETTY_CASH) candidate += 10
+            const candidate = Number(lastBank.code) + 1
+            if (Number.isNaN(candidate) || candidate >= 1200) {
+                return { success: false, error: "Kode rekening bank 111x sudah penuh" }
+            }
             nextCode = String(candidate).padStart(4, "0")
         }
 

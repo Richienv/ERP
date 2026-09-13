@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/nb-dialog"
 import { createPurchaseRequest } from "@/lib/actions/procurement"
 import { getEmployees } from "@/app/actions/hcm"
+import { apiFetch } from "@/lib/http/api-fetch"
 import { NB } from "@/lib/dialog-styles"
 
 const itemSchema = z.object({
@@ -57,7 +58,7 @@ export function NewPRDialog() {
         queryKey: queryKeys.procurementRequestForm.list(),
         queryFn: async () => {
             const [productsRes, employees] = await Promise.all([
-                fetch("/api/inventory/page-data").then(r => r.json()),
+                apiFetch<{ products?: any[] }>("/api/inventory/page-data"),
                 getEmployees({ includeInactive: false }),
             ])
             return {

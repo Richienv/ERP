@@ -4,6 +4,7 @@ import { withPrismaAuth, safeQuery, withRetry, prisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 
 import { calculateProductStatus } from "@/lib/inventory-logic"
+import { queryInventoryDashboardKpis } from "@/lib/stock-aggregates"
 import { approvePurchaseRequest, createPOFromPR } from "@/lib/actions/procurement"
 import { postInventoryGLEntry } from "@/lib/actions/inventory-gl"
 import type { InventoryGLType } from "@/lib/actions/inventory-gl"
@@ -303,53 +304,20 @@ export async function getInventoryKPIs() {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) throw new Error("Unauthorized")
 
-    // Use the same query & status logic as the product table / kanban
-    // so KPI numbers match what users see in the product list.
-    const products = await prisma.product.findMany({
-        where: { isActive: true },
-        include: { stockLevels: true },
-    })
-
-    let lowStock = 0
-    let critical = 0
-    let totalValue = 0
-
-    for (const p of products) {
-        const totalStock = p.stockLevels.reduce((sum, sl) => sum + Number(sl.quantity), 0)
-
-        // Accumulate inventory value (same formula as /api/inventory/page-data)
-        totalValue += totalStock * Number(p.costPrice)
-
-        // Use the SINGLE source-of-truth status function
-        const status = calculateProductStatus({
-            totalStock,
-            minStock: p.minStock,
-            reorderLevel: p.reorderLevel,
-            manualAlert: p.manualAlert,
-            createdAt: p.createdAt,
-        })
-
-        if (status === 'LOW_STOCK') lowStock++
-        if (status === 'CRITICAL') critical++
-    }
-
-    // Compute inventory accuracy from real audit data
-    // Audits are recorded as ADJUSTMENT transactions with "Audit" in notes
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)
 
-    const [auditTransactions, todayTransactions] = await Promise.all([
+    const [kpis, auditTransactions, todayTransactions] = await Promise.all([
+        queryInventoryDashboardKpis(),
         prisma.inventoryTransaction.count({
             where: { type: 'ADJUSTMENT', notes: { contains: 'Audit' } },
         }).then(async (totalCount) => {
             if (totalCount === 0) return { totalCount: 0, matchCount: 0 }
-            // MATCH audits = adjustments with quantity 0 (no discrepancy)
             const matchCount = await prisma.inventoryTransaction.count({
                 where: { type: 'ADJUSTMENT', notes: { contains: 'Audit' }, quantity: 0 },
             })
             return { totalCount, matchCount }
         }),
-        // Count today's inbound and outbound transactions
         Promise.all([
             prisma.inventoryTransaction.count({
                 where: { createdAt: { gte: todayStart }, quantity: { gt: 0 } },
@@ -365,9 +333,9 @@ export async function getInventoryKPIs() {
         : 100 // No discrepancies found = perfect accuracy
 
     return {
-        totalProducts: products.length,
-        lowStock: lowStock + critical, // KPI "low stock" includes both LOW_STOCK and CRITICAL
-        totalValue,
+        totalProducts: kpis.totalProducts,
+        lowStock: kpis.lowStock,
+        totalValue: kpis.totalValue,
         inventoryAccuracy,
         inboundToday: todayTransactions[0],
         outboundToday: todayTransactions[1],

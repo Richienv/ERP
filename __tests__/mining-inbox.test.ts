@@ -20,6 +20,11 @@ const h = vi.hoisted(() => {
         {},
         {
             get(_target, model: string) {
+                if (model === "$queryRaw") {
+                    return async () => {
+                        throw new Error("unit-test uses stockLevel fallback")
+                    }
+                }
                 return new Proxy(
                     {},
                     {

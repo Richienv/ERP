@@ -3,13 +3,14 @@
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { getEmployees } from "@/app/actions/hcm"
+import { apiFetch } from "@/lib/http/api-fetch"
 
 export function useProcurementRequestForm() {
     return useQuery({
         queryKey: queryKeys.procurementRequestForm.list(),
         queryFn: async () => {
             const [productsRes, employees] = await Promise.all([
-                fetch("/api/inventory/page-data").then(r => r.json()),
+                apiFetch<{ products?: any[] }>("/api/inventory/page-data"),
                 getEmployees({ includeInactive: false }),
             ])
             const products = (productsRes.products ?? []).map((p: any) => ({

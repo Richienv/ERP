@@ -3,7 +3,7 @@
 import { prisma, withPrismaAuth } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import type { CashflowDirection, CashflowCategory, ProcurementStatus } from "@prisma/client"
-import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
+import { CASH_BANK_CODES, SYS_ACCOUNTS } from "@/lib/gl-accounts"
 import * as dueDateUtils from "@/lib/due-date-utils"
 import {
     BPJS_KES_EMPLOYEE_RATE,
@@ -99,12 +99,12 @@ async function getMonthName(month: number): Promise<string> {
 }
 
 // ================================
-// Starting balance — sum of bank/cash GL accounts (code starts with "10")
+// Starting balance — Kas + bank (CASH_BANK_CODES), not every 10xx asset
 // ================================
 
 async function getStartingBalance(): Promise<number> {
     const accounts = await prisma.gLAccount.findMany({
-        where: { code: { startsWith: "10" } },
+        where: { code: { in: [...CASH_BANK_CODES] } },
         select: { balance: true },
     })
     return accounts.reduce((sum, a) => sum + toNum(a.balance), 0)
@@ -585,6 +585,7 @@ async function getActualTransactions(monthStart: Date, monthEnd: Date): Promise<
         },
         include: {
             lines: {
+                where: { account: { code: { in: [...CASH_BANK_CODES] } } },
                 include: { account: { select: { code: true, name: true } } },
             },
             invoice: { select: { number: true } },
@@ -592,18 +593,20 @@ async function getActualTransactions(monthStart: Date, monthEnd: Date): Promise<
         },
     })
 
-    return entries.map((entry) => {
-        const totalDebit = entry.lines.reduce((sum, l) => sum + toNum(l.debit), 0)
-        const totalCredit = entry.lines.reduce((sum, l) => sum + toNum(l.credit), 0)
-        const direction: "IN" | "OUT" = totalCredit > totalDebit ? "IN" : "OUT"
-        const amount = Math.abs(totalDebit - totalCredit)
+    return entries.flatMap((entry) => {
+        if (entry.lines.length === 0) return []
+        const cashDebit = entry.lines.reduce((sum, l) => sum + toNum(l.debit), 0)
+        const cashCredit = entry.lines.reduce((sum, l) => sum + toNum(l.credit), 0)
+        const amount = Math.abs(cashDebit - cashCredit)
+        if (amount === 0) return []
+        const direction: "IN" | "OUT" = cashDebit > cashCredit ? "IN" : "OUT"
         const firstLine = entry.lines[0]
 
         let desc = entry.description
         if (entry.invoice) desc += ` (${entry.invoice.number})`
         if (entry.payment) desc += ` [${entry.payment.number}]`
 
-        return {
+        return [{
             id: `actual-${entry.id}`,
             date: toDateStr(entry.date),
             description: desc,
@@ -615,7 +618,7 @@ async function getActualTransactions(monthStart: Date, monthEnd: Date): Promise<
             sourceId: entry.id,
             isRecurring: false,
             isManual: false,
-        }
+        }]
     })
 }
 
@@ -1577,7 +1580,7 @@ export async function getCashflowActualData(month: number, year: number): Promis
     const safe = <T,>(p: Promise<T>, fallback: T): Promise<T> =>
         p.catch(() => fallback)
 
-    // 1. POSTED journal entries — only bank/cash account lines (code starts with "10" or "11")
+    // 1. POSTED journal entries — only Kas + bank lines (CASH_BANK_CODES)
     const journalEntries = await safe(
         prisma.journalEntry.findMany({
             where: {
@@ -1588,10 +1591,7 @@ export async function getCashflowActualData(month: number, year: number): Promis
                 lines: {
                     where: {
                         account: {
-                            OR: [
-                                { code: { startsWith: "10" } },
-                                { code: { startsWith: "11" } },
-                            ],
+                            code: { in: [...CASH_BANK_CODES] },
                         },
                     },
                     include: { account: { select: { code: true, name: true } } },

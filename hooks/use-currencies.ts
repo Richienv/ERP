@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { CACHE_TIERS } from "@/lib/cache-tiers"
 import { toast } from "sonner"
+import { apiFetch } from "@/lib/http/api-fetch"
 
 export type CurrencyRate = {
     id: string
@@ -31,9 +32,8 @@ export function useCurrencies() {
     return useQuery({
         queryKey: queryKeys.currencies.list(),
         queryFn: async (): Promise<Currency[]> => {
-            const res = await fetch("/api/finance/currencies")
-            const json = await res.json()
-            if (!json.success) throw new Error(json.error || "Gagal memuat")
+            const json = await apiFetch<{ success?: boolean; error?: string; data?: Currency[] }>("/api/finance/currencies")
+            if (json.success === false) throw new Error(json.error || "Gagal memuat")
             return json.data ?? []
         },
         ...CACHE_TIERS.MASTER,

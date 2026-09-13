@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { CACHE_TIERS } from "@/lib/cache-tiers"
+import { apiFetch } from "@/lib/http/api-fetch"
 
 interface TransactionLine {
     id: string
@@ -61,9 +62,10 @@ export function useAccountTransactions(filters?: TransactionFilters) {
     return useQuery<AccountTransactionsData>({
         queryKey: [...queryKeys.accountTransactions.list(), filters ?? {}],
         queryFn: async () => {
-            const res = await fetch(`/api/finance/transactions?${params.toString()}`)
-            const json = await res.json()
-            if (!json.success) throw new Error(json.error || "Failed to load transactions")
+            const json = await apiFetch<AccountTransactionsData & { success?: boolean; error?: string }>(
+                `/api/finance/transactions?${params.toString()}`
+            )
+            if (json.success === false) throw new Error(json.error || "Failed to load transactions")
             return { entries: json.entries ?? [], accounts: json.accounts ?? [] }
         },
         ...CACHE_TIERS.TRANSACTIONAL,

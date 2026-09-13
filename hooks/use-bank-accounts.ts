@@ -8,9 +8,7 @@ export function useBankAccounts() {
     return useQuery({
         queryKey: queryKeys.glAccounts.bankAccounts(),
         queryFn: async () => {
-            const accounts = await getBankAccounts()
-            // Filter to only cash/bank accounts (10xx codes)
-            return accounts.filter(a => /^10\d{2}$/.test(a.code))
+            return getBankAccounts()
         },
         staleTime: 5 * 60 * 1000,
     })

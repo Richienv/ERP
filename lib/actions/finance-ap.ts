@@ -973,8 +973,8 @@ export async function settleSucceededXenditPayout(params: {
     statusMarker: string
 }) {
     return basePrisma.$transaction(async (prisma) => {
-        const payment = await prisma.payment.findFirst({
-            where: { reference: params.referenceId },
+        const payment = await prisma.payment.findUnique({
+            where: { number: params.referenceId },
             include: { invoice: true },
         })
         if (!payment) {
@@ -1001,6 +1001,22 @@ export async function settleSucceededXenditPayout(params: {
                     notes: `[GL:POSTED] ${params.statusMarker} ${payment.notes || ""}`.trim(),
                 },
             })
+            return { success: true as const, duplicate: true }
+        }
+
+        const claimed = await prisma.payment.updateMany({
+            where: {
+                id: payment.id,
+                AND: [
+                    { NOT: { notes: { contains: "[GL:POSTED]" } } },
+                    { NOT: { notes: { contains: "[GL:POSTING]" } } },
+                ],
+            },
+            data: {
+                notes: `[GL:POSTING] ${params.statusMarker} ${payment.notes || ""}`.trim(),
+            },
+        })
+        if (claimed.count === 0) {
             return { success: true as const, duplicate: true }
         }
 

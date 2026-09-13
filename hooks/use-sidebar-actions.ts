@@ -1,6 +1,7 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/http/api-fetch"
 import { queryKeys } from "@/lib/query-keys"
 
 export interface SidebarActionCounts {
@@ -16,11 +17,7 @@ export interface SidebarActionCounts {
 export function useSidebarActions() {
     return useQuery<SidebarActionCounts | null>({
         queryKey: queryKeys.sidebarActions.list(),
-        queryFn: async () => {
-            const res = await fetch("/api/sidebar/action-counts")
-            if (!res.ok) return null
-            return res.json()
-        },
+        queryFn: () => apiFetch<SidebarActionCounts>("/api/sidebar/action-counts"),
         refetchInterval: 30_000, // refresh every 30s
         staleTime: 15_000,
     })

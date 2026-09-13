@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getProcurementStats } from "@/lib/actions/procurement"
+import { jsonFail } from "@/lib/http/api-response"
+import { requireApiUser } from "@/lib/http/require-api-user"
 import { prisma } from "@/lib/prisma"
 import { ProcurementStatus, PRStatus } from "@prisma/client"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(request: NextRequest) {
+    const user = await requireApiUser()
+    if (!user) return jsonFail(401, "Unauthorized", "UNAUTHORIZED")
+
     try {
         const sp = request.nextUrl.searchParams
 
@@ -78,25 +83,11 @@ export async function GET(request: NextRequest) {
             console.error("[ProcurementAPI] Failed to fetch pending items:", e)
         }
 
-        return NextResponse.json({ ...stats, pendingItemsForApproval })
+        return NextResponse.json({ ...stats, pendingItemsForApproval }, {
+            headers: { "Cache-Control": "private, max-age=0, s-maxage=30, stale-while-revalidate=30" },
+        })
     } catch (error) {
         console.error("Procurement dashboard API error:", error)
-        return NextResponse.json({
-            spend: { current: 0, previous: 0, growth: 0 },
-            needsApproval: 0,
-            urgentNeeds: 0,
-            vendorHealth: { rating: 0, onTime: 0 },
-            incomingCount: 0,
-            recentActivity: [],
-            purchaseOrders: { recent: [], summary: { draft: 0, pendingApproval: 0, approved: 0, inProgress: 0 } },
-            purchaseRequests: { recent: [], summary: { draft: 0, pending: 0, approved: 0, poCreated: 0 } },
-            receiving: { recent: [], summary: { draft: 0, inspecting: 0, partialAccepted: 0, accepted: 0 } },
-            registryMeta: {
-                purchaseOrders: { page: 1, pageSize: 10, total: 0, totalPages: 0 },
-                purchaseRequests: { page: 1, pageSize: 10, total: 0, totalPages: 0 },
-                receiving: { page: 1, pageSize: 10, total: 0, totalPages: 0 },
-            },
-            pendingItemsForApproval: [],
-        })
+        return jsonFail(500, "Gagal memuat dasbor pengadaan", "INTERNAL")
     }
 }
