@@ -113,15 +113,20 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
       });
 
       if (result.success) {
-        const billed = "billNumber" in result && result.billNumber
-          ? `Draft bill ${result.billNumber} siap di Finance`
+        const billNumber = "billNumber" in result ? result.billNumber : undefined
+        const billed = billNumber
+          ? `Draft bill ${billNumber} siap di Finance`
           : `Ditambah ${values.receivedQty} ${item.unit} ke gudang`
         toast.success("Spare part masuk", {
           description: billed,
           icon: <CheckCircle2 className="h-5 w-5 text-green-600" />,
           action: {
             label: "Buka Tagihan",
-            onClick: () => router.push("/finance/bills"),
+            onClick: () => router.push(
+              billNumber
+                ? `/finance/bills?q=${encodeURIComponent(String(billNumber))}`
+                : "/finance/bills",
+            ),
           },
         });
         queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all });

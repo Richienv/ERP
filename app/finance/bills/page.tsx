@@ -56,6 +56,7 @@ import { toast } from "sonner"
 import { useBills } from "@/hooks/use-bills"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { invalidateOpsLoop } from "@/lib/invalidate-ops-loop"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 import { InlinePendingBar } from "@/components/ui/inline-pending"
 import { useChartOfAccounts } from "@/hooks/use-chart-accounts"
@@ -215,11 +216,12 @@ export default function APBillsStackPage() {
         queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
         queryClient.invalidateQueries({ queryKey: queryKeys.accountTransactions.all })
         queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
+        invalidateOpsLoop(queryClient)
     }
 
     const invalidateAfterApprove = () => {
         queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
-        queryClient.invalidateQueries({ queryKey: queryKeys.miningCommand.pulse() })
+        invalidateOpsLoop(queryClient)
     }
 
     const handleApproveBill = async (bill: VendorBill) => {

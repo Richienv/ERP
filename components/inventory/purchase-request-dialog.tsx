@@ -100,13 +100,14 @@ export function PurchaseRequestDialog({
       });
 
       if (result.success) {
-        toast.success("Purchase Request Sent", {
-          description: `Requested ${values.quantity} ${item.unit} for ${item.name}`,
+        toast.success("Permintaan pembelian terkirim", {
+          description: `Diminta ${values.quantity} ${item.unit} untuk ${item.name}`,
         });
         queryClient.invalidateQueries({ queryKey: queryKeys.purchaseRequests.all });
         queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all });
         queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all });
         queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.miningCommand.pulse() });
         setOpen(false);
         form.reset();
         if (onSuccess) {
@@ -114,8 +115,12 @@ export function PurchaseRequestDialog({
           const callbackData = r.pendingTask ? { pendingTask: r.pendingTask } : { newPO: r.newPO };
           onSuccess(callbackData);
         }
+      } else if ((result as any).alreadyPending) {
+        toast.error("Permintaan sudah ada", {
+          description: (result as any).message || "Sudah ada PR pending untuk item ini.",
+        });
       } else {
-        toast.error((result as any).error || "Failed to request");
+        toast.error((result as any).error || "Gagal membuat permintaan pembelian");
       }
     } catch {
       toast.error("An error occurred");

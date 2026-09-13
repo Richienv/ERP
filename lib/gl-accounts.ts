@@ -99,6 +99,14 @@ export const SYS_ACCOUNTS = {
   FA_FURNITURE:     "1550", // Furnitur & Inventaris
 } as const
 
+/** Kas + bank used by KPI / inbox cash. Banks live at 111x, not 10xx. */
+export const CASH_BANK_CODES = [
+  SYS_ACCOUNTS.CASH,
+  SYS_ACCOUNTS.PETTY_CASH,
+  SYS_ACCOUNTS.BANK_BCA,
+  SYS_ACCOUNTS.BANK_MANDIRI,
+] as const
+
 /**
  * Resolves a cash/bank account code based on payment method.
  * For TRANSFER/CHECK/GIRO, uses the provided bankAccountCode or defaults to Bank BCA.

@@ -61,7 +61,17 @@ export default function ProcurementPage() {
   }, [searchParams])
 
   if (!data) {
-    return <TablePageSkeleton accentColor="bg-orange-400" />
+    return (
+      <div className="flex-1 p-4 md:p-6 lg:p-8 pt-6 w-full space-y-4">
+        <CommandPulse
+          module="procurement"
+          compact
+          title="Pengadaan — terima, tagih, bayar"
+          subtitle="PR, PO, GRN, dan bill vendor dalam satu antrian"
+        />
+        <TablePageSkeleton accentColor="bg-orange-400" />
+      </div>
+    )
   }
 
   const { spend, needsApproval, urgentNeeds, vendorHealth, incomingCount, recentActivity, purchaseOrders, purchaseRequests, receiving, registryMeta, pendingItemsForApproval } = data

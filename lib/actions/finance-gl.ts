@@ -316,8 +316,8 @@ async function postJournalEntryInner(prisma: any, data: {
  *
  * @param data - Journal entry data (description, date, reference, lines)
  * @param txClient - Optional: an existing Prisma transaction client. When provided,
- *   skips withPrismaAuth and assertPeriodOpen (caller is responsible for both).
- *   This prevents nested-transaction deadlocks when called from within withPrismaAuth.
+ *   skips withPrismaAuth to prevent nested-transaction deadlocks. Period lock is
+ *   always checked here — callers must not post into a closed month.
  */
 export async function postJournalEntry(data: {
     description: string
@@ -342,13 +342,13 @@ export async function postJournalEntry(data: {
             throw new Error(`Unbalanced Journal: Debit (${totalDebit}) != Credit (${totalCredit})`)
         }
 
+        // Always — including callers that pass a txClient and forget the lock.
+        await assertPeriodOpen(data.date)
+
         // If caller provides a transaction client, use it directly — no nested withPrismaAuth
         if (txClient) {
             return await postJournalEntryInner(txClient, data)
         }
-
-        // Standalone call: check period + start own transaction
-        await assertPeriodOpen(data.date)
 
         return await withPrismaAuth(async (prisma) => {
             return await postJournalEntryInner(prisma, data)

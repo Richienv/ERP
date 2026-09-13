@@ -241,7 +241,7 @@ async function fetchDeadStockValue(prisma: PrismaClient) {
 
 async function fetchProcurementMetrics(prisma: PrismaClient) {
     // Run all queries in parallel for speed
-    const [activePO, delayedPOs, pendingApprovalPOs, totalPRs, pendingPRs, poSummary, poByStatusRaw, prItems] = await Promise.all([
+    const [activePO, delayedPOs, pendingApprovalPOs, totalPRs, pendingPRs, poSummary, poByStatusRaw, prItems, pendingApprovalCount] = await Promise.all([
         prisma.purchaseOrder.count({
             where: { status: { in: ['PO_DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'RECEIVED'] } }
         }),
@@ -282,6 +282,7 @@ async function fetchProcurementMetrics(prisma: PrismaClient) {
             where: { purchaseRequest: { status: { notIn: ['CANCELLED'] } } },
             select: { quantity: true, product: { select: { costPrice: true } } }
         }),
+        prisma.purchaseOrder.count({ where: { status: 'PENDING_APPROVAL' } }),
     ])
 
     const poByStatus: Record<string, number> = {}
@@ -299,6 +300,7 @@ async function fetchProcurementMetrics(prisma: PrismaClient) {
         totalPOValue: Number(poSummary._sum?.totalAmount ?? 0),
         totalPRValue,
         poByStatus,
+        pendingApprovalCount,
         delays: delayedPOs.map(po => ({
             id: po.id,
             number: po.number,
@@ -600,6 +602,7 @@ async function fetchWorkforceStatus(prisma: PrismaClient) {
 }
 
 async function fetchActivityFeed(prisma: PrismaClient) {
+    const salesVisible = isModuleEnabled("sales")
     const [invoices, movements, employees, purchaseOrders, salesOrders] = await Promise.all([
         prisma.invoice.findMany({
             take: 3,
@@ -617,11 +620,13 @@ async function fetchActivityFeed(prisma: PrismaClient) {
             orderBy: { createdAt: 'desc' },
             include: { supplier: { select: { name: true } } }
         }),
-        prisma.salesOrder.findMany({
-            take: 3,
-            orderBy: { orderDate: 'desc' },
-            include: { customer: { select: { name: true } } }
-        })
+        salesVisible
+            ? prisma.salesOrder.findMany({
+                take: 3,
+                orderBy: { orderDate: 'desc' },
+                include: { customer: { select: { name: true } } }
+            })
+            : Promise.resolve([]),
     ])
 
     const activities = [
@@ -1082,7 +1087,7 @@ export async function getDashboardData() {
         ] = await Promise.all([
             fetchFinancialChartData(prisma).catch(() => ({ dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] })),
             fetchDeadStockValue(prisma).catch(() => 0),
-            fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, totalPRValue: 0, poByStatus: {} as Record<string, number> })),
+            fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], pendingApprovalCount: 0, totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, totalPRValue: 0, poByStatus: {} as Record<string, number> })),
             fetchHRMetrics(prisma).catch(() => ({ totalSalary: 0, lateEmployees: [] })),
             fetchPendingLeaves(prisma).catch(() => 0),
             fetchAuditStatus(prisma).catch(() => null),
@@ -1118,7 +1123,7 @@ export async function getDashboardData() {
         return {
             financialChart: { dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] },
             deadStock: 0,
-            procurement: { activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, totalPRValue: 0, poByStatus: {} as Record<string, number> },
+            procurement: { activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], pendingApprovalCount: 0, totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, totalPRValue: 0, poByStatus: {} as Record<string, number> },
             hr: { totalSalary: 0, lateEmployees: [] },
             leaves: 0,
             audit: null,
@@ -1183,6 +1188,7 @@ export async function getDashboardFinancials() {
             receivables: metrics.receivables,
             payables: metrics.payables,
             overdueInvoices: metrics.overdueInvoices,
+            overdueInvoiceCount: metrics.overdueInvoiceCount,
             upcomingPayables: metrics.upcomingPayables,
             recentInvoices,
             netCashIn,
@@ -1191,7 +1197,7 @@ export async function getDashboardFinancials() {
         console.error("getDashboardFinancials failed:", error)
         return {
             cashBalance: 0, revenue: 0, netMargin: 0, burnRate: 0,
-            receivables: 0, payables: 0, overdueInvoices: [], upcomingPayables: [],
+            receivables: 0, payables: 0, overdueInvoices: [], overdueInvoiceCount: 0, upcomingPayables: [],
             recentInvoices: [] as Array<{ id: string; number: string; customer: string; date: string; total: number; status: string }>,
             netCashIn: 0,
         }
@@ -1210,7 +1216,7 @@ export async function getDashboardOperations() {
         const manufacturingVisible = isModuleEnabled("manufacturing")
         const salesVisible = isModuleEnabled("sales")
         const [procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue, hr, tax, inventorySummary, salesFulfillment, cashFlow, profitability, customerInsights, compliance] = await Promise.all([
-            fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, totalPRValue: 0, poByStatus: {} as Record<string, number> })),
+            fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], pendingApprovalCount: 0, totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, totalPRValue: 0, poByStatus: {} as Record<string, number> })),
             manufacturingVisible
                 ? fetchProductionMetrics(prisma).catch(() => ({ activeWorkOrders: 0, totalProduction: 0, efficiency: 0 }))
                 : Promise.resolve({ activeWorkOrders: 0, totalProduction: 0, efficiency: 0 }),
@@ -1228,15 +1234,19 @@ export async function getDashboardOperations() {
                 ? fetchSalesFulfillment(prisma).catch(() => ({ totalOrders: 0, deliveredOrders: 0, fulfillmentRate: 0 }))
                 : Promise.resolve({ totalOrders: 0, deliveredOrders: 0, fulfillmentRate: 0 }),
             fetchCashFlowSummary(prisma).catch(() => ({ kasMasuk: 0, kasKeluar: 0, netCashFlow: 0, topExpenses: [] as { name: string; amount: number }[] })),
-            fetchProfitability(prisma).catch(() => ({ grossProfit: 0, revenue: 0, marginPct: 0, marginTrend: 0, topProducts: [] as { name: string; revenue: number; marginPct: number }[] })),
-            fetchCustomerInsights(prisma).catch(() => ({ totalActive: 0, newThisMonth: 0, top3Customers: [] as { name: string; total: number }[], repeatRate: 0 })),
+            salesVisible
+                ? fetchProfitability(prisma).catch(() => ({ grossProfit: 0, revenue: 0, marginPct: 0, marginTrend: 0, topProducts: [] as { name: string; revenue: number; marginPct: number }[] }))
+                : Promise.resolve({ grossProfit: 0, revenue: 0, marginPct: 0, marginTrend: 0, topProducts: [] as { name: string; revenue: number; marginPct: number }[] }),
+            salesVisible
+                ? fetchCustomerInsights(prisma).catch(() => ({ totalActive: 0, newThisMonth: 0, top3Customers: [] as { name: string; total: number }[], repeatRate: 0 }))
+                : Promise.resolve({ totalActive: 0, newThisMonth: 0, top3Customers: [] as { name: string; total: number }[], repeatRate: 0 }),
             fetchComplianceStatus(prisma).catch(() => ({ draftInvoices: 0, draftJournals: 0, overdueAP: 0, missingTax: 0, status: 'green' as const, totalIssues: 0 })),
         ])
         return { procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue, hr, tax, inventorySummary, salesFulfillment, cashFlow, profitability, customerInsights, compliance }
     } catch (error) {
         console.error("getDashboardOperations failed:", error)
         return {
-            procurement: { activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, totalPRValue: 0, poByStatus: {} as Record<string, number> },
+            procurement: { activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], pendingApprovalCount: 0, totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, totalPRValue: 0, poByStatus: {} as Record<string, number> },
             prodMetrics: { activeWorkOrders: 0, totalProduction: 0, efficiency: 0 },
             materialStatus: [],
             qualityStatus: { passRate: -1, totalInspections: 0, recentInspections: [] },
@@ -1323,6 +1333,7 @@ export async function getProcurementMetrics() {
             activeCount: 0,
             delays: [],
             pendingApproval: [],
+            pendingApprovalCount: 0,
             totalPRs: 0,
             pendingPRs: 0,
             totalPOs: 0,

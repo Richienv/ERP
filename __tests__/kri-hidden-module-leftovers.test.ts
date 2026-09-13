@@ -82,6 +82,8 @@ describe("dashboard skips hidden-module queries", () => {
         expect(ops).toContain("manufacturingVisible\n                ? fetchProductionMetrics")
         expect(ops).toContain("manufacturingVisible\n                ? fetchQualityStatus")
         expect(ops).toContain("salesVisible\n                ? fetchSalesFulfillment")
+        expect(ops).toContain("salesVisible\n                ? fetchProfitability")
+        expect(ops).toContain("salesVisible\n                ? fetchCustomerInsights")
     })
 
     it("does not read work-order previews for a hidden manufacturing card", () => {

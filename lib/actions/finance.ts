@@ -5,7 +5,7 @@ import { withPrismaAuth, prisma as basePrisma } from "@/lib/db"
 import { supabase } from "@/lib/supabase"
 import { createClient } from "@/lib/supabase/server"
 import { logAudit } from "@/lib/audit-helpers"
-import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts-server"
+import { SYS_ACCOUNTS, CASH_BANK_CODES, ensureSystemAccounts } from "@/lib/gl-accounts-server"
 import { assertPeriodOpen } from "@/lib/period-helpers"
 import { legacyTermToDays, calculateDueDate } from "@/lib/payment-term-helpers"
 import { inferSubType } from "@/lib/account-subtype-helpers"
@@ -21,7 +21,8 @@ export interface FinancialMetrics {
     netMargin: number   // %
     revenue: number
     burnRate: number
-    overdueInvoices: any[] // List of overdue customer invoices
+    overdueInvoices: any[] // List of overdue customer invoices (preview)
+    overdueInvoiceCount: number
     upcomingPayables: any[] // List of supplier invoices due soon
     status: {
         cash: 'Healthy' | 'Low' | 'Critical'
@@ -88,6 +89,7 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
             expenseAgg,
             paidInAgg,
             paidOutAgg,
+            overdueInvoiceCount,
         ] = await Promise.all([
             // 1. Receivables (All OUT invoices that are OPEN)
             basePrisma.invoice.aggregate({
@@ -125,9 +127,9 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
                 take: 3,
             }),
 
-            // 5. Cash Balance — cash/bank ASSET accounts (10xx: 1000 Kas, 1010 BCA, 1020 Mandiri, 1050 Petty Cash)
+            // 5. Cash Balance — Kas + Bank (111x is Bank, not 10xx)
             basePrisma.gLAccount.findMany({
-                where: { type: 'ASSET', code: { gte: '1000', lt: '1100' } },
+                where: { type: 'ASSET', code: { in: [...CASH_BANK_CODES] } },
                 select: { balance: true, code: true },
             }),
 
@@ -172,6 +174,14 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
             basePrisma.invoice.aggregate({
                 _sum: { totalAmount: true },
                 where: { type: 'INV_IN', status: 'PAID' },
+            }),
+
+            basePrisma.invoice.count({
+                where: {
+                    type: 'INV_OUT',
+                    status: { in: openStatuses },
+                    dueDate: { lt: now },
+                },
             }),
         ])
 
@@ -222,6 +232,7 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
             revenue: revVal,
             burnRate,
             overdueInvoices: overdueInvoices.map(mapInvoice),
+            overdueInvoiceCount,
             upcomingPayables: upcomingPayables.map(mapInvoice),
             status: {
                 cash: cashBal > 100000000 ? 'Healthy' : 'Low',
@@ -2205,10 +2216,11 @@ export async function getFinanceDashboardData() {
         // Single parallel fetch using prisma singleton (no transaction overhead)
         const [cashFlowEntries, recentEntries, overdueInvoices, pendingBills] = await Promise.all([
             basePrisma.journalEntry.findMany({
-                where: { date: { gte: sevenDaysAgo } },
+                where: { date: { gte: sevenDaysAgo }, status: 'POSTED' },
                 include: { lines: { include: { account: { select: { code: true, type: true } } } } },
             }),
             basePrisma.journalEntry.findMany({
+                where: { status: 'POSTED' },
                 orderBy: { date: 'desc' },
                 take: 5,
                 include: {
@@ -2230,7 +2242,7 @@ export async function getFinanceDashboardData() {
             if (!dayEntry) continue
             for (const line of entry.lines) {
                 const code = line.account?.code || ''
-                if (code >= '1000' && code < '1100') {
+                if ((CASH_BANK_CODES as readonly string[]).includes(code)) {
                     dayEntry.incoming += Number(line.debit)
                     dayEntry.outgoing += Number(line.credit)
                 }
@@ -2590,7 +2602,7 @@ export async function getRevenueFromInvoices(startDate?: Date | string, endDate?
         const invoices = await basePrisma.invoice.findMany({
             where: {
                 type: 'INV_OUT',
-                status: { notIn: ['CANCELLED', 'VOID'] },
+                status: { notIn: ['CANCELLED', 'VOID', 'DRAFT'] },
                 issueDate: { gte: start, lte: end },
             },
             select: { totalAmount: true, balanceDue: true },
@@ -3179,7 +3191,7 @@ export async function getExpenseAccounts() {
                             { name: { contains: 'kas', mode: 'insensitive' as const } },
                             { name: { contains: 'cash', mode: 'insensitive' as const } },
                             { name: { contains: 'bank', mode: 'insensitive' as const } },
-                            { code: { in: ['1000', '1010', '1020', '1100', '1110'] } },
+                            { code: { in: [...CASH_BANK_CODES] } },
                         ]
                     },
                     select: { id: true, code: true, name: true },

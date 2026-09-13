@@ -69,6 +69,7 @@ interface EmployeeOption {
 }
 
 interface AttendanceClientProps {
+    initialTab?: string
     initialSnapshot: {
         date: string
         rows: AttendanceRow[]
@@ -130,6 +131,7 @@ const todayInput = () => new Date().toISOString().slice(0, 10)
 // ==============================================================================
 
 export function AttendanceClient({
+    initialTab,
     initialSnapshot,
     initialEmployees,
     initialLeaveRequests,
@@ -138,7 +140,8 @@ export function AttendanceClient({
     const [isPending, startTransition] = useTransition()
 
     // State
-    const [activeTab, setActiveTab] = useState("today")
+    const startTab = TAB_CONFIG.some((tab) => tab.key === initialTab) ? initialTab! : "today"
+    const [activeTab, setActiveTab] = useState(startTab)
     const [selectedDate, setSelectedDate] = useState(initialSnapshot.date || todayInput())
     const [selectedDepartment, setSelectedDepartment] = useState("all")
     const [rows, setRows] = useState<AttendanceRow[]>(initialSnapshot.rows || [])

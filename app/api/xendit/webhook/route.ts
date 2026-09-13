@@ -141,10 +141,7 @@ export async function POST(req: NextRequest) {
 
     } catch (error: any) {
         console.error('Webhook Processing Error:', error);
-        // Return 200 anyway to prevent Xendit from retrying
-        return NextResponse.json({
-            received: true,
-            error: 'Processing error logged'
-        });
+        // SUCCEEDED must retry — a 200 here would skip the GL forever
+        return NextResponse.json({ error: 'Processing error' }, { status: 500 });
     }
 }
