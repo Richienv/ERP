@@ -76,3 +76,32 @@ the same positioned text the PDF reader produces, so one parser reads all of the
 
 Sales-side automation (customer PO → sales order → SJ → AR invoice); restyling every chart colour;
 print layouts; mobile-first redesign of dense tables (they scroll horizontally at 375 px).
+
+## What shipped (2026-11-21, branch `feat/erp-redesign`)
+
+### One import — verified end to end in the browser on the local DB
+
+Real CO from the SSD (a real CO workbook, read locally, never committed) → a synthetic vendor
+invoice and surat jalan that reference it:
+
+| Step | What the screen said before Simpan | Result | Time |
+|---|---|---|---|
+| Drop the CO (Excel) | "Cash Order CO24-03-0016 · PIC (vendor) · Unit TRITON — Simpan akan membuat CO ke VENDOR A · 16 barang · Rp 20.158.000" | PO `CO24-03-0016` (ORDERED), "Belum ada tagihan" | read 87–114 ms, save 139 ms |
+| Drop the vendor invoice | "Tagihan akan ditempel ke CO24-03-0016 — 3 barang cocok. Tidak ada PO dobel." | bill `BILL-CO24-03-0016` on the same PO, posted DR GR/IR / CR Hutang | 117 ms |
+| Drop the vendor surat jalan | "Barang … akan diterima ke CO24-03-0016: stok bertambah dan jurnal persediaan tercatat otomatis." | GRN, 22 pcs into stock, DR Persediaan / CR GR/IR | 103 ms |
+| Drop the customer's PO (customer) | "Dokumen penjualan … modul penjualan belum aktif" | read in full, nothing saved, button explains why | read 47 ms |
+
+Books afterwards: one PO for the vendor (no twin), trial balance difference 0, GR/IR left open
+exactly for the invoiced-but-not-yet-delivered lines.
+
+Parser on 10 real documents (vendor PO/CO in PDF and Excel, customer POs, surat jalan, invoices): every
+line, part number, quantity, price and total read; arithmetic check 0 on all but one — `PO24-04-019`
+whose own printed JUMLAH (Rp 17.222.500) does not match its 45 lines (Rp 60.451.000). The review
+screen shows that difference in amber, which is the point.
+
+### Redesign
+
+- Theme tokens, Plus Jakarta Sans, 17 px root, deep-blue brand, navy-ready sidebar tokens.
+- Codemod over 446 files (22,010 class rewrites); `NB` tokens re-valued (keys unchanged).
+- Shell polish (logo, sidebar, header, toasts, waiting states, status words, login): see the commit
+  "Integra Pro shell".
