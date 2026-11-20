@@ -46,13 +46,14 @@ export default function SparepartPurchasesPage() {
         else setTimeout(run, 300)
     }, [])
 
-    const rows: PendingRow[] = useMemo(() => list.data?.pages.flatMap((p) => p.rows) ?? [], [list.data])
+    // Defensive: a malformed cached page must never take the whole screen down.
+    const rows: PendingRow[] = useMemo(() => (list.data?.pages ?? []).flatMap((p) => (Array.isArray(p?.rows) ? p.rows : [])).filter((r): r is PendingRow => !!r?.id), [list.data])
     useEffect(() => {
         for (const r of rows) lastRows.current.set(r.id, r)
     }, [rows])
     const selected = selectedId ? rows.find((r) => r.id === selectedId) ?? lastRows.current.get(selectedId) ?? null : null
-    const kpi = list.data?.pages[0]?.kpi
-    const serverMs = list.data?.pages[0]?.serverMs
+    const kpi = Array.isArray(list.data?.pages[0]?.rows) ? list.data?.pages[0]?.kpi : null
+    const serverMs = Array.isArray(list.data?.pages[0]?.rows) ? list.data?.pages[0]?.serverMs : null
 
     const openFile = useCallback((file: File | null | undefined) => {
         if (!file) return
@@ -131,12 +132,12 @@ export default function SparepartPurchasesPage() {
                             <p className="text-sm text-slate-500">Seret PO, CO, invoice atau surat jalan ke halaman ini — PDF, Excel atau foto. Sistem membaca dan mengerjakan sisanya.</p>
                         </div>
                     </div>
-                    <div className="flex items-center">
-                        <button onClick={() => setReview({ file: null, key: Date.now() })} className={cn(NB.toolbarBtn, "inline-flex items-center gap-1.5")}>
+                    <div className="flex w-full sm:w-auto items-center gap-2 sm:gap-0">
+                        <button onClick={() => setReview({ file: null, key: Date.now() })} className={cn(NB.toolbarBtn, "inline-flex flex-1 sm:flex-none justify-center items-center gap-1.5 whitespace-nowrap")}>
                             <PenLine className="h-3.5 w-3.5" /> Isi manual
                         </button>
-                        <button onClick={() => fileInput.current?.click()} className={cn(NB.toolbarBtnPrimary, "inline-flex items-center gap-1.5")}>
-                            <Upload className="h-4 w-4" /> Import dokumen
+                        <button onClick={() => fileInput.current?.click()} className={cn(NB.toolbarBtnPrimary, "inline-flex flex-1 sm:flex-none justify-center items-center gap-1.5 whitespace-nowrap ml-0 sm:ml-2 px-3 sm:px-5")}>
+                            <Upload className="h-4 w-4" /> <span className="sm:hidden">Import</span><span className="hidden sm:inline">Import dokumen</span>
                         </button>
                     </div>
                 </div>
@@ -182,7 +183,7 @@ export default function SparepartPurchasesPage() {
                             </button>
                         )}
                     </div>
-                    <span className="text-xs font-bold text-zinc-400 whitespace-nowrap ml-3">
+                    <span className="hidden sm:inline text-xs font-bold text-zinc-400 whitespace-nowrap ml-3">
                         {rows.length} pembelian{serverMs != null && <span className="font-mono"> · {serverMs} ms</span>}
                         {list.isFetching && !list.isFetchingNextPage && <span className="ml-1.5 inline-block h-1.5 w-1.5 bg-blue-500 animate-pulse" />}
                     </span>

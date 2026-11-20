@@ -26,8 +26,16 @@ import {
 type ListPage = Awaited<ReturnType<typeof listSparepartPurchases>>
 type ListData = InfiniteData<ListPage, string | null>
 
-/** Same shape useInfiniteQuery stores, so the sidebar prefetch fills the page's cache directly. */
-export async function fetchSparepartFirstPage(): Promise<ListData> {
+/**
+ * Used by the sidebar prefetch AND by background refresh on the same key as the infinite list.
+ * TanStack calls it two ways: as a plain prefetch (no pageParam → return the whole infinite shape)
+ * or with the infinite behaviour still attached (pageParam present → return ONE page). Returning the
+ * whole shape in the second case nests pages inside pages and breaks the list.
+ */
+export async function fetchSparepartFirstPage(ctx?: { pageParam?: unknown }): Promise<ListData | ListPage> {
+    if (ctx && typeof ctx === "object" && "pageParam" in ctx) {
+        return listSparepartPurchases({ cursor: (ctx.pageParam as string | null) ?? null, filter: "all" })
+    }
     return { pages: [await listSparepartPurchases({ filter: "all" })], pageParams: [null] }
 }
 
