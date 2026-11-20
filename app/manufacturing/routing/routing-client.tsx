@@ -231,17 +231,17 @@ export function RoutingClient({ initialRoutings }: Props) {
     };
 
     return (
-        <div className="w-full bg-zinc-50 dark:bg-black font-sans min-h-[calc(100svh-theme(spacing.16))]">
+        <div className="w-full bg-zinc-50 dark:bg-slate-900 font-sans min-h-[calc(100svh-theme(spacing.16))]">
             <div className="mf-page">
 
                 {/* Header */}
                 <div className="flex-none flex items-center justify-between">
                     <div>
-                        <h1 className="text-lg font-black uppercase tracking-widest text-zinc-900 dark:text-white flex items-center gap-2">
+                        <h1 className="text-lg font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
                             <Route className="h-6 w-6" />
                             Routing Process
                         </h1>
-                        <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mt-1">
+                        <p className="text-xs font-bold text-zinc-400 mt-1">
                             Definisi langkah produksi & alur kerja manufaktur
                         </p>
                     </div>
@@ -251,12 +251,12 @@ export function RoutingClient({ initialRoutings }: Props) {
                             size="icon"
                             onClick={fetchRoutings}
                             disabled={refreshing}
-                            className="h-10 w-10 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[1px] hover:translate-y-[1px] hover:bg-zinc-100 transition-all rounded-none"
+                            className="h-10 w-10 border border-border shadow-sm hover:shadow-sm hover:bg-zinc-100 transition-all rounded-md"
                         >
                             <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
                         </Button>
                         <Button
-                            className="h-10 bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] active:scale-[0.98] transition-all uppercase font-black tracking-widest text-xs rounded-none px-6"
+                            className="h-10 bg-slate-900 text-white hover:bg-zinc-800 border border-border shadow-sm hover:shadow-sm active:scale-[0.98] transition-all font-semibold text-xs rounded-md px-6"
                             onClick={handleCreateRouting}
                         >
                             <Plus className="mr-2 h-4 w-4" /> Routing Baru
@@ -265,8 +265,8 @@ export function RoutingClient({ initialRoutings }: Props) {
                 </div>
 
                 {/* KPI Strip */}
-                <div className="flex-none bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                    <div className="grid grid-cols-2 md:grid-cols-4 divide-x-2 divide-black divide-y-2 md:divide-y-0">
+                <div className="flex-none bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
+                    <div className="grid grid-cols-2 md:grid-cols-4 divide-x-2 divide-border divide-y-2 md:divide-y-0">
                         {kpis.map((kpi) => (
                             <div
                                 key={kpi.label}
@@ -280,15 +280,15 @@ export function RoutingClient({ initialRoutings }: Props) {
                                         <span className={cn("text-zinc-400 group-hover:text-black dark:group-hover:text-zinc-200 transition-colors", kpi.color)}>
                                             <kpi.icon className="h-5 w-5" />
                                         </span>
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-black dark:group-hover:text-zinc-300 transition-colors">
+                                        <span className="text-xs font-semibold text-zinc-500 group-hover:text-black dark:group-hover:text-zinc-300 transition-colors">
                                             {kpi.label}
                                         </span>
                                     </div>
                                 </div>
-                                <p className={cn("text-2xl font-black tracking-tighter", kpi.color)}>
+                                <p className={cn("text-2xl font-semibold tracking-tighter", kpi.color)}>
                                     {kpi.value}
                                 </p>
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mt-1">
+                                <p className="text-xs font-bold text-zinc-400 mt-1">
                                     {kpi.detail}
                                 </p>
                             </div>
@@ -304,7 +304,7 @@ export function RoutingClient({ initialRoutings }: Props) {
                         </div>
                         <Input
                             placeholder="Cari routing, kode, atau nama..."
-                            className="pl-10 h-10 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,0.3)] focus-visible:ring-0 focus-visible:translate-x-[1px] focus-visible:translate-y-[1px] focus-visible:shadow-[1px_1px_0px_0px_rgba(0,0,0,0.3)] transition-all bg-white dark:bg-zinc-900 rounded-none font-medium"
+                            className="pl-10 h-10 border border-border shadow-sm focus-visible:ring-0 focus-visible:shadow-sm transition-all bg-white dark:bg-zinc-900 rounded-md font-medium"
                             value={searchQuery}
                             onChange={(e) => handleSearchChange(e.target.value)}
                         />
@@ -313,12 +313,12 @@ export function RoutingClient({ initialRoutings }: Props) {
 
                 {/* Error State */}
                 {error && (
-                    <div className="border-2 border-red-500 bg-red-50 p-4 shadow-[4px_4px_0px_0px_rgba(239,68,68,1)] flex items-center justify-between">
-                        <div className="flex items-center gap-3 text-red-700 font-bold uppercase tracking-wide text-xs">
+                    <div className="border border-red-500 bg-red-50 p-4 shadow-sm flex items-center justify-between">
+                        <div className="flex items-center gap-3 text-red-700 font-bold text-xs">
                             <AlertCircle className="h-5 w-5" />
                             <span>{error}</span>
                         </div>
-                        <Button variant="outline" size="sm" onClick={fetchRoutings} className="bg-white border-2 border-red-500 text-red-700 hover:bg-red-100 rounded-none font-bold text-xs uppercase">
+                        <Button variant="outline" size="sm" onClick={fetchRoutings} className="bg-white border border-red-500 text-red-700 hover:bg-red-100 rounded-md font-bold text-xs ">
                             Coba Lagi
                         </Button>
                     </div>
@@ -326,17 +326,17 @@ export function RoutingClient({ initialRoutings }: Props) {
 
                 {/* Empty State */}
                 {routings.length === 0 && !error && (
-                    <div className="border-2 border-dashed border-zinc-300 min-h-[300px] flex flex-col items-center justify-center text-center bg-zinc-50/50 p-8">
-                        <div className="h-16 w-16 bg-zinc-100 border-2 border-zinc-200 flex items-center justify-center mb-4 rounded-full">
+                    <div className="border border-dashed border-zinc-300 min-h-[300px] flex flex-col items-center justify-center text-center bg-zinc-50/50 p-8">
+                        <div className="h-16 w-16 bg-zinc-100 border border-zinc-200 flex items-center justify-center mb-4 rounded-full">
                             <Route className="h-8 w-8 text-zinc-300" />
                         </div>
-                        <h3 className="text-lg font-black uppercase tracking-widest text-zinc-400">Tidak ada routing ditemukan</h3>
+                        <h3 className="text-lg font-semibold text-zinc-400">Tidak ada routing ditemukan</h3>
                         <p className="text-xs font-bold text-zinc-400 mt-2 max-w-xs">
                             {searchQuery
                                 ? 'Coba sesuaikan kata kunci pencarian anda.'
                                 : 'Mulai dengan membuat routing proses pertama anda.'}
                         </p>
-                        <Button className="mt-6 bg-black text-white rounded-none font-black uppercase tracking-wider text-xs px-6 py-5 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all" onClick={handleCreateRouting}>
+                        <Button className="mt-6 bg-slate-900 text-white rounded-md font-semibold text-xs px-6 py-5 border border-border shadow-sm hover:shadow-none transition-all" onClick={handleCreateRouting}>
                             <Plus className="mr-2 h-4 w-4" /> Routing Baru
                         </Button>
                     </div>
@@ -348,18 +348,18 @@ export function RoutingClient({ initialRoutings }: Props) {
                         {routings.map((routing) => (
                             <Card
                                 key={routing.id}
-                                className="group relative border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all rounded-none bg-white dark:bg-zinc-900 overflow-hidden flex flex-col cursor-pointer"
+                                className="group relative border border-border shadow-sm hover:shadow-sm transition-all rounded-md bg-white dark:bg-zinc-900 overflow-hidden flex flex-col cursor-pointer"
                                 onClick={() => handleRoutingClick(routing)}
                             >
                                 {/* Header Strip */}
-                                <div className="flex justify-between items-center p-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 font-mono">
+                                <div className="flex justify-between items-center p-3 border-b border-border bg-zinc-50 dark:bg-zinc-800">
+                                    <span className="text-xs font-semibold text-zinc-500 font-mono">
                                         {routing.code}
                                     </span>
                                     <div className={cn(
-                                        "flex items-center gap-1.5 px-2 py-1 border text-[9px] font-black uppercase tracking-widest",
+                                        "flex items-center gap-1.5 px-2 py-1 border text-xs font-semibold  ",
                                         routing.isActive
-                                            ? "bg-emerald-100 border-emerald-300 text-emerald-800 shadow-[1px_1px_0px_0px_rgba(16,185,129,0.5)]"
+                                            ? "bg-emerald-100 border-emerald-300 text-emerald-800 shadow-sm"
                                             : "bg-zinc-100 border-zinc-300 text-zinc-600"
                                     )}>
                                         {routing.isActive ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
@@ -370,10 +370,10 @@ export function RoutingClient({ initialRoutings }: Props) {
                                 {/* Content */}
                                 <div className="p-4 flex-1 flex flex-col gap-4">
                                     <div className="flex items-start justify-between gap-4">
-                                        <h3 className="text-sm font-black uppercase tracking-wide leading-tight line-clamp-2">
+                                        <h3 className="text-sm font-semibold leading-tight line-clamp-2">
                                             {routing.name}
                                         </h3>
-                                        <div className="h-8 w-8 shrink-0 bg-black text-white flex items-center justify-center border-2 border-black">
+                                        <div className="h-8 w-8 shrink-0 bg-slate-900 text-white flex items-center justify-center border border-border">
                                             <Route className="h-4 w-4" />
                                         </div>
                                     </div>
@@ -386,13 +386,13 @@ export function RoutingClient({ initialRoutings }: Props) {
 
                                     <div className="grid grid-cols-2 gap-2 mt-auto pt-2">
                                         <div className="border border-zinc-200 bg-zinc-50/50 p-2">
-                                            <p className="text-[9px] font-black uppercase text-zinc-400 tracking-widest mb-0.5">Steps</p>
+                                            <p className="text-xs font-semibold text-zinc-400 mb-0.5">Steps</p>
                                             <div className="font-bold text-sm text-zinc-900 flex items-center gap-1.5">
                                                 <Layers className="h-3.5 w-3.5 text-zinc-400" /> {routing.stepCount}
                                             </div>
                                         </div>
                                         <div className="border border-zinc-200 bg-zinc-50/50 p-2">
-                                            <p className="text-[9px] font-black uppercase text-zinc-400 tracking-widest mb-0.5">Total Time</p>
+                                            <p className="text-xs font-semibold text-zinc-400 mb-0.5">Total Time</p>
                                             <div className="font-bold text-sm text-zinc-900 flex items-center gap-1.5">
                                                 <Clock className="h-3.5 w-3.5 text-zinc-400" /> {routing.totalDurationFormatted}
                                             </div>
@@ -401,8 +401,8 @@ export function RoutingClient({ initialRoutings }: Props) {
                                 </div>
 
                                 {/* Footer Action */}
-                                <div className="border-t-2 border-black p-2 flex items-center justify-end bg-zinc-50 dark:bg-zinc-800 group-hover:bg-zinc-100 transition-colors">
-                                    <span className="text-[10px] font-black uppercase tracking-wider text-black flex items-center gap-1">
+                                <div className="border-t border-border p-2 flex items-center justify-end bg-zinc-50 dark:bg-zinc-800 group-hover:bg-zinc-100 transition-colors">
+                                    <span className="text-xs font-semibold text-black flex items-center gap-1">
                                         Lihat Detail <ChevronRight className="h-3 w-3" />
                                     </span>
                                 </div>
@@ -413,17 +413,17 @@ export function RoutingClient({ initialRoutings }: Props) {
 
                 {/* Detail Sheet */}
                 <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-                    <SheetContent className="w-full sm:max-w-xl p-0 border-l-2 border-black shadow-[-8px_0px_0px_0px_rgba(0,0,0,0.2)] rounded-none bg-white dark:bg-zinc-900 overflow-hidden flex flex-col gap-0">
+                    <SheetContent className="w-full sm:max-w-xl p-0 border-l border-border shadow-sm rounded-md bg-white dark:bg-zinc-900 overflow-hidden flex flex-col gap-0">
                         {/* Sheet Header */}
-                        <div className="bg-black text-white px-6 py-5 shrink-0 border-b-2 border-black">
+                        <div className="bg-slate-900 text-white px-6 py-5 shrink-0 border-b border-border">
                             <SheetHeader className="text-left space-y-1">
-                                <SheetTitle className="text-xl font-black uppercase tracking-tight text-white flex items-center gap-3">
-                                    <div className="h-8 w-8 bg-white text-black flex items-center justify-center border-2 border-white rounded-none">
+                                <SheetTitle className="text-xl font-semibold tracking-tight text-white flex items-center gap-3">
+                                    <div className="h-8 w-8 bg-white text-black flex items-center justify-center border border-white rounded-md">
                                         <Route className="h-4 w-4" />
                                     </div>
                                     {selectedRouting?.name}
                                 </SheetTitle>
-                                <SheetDescription className="text-zinc-400 font-mono text-xs font-bold uppercase tracking-widest">
+                                <SheetDescription className="text-zinc-400 font-mono text-xs font-bold  ">
                                     {selectedRouting?.code}
                                 </SheetDescription>
                             </SheetHeader>
@@ -434,20 +434,20 @@ export function RoutingClient({ initialRoutings }: Props) {
                                 <div className="p-6 space-y-6">
                                     {/* Stats Grid */}
                                     <div className="grid grid-cols-2 gap-3">
-                                        <div className="bg-white border-2 border-black p-3 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Total Steps</p>
-                                            <p className="text-2xl font-black">{selectedRouting.stepCount}</p>
+                                        <div className="bg-white border border-border p-3 shadow-sm">
+                                            <p className="text-xs font-semibold text-zinc-400 mb-1">Total Steps</p>
+                                            <p className="text-2xl font-semibold">{selectedRouting.stepCount}</p>
                                         </div>
-                                        <div className="bg-white border-2 border-black p-3 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Total Time</p>
-                                            <p className="text-2xl font-black">{selectedRouting.totalDurationFormatted}</p>
+                                        <div className="bg-white border border-border p-3 shadow-sm">
+                                            <p className="text-xs font-semibold text-zinc-400 mb-1">Total Time</p>
+                                            <p className="text-2xl font-semibold">{selectedRouting.totalDurationFormatted}</p>
                                         </div>
                                     </div>
 
                                     {/* Description */}
                                     {selectedRouting.description && (
-                                        <div className="bg-white border-2 border-black p-4 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
-                                            <h4 className="font-black text-xs uppercase tracking-widest mb-2 text-zinc-500">Keterangan</h4>
+                                        <div className="bg-white border border-border p-4 shadow-sm">
+                                            <h4 className="font-semibold text-xs mb-2 text-zinc-500">Keterangan</h4>
                                             <p className="text-sm font-medium text-zinc-900">{selectedRouting.description}</p>
                                         </div>
                                     )}
@@ -455,13 +455,13 @@ export function RoutingClient({ initialRoutings }: Props) {
                                     {/* Process Steps */}
                                     <div>
                                         <div className="flex items-center justify-between mb-3">
-                                            <h4 className="font-black text-xs uppercase tracking-widest text-zinc-500">Langkah Proses</h4>
-                                            <Badge variant="outline" className="rounded-none border-black font-mono text-[10px]">{selectedRouting.steps.length} Steps</Badge>
+                                            <h4 className="font-semibold text-xs text-zinc-500">Langkah Proses</h4>
+                                            <Badge variant="outline" className="rounded-md border-border font-mono text-xs">{selectedRouting.steps.length} Steps</Badge>
                                         </div>
 
                                         {selectedRouting.steps.length === 0 ? (
-                                            <div className="border-2 border-dashed border-zinc-300 p-8 text-center">
-                                                <p className="text-xs font-bold text-zinc-400 uppercase tracking-wide">Belum ada langkah proses</p>
+                                            <div className="border border-dashed border-zinc-300 p-8 text-center">
+                                                <p className="text-xs font-bold text-zinc-400  ">Belum ada langkah proses</p>
                                             </div>
                                         ) : (
                                             <div className="space-y-3 relative">
@@ -472,22 +472,22 @@ export function RoutingClient({ initialRoutings }: Props) {
                                                     <div key={step.id} className="relative group">
                                                         <div className="flex gap-4">
                                                             {/* Sequence Circle */}
-                                                            <div className="shrink-0 h-10 w-10 bg-black text-white border-2 border-black flex items-center justify-center font-black text-sm z-10 shadow-[3px_3px_0px_0px_rgba(255,255,255,1)]">
+                                                            <div className="shrink-0 h-10 w-10 bg-slate-900 text-white border border-border flex items-center justify-center font-semibold text-sm z-10 shadow-sm">
                                                                 {step.sequence}
                                                             </div>
 
                                                             {/* Step Card */}
-                                                            <div className="flex-1 bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-3 hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all">
+                                                            <div className="flex-1 bg-white border border-border shadow-sm p-3 hover:shadow-sm transition-all">
                                                                 <div className="flex justify-between items-start mb-2">
-                                                                    <p className="font-black text-sm uppercase tracking-tight">{step.name}</p>
+                                                                    <p className="font-semibold text-sm tracking-tight">{step.name}</p>
                                                                     <div className="flex items-center gap-1 bg-zinc-100 border border-zinc-300 px-1.5 py-0.5">
                                                                         <Clock className="h-3 w-3 text-zinc-500" />
-                                                                        <span className="text-[10px] font-bold font-mono">{step.durationMinutes}m</span>
+                                                                        <span className="text-xs font-bold font-mono">{step.durationMinutes}m</span>
                                                                     </div>
                                                                 </div>
 
                                                                 {step.description && (
-                                                                    <p className="text-xs text-zinc-500 mb-3 border-l-2 border-zinc-200 pl-2">
+                                                                    <p className="text-xs text-zinc-500 mb-3 border-l border-zinc-200 pl-2">
                                                                         {step.description}
                                                                     </p>
                                                                 )}
@@ -496,13 +496,13 @@ export function RoutingClient({ initialRoutings }: Props) {
                                                                     {step.machine && (
                                                                         <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-2 py-1">
                                                                             <Settings className="h-3 w-3 text-blue-600" />
-                                                                            <span className="text-[10px] font-bold uppercase text-blue-800">{step.machine.name}</span>
+                                                                            <span className="text-xs font-bold text-blue-800">{step.machine.name}</span>
                                                                         </div>
                                                                     )}
                                                                     {step.material && (
                                                                         <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-2 py-1">
                                                                             <Box className="h-3 w-3 text-amber-600" />
-                                                                            <span className="text-[10px] font-bold uppercase text-amber-800">
+                                                                            <span className="text-xs font-bold text-amber-800">
                                                                                 {step.material.quantity} {step.material.unit} {step.material.name}
                                                                             </span>
                                                                         </div>
@@ -521,23 +521,23 @@ export function RoutingClient({ initialRoutings }: Props) {
 
                         {/* Footer Actions */}
                         {selectedRouting && (
-                            <div className="p-4 border-t-2 border-black bg-zinc-50 flex flex-col sm:flex-row gap-3 shrink-0">
+                            <div className="p-4 border-t border-border bg-zinc-50 flex flex-col sm:flex-row gap-3 shrink-0">
                                 <Button
-                                    className="flex-1 bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] rounded-none font-bold uppercase text-xs h-10"
+                                    className="flex-1 bg-slate-900 text-white hover:bg-zinc-800 border border-border shadow-sm rounded-md font-bold text-xs h-10"
                                     onClick={handleEditRouting}
                                 >
                                     Edit Routing
                                 </Button>
                                 <Button
                                     variant="outline"
-                                    className="flex-1 border-2 border-black bg-white hover:bg-zinc-100 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] rounded-none font-bold uppercase text-xs h-10"
+                                    className="flex-1 border border-border bg-white hover:bg-zinc-100 shadow-sm rounded-md font-bold text-xs h-10"
                                     onClick={() => setAddStepOpen(true)}
                                 >
                                     Tambah Step
                                 </Button>
                                 <Button
                                     variant="outline"
-                                    className="border-2 border-red-500 text-red-600 hover:bg-red-50 shadow-[2px_2px_0px_0px_rgba(239,68,68,1)] rounded-none font-bold uppercase text-xs h-10 w-12 px-0 flex items-center justify-center"
+                                    className="border border-red-500 text-red-600 hover:bg-red-50 shadow-sm rounded-md font-bold text-xs h-10 w-12 px-0 flex items-center justify-center"
                                     onClick={handleDeleteRouting}
                                     disabled={deleting}
                                 >

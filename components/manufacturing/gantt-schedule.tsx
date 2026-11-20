@@ -80,26 +80,26 @@ export function GanttSchedule({ workOrders, onSelectWorkOrder }: GanttSchedulePr
     const totalWidth = DAYS_VISIBLE * DAY_WIDTH
 
     return (
-        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <div className="bg-white border border-border shadow-sm">
             {/* Header Controls */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b-2 border-black bg-zinc-50">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-zinc-50">
                 <div className="flex items-center gap-2">
                     <CalendarClock className="h-4 w-4 text-zinc-500" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                    <span className="text-xs font-semibold text-zinc-500">
                         Jadwal Produksi
                     </span>
-                    <span className="text-[10px] font-bold text-zinc-400 ml-2">
+                    <span className="text-xs font-bold text-zinc-400 ml-2">
                         {scheduledOrders.length} terjadwal / {unscheduledOrders.length} belum
                     </span>
                 </div>
                 <div className="flex items-center gap-1">
-                    <Button variant="outline" size="sm" onClick={prevWeek} className="h-7 w-7 p-0 border-2 border-black rounded-none">
+                    <Button variant="outline" size="sm" onClick={prevWeek} className="h-7 w-7 p-0 border border-border rounded-md">
                         <ChevronLeft className="h-3.5 w-3.5" />
                     </Button>
-                    <Button variant="outline" size="sm" onClick={goToday} className="h-7 px-2 text-[10px] font-black uppercase border-2 border-black rounded-none">
+                    <Button variant="outline" size="sm" onClick={goToday} className="h-7 px-2 text-xs font-semibold border border-border rounded-md">
                         Hari ini
                     </Button>
-                    <Button variant="outline" size="sm" onClick={nextWeek} className="h-7 w-7 p-0 border-2 border-black rounded-none">
+                    <Button variant="outline" size="sm" onClick={nextWeek} className="h-7 w-7 p-0 border border-border rounded-md">
                         <ChevronRight className="h-3.5 w-3.5" />
                     </Button>
                 </div>
@@ -109,10 +109,10 @@ export function GanttSchedule({ workOrders, onSelectWorkOrder }: GanttSchedulePr
             <div className="overflow-x-auto">
                 <div style={{ minWidth: totalWidth + 200 }}>
                     {/* Date header */}
-                    <div className="flex border-b-2 border-black" style={{ height: HEADER_HEIGHT }}>
+                    <div className="flex border-b border-border" style={{ height: HEADER_HEIGHT }}>
                         {/* Label column */}
-                        <div className="w-[200px] min-w-[200px] border-r-2 border-black bg-zinc-100 flex items-end px-3 pb-2">
-                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Work Order</span>
+                        <div className="w-[200px] min-w-[200px] border-r border-border bg-zinc-100 flex items-end px-3 pb-2">
+                            <span className="text-xs font-semibold text-zinc-400">Work Order</span>
                         </div>
                         {/* Day columns */}
                         <div className="flex">
@@ -127,18 +127,18 @@ export function GanttSchedule({ workOrders, onSelectWorkOrder }: GanttSchedulePr
                                         }`}
                                         style={{ width: DAY_WIDTH }}
                                     >
-                                        <span className={`text-[8px] font-black uppercase ${
+                                        <span className={`text-xs font-semibold  ${
                                             isToday ? 'text-blue-600' : weekend ? 'text-zinc-400' : 'text-zinc-500'
                                         }`}>
                                             {day.toLocaleDateString('id-ID', { weekday: 'short' })}
                                         </span>
-                                        <span className={`text-[10px] font-bold ${
+                                        <span className={`text-xs font-bold ${
                                             isToday ? 'text-blue-700 bg-blue-200 px-1.5 rounded-sm' : 'text-zinc-600'
                                         }`}>
                                             {day.getDate()}
                                         </span>
                                         {day.getDate() === 1 && (
-                                            <span className="text-[7px] font-black text-zinc-400 uppercase">
+                                            <span className="text-[7px] font-semibold text-zinc-400 ">
                                                 {day.toLocaleDateString('id-ID', { month: 'short' })}
                                             </span>
                                         )}
@@ -153,7 +153,7 @@ export function GanttSchedule({ workOrders, onSelectWorkOrder }: GanttSchedulePr
                         <div className="flex items-center justify-center py-12 text-zinc-400">
                             <div className="text-center">
                                 <CalendarClock className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                                <span className="text-[10px] font-black uppercase tracking-widest">
+                                <span className="text-xs font-semibold  ">
                                     Belum ada jadwal dalam rentang ini
                                 </span>
                             </div>
@@ -184,11 +184,11 @@ export function GanttSchedule({ workOrders, onSelectWorkOrder }: GanttSchedulePr
                                     onClick={() => onSelectWorkOrder?.(wo)}
                                 >
                                     {/* Label */}
-                                    <div className="w-[200px] min-w-[200px] border-r-2 border-black flex items-center px-3 gap-2 overflow-hidden">
+                                    <div className="w-[200px] min-w-[200px] border-r border-border flex items-center px-3 gap-2 overflow-hidden">
                                         <div className={`w-1.5 h-5 ${stageColors.accent} shrink-0`} />
                                         <div className="min-w-0">
-                                            <div className="text-[10px] font-black truncate">{wo.number}</div>
-                                            <div className="text-[8px] text-zinc-400 font-bold truncate">{wo.productCode}</div>
+                                            <div className="text-xs font-semibold truncate">{wo.number}</div>
+                                            <div className="text-xs text-zinc-400 font-bold truncate">{wo.productCode}</div>
                                         </div>
                                         {isDue && <AlertTriangle className="h-3 w-3 text-red-500 shrink-0" />}
                                     </div>
@@ -222,7 +222,7 @@ export function GanttSchedule({ workOrders, onSelectWorkOrder }: GanttSchedulePr
 
                                         {/* Gantt bar */}
                                         <div
-                                            className={`absolute top-1.5 border-2 border-black ${stageColors.bg} flex items-center px-1.5 overflow-hidden group`}
+                                            className={`absolute top-1.5 border border-border ${stageColors.bg} flex items-center px-1.5 overflow-hidden group`}
                                             style={{
                                                 left: left,
                                                 width: Math.max(width, DAY_WIDTH),
@@ -234,7 +234,7 @@ export function GanttSchedule({ workOrders, onSelectWorkOrder }: GanttSchedulePr
                                                 className={`absolute inset-0 ${stageColors.accent} opacity-20`}
                                                 style={{ width: `${progressPct}%` }}
                                             />
-                                            <span className={`text-[9px] font-black relative z-10 truncate ${stageColors.text}`}>
+                                            <span className={`text-xs font-semibold relative z-10 truncate ${stageColors.text}`}>
                                                 {stageLabel} • {wo.plannedQty} pcs
                                             </span>
                                         </div>
@@ -248,10 +248,10 @@ export function GanttSchedule({ workOrders, onSelectWorkOrder }: GanttSchedulePr
 
             {/* Unscheduled List */}
             {unscheduledOrders.length > 0 && (
-                <div className="border-t-2 border-black">
+                <div className="border-t border-border">
                     <div className="px-4 py-2 bg-amber-50 border-b border-amber-200 flex items-center gap-2">
                         <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-700">
+                        <span className="text-xs font-semibold text-amber-700">
                             Belum Dijadwalkan ({unscheduledOrders.length})
                         </span>
                     </div>
@@ -265,17 +265,17 @@ export function GanttSchedule({ workOrders, onSelectWorkOrder }: GanttSchedulePr
                                     onClick={() => onSelectWorkOrder?.(wo)}
                                 >
                                     <div className={`w-1.5 h-5 ${stageColors.accent}`} />
-                                    <span className="text-[10px] font-black font-mono">{wo.number}</span>
-                                    <span className="text-[10px] text-zinc-500 truncate flex-1">{wo.productName}</span>
-                                    <span className="text-[10px] font-bold">{wo.plannedQty} pcs</span>
+                                    <span className="text-xs font-semibold font-mono">{wo.number}</span>
+                                    <span className="text-xs text-zinc-500 truncate flex-1">{wo.productName}</span>
+                                    <span className="text-xs font-bold">{wo.plannedQty} pcs</span>
                                     {wo.dueDate && (
-                                        <span className={`text-[9px] font-bold ${
+                                        <span className={`text-xs font-bold ${
                                             new Date(wo.dueDate) < new Date() ? 'text-red-600' : 'text-zinc-400'
                                         }`}>
                                             Due: {formatShortDate(new Date(wo.dueDate))}
                                         </span>
                                     )}
-                                    <span className={`text-[9px] font-black px-1.5 py-0.5 border ${
+                                    <span className={`text-xs font-semibold px-1.5 py-0.5 border ${
                                         wo.priority === 'CRITICAL' ? 'bg-red-100 text-red-700 border-red-300' :
                                         wo.priority === 'HIGH' ? 'bg-amber-100 text-amber-700 border-amber-300' :
                                         'bg-zinc-100 text-zinc-600 border-zinc-300'

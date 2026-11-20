@@ -56,7 +56,7 @@ const STATION_TYPE_CONFIG: { type: string; label: string; icon: any; color: stri
     { type: "EMBROIDERY", label: "Bordir", icon: Sparkles, color: "bg-pink-100 text-pink-700 border-pink-300" },
     { type: "QC", label: "Quality Control", icon: ShieldCheck, color: "bg-emerald-100 text-emerald-700 border-emerald-300" },
     { type: "PACKING", label: "Packing", icon: Package, color: "bg-amber-100 text-amber-700 border-amber-300" },
-    { type: "FINISHING", label: "Finishing", icon: Wrench, color: "bg-orange-100 text-orange-700 border-orange-300" },
+    { type: "FINISHING", label: "Finishing", icon: Wrench, color: "bg-blue-100 text-blue-700 border-blue-300" },
     { type: "OTHER", label: "Lainnya", icon: Cog, color: "bg-zinc-100 text-zinc-700 border-zinc-300" },
 ]
 
@@ -428,21 +428,21 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
             <Card
                 key={station.id}
                 className={cn(
-                    "group relative border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all rounded-none overflow-hidden flex flex-col",
+                    "group relative border border-border shadow-sm hover:shadow-sm transition-all rounded-md overflow-hidden flex flex-col",
                     isActive ? "bg-white dark:bg-zinc-900" : "bg-zinc-100 dark:bg-zinc-800 opacity-60"
                 )}
             >
-                <div className="flex justify-between items-center p-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800">
+                <div className="flex justify-between items-center p-3 border-b border-border bg-zinc-50 dark:bg-zinc-800">
                     <div className="flex items-center gap-2">
                         <div className={cn("h-7 w-7 flex items-center justify-center border", config.color)}>
                             <TypeIcon className="h-3.5 w-3.5" />
                         </div>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                        <span className="text-xs font-semibold text-zinc-500">
                             {station.code}
                         </span>
                     </div>
                     <div className={cn(
-                        "px-2 py-0.5 text-[9px] font-black uppercase tracking-widest border",
+                        "px-2 py-0.5 text-xs font-semibold border",
                         isActive
                             ? "bg-emerald-100 text-emerald-700 border-emerald-300"
                             : "bg-zinc-200 text-zinc-500 border-zinc-300"
@@ -452,18 +452,18 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
                 </div>
 
                 <div className="p-4 flex-1 flex flex-col gap-3">
-                    <h3 className="text-sm font-black uppercase tracking-wide leading-tight">
+                    <h3 className="text-sm font-semibold leading-tight">
                         {station.name}
                     </h3>
                     <div className="grid grid-cols-2 gap-2 mt-auto">
                         <div className="border border-zinc-200 bg-zinc-50/50 p-2">
-                            <p className="text-[9px] font-black uppercase text-zinc-400 tracking-widest mb-0.5">Tipe</p>
-                            <div className={cn("text-xs font-black uppercase px-1.5 py-0.5 inline-block border", config.color)}>
+                            <p className="text-xs font-semibold text-zinc-400 mb-0.5">Tipe</p>
+                            <div className={cn("text-xs font-semibold px-1.5 py-0.5 inline-block border", config.color)}>
                                 {config.label}
                             </div>
                         </div>
                         <div className="border border-zinc-200 bg-zinc-50/50 p-2">
-                            <p className="text-[9px] font-black uppercase text-zinc-400 tracking-widest mb-0.5">Biaya/Unit</p>
+                            <p className="text-xs font-semibold text-zinc-400 mb-0.5">Biaya/Unit</p>
                             <div className="font-bold text-sm text-zinc-900">
                                 {Number(station.costPerUnit) > 0
                                     ? `Rp ${Number(station.costPerUnit).toLocaleString("id-ID")}`
@@ -474,23 +474,23 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
                     {station.group?.name && (
                         <div className="flex items-center gap-1.5">
                             <FolderOpen className="h-3 w-3 text-indigo-500" />
-                            <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">
+                            <span className="text-xs font-bold text-indigo-600  ">
                                 {station.group.name}
                             </span>
                         </div>
                     )}
                 </div>
 
-                <div className="border-t-2 border-black p-2 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800">
-                    <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider px-2">In-House</p>
+                <div className="border-t border-border p-2 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800">
+                    <p className="text-xs font-bold text-zinc-400 px-2">In-House</p>
                     <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-none hover:bg-black hover:text-white border border-transparent hover:border-black transition-all" onClick={() => openEdit(station)} title="Edit">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md hover:bg-slate-900 hover:text-white border border-transparent hover:border-border transition-all" onClick={() => openEdit(station)} title="Edit">
                             <Settings className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className={cn("h-7 w-7 rounded-none border-2 transition-all", isActive ? "bg-emerald-500 text-white border-emerald-600 hover:bg-red-500 hover:border-red-600" : "bg-red-500 text-white border-red-600 hover:bg-emerald-500 hover:border-emerald-600")} onClick={(e) => handleToggleActive(e, station)} disabled={toggling === station.id} title={isActive ? "Nonaktifkan" : "Aktifkan"}>
+                        <Button variant="ghost" size="icon" className={cn("h-7 w-7 rounded-md border transition-all", isActive ? "bg-emerald-500 text-white border-emerald-600 hover:bg-red-500 hover:border-red-600" : "bg-red-500 text-white border-red-600 hover:bg-emerald-500 hover:border-emerald-600")} onClick={(e) => handleToggleActive(e, station)} disabled={toggling === station.id} title={isActive ? "Nonaktifkan" : "Aktifkan"}>
                             {toggling === station.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Power className="h-3.5 w-3.5" />}
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-none text-red-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200 border border-transparent transition-all" onClick={(e) => handleDelete(e, station)} disabled={deleting === station.id} title="Hapus">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md text-red-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200 border border-transparent transition-all" onClick={(e) => handleDelete(e, station)} disabled={deleting === station.id} title="Hapus">
                             <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                     </div>
@@ -508,20 +508,20 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
         return (
             <Card
                 key={station.id}
-                className="group relative border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all rounded-none overflow-hidden flex flex-col bg-white"
+                className="group relative border border-border shadow-sm hover:shadow-sm transition-all rounded-md overflow-hidden flex flex-col bg-white"
             >
                 {/* Card header — amber for subkon */}
-                <div className="flex justify-between items-center p-3 border-b-2 border-black bg-amber-50">
+                <div className="flex justify-between items-center p-3 border-b border-border bg-amber-50">
                     <div className="flex items-center gap-2">
                         <div className={cn("h-7 w-7 flex items-center justify-center border", config.color)}>
                             <TypeIcon className="h-3.5 w-3.5" />
                         </div>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                        <span className="text-xs font-semibold text-zinc-500">
                             {station.code}
                         </span>
                     </div>
                     {station.subcontractor?.name && (
-                        <span className="text-[9px] font-bold text-amber-700 bg-amber-200 px-2 py-0.5 border border-amber-300 uppercase">
+                        <span className="text-xs font-bold text-amber-700 bg-amber-200 px-2 py-0.5 border border-amber-300 ">
                             {station.subcontractor.name}
                         </span>
                     )}
@@ -529,12 +529,12 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
 
                 {/* Card body */}
                 <div className="p-4 flex-1 flex flex-col gap-3">
-                    <h3 className="text-sm font-black uppercase tracking-wide leading-tight">
+                    <h3 className="text-sm font-semibold leading-tight">
                         {station.name}
                     </h3>
                     <div className="grid grid-cols-2 gap-2 mt-auto">
                         <div className="border border-zinc-200 bg-zinc-50/50 p-2">
-                            <p className="text-[9px] font-black uppercase text-zinc-400 tracking-widest mb-0.5">Biaya/Unit</p>
+                            <p className="text-xs font-semibold text-zinc-400 mb-0.5">Biaya/Unit</p>
                             <div className="font-bold text-sm text-zinc-900">
                                 {Number(station.costPerUnit) > 0
                                     ? `Rp ${Number(station.costPerUnit).toLocaleString("id-ID")}`
@@ -542,7 +542,7 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
                             </div>
                         </div>
                         <div className="border border-zinc-200 bg-zinc-50/50 p-2">
-                            <p className="text-[9px] font-black uppercase text-zinc-400 tracking-widest mb-0.5">Sub-Proses</p>
+                            <p className="text-xs font-semibold text-zinc-400 mb-0.5">Sub-Proses</p>
                             <div className="font-bold text-sm text-zinc-900">
                                 {children.length}
                             </div>
@@ -554,7 +554,7 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
                             {children.map((child: any) => (
                                 <span
                                     key={child.id}
-                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 border border-amber-200 text-[9px] font-bold text-amber-700"
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 border border-amber-200 text-xs font-bold text-amber-700"
                                     title={child.subcontractor?.name ? `→ ${child.subcontractor.name}` : undefined}
                                 >
                                     {child.description || child.name}
@@ -565,16 +565,16 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
                 </div>
 
                 {/* Card footer — actions */}
-                <div className="border-t-2 border-black p-2 flex items-center justify-between bg-zinc-50">
-                    <p className="text-[9px] font-bold text-amber-600 uppercase tracking-wider px-2">Subkon</p>
+                <div className="border-t border-border p-2 flex items-center justify-between bg-zinc-50">
+                    <p className="text-xs font-bold text-amber-600 px-2">Subkon</p>
                     <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-none hover:bg-amber-100 border border-transparent hover:border-amber-300 transition-all" onClick={() => openAddSubProcess(station)} title="Tambah Sub-Proses">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md hover:bg-amber-100 border border-transparent hover:border-amber-300 transition-all" onClick={() => openAddSubProcess(station)} title="Tambah Sub-Proses">
                             <Plus className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-none hover:bg-black hover:text-white border border-transparent hover:border-black transition-all" onClick={() => openEditSubkon(station)} title="Edit">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md hover:bg-slate-900 hover:text-white border border-transparent hover:border-border transition-all" onClick={() => openEditSubkon(station)} title="Edit">
                             <Settings className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-none text-red-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200 border border-transparent transition-all" onClick={(e) => handleDelete(e, station)} disabled={deleting === station.id} title="Hapus">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md text-red-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200 border border-transparent transition-all" onClick={(e) => handleDelete(e, station)} disabled={deleting === station.id} title="Hapus">
                             <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                     </div>
@@ -584,26 +584,26 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
     }
 
     return (
-        <div className="w-full bg-zinc-50 dark:bg-black font-sans min-h-[calc(100svh-theme(spacing.16))]">
+        <div className="w-full bg-zinc-50 dark:bg-slate-900 font-sans min-h-[calc(100svh-theme(spacing.16))]">
             <div className="mf-page">
 
                 {/* Header */}
                 <div className="flex-none flex items-center justify-between">
                     <div>
-                        <h1 className="text-lg font-black uppercase tracking-widest text-zinc-900 dark:text-white flex items-center gap-2">
+                        <h1 className="text-lg font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
                             <Factory className="h-6 w-6" />
                             Stasiun Produksi
                         </h1>
-                        <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mt-1">
+                        <p className="text-xs font-bold text-zinc-400 mt-1">
                             Kelola stasiun kerja per tipe proses — muncul di BOM Canvas
                         </p>
                     </div>
                     <Button
                         className={cn(
-                            "h-10 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] active:scale-[0.98] transition-all uppercase font-black tracking-widest text-xs rounded-none px-6",
+                            "h-10 border border-border shadow-sm hover:shadow-sm active:scale-[0.98] transition-all font-semibold text-xs rounded-md px-6",
                             operationTab === "subkon"
                                 ? "bg-amber-400 text-black hover:bg-amber-500"
-                                : "bg-black text-white hover:bg-zinc-800"
+                                : "bg-slate-900 text-white hover:bg-zinc-800"
                         )}
                         onClick={operationTab === "subkon" ? openSubkonCreate : openCreate}
                     >
@@ -613,30 +613,30 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
                 </div>
 
                 {/* ── In-House / Subkon Tab Toggle ── */}
-                <div className="flex border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <div className="flex border border-border shadow-sm">
                     <button
                         onClick={() => setOperationTab("in-house")}
                         className={cn(
-                            "flex-1 flex items-center justify-center gap-2 px-6 py-2.5 text-xs font-black uppercase tracking-widest transition-all border-r-2 border-black",
+                            "flex-1 flex items-center justify-center gap-2 px-6 py-2.5 text-xs font-semibold transition-all border-r border-border",
                             operationTab === "in-house"
                                 ? "bg-emerald-400 text-black"
                                 : "bg-white text-zinc-400 hover:bg-zinc-50"
                         )}
                     >
                         <Factory className="h-4 w-4" /> In-House
-                        <span className="text-[9px] font-bold opacity-60">({inHouseStations.length})</span>
+                        <span className="text-xs font-bold opacity-60">({inHouseStations.length})</span>
                     </button>
                     <button
                         onClick={() => setOperationTab("subkon")}
                         className={cn(
-                            "flex-1 flex items-center justify-center gap-2 px-6 py-2.5 text-xs font-black uppercase tracking-widest transition-all",
+                            "flex-1 flex items-center justify-center gap-2 px-6 py-2.5 text-xs font-semibold transition-all",
                             operationTab === "subkon"
                                 ? "bg-amber-400 text-black"
                                 : "bg-white text-zinc-400 hover:bg-zinc-50"
                         )}
                     >
                         <Truck className="h-4 w-4" /> Subkon
-                        <span className="text-[9px] font-bold opacity-60">({subkonStations.length})</span>
+                        <span className="text-xs font-bold opacity-60">({subkonStations.length})</span>
                     </button>
                 </div>
 
@@ -644,16 +644,16 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
                 {operationTab === "in-house" && (
                     <>
                         {/* KPI Strip */}
-                        <div className="flex-none bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                            <div className="grid grid-cols-2 md:grid-cols-4 divide-x-2 divide-black divide-y-2 md:divide-y-0">
+                        <div className="flex-none bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
+                            <div className="grid grid-cols-2 md:grid-cols-4 divide-x-2 divide-border divide-y-2 md:divide-y-0">
                                 {kpis.map((kpi) => (
                                     <div key={kpi.label} className={cn("group relative p-4 transition-all hover:bg-zinc-50 dark:hover:bg-zinc-800/50", kpi.bg)}>
                                         <div className="flex items-center gap-2 mb-3">
                                             <span className={cn("text-zinc-400", kpi.color)}><kpi.icon className="h-5 w-5" /></span>
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{kpi.label}</span>
+                                            <span className="text-xs font-semibold text-zinc-500">{kpi.label}</span>
                                         </div>
-                                        <p className={cn("text-2xl font-black tracking-tighter", kpi.color)}>{kpi.value}</p>
-                                        <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mt-1">{kpi.detail}</p>
+                                        <p className={cn("text-2xl font-semibold tracking-tighter", kpi.color)}>{kpi.value}</p>
+                                        <p className="text-xs font-bold text-zinc-400 mt-1">{kpi.detail}</p>
                                     </div>
                                 ))}
                             </div>
@@ -664,13 +664,13 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
                             <div className="flex items-center gap-3 w-full md:w-auto">
                                 <div className="relative w-full md:w-96">
                                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"><Search className="h-4 w-4" /></div>
-                                    <Input placeholder="Cari..." className="pl-10 h-10 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,0.3)] focus-visible:ring-0 transition-all bg-white dark:bg-zinc-900 rounded-none font-medium placeholder:text-zinc-300 placeholder:font-normal" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                                    <Input placeholder="Cari..." className="pl-10 h-10 border border-border shadow-sm focus-visible:ring-0 transition-all bg-white dark:bg-zinc-900 rounded-md font-medium placeholder:text-zinc-300 placeholder:font-normal" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                                 </div>
-                                <div className="flex border-2 border-black shrink-0">
-                                    <Button variant="ghost" size="sm" className={cn("h-10 rounded-none border-r border-black text-[10px] font-black uppercase tracking-widest px-3", viewMode === "type" ? "bg-black text-white hover:bg-black hover:text-white" : "bg-white text-zinc-600 hover:bg-zinc-100")} onClick={() => setViewMode("type")} title="Per Tipe">
+                                <div className="flex border border-border shrink-0">
+                                    <Button variant="ghost" size="sm" className={cn("h-10 rounded-md border-r border-border text-xs font-semibold px-3", viewMode === "type" ? "bg-slate-900 text-white hover:bg-slate-900 hover:text-white" : "bg-white text-zinc-600 hover:bg-zinc-100")} onClick={() => setViewMode("type")} title="Per Tipe">
                                         <LayoutGrid className="h-4 w-4 mr-1.5" /> Tipe
                                     </Button>
-                                    <Button variant="ghost" size="sm" className={cn("h-10 rounded-none text-[10px] font-black uppercase tracking-widest px-3", viewMode === "group" ? "bg-black text-white hover:bg-black hover:text-white" : "bg-white text-zinc-600 hover:bg-zinc-100")} onClick={() => setViewMode("group")} title="Per Grup">
+                                    <Button variant="ghost" size="sm" className={cn("h-10 rounded-md text-xs font-semibold px-3", viewMode === "group" ? "bg-slate-900 text-white hover:bg-slate-900 hover:text-white" : "bg-white text-zinc-600 hover:bg-zinc-100")} onClick={() => setViewMode("group")} title="Per Grup">
                                         <Layers className="h-4 w-4 mr-1.5" /> Grup
                                     </Button>
                                 </div>
@@ -678,12 +678,12 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
 
                             {viewMode === "type" && (
                                 <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end">
-                                    <Button variant="outline" size="sm" className={cn("border-2 border-black rounded-none text-[10px] font-black uppercase tracking-widest h-8 transition-all hover:bg-black hover:text-white", !typeFilter ? "bg-black text-white" : "bg-white text-zinc-600")} onClick={() => setTypeFilter(null)}>Semua</Button>
+                                    <Button variant="outline" size="sm" className={cn("border border-border rounded-md text-xs font-semibold h-8 transition-all hover:bg-slate-900 hover:text-white", !typeFilter ? "bg-slate-900 text-white" : "bg-white text-zinc-600")} onClick={() => setTypeFilter(null)}>Semua</Button>
                                     {STATION_TYPE_CONFIG.map((cfg) => {
                                         const count = inHouseStations.filter((s: any) => s.stationType === cfg.type).length
                                         if (count === 0) return null
                                         return (
-                                            <Button key={cfg.type} variant="outline" size="sm" className={cn("border-2 border-black rounded-none text-[10px] font-black uppercase tracking-widest h-8 transition-all hover:bg-black hover:text-white", typeFilter === cfg.type ? "bg-black text-white" : "bg-white text-zinc-600")} onClick={() => setTypeFilter(cfg.type)}>
+                                            <Button key={cfg.type} variant="outline" size="sm" className={cn("border border-border rounded-md text-xs font-semibold h-8 transition-all hover:bg-slate-900 hover:text-white", typeFilter === cfg.type ? "bg-slate-900 text-white" : "bg-white text-zinc-600")} onClick={() => setTypeFilter(cfg.type)}>
                                                 {cfg.label} ({count})
                                             </Button>
                                         )
@@ -694,16 +694,16 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
 
                         {/* Empty State */}
                         {filtered.length === 0 && (
-                            <div className="border-2 border-dashed border-zinc-300 min-h-[300px] flex flex-col items-center justify-center text-center bg-zinc-50/50 p-8">
-                                <div className="h-16 w-16 bg-zinc-100 border-2 border-zinc-200 flex items-center justify-center mb-4 rounded-full">
+                            <div className="border border-dashed border-zinc-300 min-h-[300px] flex flex-col items-center justify-center text-center bg-zinc-50/50 p-8">
+                                <div className="h-16 w-16 bg-zinc-100 border border-zinc-200 flex items-center justify-center mb-4 rounded-full">
                                     <Factory className="h-8 w-8 text-zinc-300" />
                                 </div>
-                                <h3 className="text-lg font-black uppercase tracking-widest text-zinc-400">Tidak ada stasiun ditemukan</h3>
+                                <h3 className="text-lg font-semibold text-zinc-400">Tidak ada stasiun ditemukan</h3>
                                 <p className="text-xs font-bold text-zinc-400 mt-2 max-w-xs">
                                     {searchQuery || typeFilter ? "Coba sesuaikan pencarian atau filter." : "Mulai dengan menambahkan stasiun baru."}
                                 </p>
                                 {!searchQuery && !typeFilter && (
-                                    <Button className="mt-6 bg-black text-white rounded-none font-black uppercase text-xs px-6 py-5 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none transition-all" onClick={openCreate}>
+                                    <Button className="mt-6 bg-slate-900 text-white rounded-md font-semibold text-xs px-6 py-5 border border-border shadow-sm hover:shadow-none transition-all" onClick={openCreate}>
                                         <Plus className="mr-2 h-4 w-4" /> Tambah Stasiun
                                     </Button>
                                 )}
@@ -721,10 +721,10 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
                             return (
                                 <div key={type} className="space-y-3">
                                     <div className="flex items-center gap-3">
-                                        <div className={cn("flex items-center gap-1.5 px-3 py-1.5 border text-xs font-black uppercase tracking-widest", config.color)}>
+                                        <div className={cn("flex items-center gap-1.5 px-3 py-1.5 border text-xs font-semibold  ", config.color)}>
                                             <TypeIcon className="h-3.5 w-3.5" /> {groupLabel}
                                         </div>
-                                        <p className="text-[9px] font-bold text-zinc-400 uppercase">
+                                        <p className="text-xs font-bold text-zinc-400 ">
                                             {typeStations.length} stasiun {activeCount < typeStations.length && `(${activeCount} aktif)`}
                                         </p>
                                     </div>
@@ -744,11 +744,11 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
                                     return (
                                         <div key={gId} className="space-y-3">
                                             <button className="flex items-center gap-3 w-full text-left group/header" onClick={() => toggleCollapse(gId)}>
-                                                <div className="flex items-center gap-2 px-3 py-2 border-2 border-indigo-400 bg-indigo-50 text-indigo-700 text-xs font-black uppercase tracking-widest transition-all group-hover/header:bg-indigo-100">
+                                                <div className="flex items-center gap-2 px-3 py-2 border border-indigo-400 bg-indigo-50 text-indigo-700 text-xs font-semibold transition-all group-hover/header:bg-indigo-100">
                                                     {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                                                    <FolderOpen className="h-3.5 w-3.5" /> {grp.name} <span className="text-[9px] font-bold text-indigo-400 ml-1">({grp.code})</span>
+                                                    <FolderOpen className="h-3.5 w-3.5" /> {grp.name} <span className="text-xs font-bold text-indigo-400 ml-1">({grp.code})</span>
                                                 </div>
-                                                <p className="text-[9px] font-bold text-zinc-400 uppercase">{grpStations.length} stasiun {activeCount < grpStations.length && `(${activeCount} aktif)`}</p>
+                                                <p className="text-xs font-bold text-zinc-400 ">{grpStations.length} stasiun {activeCount < grpStations.length && `(${activeCount} aktif)`}</p>
                                             </button>
                                             {!isCollapsed && (
                                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -762,11 +762,11 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
                                 {ungroupedStations.length > 0 && (
                                     <div className="space-y-3">
                                         <button className="flex items-center gap-3 w-full text-left group/header" onClick={() => toggleCollapse("__ungrouped__")}>
-                                            <div className="flex items-center gap-2 px-3 py-2 border-2 border-zinc-300 bg-zinc-100 text-zinc-600 text-xs font-black uppercase tracking-widest transition-all group-hover/header:bg-zinc-200">
+                                            <div className="flex items-center gap-2 px-3 py-2 border border-zinc-300 bg-zinc-100 text-zinc-600 text-xs font-semibold transition-all group-hover/header:bg-zinc-200">
                                                 {collapsedGroups.has("__ungrouped__") ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                                                 <FolderOpen className="h-3.5 w-3.5" /> Belum Ada Grup
                                             </div>
-                                            <p className="text-[9px] font-bold text-zinc-400 uppercase">{ungroupedStations.length} stasiun</p>
+                                            <p className="text-xs font-bold text-zinc-400 ">{ungroupedStations.length} stasiun</p>
                                         </button>
                                         {!collapsedGroups.has("__ungrouped__") && (
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -777,7 +777,7 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
                                 )}
 
                                 {Object.keys(groupedByGroup).length === 0 && ungroupedStations.length > 0 && (
-                                    <div className="border-2 border-dashed border-indigo-200 bg-indigo-50/50 p-4 flex items-center gap-3">
+                                    <div className="border border-dashed border-indigo-200 bg-indigo-50/50 p-4 flex items-center gap-3">
                                         <Layers className="h-5 w-5 text-indigo-400 shrink-0" />
                                         <p className="text-xs font-bold text-indigo-500">
                                             Belum ada stasiun yang masuk ke dalam grup. Edit stasiun dan pilih grup untuk mengelompokkan.
@@ -793,45 +793,45 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
                 {operationTab === "subkon" && (
                     <>
                         {/* Subkon KPI strip */}
-                        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                            <div className="grid grid-cols-3 divide-x-2 divide-black">
+                        <div className="bg-white border border-border shadow-sm overflow-hidden">
+                            <div className="grid grid-cols-3 divide-x-2 divide-border">
                                 <div className="p-4">
                                     <div className="flex items-center gap-2 mb-2">
                                         <Truck className="h-4 w-4 text-amber-500" />
-                                        <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Total Proses Subkon</p>
+                                        <p className="text-xs font-semibold text-zinc-500">Total Proses Subkon</p>
                                     </div>
-                                    <p className="text-2xl font-black">{subkonStations.filter((s: any) => !s.parentStationId).length}</p>
+                                    <p className="text-2xl font-semibold">{subkonStations.filter((s: any) => !s.parentStationId).length}</p>
                                 </div>
                                 <div className="p-4">
                                     <div className="flex items-center gap-2 mb-2">
                                         <Layers className="h-4 w-4 text-blue-500" />
-                                        <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Tipe Proses</p>
+                                        <p className="text-xs font-semibold text-zinc-500">Tipe Proses</p>
                                     </div>
-                                    <p className="text-2xl font-black">{Object.keys(subkonByType).length}</p>
+                                    <p className="text-2xl font-semibold">{Object.keys(subkonByType).length}</p>
                                 </div>
                                 <div className="p-4">
                                     <div className="flex items-center gap-2 mb-2">
                                         <Factory className="h-4 w-4 text-emerald-500" />
-                                        <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Subkontraktor Terhubung</p>
+                                        <p className="text-xs font-semibold text-zinc-500">Subkontraktor Terhubung</p>
                                     </div>
-                                    <p className="text-2xl font-black">{availableSubcontractors.length}</p>
+                                    <p className="text-2xl font-semibold">{availableSubcontractors.length}</p>
                                 </div>
                             </div>
                         </div>
 
-                        <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+                        <p className="text-xs font-bold text-zinc-400  ">
                             Proses subkon dikelompokkan per tipe — klik proses untuk melihat sub-proses
                         </p>
 
                         {/* Empty state */}
                         {subkonSortedTypes.length === 0 && (
-                            <div className="border-2 border-dashed border-amber-300 min-h-[200px] flex flex-col items-center justify-center text-center bg-amber-50/50 p-8">
+                            <div className="border border-dashed border-amber-300 min-h-[200px] flex flex-col items-center justify-center text-center bg-amber-50/50 p-8">
                                 <Truck className="h-12 w-12 text-amber-300 mb-4" />
-                                <h3 className="text-lg font-black uppercase tracking-widest text-amber-400">Belum ada proses subkon</h3>
+                                <h3 className="text-lg font-semibold text-amber-400">Belum ada proses subkon</h3>
                                 <p className="text-xs font-bold text-amber-400 mt-2 max-w-xs">
                                     Tambahkan proses subkon untuk mengelola pekerjaan yang dioutsource.
                                 </p>
-                                <Button className="mt-6 bg-amber-400 text-black rounded-none font-black uppercase text-xs px-6 py-5 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none transition-all" onClick={openSubkonCreate}>
+                                <Button className="mt-6 bg-amber-400 text-black rounded-md font-semibold text-xs px-6 py-5 border border-border shadow-sm hover:shadow-none transition-all" onClick={openSubkonCreate}>
                                     <Plus className="mr-2 h-4 w-4" /> Tambah Proses Subkon
                                 </Button>
                             </div>
@@ -847,10 +847,10 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
                             return (
                                 <div key={type} className="space-y-3">
                                     <div className="flex items-center gap-3">
-                                        <div className={cn("flex items-center gap-1.5 px-3 py-1.5 border text-xs font-black uppercase tracking-widest", config.color)}>
+                                        <div className={cn("flex items-center gap-1.5 px-3 py-1.5 border text-xs font-semibold  ", config.color)}>
                                             <TypeIcon className="h-3.5 w-3.5" /> {config.label}
                                         </div>
-                                        <p className="text-[9px] font-bold text-zinc-400 uppercase">
+                                        <p className="text-xs font-bold text-zinc-400 ">
                                             {typeProcesses.length} proses {activeCount < typeProcesses.length && `(${activeCount} aktif)`}
                                         </p>
                                     </div>
@@ -866,13 +866,13 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
 
                 {/* ── Toggle Active Loading Dialog ── */}
                 <Dialog open={!!togglingStation} onOpenChange={() => {}}>
-                    <DialogContent className="border-2 border-black rounded-none shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] sm:max-w-xs" onInteractOutside={(e) => e.preventDefault()}>
+                    <DialogContent className="border border-border rounded-md shadow-sm sm:max-w-xs" onInteractOutside={(e) => e.preventDefault()}>
                         <div className="flex flex-col items-center py-6 gap-4">
-                            <div className={cn("p-4 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]", togglingStation?.turningOn ? "bg-emerald-500" : "bg-red-500")}>
+                            <div className={cn("p-4 border border-border shadow-sm", togglingStation?.turningOn ? "bg-emerald-500" : "bg-red-500")}>
                                 <Power className="h-8 w-8 text-white animate-pulse" />
                             </div>
                             <div className="text-center">
-                                <p className="font-black text-sm uppercase">
+                                <p className="font-semibold text-sm ">
                                     {togglingStation?.turningOn ? "Mengaktifkan..." : "Menonaktifkan..."}
                                 </p>
                                 <p className="text-xs text-zinc-500 font-bold mt-1">{togglingStation?.name}</p>
@@ -884,45 +884,45 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
 
                 {/* ── In-House Add/Edit Dialog ── */}
                 <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                    <DialogContent className="border-2 border-black rounded-none shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] max-w-md">
+                    <DialogContent className="border border-border rounded-md shadow-sm max-w-md">
                         <DialogHeader>
-                            <DialogTitle className="text-sm font-black uppercase tracking-widest">
+                            <DialogTitle className="text-sm font-semibold  ">
                                 {editingStation ? "Edit Stasiun" : "Tambah Stasiun Baru"}
                             </DialogTitle>
-                            <DialogDescription className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                            <DialogDescription className="text-xs font-bold text-zinc-400  ">
                                 Stasiun baru akan tersedia di BOM Canvas
                             </DialogDescription>
                         </DialogHeader>
 
                         <div className="space-y-4 mt-2">
                             <div className="space-y-1.5">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Nama Stasiun</label>
-                                <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Nama..." className="border-2 border-black rounded-none h-10 font-bold placeholder:text-zinc-300 placeholder:font-normal" />
+                                <label className="text-xs font-semibold text-zinc-500">Nama Stasiun</label>
+                                <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Nama..." className="border border-border rounded-md h-10 font-bold placeholder:text-zinc-300 placeholder:font-normal" />
                             </div>
                             <div className="space-y-1.5">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Tipe Proses</label>
+                                <label className="text-xs font-semibold text-zinc-500">Tipe Proses</label>
                                 <Select value={formType} onValueChange={setFormType}>
-                                    <SelectTrigger className="border-2 border-black rounded-none h-10 font-bold"><SelectValue /></SelectTrigger>
-                                    <SelectContent className="border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                                        {STATION_TYPE_CONFIG.map((c) => (<SelectItem key={c.type} value={c.type} className="rounded-none font-medium">{c.label} ({c.type})</SelectItem>))}
+                                    <SelectTrigger className="border border-border rounded-md h-10 font-bold"><SelectValue /></SelectTrigger>
+                                    <SelectContent className="border border-border rounded-md shadow-sm">
+                                        {STATION_TYPE_CONFIG.map((c) => (<SelectItem key={c.type} value={c.type} className="rounded-md font-medium">{c.label} ({c.type})</SelectItem>))}
                                     </SelectContent>
                                 </Select>
                             </div>
                             <div className="space-y-1.5">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Grup Kerja (Opsional)</label>
+                                <label className="text-xs font-semibold text-zinc-500">Grup Kerja (Opsional)</label>
                                 <Select value={formGroupId} onValueChange={setFormGroupId}>
-                                    <SelectTrigger className="border-2 border-black rounded-none h-10 font-bold"><SelectValue placeholder="Pilih..." /></SelectTrigger>
-                                    <SelectContent className="border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                                        <SelectItem value="__none__" className="rounded-none font-medium text-zinc-400">Tanpa Grup</SelectItem>
-                                        {groups.map((g: any) => (<SelectItem key={g.id} value={g.id} className="rounded-none font-medium">{g.name} ({g.code})</SelectItem>))}
+                                    <SelectTrigger className="border border-border rounded-md h-10 font-bold"><SelectValue placeholder="Pilih..." /></SelectTrigger>
+                                    <SelectContent className="border border-border rounded-md shadow-sm">
+                                        <SelectItem value="__none__" className="rounded-md font-medium text-zinc-400">Tanpa Grup</SelectItem>
+                                        {groups.map((g: any) => (<SelectItem key={g.id} value={g.id} className="rounded-md font-medium">{g.name} ({g.code})</SelectItem>))}
                                     </SelectContent>
                                 </Select>
                             </div>
                             <div className="space-y-1.5">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Biaya per Unit (Rp)</label>
-                                <Input type="number" value={formCost} onChange={(e) => setFormCost(e.target.value)} placeholder="0" className="border-2 border-black rounded-none h-10 font-bold placeholder:text-zinc-300 placeholder:font-normal" />
+                                <label className="text-xs font-semibold text-zinc-500">Biaya per Unit (Rp)</label>
+                                <Input type="number" value={formCost} onChange={(e) => setFormCost(e.target.value)} placeholder="0" className="border border-border rounded-md h-10 font-bold placeholder:text-zinc-300 placeholder:font-normal" />
                             </div>
-                            <Button className="w-full h-10 bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] transition-all uppercase font-black tracking-widest text-xs rounded-none" onClick={handleSave} disabled={saving}>
+                            <Button className="w-full h-10 bg-slate-900 text-white hover:bg-zinc-800 border border-border shadow-sm transition-all font-semibold text-xs rounded-md" onClick={handleSave} disabled={saving}>
                                 {saving ? "Menyimpan..." : editingStation ? "Simpan Perubahan" : "Tambah Stasiun"}
                             </Button>
                         </div>
@@ -931,45 +931,45 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
 
                 {/* ── Subkon Process Dialog ── */}
                 <Dialog open={subkonDialogOpen} onOpenChange={(open) => { setSubkonDialogOpen(open); if (!open) setEditingStation(null) }}>
-                    <DialogContent className="border-2 border-black rounded-none shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] max-w-md">
+                    <DialogContent className="border border-border rounded-md shadow-sm max-w-md">
                         <DialogHeader>
-                            <DialogTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
+                            <DialogTitle className="text-sm font-semibold flex items-center gap-2">
                                 <Truck className="h-4 w-4 text-amber-500" />
                                 {editingStation ? "Edit Proses Subkon" : subkonParentStation ? `Sub-Proses — ${subkonParentStation.name}` : "Tambah Proses Subkon"}
                             </DialogTitle>
-                            <DialogDescription className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                            <DialogDescription className="text-xs font-bold text-zinc-400  ">
                                 {subkonParentStation ? "Tambah sub-proses di bawah proses utama" : "Buat proses subkon baru dengan tipe dan sub-proses"}
                             </DialogDescription>
                         </DialogHeader>
 
                         <div className="space-y-4 mt-2">
                             <div className="space-y-1.5">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Nama Proses</label>
-                                <Input value={subkonFormName} onChange={(e) => setSubkonFormName(e.target.value)} placeholder="Nama..." className="border-2 border-black rounded-none h-10 font-bold placeholder:text-zinc-300 placeholder:font-normal" />
+                                <label className="text-xs font-semibold text-zinc-500">Nama Proses</label>
+                                <Input value={subkonFormName} onChange={(e) => setSubkonFormName(e.target.value)} placeholder="Nama..." className="border border-border rounded-md h-10 font-bold placeholder:text-zinc-300 placeholder:font-normal" />
                             </div>
 
                             {!subkonParentStation && !editingStation?.parentStationId && (
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Tipe Proses</label>
+                                    <label className="text-xs font-semibold text-zinc-500">Tipe Proses</label>
                                     <Select value={subkonFormType} onValueChange={setSubkonFormType}>
-                                        <SelectTrigger className="border-2 border-black rounded-none h-10 font-bold"><SelectValue /></SelectTrigger>
-                                        <SelectContent className="border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                                            {STATION_TYPE_CONFIG.map((c) => (<SelectItem key={c.type} value={c.type} className="rounded-none font-medium">{c.label}</SelectItem>))}
+                                        <SelectTrigger className="border border-border rounded-md h-10 font-bold"><SelectValue /></SelectTrigger>
+                                        <SelectContent className="border border-border rounded-md shadow-sm">
+                                            {STATION_TYPE_CONFIG.map((c) => (<SelectItem key={c.type} value={c.type} className="rounded-md font-medium">{c.label}</SelectItem>))}
                                         </SelectContent>
                                     </Select>
                                 </div>
                             )}
 
                             <div className="space-y-1.5">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Deskripsi / Jenis Pekerjaan</label>
-                                <Input value={subkonFormDesc} onChange={(e) => setSubkonFormDesc(e.target.value)} placeholder="Deskripsi..." className="border-2 border-black rounded-none h-10 font-bold placeholder:text-zinc-300 placeholder:font-normal" />
+                                <label className="text-xs font-semibold text-zinc-500">Deskripsi / Jenis Pekerjaan</label>
+                                <Input value={subkonFormDesc} onChange={(e) => setSubkonFormDesc(e.target.value)} placeholder="Deskripsi..." className="border border-border rounded-md h-10 font-bold placeholder:text-zinc-300 placeholder:font-normal" />
                             </div>
 
                             <div className="space-y-1.5">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Hubungkan ke Subkontraktor (Opsional)</label>
+                                <label className="text-xs font-semibold text-zinc-500">Hubungkan ke Subkontraktor (Opsional)</label>
                                 <Select value={subkonFormSubcontractorId} onValueChange={setSubkonFormSubcontractorId}>
-                                    <SelectTrigger className="border-2 border-black rounded-none h-10 font-bold"><SelectValue placeholder="Pilih..." /></SelectTrigger>
-                                    <SelectContent className="border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                                    <SelectTrigger className="border border-border rounded-md h-10 font-bold"><SelectValue placeholder="Pilih..." /></SelectTrigger>
+                                    <SelectContent className="border border-border rounded-md shadow-sm">
                                         <SelectItem value="__none__" className="text-zinc-400">Tanpa Subkontraktor</SelectItem>
                                         {availableSubcontractors.map(([id, name]) => (
                                             <SelectItem key={id} value={id}>{name}</SelectItem>
@@ -979,12 +979,12 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
                             </div>
 
                             <div className="space-y-1.5">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Biaya per Unit (Rp)</label>
-                                <Input type="number" value={subkonFormCost} onChange={(e) => setSubkonFormCost(e.target.value)} placeholder="0" className="border-2 border-black rounded-none h-10 font-bold placeholder:text-zinc-300 placeholder:font-normal" />
+                                <label className="text-xs font-semibold text-zinc-500">Biaya per Unit (Rp)</label>
+                                <Input type="number" value={subkonFormCost} onChange={(e) => setSubkonFormCost(e.target.value)} placeholder="0" className="border border-border rounded-md h-10 font-bold placeholder:text-zinc-300 placeholder:font-normal" />
                             </div>
 
                             <Button
-                                className="w-full h-10 bg-amber-400 text-black hover:bg-amber-500 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] transition-all uppercase font-black tracking-widest text-xs rounded-none"
+                                className="w-full h-10 bg-amber-400 text-black hover:bg-amber-500 border border-border shadow-sm transition-all font-semibold text-xs rounded-md"
                                 onClick={handleSaveSubkon}
                                 disabled={saving}
                             >

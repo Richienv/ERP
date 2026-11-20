@@ -59,7 +59,7 @@ export function InvoiceAttachmentSection({ invoiceId }: InvoiceAttachmentSection
                     size="sm"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploadMutation.isPending}
-                    className="h-7 text-xs border-2 border-black rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                    className="h-7 text-xs border border-border rounded-md shadow-sm"
                 >
                     {uploadMutation.isPending ? (
                         <IconLoader2 className="h-3 w-3 animate-spin mr-1" />
@@ -82,14 +82,14 @@ export function InvoiceAttachmentSection({ invoiceId }: InvoiceAttachmentSection
                 <div
                     onDrop={handleDrop}
                     onDragOver={handleDragOver}
-                    className="border-2 border-dashed border-zinc-300 rounded-none p-6 text-center cursor-pointer hover:border-zinc-400 transition-colors"
+                    className="border border-dashed border-zinc-300 rounded-md p-6 text-center cursor-pointer hover:border-zinc-400 transition-colors"
                     onClick={() => fileInputRef.current?.click()}
                 >
                     <IconUpload className="h-6 w-6 mx-auto mb-2 text-zinc-400" />
                     <p className="text-xs text-muted-foreground">
                         Seret file ke sini atau klik untuk upload
                     </p>
-                    <p className="text-[10px] text-zinc-400 mt-1">
+                    <p className="text-xs text-zinc-400 mt-1">
                         PDF, JPG, PNG, WebP · Maks 10MB
                     </p>
                 </div>
@@ -108,7 +108,7 @@ export function InvoiceAttachmentSection({ invoiceId }: InvoiceAttachmentSection
                     {attachments.map((att) => (
                         <div
                             key={att.id}
-                            className="flex items-center gap-3 p-2 border-2 border-zinc-200 rounded-none hover:border-zinc-300 transition-colors group"
+                            className="flex items-center gap-3 p-2 border border-zinc-200 rounded-md hover:border-zinc-300 transition-colors group"
                         >
                             {/* Thumbnail or icon */}
                             {isImage(att.fileType) ? (
@@ -137,7 +137,7 @@ export function InvoiceAttachmentSection({ invoiceId }: InvoiceAttachmentSection
                                 >
                                     {att.fileName}
                                 </a>
-                                <p className="text-[10px] text-muted-foreground">
+                                <p className="text-xs text-muted-foreground">
                                     {formatFileSize(att.fileSize)} · {new Date(att.uploadedAt).toLocaleDateString("id-ID")}
                                 </p>
                             </div>

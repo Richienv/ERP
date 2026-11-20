@@ -111,12 +111,12 @@ export function CategoriesClient({ categories = [], allCategories = [] }: Catego
             {/* ═══════════════════════════════════════════ */}
             {/* COMMAND HEADER                              */}
             {/* ═══════════════════════════════════════════ */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+            <div className="border border-border shadow-sm overflow-hidden bg-white dark:bg-zinc-900">
                 <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-emerald-400">
                     <div className="flex items-center gap-3">
                         <Layers className="h-5 w-5 text-emerald-500" />
                         <div>
-                            <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
+                            <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-white">
                                 Kategori Produk
                             </h1>
                             <p className="text-zinc-400 text-xs font-medium mt-0.5">
@@ -126,7 +126,7 @@ export function CategoriesClient({ categories = [], allCategories = [] }: Catego
                     </div>
                     <Button
                         onClick={() => setIsCreateOpen(true)}
-                        className="bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider px-6 h-9"
+                        className="bg-slate-900 text-white border border-border shadow-sm hover:shadow-sm transition-all font-semibold text-xs px-6 h-9"
                     >
                         <Plus className="mr-2 h-4 w-4" /> Kategori Baru
                     </Button>
@@ -136,35 +136,35 @@ export function CategoriesClient({ categories = [], allCategories = [] }: Catego
             {/* ═══════════════════════════════════════════ */}
             {/* KPI PULSE STRIP                            */}
             {/* ═══════════════════════════════════════════ */}
-            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+            <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                 <div className="grid grid-cols-3">
                     {/* Root Categories */}
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
+                    <div className="relative p-4 md:p-5 border-r border-zinc-100 dark:border-zinc-800">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <FolderOpen className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Kategori Root</span>
+                            <span className="text-xs font-semibold text-zinc-500">Kategori Root</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-zinc-900 dark:text-white">
                             {totalRoot}
                         </div>
                         <div className="flex items-center gap-1 mt-1.5">
-                            <span className="text-[10px] font-bold text-emerald-600">Klasifikasi utama</span>
+                            <span className="text-xs font-bold text-emerald-600">Klasifikasi utama</span>
                         </div>
                     </div>
 
                     {/* Subcategories */}
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
+                    <div className="relative p-4 md:p-5 border-r border-zinc-100 dark:border-zinc-800">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-blue-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <Layers className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Sub-Kategori</span>
+                            <span className="text-xs font-semibold text-zinc-500">Sub-Kategori</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-blue-600">
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-blue-600">
                             {totalSubs}
                         </div>
                         <div className="flex items-center gap-1 mt-1.5">
-                            <span className="text-[10px] font-bold text-blue-600">Node anak</span>
+                            <span className="text-xs font-bold text-blue-600">Node anak</span>
                         </div>
                     </div>
 
@@ -173,13 +173,13 @@ export function CategoriesClient({ categories = [], allCategories = [] }: Catego
                         <div className="absolute top-0 left-0 right-0 h-1 bg-violet-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <Package className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Produk</span>
+                            <span className="text-xs font-semibold text-zinc-500">Total Produk</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-violet-600">
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-violet-600">
                             {totalProducts}
                         </div>
                         <div className="flex items-center gap-1 mt-1.5">
-                            <span className="text-[10px] font-bold text-violet-600">Terkait kategori</span>
+                            <span className="text-xs font-bold text-violet-600">Terkait kategori</span>
                         </div>
                     </div>
                 </div>
@@ -188,7 +188,7 @@ export function CategoriesClient({ categories = [], allCategories = [] }: Catego
             {/* ═══════════════════════════════════════════ */}
             {/* SEARCH BAR                                 */}
             {/* ═══════════════════════════════════════════ */}
-            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+            <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                 <div className="px-4 py-3 flex items-center gap-3">
                     <div className="relative flex-1 max-w-md">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
@@ -196,10 +196,10 @@ export function CategoriesClient({ categories = [], allCategories = [] }: Catego
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Cari kategori atau sub-kategori..."
-                            className="pl-9 border-2 border-black font-bold h-10 placeholder:text-zinc-400 rounded-none"
+                            className="pl-9 border border-border font-bold h-10 placeholder:text-zinc-400 rounded-md"
                         />
                     </div>
-                    <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                    <div className="text-xs font-semibold text-zinc-400">
                         {filteredCategories.length} dari {uiCategories.length} kategori
                     </div>
                 </div>
@@ -216,15 +216,15 @@ export function CategoriesClient({ categories = [], allCategories = [] }: Catego
                 {/* Create Trigger Card */}
                 <button
                     onClick={() => setIsCreateOpen(true)}
-                    className="group relative flex flex-col items-center justify-center border-2 border-dashed border-zinc-300 hover:border-black p-8 transition-all h-full min-h-[280px] bg-zinc-50 hover:bg-white hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                    className="group relative flex flex-col items-center justify-center border border-dashed border-zinc-300 hover:border-border p-8 transition-all h-full min-h-[280px] bg-zinc-50 hover:bg-white hover:shadow-sm"
                 >
-                    <div className="h-14 w-14 bg-white border-2 border-zinc-200 group-hover:border-black flex items-center justify-center mb-4 group-hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all">
+                    <div className="h-14 w-14 bg-white border border-zinc-200 group-hover:border-border flex items-center justify-center mb-4 group-hover:shadow-sm transition-all">
                         <Plus className="h-7 w-7 text-zinc-400 group-hover:text-black" />
                     </div>
-                    <h3 className="text-sm font-black text-zinc-400 group-hover:text-black uppercase tracking-wider">
+                    <h3 className="text-sm font-semibold text-zinc-400 group-hover:text-black  ">
                         Buat Kategori Root
                     </h3>
-                    <p className="text-[10px] text-zinc-400 font-medium text-center mt-2 max-w-[200px]">
+                    <p className="text-xs text-zinc-400 font-medium text-center mt-2 max-w-[200px]">
                         Tambahkan klasifikasi utama baru untuk gudang
                     </p>
                 </button>
@@ -273,7 +273,7 @@ function CategoryCard({ category, onClick }: { category: any, onClick: () => voi
     return (
         <div
             onClick={onClick}
-            className="group relative border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all bg-white overflow-hidden flex flex-col cursor-pointer"
+            className="group relative border border-border shadow-sm hover:shadow-sm transition-all bg-white overflow-hidden flex flex-col cursor-pointer"
         >
             {/* Top accent line */}
             <div className={`h-1.5 w-full ${accent.top}`} />
@@ -282,52 +282,52 @@ function CategoryCard({ category, onClick }: { category: any, onClick: () => voi
             <div className="px-4 pt-4 pb-3">
                 <div className="flex justify-between items-start">
                     <div className="space-y-2">
-                        <span className="inline-block border-2 border-black bg-zinc-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider font-mono">
+                        <span className="inline-block border border-border bg-zinc-100 px-2 py-0.5 text-xs font-semibold font-mono">
                             {category.code}
                         </span>
-                        <h3 className="text-xl font-black uppercase leading-none tracking-tight text-zinc-900">
+                        <h3 className="text-xl font-semibold leading-none tracking-tight text-zinc-900">
                             {category.name}
                         </h3>
                     </div>
-                    <div className="h-10 w-10 bg-black text-white flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]">
+                    <div className="h-10 w-10 bg-slate-900 text-white flex items-center justify-center shadow-sm">
                         <FolderOpen className="h-5 w-5" />
                     </div>
                 </div>
             </div>
 
             {/* Stats Row */}
-            <div className="mx-4 border-t-2 border-b-2 border-black grid grid-cols-2">
-                <div className="p-3 border-r-2 border-black">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-0.5">Total Produk</p>
-                    <p className="text-lg font-black tracking-tighter">{category.itemCount.toLocaleString()}</p>
+            <div className="mx-4 border-t border-b border-border grid grid-cols-2">
+                <div className="p-3 border-r border-border">
+                    <p className="text-xs font-semibold text-zinc-500 mb-0.5">Total Produk</p>
+                    <p className="text-lg font-semibold tracking-tighter">{category.itemCount.toLocaleString()}</p>
                 </div>
                 <div className="p-3">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-0.5">Sub-Kategori</p>
-                    <p className="text-lg font-black tracking-tighter">{category.subs?.length || 0}</p>
+                    <p className="text-xs font-semibold text-zinc-500 mb-0.5">Sub-Kategori</p>
+                    <p className="text-lg font-semibold tracking-tighter">{category.subs?.length || 0}</p>
                 </div>
             </div>
 
             {/* Subcategories List */}
             <div className="px-4 py-3 flex-1">
-                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-1.5 mb-2">
+                <p className="text-xs font-semibold text-zinc-500 flex items-center gap-1.5 mb-2">
                     <Layers className="h-3 w-3" /> Sub-Kategori
                 </p>
                 <div className="space-y-1.5">
                     {category.subs && category.subs.length > 0 ? category.subs.slice(0, 4).map((sub: any) => (
-                        <div key={sub.id || sub.name} className="flex items-center justify-between text-sm p-2 bg-zinc-50 border-2 border-zinc-200 group-hover:border-black/20 transition-colors">
+                        <div key={sub.id || sub.name} className="flex items-center justify-between text-sm p-2 bg-zinc-50 border border-zinc-200 group-hover:border-black/20 transition-colors">
                             <div className="flex items-center gap-2">
                                 <ChevronRight className="h-3 w-3 text-zinc-400" />
                                 <span className="font-bold text-zinc-700 text-xs">{sub.name}</span>
                             </div>
-                            <span className={`text-[10px] font-black border px-1.5 py-0.5 ${accent.badge}`}>
+                            <span className={`text-xs font-semibold border px-1.5 py-0.5 ${accent.badge}`}>
                                 {sub.count}
                             </span>
                         </div>
                     )) : (
-                        <p className="text-[10px] text-zinc-400 font-bold uppercase">Belum ada sub-kategori</p>
+                        <p className="text-xs text-zinc-400 font-bold ">Belum ada sub-kategori</p>
                     )}
                     {category.subs && category.subs.length > 4 && (
-                        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">
+                        <p className="text-xs font-semibold text-zinc-400  ">
                             +{category.subs.length - 4} lainnya
                         </p>
                     )}
@@ -335,8 +335,8 @@ function CategoryCard({ category, onClick }: { category: any, onClick: () => voi
             </div>
 
             {/* Footer */}
-            <div className="border-t-2 border-black bg-zinc-50 px-4 py-2.5">
-                <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-zinc-400 group-hover:text-black transition-colors">
+            <div className="border-t border-border bg-zinc-50 px-4 py-2.5">
+                <div className="flex items-center justify-between text-xs font-semibold text-zinc-400 group-hover:text-black transition-colors">
                     <span>Kelola Pohon</span>
                     <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
                 </div>
@@ -413,7 +413,7 @@ function CreateCategoryDialog({ open, onOpenChange, parents, onSuccess }: Create
                     <form onSubmit={handleSubmit}>
                         <div className="p-5 space-y-4">
                             <div className={NB.section}>
-                                <div className={`${NB.sectionHead} border-l-4 border-l-emerald-400 bg-emerald-50`}>
+                                <div className={`${NB.sectionHead} border-l border-l-emerald-400 bg-emerald-50`}>
                                     <Layers className="h-4 w-4" />
                                     <span className={NB.sectionTitle}>Detail Kategori</span>
                                 </div>
@@ -661,7 +661,7 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
                                 type="button"
                                 onClick={handleEnterEditMode}
                                 title="Edit kategori"
-                                className="flex items-center gap-1.5 bg-zinc-700 text-zinc-200 hover:bg-zinc-600 hover:text-white border-2 border-zinc-600 font-black uppercase text-[9px] tracking-wider px-3 h-7 shrink-0 transition-colors"
+                                className="flex items-center gap-1.5 bg-zinc-700 text-zinc-200 hover:bg-zinc-600 hover:text-white border border-zinc-600 font-semibold text-xs px-3 h-7 shrink-0 transition-colors"
                             >
                                 <Pencil className="h-3 w-3" /> Edit
                             </button>
@@ -675,7 +675,7 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
                         {/* Edit Form Section — only visible in edit mode */}
                         {isEditMode && (
                             <div className={NB.section}>
-                                <div className={`${NB.sectionHead} border-l-4 border-l-amber-400 bg-amber-50`}>
+                                <div className={`${NB.sectionHead} border-l border-l-amber-400 bg-amber-50`}>
                                     <Pencil className="h-4 w-4" />
                                     <span className={NB.sectionTitle}>Edit Kategori</span>
                                 </div>
@@ -715,7 +715,7 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
                                             type="button"
                                             onClick={handleSaveEdit}
                                             disabled={isSaving}
-                                            className="flex items-center gap-1.5 bg-black text-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-[10px] tracking-wider px-4 h-8"
+                                            className="flex items-center gap-1.5 bg-slate-900 text-white border border-border shadow-sm hover:shadow-sm transition-all font-semibold text-xs px-4 h-8"
                                         >
                                             {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
                                             {isSaving ? "Menyimpan..." : "Simpan Perubahan"}
@@ -724,7 +724,7 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
                                             type="button"
                                             onClick={handleCancelEdit}
                                             disabled={isSaving}
-                                            className="border-2 border-black bg-white hover:bg-zinc-100 font-black uppercase text-[10px] tracking-wider px-4 h-8 transition-colors"
+                                            className="border border-border bg-white hover:bg-zinc-100 font-semibold text-xs px-4 h-8 transition-colors"
                                         >
                                             Batal
                                         </button>
@@ -735,19 +735,19 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
 
                         {/* Stats */}
                         <div className={NB.section}>
-                            <div className={`${NB.sectionHead} border-l-4 border-l-emerald-400 bg-emerald-50`}>
+                            <div className={`${NB.sectionHead} border-l border-l-emerald-400 bg-emerald-50`}>
                                 <Layers className="h-4 w-4" />
                                 <span className={NB.sectionTitle}>Statistik</span>
                             </div>
                             <div className={NB.sectionBody}>
                                 <div className="grid grid-cols-2 gap-3">
-                                    <div className="border-2 border-black p-3">
-                                        <p className="text-[10px] font-black uppercase text-zinc-500">Total Produk</p>
-                                        <p className="text-2xl font-black">{products.length}</p>
+                                    <div className="border border-border p-3">
+                                        <p className="text-xs font-semibold text-zinc-500">Total Produk</p>
+                                        <p className="text-2xl font-semibold">{products.length}</p>
                                     </div>
-                                    <div className="border-2 border-black p-3">
-                                        <p className="text-[10px] font-black uppercase text-zinc-500">Sub-Kategori</p>
-                                        <p className="text-2xl font-black">{category.subs?.length || 0}</p>
+                                    <div className="border border-border p-3">
+                                        <p className="text-xs font-semibold text-zinc-500">Sub-Kategori</p>
+                                        <p className="text-2xl font-semibold">{category.subs?.length || 0}</p>
                                     </div>
                                 </div>
                             </div>
@@ -755,7 +755,7 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
 
                         {/* Produk dalam Kategori */}
                         <div className={NB.section}>
-                            <div className={`${NB.sectionHead} border-l-4 border-l-violet-400 bg-violet-50 flex items-center justify-between`}>
+                            <div className={`${NB.sectionHead} border-l border-l-violet-400 bg-violet-50 flex items-center justify-between`}>
                                 <div className="flex items-center gap-2">
                                     <Package className="h-4 w-4" />
                                     <span className={NB.sectionTitle}>Produk dalam Kategori</span>
@@ -764,7 +764,7 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
                                     <button
                                         type="button"
                                         onClick={handleOpenAddRow}
-                                        className="flex items-center gap-1 bg-black text-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-[9px] tracking-wider px-2.5 h-6"
+                                        className="flex items-center gap-1 bg-slate-900 text-white border border-border shadow-sm hover:shadow-sm transition-all font-semibold text-xs px-2.5 h-6"
                                     >
                                         <Plus className="h-3 w-3" /> Tambah
                                     </button>
@@ -773,7 +773,7 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
 
                             {/* Add product row */}
                             {showAddRow && (
-                                <div className="px-4 py-3 bg-violet-50 border-b-2 border-black">
+                                <div className="px-4 py-3 bg-violet-50 border-b border-border">
                                     <div className="flex gap-2 items-center">
                                         <div className="flex-1">
                                             <ComboboxWithCreate
@@ -789,7 +789,7 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
                                             type="button"
                                             onClick={handleAddProduct}
                                             disabled={adding}
-                                            className="flex items-center gap-1 bg-black text-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-[9px] tracking-wider px-3 h-9 shrink-0"
+                                            className="flex items-center gap-1 bg-slate-900 text-white border border-border shadow-sm hover:shadow-sm transition-all font-semibold text-xs px-3 h-9 shrink-0"
                                         >
                                             {adding ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
                                             {adding ? "..." : "Tambah"}
@@ -797,7 +797,7 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
                                         <button
                                             type="button"
                                             onClick={() => { setShowAddRow(false); setSelectedProductId("") }}
-                                            className="border-2 border-black bg-white hover:bg-zinc-100 h-9 w-9 flex items-center justify-center shrink-0"
+                                            className="border border-border bg-white hover:bg-zinc-100 h-9 w-9 flex items-center justify-center shrink-0"
                                         >
                                             <X className="h-3.5 w-3.5" />
                                         </button>
@@ -808,7 +808,7 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
                             {loadingProducts ? (
                                 <div className="p-4 text-center">
                                     <Loader2 className="h-5 w-5 animate-spin mx-auto text-zinc-400 mb-1" />
-                                    <p className="text-[10px] font-bold text-zinc-400 uppercase">Memuat produk...</p>
+                                    <p className="text-xs font-bold text-zinc-400 ">Memuat produk...</p>
                                 </div>
                             ) : products.length > 0 ? (
                                 <div className={NB.tableWrap}>
@@ -827,19 +827,19 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
                                             {products.map((p) => (
                                                 <tr key={p.id} className={NB.tableRow}>
                                                     <td className={NB.tableCell}>
-                                                        <span className="text-[11px] font-mono font-bold">{p.code}</span>
+                                                        <span className="text-xs font-mono font-bold">{p.code}</span>
                                                     </td>
                                                     <td className={NB.tableCell}>
                                                         <span className="text-xs font-bold">{p.name}</span>
                                                     </td>
                                                     <td className={`${NB.tableCell} text-center`}>
-                                                        <span className="text-[10px] font-black uppercase text-zinc-500">{p.unit}</span>
+                                                        <span className="text-xs font-semibold text-zinc-500">{p.unit}</span>
                                                     </td>
                                                     <td className={`${NB.tableCell} text-right`}>
                                                         <span className="text-xs font-mono font-bold">{p.sellingPrice === null ? "—" : formatCurrency(p.sellingPrice)}</span>
                                                     </td>
                                                     <td className={`${NB.tableCell} text-right`}>
-                                                        <span className={`text-xs font-black ${p.totalStock <= 0 ? 'text-red-500' : ''}`}>
+                                                        <span className={`text-xs font-semibold ${p.totalStock <= 0 ? 'text-red-500' : ''}`}>
                                                             {p.totalStock.toLocaleString()}
                                                         </span>
                                                     </td>
@@ -861,7 +861,7 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
                             ) : (
                                 <div className="p-4 text-center">
                                     <Package className="h-6 w-6 mx-auto text-zinc-200 mb-1" />
-                                    <p className="text-[10px] font-bold text-zinc-400 uppercase">Belum ada produk di kategori ini</p>
+                                    <p className="text-xs font-bold text-zinc-400 ">Belum ada produk di kategori ini</p>
                                 </div>
                             )}
                         </div>
@@ -869,19 +869,19 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
                         {/* Sub-Kategori */}
                         {category.subs && category.subs.length > 0 && (
                             <div className={NB.section}>
-                                <div className={`${NB.sectionHead} border-l-4 border-l-emerald-400 bg-emerald-50`}>
+                                <div className={`${NB.sectionHead} border-l border-l-emerald-400 bg-emerald-50`}>
                                     <Layers className="h-4 w-4" />
                                     <span className={NB.sectionTitle}>Sub-Kategori</span>
                                 </div>
-                                <div className="divide-y-2 divide-black">
+                                <div className="divide-y-2 divide-border">
                                     {category.subs.map((sub: any) => (
                                         <div key={sub.id || sub.name} className="px-4 py-3">
                                             <div className="flex items-center justify-between gap-2">
                                                 <div>
-                                                    <p className="text-sm font-black uppercase">{sub.name}</p>
-                                                    <p className="text-[11px] text-zinc-500 font-mono">{sub.code || "NO-CODE"}</p>
+                                                    <p className="text-sm font-semibold ">{sub.name}</p>
+                                                    <p className="text-xs text-zinc-500 font-mono">{sub.code || "NO-CODE"}</p>
                                                 </div>
-                                                <Badge variant="outline" className="border-2 border-black text-[10px] font-black">
+                                                <Badge variant="outline" className="border border-border text-xs font-semibold">
                                                     {sub.count || 0} produk
                                                 </Badge>
                                             </div>
@@ -896,7 +896,7 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
                                 type="button"
                                 onClick={handleDelete}
                                 disabled={isDeleting}
-                                className="flex items-center gap-1.5 border-2 border-red-600 text-red-600 hover:bg-red-50 font-black uppercase text-[10px] tracking-wider px-4 h-8 transition-colors"
+                                className="flex items-center gap-1.5 border border-red-600 text-red-600 hover:bg-red-50 font-semibold text-xs px-4 h-8 transition-colors"
                             >
                                 {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                                 {isDeleting ? "Menghapus..." : "Hapus"}

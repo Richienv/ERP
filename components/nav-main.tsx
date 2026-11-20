@@ -5,7 +5,8 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { IconChevronRight, IconLock } from "@tabler/icons-react"
 import { useNavPrefetch } from "@/hooks/use-nav-prefetch"
-import type { SidebarNavItem } from "@/lib/sidebar-nav-data"
+import type { SidebarNavItem, SidebarSubItem } from "@/lib/sidebar-nav-data"
+import { cn } from "@/lib/utils"
 
 import {
   Collapsible,
@@ -25,26 +26,85 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 
-/* ── 80/20 accent: zinc default, orange only when the group is active ── */
-const ZINC_ACCENT = {
-  bg: "bg-zinc-800",
-  text: "text-zinc-800 dark:text-zinc-100",
-  border: "border-zinc-800 dark:border-zinc-200",
-  borderLight: "border-zinc-200 dark:border-zinc-700",
-  light: "bg-zinc-50 dark:bg-zinc-800/50",
-  dot: "bg-zinc-400",
-}
-const ORANGE_ACCENT = {
-  bg: "bg-orange-500",
-  text: "text-orange-700 dark:text-orange-400",
-  border: "border-orange-500",
-  borderLight: "border-orange-200 dark:border-orange-900",
-  light: "bg-orange-50 dark:bg-orange-950/30",
-  dot: "bg-orange-500",
+/*
+ * Navy shell (SAP-like). Every colour comes from the --sidebar* tokens.
+ * Active page = lighter navy fill + a left bar in --sidebar-primary.
+ */
+const TOP_ITEM =
+  "relative flex w-full items-center gap-3 rounded-md px-3 h-10 text-left text-[15px] leading-tight outline-none transition-colors focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+const TOP_IDLE =
+  "font-medium text-sidebar-foreground/90 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+const TOP_ACTIVE = "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
+/** Icon-only sidebar: a 34 px square centred in the 3rem rail. */
+const TOP_COLLAPSED =
+  "group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:justify-center"
+
+const SUB_ITEM =
+  "relative flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[14px] leading-snug outline-none transition-colors focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+const SUB_IDLE =
+  "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+const SUB_ACTIVE = "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
+
+/** Light popover used by the icon-only sidebar. */
+const POP_ITEM =
+  "relative flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
+const POP_IDLE = "text-foreground/85 hover:bg-muted hover:text-foreground"
+const POP_ACTIVE = "bg-accent font-semibold text-accent-foreground"
+
+/* Badge colours stay legible on navy and on the white popover. */
+const BADGE: Record<NonNullable<SidebarSubItem["badgeSeverity"]>, { className: string; hint: string }> = {
+  info: { className: "bg-slate-200 text-slate-900", hint: "Data belum lengkap" },
+  warning: { className: "bg-amber-300 text-amber-950", hint: "Menunggu tindakan" },
+  critical: { className: "bg-red-600 text-white", hint: "Perlu perhatian" },
 }
 
-function accentFor(active: boolean) {
-  return active ? ORANGE_ACCENT : ZINC_ACCENT
+function NavBadge({ count, severity = "critical", className }: {
+  count: number
+  severity?: SidebarSubItem["badgeSeverity"]
+  className?: string
+}) {
+  const style = BADGE[severity ?? "critical"]
+  return (
+    <span
+      title={`${count} · ${style.hint}`}
+      className={cn(
+        "inline-flex h-5 min-w-6 shrink-0 items-center justify-center rounded-full px-1.5 text-xs font-semibold tabular-nums leading-none",
+        style.className,
+        className,
+      )}
+    >
+      {count > 99 ? "99+" : count}
+    </span>
+  )
+}
+
+function ActiveBar({ className, tone = "sidebar" }: { className?: string; tone?: "sidebar" | "popover" }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full",
+        tone === "sidebar" ? "bg-sidebar-primary" : "bg-primary",
+        className,
+      )}
+    />
+  )
+}
+
+function GroupLabel({ label, first, tone = "sidebar" }: { label: string; first: boolean; tone?: "sidebar" | "popover" }) {
+  return (
+    <div className={cn("flex items-center gap-2 px-2.5 pb-1", first ? "pt-1.5" : "pt-3.5")}>
+      <span
+        className={cn(
+          "whitespace-nowrap text-xs font-semibold",
+          tone === "sidebar" ? "text-sidebar-foreground/65" : "text-muted-foreground",
+        )}
+      >
+        {label}
+      </span>
+      <span aria-hidden className={cn("h-px flex-1", tone === "sidebar" ? "bg-sidebar-border" : "bg-border")} />
+    </div>
+  )
 }
 
 export function NavMain({ items }: { items: SidebarNavItem[] }) {
@@ -55,40 +115,39 @@ export function NavMain({ items }: { items: SidebarNavItem[] }) {
   const [openPopover, setOpenPopover] = useState<string | null>(null)
 
   const isPathActive = (url: string) => pathname === url || pathname.startsWith(url + "/")
-
-  const getBadgeColor = (severity?: "info" | "warning" | "critical") => {
-    switch (severity) {
-      case "info": return "bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700"
-      case "warning": return "bg-orange-100 text-orange-800 border border-orange-300 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-700"
-      case "critical": return "bg-red-100 text-red-800 border border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700"
-      default: return "bg-red-100 text-red-800 border border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700"
-    }
-  }
+  // Among sibling sub-items only the most specific match is active ("/procurement" must not light
+  // up together with "/procurement/spareparts").
+  const bestSubUrl = (items?: { url: string }[]) =>
+    (items ?? []).filter((s) => isPathActive(s.url)).sort((a, b) => b.url.length - a.url.length)[0]?.url
 
   return (
     <SidebarGroup>
       <SidebarGroupContent>
-        <SidebarMenu className="gap-1 px-2">
+        <SidebarMenu className="gap-0.5 px-1 group-data-[collapsible=icon]:px-0">
           {items.map((item) => {
             const isActive = isPathActive(item.url)
             const hasSubItems = item.items && item.items.length > 0
-            const accent = accentFor(isActive)
 
             if (hasSubItems) {
               if (item.locked) {
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <div className="flex items-center gap-2.5 px-3 py-2 opacity-30 cursor-not-allowed select-none">
-                      {item.icon && <item.icon className="size-[18px]" />}
-                      <span className="text-[13px]">{item.title}</span>
-                      <IconLock className="ml-auto size-3.5" />
+                    <div
+                      aria-disabled="true"
+                      title={`${item.title} · terkunci`}
+                      className={cn(TOP_ITEM, TOP_COLLAPSED, "cursor-not-allowed select-none font-medium text-sidebar-foreground/45")}
+                    >
+                      {item.icon && <item.icon className="size-[18px] shrink-0" />}
+                      <span className="group-data-[collapsible=icon]:sr-only">{item.title}</span>
+                      <IconLock className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
                     </div>
                   </SidebarMenuItem>
                 )
               }
 
-              // Collapsed: popover
+              // Icon-only sidebar: the sub-menu opens in a popover
               if (isCollapsed) {
+                let lastGroup: string | undefined
                 return (
                   <Popover key={item.title} open={openPopover === item.title} onOpenChange={(open) => setOpenPopover(open ? item.title : null)}>
                     <SidebarMenuItem>
@@ -98,66 +157,65 @@ export function NavMain({ items }: { items: SidebarNavItem[] }) {
                           data-slot="sidebar-menu-button"
                           data-sidebar="menu-button"
                           data-size="default"
-                          className={`relative flex w-full items-center gap-2.5 overflow-hidden p-2 text-left text-sm outline-hidden ring-sidebar-ring transition-all focus-visible:ring-2 h-9 group-data-[collapsible=icon]:size-9! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 rounded-md border ${
-                            isActive
-                              ? `${accent.light} ${accent.text} font-bold border-current`
-                              : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 border-transparent hover:border-zinc-200 dark:hover:border-zinc-700"
-                          }`}
+                          title={item.title}
+                          className={cn(TOP_ITEM, TOP_COLLAPSED, "overflow-hidden", isActive ? TOP_ACTIVE : TOP_IDLE)}
                         >
-                          {item.icon && <item.icon className="size-[18px]" />}
-                          <span className="text-[13px]">{item.title}</span>
+                          {isActive && <ActiveBar />}
+                          {item.icon && <item.icon className={cn("size-[18px] shrink-0", isActive && "text-sidebar-primary")} />}
+                          {/* Visible in the mobile sheet, screen-reader only in the icon rail */}
+                          <span className="truncate group-data-[collapsible=icon]:sr-only">{item.title}</span>
                         </button>
                       </PopoverTrigger>
                       <PopoverContent
                         side="right"
                         align="start"
-                        sideOffset={8}
-                        className="w-56 p-1.5 rounded-md border-2 border-black dark:border-zinc-600 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.1)]"
+                        sideOffset={10}
+                        className="w-64 rounded-lg border border-border p-1.5 shadow-md"
                       >
-                        <div className={`flex items-center gap-2 px-2.5 py-2 mb-1 rounded-sm ${accent.light}`}>
-                          <div className={`size-2 rounded-full ${accent.bg}`} />
-                          <p className={`text-[11px] font-bold uppercase tracking-wider ${accent.text}`}>{item.title}</p>
-                        </div>
+                        <p className="mb-1 border-b border-border px-2.5 pb-2 pt-1.5 text-sm font-semibold text-foreground">
+                          {item.title}
+                        </p>
                         {(item.items ?? []).map((subItem) => {
+                          const showGroupHeader = subItem.group && subItem.group !== lastGroup
+                          const isFirstGroup = !lastGroup
+                          if (subItem.group) lastGroup = subItem.group
+
                           if (subItem.locked) {
                             return (
-                              <div key={subItem.title} className="flex items-center gap-2 px-2.5 py-1.5 text-[12.5px] text-zinc-300 dark:text-zinc-600 cursor-not-allowed">
-                                {subItem.icon && <subItem.icon className="size-3.5 shrink-0" />}
-                                <span>{subItem.title}</span>
-                                <IconLock className="ml-auto size-3" />
-                              </div>
+                              <React.Fragment key={subItem.title}>
+                                {showGroupHeader && <GroupLabel label={subItem.group!} first={isFirstGroup} tone="popover" />}
+                                <div
+                                  aria-disabled="true"
+                                  title={`${subItem.title} · terkunci`}
+                                  className="flex items-center gap-2.5 px-2.5 py-2 text-sm text-muted-foreground/70 cursor-not-allowed select-none"
+                                >
+                                  {subItem.icon && <subItem.icon className="size-4 shrink-0" />}
+                                  <span>{subItem.title}</span>
+                                  <IconLock className="ml-auto size-3.5" />
+                                </div>
+                              </React.Fragment>
                             )
                           }
-                          const isSubActive = isPathActive(subItem.url)
+                          const isSubActive = subItem.url === bestSubUrl(item.items)
                           return (
                             <React.Fragment key={subItem.title}>
-                              {subItem.group && (
-                                <div className="flex items-center gap-2 px-2.5 pt-3 pb-1">
-                                  <div className={`size-1.5 rounded-full ${accent.dot}`} />
-                                  <p className={`text-xs font-bold uppercase tracking-wider ${accent.text} opacity-70`}>
-                                    {subItem.group}
-                                  </p>
-                                  <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
-                                </div>
-                              )}
+                              {showGroupHeader && <GroupLabel label={subItem.group!} first={isFirstGroup} tone="popover" />}
                               <Link
                                 href={subItem.url}
                                 prefetch
                                 onClick={() => setOpenPopover(null)}
                                 onPointerDown={() => prefetchRoute(subItem.url)}
                                 onMouseEnter={() => prefetchRoute(subItem.url)}
-                                className={`flex w-full items-center gap-2 px-2.5 py-1.5 text-[12.5px] rounded-r-sm transition-all duration-150 ease-out ${
-                                  isSubActive
-                                    ? `${accent.light} ${accent.text} font-semibold border-l-[3px] ${accent.border} pl-[7px]`
-                                    : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40 hover:translate-x-0.5 active:scale-[0.98] border-l-[3px] border-transparent"
-                                }`}
+                                aria-current={isSubActive ? "page" : undefined}
+                                className={cn(POP_ITEM, isSubActive ? POP_ACTIVE : POP_IDLE)}
                               >
-                                {subItem.icon && <subItem.icon className="size-3.5 shrink-0 opacity-70" />}
+                                {isSubActive && <ActiveBar tone="popover" />}
+                                {subItem.icon && (
+                                  <subItem.icon className={cn("size-4 shrink-0", isSubActive ? "text-primary" : "text-muted-foreground")} />
+                                )}
                                 <span>{subItem.title}</span>
                                 {subItem.badge && subItem.badge > 0 ? (
-                                  <span className={`ml-auto text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-sm ${getBadgeColor(subItem.badgeSeverity)}`}>
-                                    {subItem.badge > 99 ? "99+" : subItem.badge}
-                                  </span>
+                                  <NavBadge count={subItem.badge} severity={subItem.badgeSeverity} className="ml-auto" />
                                 ) : null}
                               </Link>
                             </React.Fragment>
@@ -169,7 +227,7 @@ export function NavMain({ items }: { items: SidebarNavItem[] }) {
                 )
               }
 
-              // Expanded: collapsible with accent color strip
+              // Expanded sidebar: collapsible group with a guide line under the icon
               return (
                 <Collapsible
                   key={item.title}
@@ -183,78 +241,70 @@ export function NavMain({ items }: { items: SidebarNavItem[] }) {
                         type="button"
                         data-slot="sidebar-menu-button"
                         data-sidebar="menu-button"
-                        className={`relative flex w-full items-center gap-2.5 rounded-md px-3 py-2.5 text-left transition-all duration-150 outline-none border ${
+                        className={cn(
+                          TOP_ITEM,
                           isActive
-                            ? `${accent.light} ${accent.text} font-bold border-current`
-                            : "text-zinc-600 dark:text-zinc-400 border-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800/60 hover:text-zinc-900 dark:hover:text-zinc-200 hover:border-zinc-200 dark:hover:border-zinc-700 active:scale-[0.98]"
-                        }`}
+                            ? "font-semibold text-sidebar-accent-foreground hover:bg-sidebar-accent/60 data-[state=closed]:bg-sidebar-accent"
+                            : TOP_IDLE,
+                        )}
                       >
-                        {/* Color indicator dot */}
-                        <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full ${accent.bg} transition-opacity ${isActive ? "opacity-100" : "opacity-0 group-hover/collapsible:opacity-40"}`} />
-                        {item.icon && <item.icon className={`size-[18px] shrink-0 ${isActive ? accent.text : ""}`} />}
-                        <span className="text-[13px]">{item.title}</span>
-                        {item.badge && item.badge > 0 ? (
-                          <span className={`ml-auto mr-1 text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-sm ${getBadgeColor("critical")}`}>
-                            {item.badge > 99 ? "99+" : item.badge}
-                          </span>
-                        ) : null}
-                        <IconChevronRight className={`size-3.5 shrink-0 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90 ${isActive ? accent.text + " opacity-60" : "text-zinc-400 dark:text-zinc-500"} ${item.badge && item.badge > 0 ? "" : "ml-auto"}`} />
+                        {/* When the group is closed, the parent carries the "you are here" bar */}
+                        {isActive && <ActiveBar className="group-data-[state=open]/collapsible:hidden" />}
+                        {item.icon && <item.icon className={cn("size-[18px] shrink-0", isActive && "text-sidebar-primary")} />}
+                        <span className="min-w-0 flex-1 truncate">{item.title}</span>
+                        {item.badge && item.badge > 0 ? <NavBadge count={item.badge} severity="critical" /> : null}
+                        <IconChevronRight
+                          aria-hidden
+                          className="size-4 shrink-0 text-sidebar-foreground/60 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
+                        />
                       </button>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                      <div className={`ml-[18px] pl-3 border-l ${accent.borderLight} mt-1 mb-2 space-y-0.5`}>
+                      <div className="mb-1.5 ml-[21px] mt-0.5 space-y-0.5 border-l border-sidebar-border pl-2">
                         {(() => {
                           let lastGroup: string | undefined
                           return (item.items ?? []).map((subItem) => {
                             const showGroupHeader = subItem.group && subItem.group !== lastGroup
-                            const isFirstGroup = !lastGroup && subItem.group
+                            const isFirstGroup = !lastGroup && !!subItem.group
                             if (subItem.group) lastGroup = subItem.group
 
                             if (subItem.locked) {
                               return (
                                 <React.Fragment key={subItem.title}>
-                                  {showGroupHeader && (
-                                    <div className={`flex items-center gap-2 px-2.5 ${isFirstGroup ? "pt-1.5 pb-1.5" : "pt-4 pb-1.5"}`}>
-                                      <div className={`size-1.5 rounded-full ${accent.dot}`} />
-                                      <span className={`text-xs font-bold uppercase tracking-wider whitespace-nowrap ${accent.text} opacity-70`}>{subItem.group}</span>
-                                      {!isFirstGroup && <div className={`flex-1 h-px ${accent.bg} opacity-20`} />}
-                                    </div>
-                                  )}
-                                  <div className="flex items-center gap-2 px-2.5 py-[7px] text-[12.5px] text-zinc-300 dark:text-zinc-600 cursor-not-allowed select-none">
-                                    {subItem.icon && <subItem.icon className="size-3.5 shrink-0" />}
+                                  {showGroupHeader && <GroupLabel label={subItem.group!} first={isFirstGroup} />}
+                                  <div
+                                    aria-disabled="true"
+                                    title={`${subItem.title} · terkunci`}
+                                    className={cn(SUB_ITEM, "cursor-not-allowed select-none text-sidebar-foreground/45")}
+                                  >
+                                    {subItem.icon && <subItem.icon className="size-4 shrink-0" />}
                                     <span>{subItem.title}</span>
-                                    <IconLock className="ml-auto size-3" />
+                                    <IconLock className="ml-auto size-3.5 shrink-0" />
                                   </div>
                                 </React.Fragment>
                               )
                             }
-                            const isSubActive = isPathActive(subItem.url)
+                            const isSubActive = subItem.url === bestSubUrl(item.items)
                             return (
                               <React.Fragment key={subItem.title}>
-                                {showGroupHeader && (
-                                  <div className={`flex items-center gap-2 px-2.5 ${isFirstGroup ? "pt-1.5 pb-1.5" : "pt-4 pb-1.5"}`}>
-                                    <div className={`size-1.5 rounded-full ${accent.dot}`} />
-                                    <span className={`text-xs font-bold uppercase tracking-wider whitespace-nowrap ${accent.text} opacity-70`}>{subItem.group}</span>
-                                    {!isFirstGroup && <div className={`flex-1 h-px ${accent.bg} opacity-20`} />}
-                                  </div>
-                                )}
+                                {showGroupHeader && <GroupLabel label={subItem.group!} first={isFirstGroup} />}
                                 <Link
                                   href={subItem.url}
                                   prefetch
                                   onPointerDown={() => prefetchRoute(subItem.url)}
                                   onMouseEnter={() => prefetchRoute(subItem.url)}
-                                  className={`relative flex items-center gap-2 px-2.5 py-[7px] rounded-r-sm text-[12.5px] transition-all duration-150 ease-out ${
-                                    isSubActive
-                                      ? `${accent.light} ${accent.text} font-semibold border-l-[3px] ${accent.border} pl-[7px]`
-                                      : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40 hover:translate-x-0.5 active:scale-[0.98] border-l-[3px] border-transparent"
-                                  }`}
+                                  aria-current={isSubActive ? "page" : undefined}
+                                  className={cn(SUB_ITEM, isSubActive ? SUB_ACTIVE : SUB_IDLE)}
                                 >
-                                  {subItem.icon && <subItem.icon className={`size-3.5 shrink-0 transition-opacity duration-150 ${isSubActive ? "opacity-100" : "opacity-50 group-hover:opacity-70"}`} />}
-                                  <span>{subItem.title}</span>
+                                  {isSubActive && <ActiveBar />}
+                                  {subItem.icon && (
+                                    <subItem.icon
+                                      className={cn("size-4 shrink-0", isSubActive ? "text-sidebar-primary" : "opacity-70")}
+                                    />
+                                  )}
+                                  <span className="min-w-0">{subItem.title}</span>
                                   {subItem.badge && subItem.badge > 0 ? (
-                                    <span className={`ml-auto text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-sm ${getBadgeColor(subItem.badgeSeverity)}`}>
-                                      {subItem.badge > 99 ? "99+" : subItem.badge}
-                                    </span>
+                                    <NavBadge count={subItem.badge} severity={subItem.badgeSeverity} className="ml-auto" />
                                   ) : null}
                                 </Link>
                               </React.Fragment>
@@ -278,14 +328,13 @@ export function NavMain({ items }: { items: SidebarNavItem[] }) {
                   onMouseEnter={() => prefetchRoute(item.url)}
                   data-slot="sidebar-menu-button"
                   data-sidebar="menu-button"
-                  className={`flex w-full items-center gap-2.5 rounded-md px-3 py-2.5 transition-all duration-150 outline-none border group-data-[collapsible=icon]:size-9! group-data-[collapsible=icon]:p-2! group-data-[collapsible=icon]:justify-center ${
-                    isActive
-                      ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-bold border-zinc-900 dark:border-zinc-100 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)]"
-                      : "text-zinc-600 dark:text-zinc-400 border-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800/60 hover:text-zinc-900 dark:hover:text-zinc-200 hover:border-zinc-200 dark:hover:border-zinc-700 active:scale-[0.98]"
-                  }`}
+                  aria-current={isActive ? "page" : undefined}
+                  title={isCollapsed ? item.title : undefined}
+                  className={cn(TOP_ITEM, TOP_COLLAPSED, isActive ? TOP_ACTIVE : TOP_IDLE)}
                 >
-                  {item.icon && <item.icon className="size-[18px] shrink-0" />}
-                  <span className="text-[13px] group-data-[collapsible=icon]:hidden">{item.title}</span>
+                  {isActive && <ActiveBar />}
+                  {item.icon && <item.icon className={cn("size-[18px] shrink-0", isActive && "text-sidebar-primary")} />}
+                  <span className="group-data-[collapsible=icon]:sr-only">{item.title}</span>
                 </Link>
               </SidebarMenuItem>
             )

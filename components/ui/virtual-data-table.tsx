@@ -50,15 +50,15 @@ export function VirtualDataTable<TData>({
     })
 
     return (
-        <div className="rounded-lg border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <div className="rounded-lg border border-border bg-white shadow-sm">
             {/* Header */}
-            <div className="border-b-2 border-black">
+            <div className="border-b border-border">
                 {table.getHeaderGroups().map((headerGroup) => (
                     <div key={headerGroup.id} className="flex">
                         {headerGroup.headers.map((header) => (
                             <div
                                 key={header.id}
-                                className="flex-1 px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-zinc-600 cursor-pointer select-none hover:bg-zinc-50"
+                                className="flex-1 px-3 py-2.5 text-xs font-bold text-zinc-600 cursor-pointer select-none hover:bg-zinc-50"
                                 style={{ width: header.getSize() }}
                                 onClick={header.column.getToggleSortingHandler()}
                             >
@@ -113,7 +113,7 @@ export function VirtualDataTable<TData>({
             </div>
 
             {/* Footer */}
-            <div className="border-t-2 border-black px-3 py-2 text-xs text-zinc-500">
+            <div className="border-t border-border px-3 py-2 text-xs text-zinc-500">
                 {rows.length.toLocaleString("id-ID")} baris
             </div>
         </div>

@@ -31,7 +31,7 @@ function SectionCard({ title, icon, accent = "bg-zinc-500", tint = "bg-white", c
 }) {
     const [open, setOpen] = useState(defaultOpen)
     return (
-        <div className={`border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden ${stretch ? "flex flex-col" : ""} ${className || ""}`}>
+        <div className={`border border-border shadow-sm overflow-hidden ${stretch ? "flex flex-col" : ""} ${className || ""}`}>
             <button
                 type="button"
                 onClick={collapsible ? () => setOpen(!open) : undefined}
@@ -40,7 +40,7 @@ function SectionCard({ title, icon, accent = "bg-zinc-500", tint = "bg-white", c
                 <div className={`${accent} text-white p-1 shrink-0`}>
                     {icon}
                 </div>
-                <span className="text-[10px] font-black uppercase tracking-[0.15em] text-zinc-700 flex-1 text-left">{title}</span>
+                <span className="text-xs font-semibold text-zinc-700 flex-1 text-left">{title}</span>
                 {collapsible && (
                     <ChevronDown className={`h-3.5 w-3.5 text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`} />
                 )}
@@ -55,7 +55,7 @@ function SectionCard({ title, icon, accent = "bg-zinc-500", tint = "bg-white", c
 /* ── Field Label ── */
 function FieldLabel({ icon, children, required }: { icon?: React.ReactNode; children: React.ReactNode; required?: boolean }) {
     return (
-        <label className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-500 mb-1.5 flex items-center gap-1.5">
+        <label className="text-xs font-semibold text-zinc-500 mb-1.5 flex items-center gap-1.5">
             {icon && <span className="text-zinc-400">{icon}</span>}
             {children}
             {required && <span className="text-red-500 text-xs">*</span>}
@@ -139,16 +139,16 @@ export function DetailPanel({
     const progressPct = totalQty > 0 ? Math.min(100, (completedQty / totalQty) * 100) : 0
 
     return (
-        <div className={`border-t-2 border-black bg-zinc-50 shrink-0 flex flex-col ${expanded ? "absolute inset-0 z-50" : ""}`}>
+        <div className={`border-t border-border bg-zinc-50 shrink-0 flex flex-col ${expanded ? "absolute inset-0 z-50" : ""}`}>
             {/* ── HEADER BAR ── */}
-            <div className="flex items-center gap-3 px-5 py-2.5 bg-white border-b-2 border-black shrink-0">
-                <div className={`p-2 ${isSubkon ? "bg-amber-500" : "bg-emerald-500"} text-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]`}>
+            <div className="flex items-center gap-3 px-5 py-2.5 bg-white border-b border-border shrink-0">
+                <div className={`p-2 ${isSubkon ? "bg-amber-500" : "bg-emerald-500"} text-white border border-border shadow-sm`}>
                     <Cog className="h-4 w-4" />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <h3 className="font-black text-base uppercase tracking-tight truncate">{step.station?.name}</h3>
+                    <h3 className="font-semibold text-base tracking-tight truncate">{step.station?.name}</h3>
                     {isSubkon && step.subkonProcessType && (
-                        <p className="text-[10px] font-bold text-amber-600 truncate">{step.subkonProcessType}</p>
+                        <p className="text-xs font-bold text-amber-600 truncate">{step.subkonProcessType}</p>
                     )}
                 </div>
 
@@ -156,7 +156,7 @@ export function DetailPanel({
                 <button
                     type="button"
                     onClick={() => { setCollapsed(!collapsed); if (expanded) setExpanded(false) }}
-                    className="p-1.5 border-2 border-black hover:bg-zinc-100 transition-colors"
+                    className="p-1.5 border border-border hover:bg-zinc-100 transition-colors"
                     title={collapsed ? "Tampilkan detail" : "Sembunyikan detail"}
                 >
                     {collapsed ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
@@ -164,18 +164,18 @@ export function DetailPanel({
                 <button
                     type="button"
                     onClick={() => { setExpanded(!expanded); setCollapsed(false) }}
-                    className="p-1.5 border-2 border-black hover:bg-zinc-100 transition-colors"
+                    className="p-1.5 border border-border hover:bg-zinc-100 transition-colors"
                     title={expanded ? "Kecilkan panel" : "Perbesar panel"}
                 >
                     {expanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
                 </button>
 
                 {/* In-House / Subkon toggle */}
-                <div className="flex border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] shrink-0">
+                <div className="flex border border-border shadow-sm shrink-0">
                     <button
                         type="button"
                         onClick={() => onToggleSubkon(false)}
-                        className={`px-3.5 py-1.5 text-[10px] font-black uppercase flex items-center gap-1.5 transition-colors ${
+                        className={`px-3.5 py-1.5 text-xs font-semibold  flex items-center gap-1.5 transition-colors ${
                             !isSubkon ? "bg-emerald-400 text-black" : "bg-white text-zinc-400 hover:bg-zinc-50"
                         }`}
                     >
@@ -184,7 +184,7 @@ export function DetailPanel({
                     <button
                         type="button"
                         onClick={() => onToggleSubkon(true)}
-                        className={`px-3.5 py-1.5 text-[10px] font-black uppercase flex items-center gap-1.5 border-l-2 border-black transition-colors ${
+                        className={`px-3.5 py-1.5 text-xs font-semibold  flex items-center gap-1.5 border-l border-border transition-colors ${
                             isSubkon ? "bg-amber-400 text-black" : "bg-white text-zinc-400 hover:bg-zinc-50"
                         }`}
                     >
@@ -220,7 +220,7 @@ export function DetailPanel({
                                                 if (station) onChangeStation(val, station)
                                             }}
                                         >
-                                            <SelectTrigger className="h-9 text-xs font-bold border-2 border-zinc-300 rounded-none hover:border-black transition-colors focus:border-black">
+                                            <SelectTrigger className="h-9 text-xs font-bold border border-zinc-300 rounded-md hover:border-border transition-colors focus:border-border">
                                                 <SelectValue placeholder="Pilih work center" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -242,7 +242,7 @@ export function DetailPanel({
                                             value={step.subkonProcessType || "__none__"}
                                             onValueChange={(val) => onUpdateStep("subkonProcessType", val === "__none__" ? null : val)}
                                         >
-                                            <SelectTrigger className="h-9 text-xs border-2 border-zinc-300 rounded-none hover:border-black transition-colors focus:border-black">
+                                            <SelectTrigger className="h-9 text-xs border border-zinc-300 rounded-md hover:border-border transition-colors focus:border-border">
                                                 <SelectValue placeholder="Pilih tipe..." />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -268,7 +268,7 @@ export function DetailPanel({
                                             const val = parseInt(e.target.value)
                                             onUpdateStep("durationMinutes", isNaN(val) ? null : Math.max(0, val))
                                         }}
-                                        className="h-9 text-sm font-mono font-bold border-2 border-zinc-300 rounded-none placeholder:text-zinc-300 hover:border-black transition-colors focus:border-black"
+                                        className="h-9 text-sm font-mono font-bold border border-zinc-300 rounded-md placeholder:text-zinc-300 hover:border-border transition-colors focus:border-border"
                                         placeholder="0"
                                     />
                                 </div>
@@ -295,7 +295,7 @@ export function DetailPanel({
                                                 }
                                             }}
                                         >
-                                            <SelectTrigger className="h-9 text-xs font-bold border-2 border-zinc-300 rounded-none hover:border-black transition-colors focus:border-black">
+                                            <SelectTrigger className="h-9 text-xs font-bold border border-zinc-300 rounded-md hover:border-border transition-colors focus:border-border">
                                                 <SelectValue placeholder="Pilih karyawan..." />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -312,19 +312,19 @@ export function DetailPanel({
                                         </Select>
                                         {step.operatorName && !employeeOptions.find((e: any) => e.name === step.operatorName) && (
                                             <div className="mt-1.5 px-2 py-1 bg-amber-50 border border-amber-200">
-                                                <p className="text-[10px] text-amber-700 font-bold">
+                                                <p className="text-xs text-amber-700 font-bold">
                                                     Manual: {step.operatorName}
                                                 </p>
                                             </div>
                                         )}
                                         {/* Inline salary indicator — value sourced from HCM */}
                                         {Number(step.laborMonthlySalary || 0) > 0 ? (
-                                            <p className="mt-1 text-[9px] font-bold text-zinc-400" title="Atur gaji di modul HCM → Master Karyawan">
+                                            <p className="mt-1 text-xs font-bold text-zinc-400" title="Atur gaji di modul HCM → Master Karyawan">
                                                 Gaji: {formatCurrency(Number(step.laborMonthlySalary))} /bln
                                                 {laborCostPerPcs > 0 && <span className="ml-1 text-emerald-600">({formatCurrency(laborCostPerPcs)}/pcs)</span>}
                                             </p>
                                         ) : (
-                                            <p className="mt-1 text-[9px] text-zinc-300 font-bold" title="Atur gaji di modul HCM → Master Karyawan">
+                                            <p className="mt-1 text-xs text-zinc-300 font-bold" title="Atur gaji di modul HCM → Master Karyawan">
                                                 Gaji dari HCM
                                             </p>
                                         )}
@@ -337,7 +337,7 @@ export function DetailPanel({
                                     <Textarea
                                         value={step.notes || ""}
                                         onChange={(e) => onUpdateStep("notes", e.target.value)}
-                                        className="text-xs border-2 border-zinc-300 rounded-none min-h-[36px] h-9 placeholder:text-zinc-300 hover:border-black transition-colors focus:border-black"
+                                        className="text-xs border border-zinc-300 rounded-md min-h-[36px] h-9 placeholder:text-zinc-300 hover:border-border transition-colors focus:border-border"
                                         placeholder="Tulis catatan..."
                                     />
                                 </div>
@@ -381,7 +381,7 @@ export function DetailPanel({
                                     {(step.allocations || []).length === 0 && (
                                         <button
                                             onClick={() => setShowInhouseAlloc(false)}
-                                            className="mt-2 text-[10px] font-bold text-zinc-400 hover:text-red-500 transition-colors"
+                                            className="mt-2 text-xs font-bold text-zinc-400 hover:text-red-500 transition-colors"
                                         >
                                             Batalkan distribusi
                                         </button>
@@ -390,7 +390,7 @@ export function DetailPanel({
                             ) : (
                                 <button
                                     onClick={() => setShowInhouseAlloc(true)}
-                                    className="flex items-center justify-center gap-2 py-3 border-2 border-dashed border-zinc-300 text-[11px] font-black uppercase tracking-wider text-indigo-600 hover:border-indigo-400 hover:bg-indigo-50 transition-all"
+                                    className="flex items-center justify-center gap-2 py-3 border border-dashed border-zinc-300 text-xs font-semibold text-indigo-600 hover:border-indigo-400 hover:bg-indigo-50 transition-all"
                                 >
                                     <GitBranch className="h-3.5 w-3.5" /> Distribusi ke multi work center
                                 </button>
@@ -410,17 +410,17 @@ export function DetailPanel({
                                         <div key={att.id} className="flex items-center gap-2 text-xs group px-2 py-1.5 bg-zinc-50 border border-zinc-200 hover:border-zinc-400 transition-colors">
                                             <Paperclip className="h-3 w-3 text-blue-400 shrink-0" />
                                             <a href={att.fileUrl} target="_blank" rel="noreferrer" className="font-bold truncate flex-1 hover:text-blue-600 transition-colors">{att.fileName}</a>
-                                            <span className="text-[9px] text-zinc-400 font-mono">{(att.fileSize / 1024).toFixed(0)}KB</span>
+                                            <span className="text-xs text-zinc-400 font-mono">{(att.fileSize / 1024).toFixed(0)}KB</span>
                                             <button onClick={() => onDeleteAttachment(att.id)} className="opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <X className="h-3 w-3 text-zinc-400 hover:text-red-500" />
                                             </button>
                                         </div>
                                     ))}
                                     {(step.attachments || []).length === 0 && (
-                                        <p className="text-[11px] text-zinc-300 font-bold text-center py-2">Belum ada lampiran</p>
+                                        <p className="text-xs text-zinc-300 font-bold text-center py-2">Belum ada lampiran</p>
                                     )}
                                 </div>
-                                <Button onClick={onUploadAttachment} variant="outline" size="sm" className="h-8 text-[10px] font-black uppercase tracking-wider rounded-none border-2 border-dashed border-zinc-300 hover:border-black w-full mt-2.5 transition-colors">
+                                <Button onClick={onUploadAttachment} variant="outline" size="sm" className="h-8 text-xs font-semibold rounded-md border border-dashed border-zinc-300 hover:border-border w-full mt-2.5 transition-colors">
                                     <Upload className="mr-1.5 h-3 w-3" /> Upload File
                                 </Button>
                             </SectionCard>
@@ -445,10 +445,10 @@ export function DetailPanel({
                                         max={totalQty}
                                         value={completedQty || ""}
                                         onChange={(e) => onUpdateStep("completedQty", e.target.value ? parseInt(e.target.value) : 0)}
-                                        className="h-9 text-sm font-mono font-bold border-2 border-zinc-300 rounded-none flex-1 placeholder:text-zinc-300 hover:border-black transition-colors focus:border-black"
+                                        className="h-9 text-sm font-mono font-bold border border-zinc-300 rounded-md flex-1 placeholder:text-zinc-300 hover:border-border transition-colors focus:border-border"
                                         placeholder="0"
                                     />
-                                    <span className="text-[11px] font-black text-zinc-400 whitespace-nowrap">/ {totalQty} pcs</span>
+                                    <span className="text-xs font-semibold text-zinc-400 whitespace-nowrap">/ {totalQty} pcs</span>
                                 </div>
                                 {totalQty > 0 && (
                                     <div>
@@ -460,7 +460,7 @@ export function DetailPanel({
                                                 style={{ width: `${progressPct}%` }}
                                             />
                                         </div>
-                                        <p className="text-[10px] font-black text-zinc-500 mt-1 text-right">
+                                        <p className="text-xs font-semibold text-zinc-500 mt-1 text-right">
                                             {progressPct.toFixed(0)}% selesai
                                         </p>
                                     </div>
@@ -482,12 +482,12 @@ export function DetailPanel({
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-xs">
                                         <thead>
-                                            <tr className="border-b-2 border-zinc-200">
-                                                <th className="text-left text-[9px] font-black uppercase tracking-wider text-zinc-500 pb-2 pr-3">Material</th>
-                                                <th className="text-right text-[9px] font-black uppercase tracking-wider text-zinc-500 pb-2 px-2">Qty/Unit</th>
-                                                <th className="text-right text-[9px] font-black uppercase tracking-wider text-zinc-500 pb-2 px-2">Harga</th>
-                                                <th className="text-right text-[9px] font-black uppercase tracking-wider text-zinc-500 pb-2 px-2">&times; {totalQty}</th>
-                                                <th className="text-right text-[9px] font-black uppercase tracking-wider text-zinc-500 pb-2 pl-2">Subtotal</th>
+                                            <tr className="border-b border-zinc-200">
+                                                <th className="text-left text-xs font-semibold text-zinc-500 pb-2 pr-3">Material</th>
+                                                <th className="text-right text-xs font-semibold text-zinc-500 pb-2 px-2">Qty/Unit</th>
+                                                <th className="text-right text-xs font-semibold text-zinc-500 pb-2 px-2">Harga</th>
+                                                <th className="text-right text-xs font-semibold text-zinc-500 pb-2 px-2">&times; {totalQty}</th>
+                                                <th className="text-right text-xs font-semibold text-zinc-500 pb-2 pl-2">Subtotal</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -503,28 +503,28 @@ export function DetailPanel({
                                                         </td>
                                                         <td className="py-2 px-2 text-right font-mono text-zinc-600">{formatCurrency(Number(item.material?.costPrice || 0))}</td>
                                                         <td className="py-2 px-2 text-right font-mono text-zinc-600">{(Number(item.quantityPerUnit || 0) * totalQty).toLocaleString("id-ID")}</td>
-                                                        <td className="py-2 pl-2 text-right font-black">{formatCurrency(subtotal)}</td>
+                                                        <td className="py-2 pl-2 text-right font-semibold">{formatCurrency(subtotal)}</td>
                                                     </tr>
                                                 )
                                             })}
                                         </tbody>
                                         <tfoot>
-                                            <tr className="border-t-2 border-zinc-200">
-                                                <td colSpan={4} className="py-2 text-right text-[10px] font-black uppercase tracking-wider text-zinc-500 pr-2">Total Material</td>
-                                                <td className="py-2 text-right font-black text-sm">{formatCurrency(stepMaterialTotal)}</td>
+                                            <tr className="border-t border-zinc-200">
+                                                <td colSpan={4} className="py-2 text-right text-xs font-semibold text-zinc-500 pr-2">Total Material</td>
+                                                <td className="py-2 text-right font-semibold text-sm">{formatCurrency(stepMaterialTotal)}</td>
                                             </tr>
                                             {stepLaborTotal > 0 && (
                                                 <tr>
-                                                    <td colSpan={4} className="py-1.5 text-right text-[10px] font-black uppercase tracking-wider text-zinc-500 pr-2">
+                                                    <td colSpan={4} className="py-1.5 text-right text-xs font-semibold text-zinc-500 pr-2">
                                                         Labor/Proses
                                                         {laborCostPerPcs > 0 && <span className="text-zinc-300 ml-1 normal-case tracking-normal">({formatCurrency(laborCostPerPcs)}/pcs)</span>}
                                                     </td>
-                                                    <td className="py-1.5 text-right font-black text-sm">{formatCurrency(stepLaborTotal)}</td>
+                                                    <td className="py-1.5 text-right font-semibold text-sm">{formatCurrency(stepLaborTotal)}</td>
                                                 </tr>
                                             )}
-                                            <tr className="border-t-2 border-black bg-zinc-50">
-                                                <td colSpan={4} className="py-2 text-right text-[11px] font-black uppercase tracking-wider pr-2">Total Proses</td>
-                                                <td className="py-2 text-right font-black text-sm text-emerald-700">{formatCurrency(stepMaterialTotal + stepLaborTotal)}</td>
+                                            <tr className="border-t border-border bg-zinc-50">
+                                                <td colSpan={4} className="py-2 text-right text-xs font-semibold pr-2">Total Proses</td>
+                                                <td className="py-2 text-right font-semibold text-sm text-emerald-700">{formatCurrency(stepMaterialTotal + stepLaborTotal)}</td>
                                             </tr>
                                         </tfoot>
                                     </table>
@@ -554,26 +554,26 @@ export function DetailPanel({
                                         const val = parseFloat(e.target.value)
                                         onUpdateStep("estimatedTimePerUnit", isNaN(val) ? null : Math.max(0, val))
                                     }}
-                                    className="h-9 text-sm font-mono font-bold border-2 border-zinc-300 rounded-none placeholder:text-zinc-300 hover:border-black transition-colors focus:border-black"
+                                    className="h-9 text-sm font-mono font-bold border border-zinc-300 rounded-md placeholder:text-zinc-300 hover:border-border transition-colors focus:border-border"
                                     placeholder="2.5"
                                 />
                                 {Number(step.estimatedTimePerUnit || 0) > 0 && durationMin > 0 && (
-                                    <div className="mt-2.5 space-y-1.5 bg-cyan-50 border-2 border-cyan-200 p-2.5">
-                                        <div className="flex justify-between text-[10px]">
+                                    <div className="mt-2.5 space-y-1.5 bg-cyan-50 border border-cyan-200 p-2.5">
+                                        <div className="flex justify-between text-xs">
                                             <span className="text-zinc-500 font-bold">PCC (Durasi /pcs)</span>
-                                            <span className="font-mono font-black">{durationMin} menit</span>
+                                            <span className="font-mono font-semibold">{durationMin} menit</span>
                                         </div>
-                                        <div className="flex justify-between text-[10px]">
+                                        <div className="flex justify-between text-xs">
                                             <span className="text-zinc-500 font-bold">Time Study</span>
-                                            <span className="font-mono font-black">{Number(step.estimatedTimePerUnit)} menit</span>
+                                            <span className="font-mono font-semibold">{Number(step.estimatedTimePerUnit)} menit</span>
                                         </div>
-                                        <div className="flex justify-between text-[10px] border-t-2 border-cyan-200 pt-1.5 mt-1.5">
-                                            <span className="text-zinc-600 font-black">Selisih</span>
+                                        <div className="flex justify-between text-xs border-t border-cyan-200 pt-1.5 mt-1.5">
+                                            <span className="text-zinc-600 font-semibold">Selisih</span>
                                             {(() => {
                                                 const diff = Number(step.estimatedTimePerUnit) - durationMin
                                                 const pct = ((diff / durationMin) * 100).toFixed(1)
                                                 return (
-                                                    <span className={`font-black ${diff < 0 ? "text-emerald-700" : diff > 0 ? "text-red-600" : "text-zinc-500"}`}>
+                                                    <span className={`font-semibold ${diff < 0 ? "text-emerald-700" : diff > 0 ? "text-red-600" : "text-zinc-500"}`}>
                                                         {diff > 0 ? "+" : ""}{diff.toFixed(2)} menit ({diff > 0 ? "+" : ""}{pct}%)
                                                     </span>
                                                 )
@@ -593,16 +593,16 @@ export function DetailPanel({
                                         const val = parseFloat(e.target.value)
                                         onUpdateStep("actualTimeTotal", isNaN(val) ? null : Math.max(0, val))
                                     }}
-                                    className="h-9 text-sm font-mono font-bold border-2 border-zinc-300 rounded-none placeholder:text-zinc-300 hover:border-black transition-colors focus:border-black"
+                                    className="h-9 text-sm font-mono font-bold border border-zinc-300 rounded-md placeholder:text-zinc-300 hover:border-border transition-colors focus:border-border"
                                     placeholder="450"
                                 />
                                 {Number(step.actualTimeTotal || 0) > 0 && completedQty > 0 && (
-                                    <div className="mt-2.5 bg-cyan-50 border-2 border-cyan-200 p-2.5">
-                                        <div className="flex justify-between text-[10px]">
+                                    <div className="mt-2.5 bg-cyan-50 border border-cyan-200 p-2.5">
+                                        <div className="flex justify-between text-xs">
                                             <span className="text-zinc-500 font-bold">Rata-rata</span>
-                                            <span className="font-mono font-black">{(Number(step.actualTimeTotal) / completedQty).toFixed(2)} menit/pcs</span>
+                                            <span className="font-mono font-semibold">{(Number(step.actualTimeTotal) / completedQty).toFixed(2)} menit/pcs</span>
                                         </div>
-                                        <p className="text-[10px] text-zinc-400 mt-1 font-bold">
+                                        <p className="text-xs text-zinc-400 mt-1 font-bold">
                                             Berdasarkan {completedQty} pcs selesai
                                         </p>
                                     </div>

@@ -23,7 +23,7 @@ export default function ARPaymentsPage() {
     })
 
     if (!data) {
-        return <TablePageSkeleton accentColor="bg-orange-400" />
+        return <TablePageSkeleton accentColor="bg-blue-400" />
     }
 
     const registry = data.registry ?? {} as Record<string, unknown>

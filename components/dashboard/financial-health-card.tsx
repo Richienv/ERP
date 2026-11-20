@@ -46,46 +46,46 @@ export function FinancialHealthCard({
     const hasChartData = cashFlowData && cashFlowData.length > 0
 
     return (
-        <div className="h-full flex flex-col bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+        <div className="h-full flex flex-col bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
             {/* Header */}
-            <div className="flex-none flex items-center justify-between px-4 py-2.5 border-b-2 border-black">
-                <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+            <div className="flex-none flex items-center justify-between px-4 py-2.5 border-b border-border">
+                <h3 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
                     Revenue Stream
                 </h3>
-                <Link href="/finance" className="text-[10px] font-black uppercase tracking-wider text-zinc-400 hover:text-black dark:hover:text-white transition-colors flex items-center gap-1">
+                <Link href="/finance" className="text-xs font-semibold text-zinc-400 hover:text-black dark:hover:text-white transition-colors flex items-center gap-1">
                     Detail <ArrowRight className="h-3 w-3" />
                 </Link>
             </div>
 
             {/* Metric Tiles — Revenue MTD, Unpaid AR, Net Cash In */}
-            <div className="flex-none grid grid-cols-3 border-b-2 border-black">
+            <div className="flex-none grid grid-cols-3 border-b border-border">
                 <Link href="/sales" className="p-3 border-r border-dashed border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
                     <div className="flex items-center gap-1 mb-1">
                         <Receipt className="h-3 w-3 text-blue-500" />
-                        <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Revenue MTD</span>
+                        <span className="text-xs font-semibold text-zinc-400">Revenue MTD</span>
                     </div>
-                    <p className="text-lg font-black tracking-tighter text-zinc-900 dark:text-white">
+                    <p className="text-lg font-semibold tracking-tighter text-zinc-900 dark:text-white">
                         {revenueMTD > 0 ? formatCompact(revenueMTD) : <span className="text-zinc-300 text-sm">Rp 0</span>}
                     </p>
                 </Link>
                 <Link href="/finance/invoices" className="p-3 border-r border-dashed border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
                     <div className="flex items-center gap-1 mb-1">
-                        <AlertCircle className="h-3 w-3 text-orange-500" />
-                        <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Unpaid AR</span>
+                        <AlertCircle className="h-3 w-3 text-blue-500" />
+                        <span className="text-xs font-semibold text-zinc-400">Unpaid AR</span>
                     </div>
-                    <p className={`text-lg font-black tracking-tighter ${accountsReceivable > 0 ? "text-orange-600" : "text-zinc-900 dark:text-white"}`}>
+                    <p className={`text-lg font-semibold tracking-tighter ${accountsReceivable > 0 ? "text-blue-600" : "text-zinc-900 dark:text-white"}`}>
                         {accountsReceivable > 0 ? formatCompact(accountsReceivable) : <span className="text-zinc-300 text-sm">Rp 0</span>}
                     </p>
                     {overdueInvoices.length > 0 && (
-                        <span className="text-[9px] font-bold text-red-600">{overdueInvoices.length} overdue</span>
+                        <span className="text-xs font-bold text-red-600">{overdueInvoices.length} overdue</span>
                     )}
                 </Link>
                 <Link href="/finance" className="p-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
                     <div className="flex items-center gap-1 mb-1">
                         <Wallet className="h-3 w-3 text-emerald-500" />
-                        <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Net Cash In</span>
+                        <span className="text-xs font-semibold text-zinc-400">Net Cash In</span>
                     </div>
-                    <p className={`text-lg font-black tracking-tighter ${netCashIn > 0 ? "text-emerald-600" : "text-zinc-900 dark:text-white"}`}>
+                    <p className={`text-lg font-semibold tracking-tighter ${netCashIn > 0 ? "text-emerald-600" : "text-zinc-900 dark:text-white"}`}>
                         {netCashIn > 0 ? formatCompact(netCashIn) : <span className="text-zinc-300 text-sm">Rp 0</span>}
                     </p>
                 </Link>
@@ -115,9 +115,9 @@ export function FinancialHealthCard({
                                 content={({ active, payload }) => {
                                     if (active && payload && payload.length) {
                                         return (
-                                            <div className="bg-black text-white px-2 py-1 text-[10px] font-bold border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                                            <div className="bg-slate-900 text-white px-2 py-1 text-xs font-bold border border-border shadow-sm">
                                                 <p className="font-mono">{payload[0].payload.date}</p>
-                                                <p className="font-black">{formatCompact(Number(payload[0].value) * 1_000_000)}</p>
+                                                <p className="font-semibold">{formatCompact(Number(payload[0].value) * 1_000_000)}</p>
                                             </div>
                                         )
                                     }
@@ -128,7 +128,7 @@ export function FinancialHealthCard({
                     </ResponsiveContainer>
                 ) : (
                     <div className="h-full flex items-center justify-center border border-dashed border-zinc-200 dark:border-zinc-700 rounded">
-                        <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">Arus kas 7 hari</p>
+                        <p className="text-xs font-bold text-zinc-400">Arus kas 7 hari</p>
                     </div>
                 )}
             </div>
@@ -136,17 +136,17 @@ export function FinancialHealthCard({
             {/* Transaction Log */}
             <div className="flex-1 min-h-0 flex flex-col border-t border-dashed border-zinc-200 dark:border-zinc-700">
                 <div className="flex-none flex items-center justify-between px-3 py-1.5">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                    <span className="text-xs font-semibold text-zinc-400">
                         Transaksi Terbaru
                     </span>
-                    <Link href="/finance/invoices" className="text-[9px] font-bold text-zinc-400 hover:text-black dark:hover:text-white transition-colors">
+                    <Link href="/finance/invoices" className="text-xs font-bold text-zinc-400 hover:text-black dark:hover:text-white transition-colors">
                         Lihat Semua
                     </Link>
                 </div>
                 <div className="flex-1 overflow-y-auto">
                     {recentInvoices.length === 0 ? (
                         <div className="flex items-center justify-center h-full px-3">
-                            <p className="text-[10px] text-zinc-400">Belum ada transaksi invoice.</p>
+                            <p className="text-xs text-zinc-400">Belum ada transaksi invoice.</p>
                         </div>
                     ) : (
                         <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -154,7 +154,7 @@ export function FinancialHealthCard({
                                 <div key={inv.id} className="flex items-center justify-between px-3 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
                                     <div className="flex items-center gap-2.5 min-w-0">
                                         <div className={`
-                                            h-7 w-7 rounded-md border border-black flex items-center justify-center text-[9px] font-black flex-shrink-0
+                                            h-7 w-7 rounded-md border border-border flex items-center justify-center text-xs font-semibold flex-shrink-0
                                             ${inv.status === 'PAID' ? "bg-emerald-100 text-emerald-700" :
                                                 inv.status === 'OVERDUE' ? "bg-red-100 text-red-700" :
                                                     "bg-zinc-100 text-zinc-600"
@@ -163,13 +163,13 @@ export function FinancialHealthCard({
                                             {inv.status === 'PAID' ? 'PD' : inv.status === 'OVERDUE' ? 'OD' : 'OP'}
                                         </div>
                                         <div className="min-w-0">
-                                            <p className="text-[11px] font-bold truncate">{inv.customer}</p>
-                                            <p className="text-[9px] font-mono text-zinc-400 truncate">{inv.number} • {inv.date}</p>
+                                            <p className="text-xs font-bold truncate">{inv.customer}</p>
+                                            <p className="text-xs font-mono text-zinc-400 truncate">{inv.number} • {inv.date}</p>
                                         </div>
                                     </div>
                                     <div className="text-right flex-shrink-0 ml-2">
-                                        <p className="text-[11px] font-black">{formatCompact(inv.total)}</p>
-                                        <p className={`text-[9px] font-bold uppercase ${inv.status === 'PAID' ? "text-emerald-600" :
+                                        <p className="text-xs font-semibold">{formatCompact(inv.total)}</p>
+                                        <p className={`text-xs font-bold  ${inv.status === 'PAID' ? "text-emerald-600" :
                                                 inv.status === 'OVERDUE' ? "text-red-600" :
                                                     "text-amber-600"
                                             }`}>

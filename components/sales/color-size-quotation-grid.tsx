@@ -126,16 +126,16 @@ export function ColorSizeQuotationGrid({
     const formatIDR = (n: number) => n.toLocaleString('id-ID')
 
     return (
-        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <div className="bg-white border border-border shadow-sm">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b-2 border-black bg-zinc-50">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-zinc-50">
                 <div className="flex items-center gap-2">
                     <Grid3X3 className="h-4 w-4 text-zinc-500" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                    <span className="text-xs font-semibold text-zinc-500">
                         Grid Warna × Ukuran
                     </span>
                 </div>
-                <div className="flex items-center gap-3 text-[10px] font-bold text-zinc-400">
+                <div className="flex items-center gap-3 text-xs font-bold text-zinc-400">
                     <span>{grandTotal} pcs</span>
                     <span>Rp {formatIDR(grandValue)}</span>
                 </div>
@@ -145,13 +145,13 @@ export function ColorSizeQuotationGrid({
             {!readOnly && (
                 <div className="px-4 py-2 border-b border-zinc-200 flex items-center gap-2 flex-wrap">
                     <Input
-                        className="border-2 border-black font-mono font-bold h-7 rounded-none w-20 text-xs"
+                        className="border border-border font-mono font-bold h-7 rounded-md w-20 text-xs"
                         placeholder="Kode"
                         value={newColor}
                         onChange={(e) => setNewColor(e.target.value)}
                     />
                     <Input
-                        className="border-2 border-black font-bold h-7 rounded-none w-28 text-xs"
+                        className="border border-border font-bold h-7 rounded-md w-28 text-xs"
                         placeholder="Nama warna"
                         value={newColorName}
                         onChange={(e) => setNewColorName(e.target.value)}
@@ -159,14 +159,14 @@ export function ColorSizeQuotationGrid({
                     <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 px-2 text-[9px] font-black uppercase border-2 border-black rounded-none"
+                        className="h-7 px-2 text-xs font-semibold border border-border rounded-md"
                         onClick={addColor}
                     >
                         <Plus className="h-3 w-3 mr-1" /> Warna
                     </Button>
                     <div className="w-px h-5 bg-zinc-300 mx-1" />
                     <Input
-                        className="border-2 border-black font-mono font-bold h-7 rounded-none w-16 text-xs"
+                        className="border border-border font-mono font-bold h-7 rounded-md w-16 text-xs"
                         placeholder="Size"
                         value={newSize}
                         onChange={(e) => setNewSize(e.target.value)}
@@ -174,7 +174,7 @@ export function ColorSizeQuotationGrid({
                     <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 px-2 text-[9px] font-black uppercase border-2 border-black rounded-none"
+                        className="h-7 px-2 text-xs font-semibold border border-border rounded-md"
                         onClick={addSize}
                     >
                         <Plus className="h-3 w-3 mr-1" /> Ukuran
@@ -186,7 +186,7 @@ export function ColorSizeQuotationGrid({
             {colors.length === 0 || sizes.length === 0 ? (
                 <div className="p-8 text-center">
                     <Grid3X3 className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                    <span className="text-xs font-semibold text-zinc-400">
                         Tambahkan warna dan ukuran untuk mulai
                     </span>
                 </div>
@@ -194,12 +194,12 @@ export function ColorSizeQuotationGrid({
                 <div className="overflow-x-auto">
                     <table className="w-full text-xs">
                         <thead>
-                            <tr className="bg-zinc-100 border-b-2 border-black">
-                                <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left border-r-2 border-black min-w-[120px]">
+                            <tr className="bg-zinc-100 border-b border-border">
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left border-r border-border min-w-[120px]">
                                     Warna
                                 </th>
                                 {sizes.map((s) => (
-                                    <th key={s} className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-2 py-2 text-center min-w-[70px]">
+                                    <th key={s} className="text-xs font-semibold text-zinc-500 px-2 py-2 text-center min-w-[70px]">
                                         <div className="flex items-center justify-center gap-1">
                                             {s}
                                             {!readOnly && (
@@ -210,7 +210,7 @@ export function ColorSizeQuotationGrid({
                                         </div>
                                     </th>
                                 ))}
-                                <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-center border-l-2 border-black">
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-center border-l border-border">
                                     Total
                                 </th>
                             </tr>
@@ -218,7 +218,7 @@ export function ColorSizeQuotationGrid({
                         <tbody>
                             {colors.map((c) => (
                                 <tr key={c.code} className="border-b border-zinc-100">
-                                    <td className="px-3 py-1.5 border-r-2 border-black">
+                                    <td className="px-3 py-1.5 border-r border-border">
                                         <div className="flex items-center gap-1">
                                             {!readOnly && (
                                                 <button onClick={() => removeColor(c.code)} className="text-red-400 hover:text-red-600 shrink-0">
@@ -226,7 +226,7 @@ export function ColorSizeQuotationGrid({
                                                 </button>
                                             )}
                                             <span className="font-bold text-xs">{c.name}</span>
-                                            <span className="text-[9px] text-zinc-400 font-mono">({c.code})</span>
+                                            <span className="text-xs text-zinc-400 font-mono">({c.code})</span>
                                         </div>
                                     </td>
                                     {sizes.map((s) => {
@@ -237,7 +237,7 @@ export function ColorSizeQuotationGrid({
                                                     <span className="font-mono font-bold">{cell?.qty ?? 0}</span>
                                                 ) : (
                                                     <Input
-                                                        className="border border-zinc-300 font-mono font-bold h-7 rounded-none text-center text-xs w-full"
+                                                        className="border border-zinc-300 font-mono font-bold h-7 rounded-md text-center text-xs w-full"
                                                         type="number"
                                                         min={0}
                                                         value={cell?.qty ?? 0}
@@ -247,23 +247,23 @@ export function ColorSizeQuotationGrid({
                                             </td>
                                         )
                                     })}
-                                    <td className="px-3 py-1.5 text-center border-l-2 border-black font-black">
+                                    <td className="px-3 py-1.5 text-center border-l border-border font-semibold">
                                         {totalByColor.get(c.code) ?? 0}
                                     </td>
                                 </tr>
                             ))}
 
                             {/* Totals row */}
-                            <tr className="bg-zinc-100 border-t-2 border-black">
-                                <td className="px-3 py-2 border-r-2 border-black">
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Total</span>
+                            <tr className="bg-zinc-100 border-t border-border">
+                                <td className="px-3 py-2 border-r border-border">
+                                    <span className="text-xs font-semibold text-zinc-500">Total</span>
                                 </td>
                                 {sizes.map((s) => (
-                                    <td key={s} className="px-2 py-2 text-center font-black">
+                                    <td key={s} className="px-2 py-2 text-center font-semibold">
                                         {totalBySize.get(s) ?? 0}
                                     </td>
                                 ))}
-                                <td className="px-3 py-2 text-center border-l-2 border-black font-black text-sm">
+                                <td className="px-3 py-2 text-center border-l border-border font-semibold text-sm">
                                     {grandTotal}
                                 </td>
                             </tr>

@@ -266,7 +266,7 @@ export function TimelineView({
 
     if (steps.length === 0) {
         return (
-            <div className="flex-1 flex items-center justify-center text-zinc-400 text-xs font-bold uppercase tracking-widest">
+            <div className="flex-1 flex items-center justify-center text-zinc-400 text-xs font-bold  ">
                 Belum ada proses — tambahkan dari toolbar di atas
             </div>
         )
@@ -278,22 +278,22 @@ export function TimelineView({
             <div className="border-b border-zinc-200 bg-zinc-50 px-4 py-2 flex items-center gap-5 shrink-0">
                 <div className="flex items-center gap-1.5">
                     <Clock className="h-3.5 w-3.5 text-indigo-500" />
-                    <span className="text-[9px] font-black uppercase text-zinc-400">Total Waktu:</span>
-                    <span className="text-xs font-black text-indigo-700">{fmtDuration(totalMinutes)}</span>
+                    <span className="text-xs font-semibold text-zinc-400">Total Waktu:</span>
+                    <span className="text-xs font-semibold text-indigo-700">{fmtDuration(totalMinutes)}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                     <Clock className="h-3.5 w-3.5 text-violet-400" />
-                    <span className="text-[9px] font-black uppercase text-zinc-400">Waktu/pcs:</span>
-                    <span className="text-xs font-black text-violet-600">{fmtDuration(totalPerPcsMinutes)}</span>
+                    <span className="text-xs font-semibold text-zinc-400">Waktu/pcs:</span>
+                    <span className="text-xs font-semibold text-violet-600">{fmtDuration(totalPerPcsMinutes)}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                     <Building2 className="h-3.5 w-3.5 text-blue-500" />
-                    <span className="text-[9px] font-black uppercase text-zinc-400">Work Center:</span>
-                    <span className="text-xs font-black text-blue-700">{totalRows}</span>
+                    <span className="text-xs font-semibold text-zinc-400">Work Center:</span>
+                    <span className="text-xs font-semibold text-blue-700">{totalRows}</span>
                 </div>
                 <div className="flex items-center gap-1.5 ml-auto">
                     <ArrowLeftRight className="h-3.5 w-3.5 text-zinc-400" />
-                    <span className="text-[9px] font-bold text-zinc-400">Drag blok untuk atur waktu</span>
+                    <span className="text-xs font-bold text-zinc-400">Drag blok untuk atur waktu</span>
                 </div>
             </div>
 
@@ -304,7 +304,7 @@ export function TimelineView({
                     {/* ── Left sidebar ── */}
                     <div className="absolute left-0 top-0 bg-white border-r border-zinc-200 z-20" style={{ width: LABEL_WIDTH, height: chartHeight }}>
                         <div className="border-b border-zinc-200 flex items-end px-3 pb-1" style={{ height: HEADER_HEIGHT }}>
-                            <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400">Work Center</span>
+                            <span className="text-xs font-semibold text-zinc-400">Work Center</span>
                         </div>
                         {Array.from({ length: displayRows }, (_, i) => (
                             <div
@@ -312,7 +312,7 @@ export function TimelineView({
                                 className="flex items-center px-3 border-b border-zinc-100"
                                 style={{ height: ROW_HEIGHT + ROW_GAP }}
                             >
-                                <span className="text-[10px] font-bold truncate text-zinc-400">
+                                <span className="text-xs font-bold truncate text-zinc-400">
                                     {rowLabels[i] || `Work Center ${i + 1}`}
                                 </span>
                             </div>
@@ -326,7 +326,7 @@ export function TimelineView({
                         <div className="border-b border-zinc-200 relative bg-zinc-50/80" style={{ height: HEADER_HEIGHT }}>
                             {ticks.map((t) => (
                                 <div key={t.minute} className="absolute bottom-0 flex flex-col items-center" style={{ left: t.minute * PIXELS_PER_MINUTE }}>
-                                    <span className="text-[8px] font-mono font-bold text-zinc-400 mb-0.5 whitespace-nowrap">{t.label}</span>
+                                    <span className="text-xs font-mono font-bold text-zinc-400 mb-0.5 whitespace-nowrap">{t.label}</span>
                                     <div className="w-px h-1.5 bg-zinc-300" />
                                 </div>
                             ))}
@@ -372,7 +372,7 @@ export function TimelineView({
                                         onPointerDown={(e) => onPointerDown(e, bar.step.id)}
                                         className={`absolute rounded-md cursor-grab active:cursor-grabbing transition-shadow ${
                                             isDragging ? "opacity-20" :
-                                            isSelected ? "ring-2 ring-offset-1 ring-orange-400 shadow-md z-20" :
+                                            isSelected ? "ring-2 ring-offset-1 ring-blue-400 shadow-md z-20" :
                                             "shadow-sm hover:shadow-md z-10"
                                         }`}
                                         style={{
@@ -394,10 +394,10 @@ export function TimelineView({
                                             <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: isCritical ? c.text : "#a1a1aa" }} />
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex items-center gap-1">
-                                                {isCritical && <span className="text-amber-500 text-[9px] leading-none shrink-0">⚡</span>}
-                                                <p className="text-[11px] font-bold truncate" style={{ color: isCritical ? c.text : "#a1a1aa" }}>{bar.step.station?.name || "—"}</p>
+                                                {isCritical && <span className="text-amber-500 text-xs leading-none shrink-0">⚡</span>}
+                                                <p className="text-xs font-bold truncate" style={{ color: isCritical ? c.text : "#a1a1aa" }}>{bar.step.station?.name || "—"}</p>
                                                 </div>
-                                                <p className="text-[9px] font-mono opacity-60" style={{ color: c.text }}>
+                                                <p className="text-xs font-mono opacity-60" style={{ color: c.text }}>
                                                     {bar.durationPerPcs > 0 && totalQty > 1
                                                         ? `${fmtDuration(bar.durationPerPcs)}/pcs × ${totalQty} = ${fmtDuration(bar.durationMin)}`
                                                         : fmtDuration(bar.durationMin)
@@ -405,7 +405,7 @@ export function TimelineView({
                                                 </p>
                                             </div>
                                             {progress > 0 && (
-                                                <span className="text-[8px] font-black shrink-0" style={{ color: c.text }}>{Math.round(progress)}%</span>
+                                                <span className="text-xs font-semibold shrink-0" style={{ color: c.text }}>{Math.round(progress)}%</span>
                                             )}
                                             {bar.step.station?.operationType === "SUBCONTRACTOR" && (
                                                 <span className="text-[7px] font-bold bg-amber-100 text-amber-700 px-1 py-0.5 rounded shrink-0">SUB</span>
@@ -430,8 +430,8 @@ export function TimelineView({
                                             <div className="relative h-full flex items-center gap-2 pl-2.5 pr-4 overflow-hidden">
                                                 <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: c.text }} />
                                                 <div className="min-w-0 flex-1">
-                                                    <p className="text-[11px] font-bold truncate" style={{ color: c.text }}>{bar.step.station?.name || "—"}</p>
-                                                    <p className="text-[9px] font-mono" style={{ color: c.text }}>
+                                                    <p className="text-xs font-bold truncate" style={{ color: c.text }}>{bar.step.station?.name || "—"}</p>
+                                                    <p className="text-xs font-mono" style={{ color: c.text }}>
                                                         {fmtDuration(ghostStartMin)} — {fmtDuration(ghostStartMin + bar.durationMin)}
                                                     </p>
                                                 </div>

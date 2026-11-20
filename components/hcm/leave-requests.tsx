@@ -56,7 +56,7 @@ export function LeaveRequestWidget({ requests = [], pendingCount = 0, onChanged 
             <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                     <CardTitle className="text-base font-semibold">Permintaan Cuti & Izin</CardTitle>
-                    <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
+                    <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
                         {pendingCount} Pending
                     </span>
                 </div>

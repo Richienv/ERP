@@ -23,10 +23,10 @@ export function SchedulePageClient({ workOrders, machines, routings }: ScheduleP
 
             {/* Schedule dialog for selected WO */}
             {selected && (
-                <div className="flex items-center gap-3 border-2 border-black p-3 bg-zinc-50">
+                <div className="flex items-center gap-3 border border-border p-3 bg-zinc-50">
                     <div className="flex-1 min-w-0">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Dipilih</span>
-                        <div className="text-sm font-black font-mono">{selected.number}</div>
+                        <span className="text-xs font-semibold text-zinc-400">Dipilih</span>
+                        <div className="text-sm font-semibold font-mono">{selected.number}</div>
                         <div className="text-xs text-zinc-500">{selected.productName}</div>
                     </div>
                     <ScheduleWorkOrderDialog

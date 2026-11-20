@@ -2,7 +2,7 @@
 import { z } from "zod"
 
 export const LineItemSchema = z.object({
-    sku: z.string().min(1).max(50).regex(/^[A-Z0-9\-]+$/, "SKU must be uppercase alphanumeric"),
+    sku: z.string().min(1).max(50).regex(/^[A-Z0-9\-]+$/, "SKU must be  alphanumeric"),
     description: z.string().min(1).max(500),
     qty: z.number().int().positive().max(999999),
     unit_price: z.number().positive(),

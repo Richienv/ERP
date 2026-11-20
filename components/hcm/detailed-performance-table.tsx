@@ -26,27 +26,27 @@ export function DetailedPerformanceTable({ employees = [] }: DetailedPerformance
     const sorted = [...employees].sort((a, b) => b.attendanceRate - a.attendanceRate)
 
     return (
-        <div className="mt-4 border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:bg-zinc-900 overflow-hidden">
-            <div className="flex items-center justify-between border-b-2 border-black p-4 bg-zinc-50 dark:bg-zinc-800">
+        <div className="mt-4 border border-border bg-white shadow-sm dark:bg-zinc-900 overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border p-4 bg-zinc-50 dark:bg-zinc-800">
                 <div className="flex items-center gap-2">
-                    <div className="flex h-7 w-7 items-center justify-center border-2 border-black bg-purple-100">
+                    <div className="flex h-7 w-7 items-center justify-center border border-border bg-purple-100">
                         <Award className="h-3.5 w-3.5 text-purple-700" />
                     </div>
                     <div>
-                        <span className="text-sm font-black uppercase tracking-widest">Performance & Kehadiran</span>
-                        <p className="text-[10px] text-zinc-500">Rekap kehadiran dan lembur bulan berjalan</p>
+                        <span className="text-sm font-semibold  ">Performance & Kehadiran</span>
+                        <p className="text-xs text-zinc-500">Rekap kehadiran dan lembur bulan berjalan</p>
                     </div>
                 </div>
             </div>
             <Table>
                 <TableHeader>
-                    <TableRow className="border-b-2 border-black bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-50">
-                        <TableHead className="text-[10px] font-black uppercase tracking-widest">Karyawan</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase tracking-widest">Posisi</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Hadir</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Rate</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Telat</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Lembur</TableHead>
+                    <TableRow className="border-b border-border bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-50">
+                        <TableHead className="text-xs font-semibold  ">Karyawan</TableHead>
+                        <TableHead className="text-xs font-semibold  ">Posisi</TableHead>
+                        <TableHead className="text-xs font-semibold text-right">Hadir</TableHead>
+                        <TableHead className="text-xs font-semibold text-right">Rate</TableHead>
+                        <TableHead className="text-xs font-semibold text-right">Telat</TableHead>
+                        <TableHead className="text-xs font-semibold text-right">Lembur</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -54,7 +54,7 @@ export function DetailedPerformanceTable({ employees = [] }: DetailedPerformance
                         <TableRow>
                             <TableCell colSpan={6} className="py-12 text-center">
                                 <p className="text-sm font-bold text-zinc-400">Belum ada data karyawan</p>
-                                <p className="text-[10px] text-zinc-400">Data akan muncul setelah karyawan ditambahkan</p>
+                                <p className="text-xs text-zinc-400">Data akan muncul setelah karyawan ditambahkan</p>
                             </TableCell>
                         </TableRow>
                     ) : (
@@ -63,7 +63,7 @@ export function DetailedPerformanceTable({ employees = [] }: DetailedPerformance
                                 <TableCell>
                                     <div>
                                         <div className="text-sm font-bold">{emp.name}</div>
-                                        <div className="text-[10px] text-zinc-500">{emp.employeeCode} &middot; {emp.department}</div>
+                                        <div className="text-xs text-zinc-500">{emp.employeeCode} &middot; {emp.department}</div>
                                     </div>
                                 </TableCell>
                                 <TableCell className="text-xs text-zinc-600">{emp.position}</TableCell>
@@ -72,7 +72,7 @@ export function DetailedPerformanceTable({ employees = [] }: DetailedPerformance
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <Badge
-                                        className={`border-2 px-1.5 py-0 text-[10px] font-black ${
+                                        className={`border px-1.5 py-0 text-xs font-semibold ${
                                             emp.attendanceRate >= 95
                                                 ? "border-emerald-600 bg-emerald-50 text-emerald-700"
                                                 : emp.attendanceRate >= 80

@@ -25,7 +25,7 @@ interface ProductManufacturingTabProps {
 
 function SkeletonCard() {
   return (
-    <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+    <Card className="border border-border shadow-sm">
       <CardContent className="p-6">
         <div className="animate-pulse space-y-3">
           <div className="h-4 bg-gray-200 rounded w-1/3" />
@@ -52,7 +52,7 @@ function StatusBadge({ label, color }: { label: string; color: string }) {
 function WOStatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; className: string }> = {
     PLANNED: { label: "Direncanakan", className: "bg-blue-100 text-blue-800" },
-    IN_PROGRESS: { label: "Berjalan", className: "bg-orange-100 text-orange-800" },
+    IN_PROGRESS: { label: "Berjalan", className: "bg-blue-100 text-blue-800" },
     COMPLETED: { label: "Selesai", className: "bg-green-100 text-green-800" },
     CANCELLED: { label: "Dibatalkan", className: "bg-gray-100 text-gray-800" },
     ON_HOLD: { label: "Ditunda", className: "bg-yellow-100 text-yellow-800" },
@@ -82,7 +82,7 @@ export function ProductManufacturingTab({ productId }: ProductManufacturingTabPr
 
   if (isEmpty) {
     return (
-      <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+      <Card className="border border-border shadow-sm">
         <CardContent className="py-16 text-center">
           <IconBuildingFactory2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <p className="text-lg font-medium text-muted-foreground">
@@ -100,7 +100,7 @@ export function ProductManufacturingTab({ productId }: ProductManufacturingTabPr
     <div className="space-y-6">
       {/* Supply Summary KPI Strip */}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
-        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <Card className="border border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-medium">Stok Tersedia</CardTitle>
             <IconPackage className="h-4 w-4 text-muted-foreground" />
@@ -111,7 +111,7 @@ export function ProductManufacturingTab({ productId }: ProductManufacturingTabPr
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <Card className="border border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-medium">Direservasi</CardTitle>
             <IconClipboardList className="h-4 w-4 text-muted-foreground" />
@@ -122,7 +122,7 @@ export function ProductManufacturingTab({ productId }: ProductManufacturingTabPr
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <Card className="border border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-medium">Dalam Pesanan</CardTitle>
             <IconTruckDelivery className="h-4 w-4 text-muted-foreground" />
@@ -133,18 +133,18 @@ export function ProductManufacturingTab({ productId }: ProductManufacturingTabPr
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <Card className="border border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-medium">Kebutuhan Aktif</CardTitle>
             <IconBuildingFactory2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{stockSummary.activeDemand}</div>
+            <div className="text-2xl font-bold text-blue-600">{stockSummary.activeDemand}</div>
             <p className="text-xs text-muted-foreground">{activeWorkOrders.length} work order</p>
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <Card className="border border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-medium">Net Available</CardTitle>
             {stockSummary.netAvailable <= 0 && (
@@ -161,7 +161,7 @@ export function ProductManufacturingTab({ productId }: ProductManufacturingTabPr
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <Card className="border border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-medium">Status Pasokan</CardTitle>
           </CardHeader>
@@ -172,7 +172,7 @@ export function ProductManufacturingTab({ productId }: ProductManufacturingTabPr
       </div>
 
       {/* BOM Usage Table */}
-      <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+      <Card className="border border-border shadow-sm">
         <CardHeader>
           <CardTitle>Digunakan di BOM</CardTitle>
           <CardDescription>
@@ -217,7 +217,7 @@ export function ProductManufacturingTab({ productId }: ProductManufacturingTabPr
 
       {/* Active Work Orders Table */}
       {activeWorkOrders.length > 0 && (
-        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <Card className="border border-border shadow-sm">
           <CardHeader>
             <CardTitle>Work Order Aktif</CardTitle>
             <CardDescription>
@@ -244,7 +244,7 @@ export function ProductManufacturingTab({ productId }: ProductManufacturingTabPr
                       <TableCell className="font-mono text-sm font-medium">{wo.number}</TableCell>
                       <TableCell>{wo.productName}</TableCell>
                       <TableCell className="text-center">{wo.plannedQty}</TableCell>
-                      <TableCell className="text-center font-medium text-orange-600">
+                      <TableCell className="text-center font-medium text-blue-600">
                         {wo.requiredQty}
                       </TableCell>
                       <TableCell className="text-center">{wo.actualQty}</TableCell>

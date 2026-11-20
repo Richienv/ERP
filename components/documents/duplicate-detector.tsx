@@ -7,21 +7,21 @@ import { AlertTriangle, GitMerge, FileX, ArrowRight } from "lucide-react"
 
 export function DuplicateDetector() {
     return (
-        <Card className="border-orange-200 dark:border-orange-900 bg-white dark:bg-black">
-            <CardHeader className="bg-orange-50 dark:bg-orange-950/20 border-b border-orange-100 dark:border-orange-900 pb-4">
+        <Card className="border-blue-200 dark:border-blue-900 bg-white dark:bg-slate-900">
+            <CardHeader className="bg-blue-50 dark:bg-blue-950/20 border-b border-blue-100 dark:border-blue-900 pb-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <div className="p-2 bg-orange-100 rounded-lg">
-                            <AlertTriangle className="h-5 w-5 text-orange-600" />
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                            <AlertTriangle className="h-5 w-5 text-blue-600" />
                         </div>
                         <div>
-                            <CardTitle className="text-base text-orange-950 dark:text-orange-100">Deteksi Duplikasi Cerdas (AI)</CardTitle>
-                            <CardDescription className="text-orange-800/70 dark:text-orange-200/60">
+                            <CardTitle className="text-base text-blue-950 dark:text-blue-100">Deteksi Duplikasi Cerdas (AI)</CardTitle>
+                            <CardDescription className="text-blue-800/70 dark:text-blue-200/60">
                                 Sistem mendeteksi entri yang mirip secara otomatis
                             </CardDescription>
                         </div>
                     </div>
-                    <Badge variant="outline" className="bg-white border-orange-200 text-orange-700">
+                    <Badge variant="outline" className="bg-white border-blue-200 text-blue-700">
                         1 Pending Review
                     </Badge>
                 </div>
@@ -35,7 +35,7 @@ export function DuplicateDetector() {
                             <Badge className="absolute -top-3 left-4 bg-zinc-200 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300">
                                 Existing Record
                             </Badge>
-                            <div className="font-mono text-xs text-muted-foreground uppercase">ID: MAT-1023</div>
+                            <div className="font-mono text-xs text-muted-foreground ">ID: MAT-1023</div>
                             <div className="font-bold text-lg">Aluminum Sheet 2mm</div>
                             <div className="text-sm space-y-1">
                                 <div className="flex justify-between border-b pb-1">
@@ -58,28 +58,28 @@ export function DuplicateDetector() {
                         </div>
 
                         {/* Comparison Arrow */}
-                        <div className="hidden lg:flex flex-col items-center justify-center text-orange-500 font-bold text-xs gap-2">
-                            <div className="bg-orange-100 px-3 py-1 rounded-full">95% Match</div>
+                        <div className="hidden lg:flex flex-col items-center justify-center text-blue-500 font-bold text-xs gap-2">
+                            <div className="bg-blue-100 px-3 py-1 rounded-full">95% Match</div>
                             <ArrowRight className="h-6 w-6" />
                         </div>
 
                         {/* Item B */}
-                        <div className="flex-1 space-y-3 p-4 border border-orange-200 bg-orange-50/50 dark:bg-orange-950/10 rounded-xl relative">
-                            <Badge className="absolute -top-3 left-4 bg-orange-100 text-orange-700 hover:bg-orange-100 border-none">
+                        <div className="flex-1 space-y-3 p-4 border border-blue-200 bg-blue-50/50 dark:bg-blue-950/10 rounded-xl relative">
+                            <Badge className="absolute -top-3 left-4 bg-blue-100 text-blue-700 hover:bg-blue-100 border-none">
                                 Potential Duplicate
                             </Badge>
-                            <div className="font-mono text-xs text-muted-foreground uppercase">ID: MAT-1087</div>
-                            <div className="font-bold text-lg text-orange-700 dark:text-orange-400">Aluminium Sheet 2mm</div>
+                            <div className="font-mono text-xs text-muted-foreground ">ID: MAT-1087</div>
+                            <div className="font-bold text-lg text-blue-700 dark:text-blue-400">Aluminium Sheet 2mm</div>
                             <div className="text-sm space-y-1">
-                                <div className="flex justify-between border-b border-orange-200/50 pb-1">
+                                <div className="flex justify-between border-b border-blue-200/50 pb-1">
                                     <span className="text-muted-foreground">Category</span>
                                     <span>Raw Material</span>
                                 </div>
-                                <div className="flex justify-between border-b border-orange-200/50 pb-1">
+                                <div className="flex justify-between border-b border-blue-200/50 pb-1">
                                     <span className="text-muted-foreground">Price</span>
                                     <span>Rp 45,000 / m2</span>
                                 </div>
-                                <div className="flex justify-between border-b border-orange-200/50 pb-1">
+                                <div className="flex justify-between border-b border-blue-200/50 pb-1">
                                     <span className="text-muted-foreground">Stock</span>
                                     <span>0 units</span>
                                 </div>
@@ -105,7 +105,7 @@ export function DuplicateDetector() {
                     </div>
                 </div>
             </CardContent>
-            <CardFooter className="bg-zinc-50 dark:bg-black border-t p-4 flex justify-end gap-3 rounded-b-xl">
+            <CardFooter className="bg-zinc-50 dark:bg-slate-900 border-t p-4 flex justify-end gap-3 rounded-b-xl">
                 <Button variant="outline" disabled>
                     Ignore
                 </Button>

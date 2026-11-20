@@ -61,7 +61,7 @@ export default function PlanningLayout({ children }: { children: React.ReactNode
                 {/* Header */}
                 <div className="flex items-center justify-between flex-wrap gap-3">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-12 w-12 items-center justify-center border-2 border-black bg-emerald-400 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                        <div className="flex h-12 w-12 items-center justify-center border border-border bg-emerald-400 shadow-sm">
                             <IconCash size={24} />
                         </div>
                         <div>
@@ -72,23 +72,23 @@ export default function PlanningLayout({ children }: { children: React.ReactNode
 
                     <div className="flex items-center gap-2">
                         {/* Month picker */}
-                        <div className="flex items-center border-2 border-black bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
-                            <Button variant="ghost" size="sm" className="rounded-none border-r-2 border-black h-10 px-3" onClick={prevMonth}>
+                        <div className="flex items-center border border-border bg-white shadow-sm">
+                            <Button variant="ghost" size="sm" className="rounded-md border-r border-border h-10 px-3" onClick={prevMonth}>
                                 <IconChevronLeft size={18} />
                             </Button>
-                            <span className="px-5 font-black text-sm uppercase min-w-[130px] text-center">
+                            <span className="px-5 font-semibold text-sm min-w-[130px] text-center">
                                 {MONTHS[month - 1]} {year}
                             </span>
-                            <Button variant="ghost" size="sm" className="rounded-none border-l-2 border-black h-10 px-3" onClick={nextMonth}>
+                            <Button variant="ghost" size="sm" className="rounded-md border-l border-border h-10 px-3" onClick={nextMonth}>
                                 <IconChevronRight size={18} />
                             </Button>
                         </div>
 
                         {/* Tab bar */}
-                        <div className="flex border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                        <div className="flex border border-border shadow-sm">
                             <button
                                 className={cn(
-                                    "px-4 py-2 text-xs font-black uppercase tracking-wider transition-colors",
+                                    "px-4 py-2 text-xs font-semibold transition-colors",
                                     isSimulasi ? "bg-emerald-400 text-black" : "bg-white text-zinc-400 hover:bg-zinc-50"
                                 )}
                                 onClick={() => router.push("/finance/planning/simulasi")}
@@ -97,7 +97,7 @@ export default function PlanningLayout({ children }: { children: React.ReactNode
                             </button>
                             <button
                                 className={cn(
-                                    "px-4 py-2 text-xs font-black uppercase tracking-wider border-l-2 border-black transition-colors",
+                                    "px-4 py-2 text-xs font-semibold border-l border-border transition-colors",
                                     isAktual ? "bg-emerald-400 text-black" : "bg-white text-zinc-400 hover:bg-zinc-50"
                                 )}
                                 onClick={() => router.push("/finance/planning/aktual")}

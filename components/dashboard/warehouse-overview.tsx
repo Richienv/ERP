@@ -27,10 +27,10 @@ function formatCompact(value: number): string {
 export function WarehouseOverview({ warehouses }: WarehouseOverviewProps) {
     if (!warehouses || warehouses.length === 0) {
         return (
-            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6">
+            <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm p-6">
                 <div className="flex items-center gap-2 mb-4">
                     <Warehouse className="h-5 w-5" />
-                    <h3 className="text-sm font-black uppercase tracking-widest">Gudang</h3>
+                    <h3 className="text-sm font-semibold  ">Gudang</h3>
                 </div>
                 <p className="text-zinc-400 text-sm">Tidak ada gudang aktif</p>
             </div>
@@ -42,7 +42,7 @@ export function WarehouseOverview({ warehouses }: WarehouseOverviewProps) {
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <Warehouse className="h-5 w-5" />
-                    <h3 className="text-sm font-black uppercase tracking-widest">Gudang</h3>
+                    <h3 className="text-sm font-semibold  ">Gudang</h3>
                 </div>
                 <Link
                     href="/inventory/warehouses"
@@ -56,21 +56,21 @@ export function WarehouseOverview({ warehouses }: WarehouseOverviewProps) {
                     <Link
                         key={wh.code}
                         href="/inventory/warehouses"
-                        className="group bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4 transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px]"
+                        className="group bg-white dark:bg-zinc-900 border border-border shadow-sm p-4 transition-all hover:shadow-sm  "
                     >
                         <div className="flex items-center justify-between mb-3">
                             <div>
-                                <div className="font-black text-sm">{wh.name}</div>
-                                <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">{wh.code}</div>
+                                <div className="font-semibold text-sm">{wh.name}</div>
+                                <div className="text-xs font-bold text-zinc-400  ">{wh.code}</div>
                             </div>
                             <Package className="h-5 w-5 text-zinc-300 group-hover:text-black dark:group-hover:text-white transition-colors" />
                         </div>
 
-                        <div className="text-xl font-black tracking-tighter text-zinc-900 dark:text-white mb-1">
+                        <div className="text-xl font-semibold tracking-tighter text-zinc-900 dark:text-white mb-1">
                             {formatCompact(wh.value)}
                         </div>
 
-                        <div className="flex items-center gap-3 text-[10px] font-bold text-zinc-400">
+                        <div className="flex items-center gap-3 text-xs font-bold text-zinc-400">
                             <span>{wh.itemCount.toLocaleString("id-ID")} unit</span>
                             <span className="text-zinc-200 dark:text-zinc-700">|</span>
                             <span>{wh.productCount} produk</span>

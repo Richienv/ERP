@@ -10,7 +10,7 @@ import { IconPencil } from "@tabler/icons-react"
 
 const CATEGORY_COLORS: Record<string, { bg: string; border: string; text: string; label: string }> = {
     AR_INVOICE:        { bg: "bg-emerald-50", border: "border-l-emerald-500", text: "text-emerald-700", label: "Piutang" },
-    AP_BILL:           { bg: "bg-orange-50",  border: "border-l-orange-500",  text: "text-orange-700",  label: "Hutang" },
+    AP_BILL:           { bg: "bg-blue-50",  border: "border-l-orange-500",  text: "text-blue-700",  label: "Hutang" },
     PO_DIRECT:         { bg: "bg-amber-50",   border: "border-l-amber-500",   text: "text-amber-700",   label: "PO" },
     PAYROLL:           { bg: "bg-blue-50",    border: "border-l-blue-500",    text: "text-blue-700",    label: "Gaji" },
     BPJS:              { bg: "bg-indigo-50",  border: "border-l-indigo-500",  text: "text-indigo-700",  label: "BPJS" },
@@ -96,7 +96,7 @@ export function CashflowItemRow({
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
                     <span className={cn("font-medium truncate", colors.text)}>{description}</span>
-                    {source && <span className="text-zinc-400 text-[10px]">{source}</span>}
+                    {source && <span className="text-zinc-400 text-xs">{source}</span>}
                 </div>
                 {isPartial && !simulasi && (
                     <CashflowPartialIndicator
@@ -108,11 +108,11 @@ export function CashflowItemRow({
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
                 {statusColor && status && (
-                    <Badge variant="outline" className={cn("text-[10px] h-4 px-1", statusColor.bg, statusColor.text)}>
+                    <Badge variant="outline" className={cn("text-xs h-4 px-1", statusColor.bg, statusColor.text)}>
                         {status}
                     </Badge>
                 )}
-                <Badge variant="outline" className={cn("text-[10px] h-4 px-1", colors.bg, colors.text)}>
+                <Badge variant="outline" className={cn("text-xs h-4 px-1", colors.bg, colors.text)}>
                     {colors.label}
                 </Badge>
                 {simulasi && editing ? (

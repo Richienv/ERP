@@ -372,14 +372,14 @@ export default function PayrollPage() {
         {/* Row 1: Title + Toolbar Actions */}
         <div className={`px-5 py-3.5 flex items-center justify-between ${NB.pageRowBorder}`}>
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-orange-500 flex items-center justify-center">
+            <div className="w-9 h-9 bg-blue-500 flex items-center justify-center">
               <IconCash className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h1 className="text-base font-black uppercase tracking-wider text-zinc-900 dark:text-white">
+              <h1 className="text-base font-semibold text-zinc-900 dark:text-white">
                 Pemrosesan Payroll
               </h1>
-              <p className="text-zinc-400 text-[11px] font-medium">
+              <p className="text-zinc-400 text-xs font-medium">
                 Hitung gaji, approval, posting jurnal, dan disbursement
               </p>
             </div>
@@ -441,7 +441,7 @@ export default function PayrollPage() {
             <div key={kpi.label} className={NB.kpiCell}>
               <div className="flex items-center gap-1.5">
                 <span className={`w-2 h-2 ${
-                  kpi.color === "orange" ? "bg-orange-500" :
+                  kpi.color === "orange" ? "bg-blue-500" :
                   kpi.color === "red" ? "bg-red-500" :
                   kpi.color === "amber" ? "bg-amber-500" :
                   kpi.color === "emerald" ? "bg-emerald-500" : "bg-zinc-400"
@@ -468,7 +468,7 @@ export default function PayrollPage() {
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -8 }}
                         transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                        className={`text-lg font-black ${
+                        className={`text-lg font-semibold ${
                           kpi.color === "red" ? "text-red-600 dark:text-red-400" :
                           kpi.color === "emerald" ? "text-emerald-600 dark:text-emerald-400" :
                           "text-zinc-900 dark:text-white"
@@ -481,7 +481,7 @@ export default function PayrollPage() {
                         key="hidden"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="text-lg font-black text-zinc-300 dark:text-zinc-600"
+                        className="text-lg font-semibold text-zinc-300 dark:text-zinc-600"
                       >
                         *** ***
                       </motion.span>
@@ -507,9 +507,9 @@ export default function PayrollPage() {
           <div className="flex items-center gap-4">
             {/* Period */}
             <div className="flex items-center gap-2">
-              <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Periode</span>
+              <span className="text-xs font-semibold text-zinc-500">Periode</span>
               <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-                <SelectTrigger className="w-[200px] border border-zinc-300 dark:border-zinc-700 font-bold h-9 rounded-none text-xs bg-white dark:bg-zinc-900">
+                <SelectTrigger className="w-[200px] border border-zinc-300 dark:border-zinc-700 font-bold h-9 rounded-md text-xs bg-white dark:bg-zinc-900">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -537,7 +537,7 @@ export default function PayrollPage() {
           {/* Status Badge */}
           <div className="flex items-center gap-2">
             {run ? (
-              <span className={`inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wide px-2 py-1 border rounded-none ${
+              <span className={`inline-flex items-center gap-1.5 text-xs font-semibold   px-2 py-1 border rounded-md ${
                 isPosted
                   ? "bg-emerald-50 border-emerald-300 text-emerald-700"
                   : "bg-amber-50 border-amber-300 text-amber-700"
@@ -546,7 +546,7 @@ export default function PayrollPage() {
                 {isPosted ? "POSTED" : "PENDING APPROVAL"}
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wide px-2 py-1 border border-zinc-300 rounded-none bg-zinc-50 text-zinc-500">
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-1 border border-zinc-300 rounded-md bg-zinc-50 text-zinc-500">
                 <span className="w-1.5 h-1.5 bg-zinc-400" />
                 Belum ada draft
               </span>
@@ -562,7 +562,7 @@ export default function PayrollPage() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="flex items-center justify-between border-2 border-amber-400 bg-amber-50 p-3 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+            className="flex items-center justify-between border border-amber-400 bg-amber-50 p-3 shadow-sm"
           >
             <div className="flex items-center gap-2">
               <IconAlertTriangle className="h-4 w-4 text-amber-600" />
@@ -589,7 +589,7 @@ export default function PayrollPage() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="flex items-center justify-between border-2 border-emerald-400 bg-emerald-50 p-3 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+            className="flex items-center justify-between border border-emerald-400 bg-emerald-50 p-3 shadow-sm"
           >
             <div className="flex items-center gap-2">
               <IconCheck className="h-4 w-4 text-emerald-600" />
@@ -613,17 +613,17 @@ export default function PayrollPage() {
       </AnimatePresence>
 
       {run?.journalPreview && (
-        <div className="border-2 border-black bg-white shadow-[3px_3px_0_0_#000] overflow-hidden">
-          <div className="px-4 py-2.5 border-b-2 border-black bg-zinc-950 text-white flex items-center justify-between">
-            <span className="text-xs font-black uppercase tracking-widest">Preview jurnal yang akan diposting</span>
-            <span className={`text-xs font-black uppercase ${run.journalPreview.balanced ? "text-emerald-400" : "text-red-400"}`}>
+        <div className="border border-border bg-white shadow-sm overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-border bg-zinc-950 text-white flex items-center justify-between">
+            <span className="text-xs font-semibold  ">Preview jurnal yang akan diposting</span>
+            <span className={`text-xs font-semibold  ${run.journalPreview.balanced ? "text-emerald-400" : "text-red-400"}`}>
               {run.journalPreview.balanced ? "Seimbang" : "Tidak seimbang"}
             </span>
           </div>
           <div className="divide-y divide-zinc-100">
             {run.journalPreview.lines.map((line, idx) => (
               <div key={`${line.accountCode}-${idx}`} className="grid grid-cols-12 px-4 py-2 text-xs">
-                <div className="col-span-2 font-mono font-black">{line.accountCode}</div>
+                <div className="col-span-2 font-mono font-semibold">{line.accountCode}</div>
                 <div className="col-span-6 text-zinc-600">{line.description}</div>
                 <div className="col-span-2 text-right font-mono">{line.debit ? formatCurrency(line.debit) : "—"}</div>
                 <div className="col-span-2 text-right font-mono">{line.credit ? formatCurrency(line.credit) : "—"}</div>
@@ -636,20 +636,20 @@ export default function PayrollPage() {
       {/* ─── Tabs ─── */}
       <div>
         <Tabs defaultValue="current" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 border-2 border-black bg-zinc-100 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:bg-zinc-800 rounded-none h-10">
-            <TabsTrigger value="current" className="font-bold text-xs uppercase tracking-wider rounded-none data-[state=active]:bg-white data-[state=active]:shadow-none">Payroll Berjalan</TabsTrigger>
-            <TabsTrigger value="calculation" className="font-bold text-xs uppercase tracking-wider rounded-none data-[state=active]:bg-white data-[state=active]:shadow-none">Perhitungan</TabsTrigger>
-            <TabsTrigger value="reports" className="font-bold text-xs uppercase tracking-wider rounded-none data-[state=active]:bg-white data-[state=active]:shadow-none">Laporan</TabsTrigger>
-            <TabsTrigger value="settings" className="font-bold text-xs uppercase tracking-wider rounded-none data-[state=active]:bg-white data-[state=active]:shadow-none">Pengaturan</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 border border-border bg-zinc-100 shadow-sm dark:bg-zinc-800 rounded-md h-10">
+            <TabsTrigger value="current" className="font-bold text-xs rounded-md data-[state=active]:bg-white data-[state=active]:shadow-none">Payroll Berjalan</TabsTrigger>
+            <TabsTrigger value="calculation" className="font-bold text-xs rounded-md data-[state=active]:bg-white data-[state=active]:shadow-none">Perhitungan</TabsTrigger>
+            <TabsTrigger value="reports" className="font-bold text-xs rounded-md data-[state=active]:bg-white data-[state=active]:shadow-none">Laporan</TabsTrigger>
+            <TabsTrigger value="settings" className="font-bold text-xs rounded-md data-[state=active]:bg-white data-[state=active]:shadow-none">Pengaturan</TabsTrigger>
           </TabsList>
 
           {/* ── TAB: Payroll Berjalan ── */}
           <TabsContent value="current" className="mt-4">
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex flex-col" style={{ minHeight: 480 }}>
+            <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden flex flex-col" style={{ minHeight: 480 }}>
               {/* Table Header */}
-              <div className="hidden md:grid grid-cols-[1.5fr_1fr_1fr_90px_90px_90px_1fr_70px] gap-2 px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black">
+              <div className="hidden md:grid grid-cols-[1.5fr_1fr_1fr_90px_90px_90px_1fr_70px] gap-2 px-5 py-2.5 bg-slate-900 dark:bg-zinc-950 border-b border-border">
                 {["Karyawan", "Gaji Pokok", "Tunjangan", "Lembur", "BPJS", "PPh21", "Gaji Bersih", "Slip"].map((h) => (
-                  <span key={h} className="text-xs font-black uppercase tracking-widest text-zinc-400">{h}</span>
+                  <span key={h} className="text-xs font-semibold text-zinc-400">{h}</span>
                 ))}
               </div>
 
@@ -677,7 +677,7 @@ export default function PayrollPage() {
                     transition={{ type: "spring", stiffness: 300, damping: 25 }}
                     className="flex-1 flex flex-col items-center justify-center py-16 text-zinc-400"
                   >
-                    <div className="w-16 h-16 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
+                    <div className="w-16 h-16 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
                       <IconUsers className="h-7 w-7 text-zinc-200 dark:text-zinc-700" />
                     </div>
                     <span className="text-sm font-bold">Belum ada payroll draft</span>
@@ -688,11 +688,11 @@ export default function PayrollPage() {
                     {(run.lines ?? []).map((line, idx) => (
                       <div
                         key={line.employeeId}
-                        className={`grid grid-cols-1 md:grid-cols-[1.5fr_1fr_1fr_90px_90px_90px_1fr_70px] gap-2 px-5 py-3 items-center transition-all hover:bg-orange-50/50 dark:hover:bg-orange-950/10 ${idx % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/60 dark:bg-zinc-800/20"}`}
+                        className={`grid grid-cols-1 md:grid-cols-[1.5fr_1fr_1fr_90px_90px_90px_1fr_70px] gap-2 px-5 py-3 items-center transition-all hover:bg-blue-50/50 dark:hover:bg-blue-950/10 ${idx % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/60 dark:bg-zinc-800/20"}`}
                       >
                         <div>
                           <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{line.employeeName}</div>
-                          <div className="text-[10px] text-zinc-500">{line.employeeCode} &middot; {line.department}</div>
+                          <div className="text-xs text-zinc-500">{line.employeeCode} &middot; {line.department}</div>
                         </div>
                         <div><span className="font-mono text-sm tabular-nums text-zinc-700 dark:text-zinc-300">{formatCurrency(line.basicSalary)}</span></div>
                         <div><span className="font-mono text-sm tabular-nums text-zinc-700 dark:text-zinc-300">{formatCurrency(line.transportAllowance + line.mealAllowance + line.positionAllowance)}</span></div>
@@ -705,13 +705,13 @@ export default function PayrollPage() {
                         </div>
                         <div><span className="font-mono text-sm tabular-nums text-red-600 dark:text-red-400">{formatCurrency((line.bpjsKesehatan ?? 0) + (line.bpjsKetenagakerjaan ?? 0))}</span></div>
                         <div><span className="font-mono text-sm tabular-nums text-red-600 dark:text-red-400">{formatCurrency(line.pph21)}</span></div>
-                        <div><span className="font-mono text-sm font-black tabular-nums text-zinc-900 dark:text-zinc-100">{formatCurrency(line.netSalary)}</span></div>
+                        <div><span className="font-mono text-sm font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">{formatCurrency(line.netSalary)}</span></div>
                         <div>
                           <motion.button
                             whileHover={{ y: -1 }}
                             whileTap={{ scale: 0.92 }}
                             onClick={() => handleOpenPayslipPDF(line)}
-                            className="h-7 px-2 flex items-center justify-center border border-zinc-300 dark:border-zinc-600 text-zinc-500 text-[9px] font-black uppercase tracking-wider hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:border-zinc-500 transition-colors rounded-none"
+                            className="h-7 px-2 flex items-center justify-center border border-zinc-300 dark:border-zinc-600 text-zinc-500 text-xs font-semibold hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:border-zinc-500 transition-colors rounded-md"
                           >
                             <IconDownload className="h-3 w-3 mr-1" /> PDF
                           </motion.button>
@@ -730,16 +730,16 @@ export default function PayrollPage() {
                   </span>
                   <div className="flex items-center gap-6">
                     <div className="text-right">
-                      <div className="text-xs font-bold uppercase text-zinc-400">Gaji Kotor</div>
-                      <div className="text-sm font-black tabular-nums font-mono">{formatCurrency(totalGrossSalary)}</div>
+                      <div className="text-xs font-bold text-zinc-400">Gaji Kotor</div>
+                      <div className="text-sm font-semibold tabular-nums font-mono">{formatCurrency(totalGrossSalary)}</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-xs font-bold uppercase text-zinc-400">Potongan</div>
-                      <div className="text-sm font-black tabular-nums font-mono text-red-600">{formatCurrency(totalDeductions)}</div>
+                      <div className="text-xs font-bold text-zinc-400">Potongan</div>
+                      <div className="text-sm font-semibold tabular-nums font-mono text-red-600">{formatCurrency(totalDeductions)}</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-xs font-bold uppercase text-zinc-400">Gaji Bersih</div>
-                      <div className="text-lg font-black tabular-nums font-mono text-emerald-600">{formatCurrency(totalNetSalary)}</div>
+                      <div className="text-xs font-bold text-zinc-400">Gaji Bersih</div>
+                      <div className="text-lg font-semibold tabular-nums font-mono text-emerald-600">{formatCurrency(totalNetSalary)}</div>
                     </div>
                   </div>
                 </div>
@@ -749,10 +749,10 @@ export default function PayrollPage() {
 
           {/* ── TAB: Perhitungan ── */}
           <TabsContent value="calculation" className="mt-4 space-y-4">
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-              <div className="hidden md:grid grid-cols-[1fr_1fr_1fr] bg-black dark:bg-zinc-950 border-b-2 border-black">
+            <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
+              <div className="hidden md:grid grid-cols-[1fr_1fr_1fr] bg-slate-900 dark:bg-zinc-950 border-b border-border">
                 {["Tunjangan", "BPJS Karyawan", "PPh 21 (UU HPP)"].map((h) => (
-                  <span key={h} className="px-5 py-2.5 text-xs font-black uppercase tracking-widest text-zinc-400 border-r border-zinc-800 last:border-r-0">{h}</span>
+                  <span key={h} className="px-5 py-2.5 text-xs font-semibold text-zinc-400 border-r border-zinc-800 last:border-r-0">{h}</span>
                 ))}
               </div>
               <div className="grid gap-0 md:grid-cols-3">
@@ -777,17 +777,17 @@ export default function PayrollPage() {
                     <FormulaRow label="250jt - 500jt" value="25%" />
                     <FormulaRow label="500jt - 5M" value="30%" />
                     <FormulaRow label="> 5M" value="35%" />
-                    <div className="mt-2 text-[10px] text-zinc-400">PTKP TK/0: Rp 54.000.000/tahun</div>
+                    <div className="mt-2 text-xs text-zinc-400">PTKP TK/0: Rp 54.000.000/tahun</div>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Overtime Formula */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-              <div className="hidden md:grid grid-cols-2 bg-black dark:bg-zinc-950 border-b-2 border-black">
+            <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
+              <div className="hidden md:grid grid-cols-2 bg-slate-900 dark:bg-zinc-950 border-b border-border">
                 {["Lembur Hari Kerja", "Upah Per Jam"].map((h) => (
-                  <span key={h} className="px-5 py-2.5 text-xs font-black uppercase tracking-widest text-zinc-400 border-r border-zinc-800 last:border-r-0">{h}</span>
+                  <span key={h} className="px-5 py-2.5 text-xs font-semibold text-zinc-400 border-r border-zinc-800 last:border-r-0">{h}</span>
                 ))}
               </div>
               <div className="grid gap-0 md:grid-cols-2">
@@ -797,12 +797,12 @@ export default function PayrollPage() {
                     <FormulaRow label="Jam ke-2+" value="2x upah/jam" />
                     <FormulaRow label="Maks" value="3 jam/hari" />
                   </div>
-                  <div className="mt-2 text-[10px] text-zinc-400">Kepmenaker 102/MEN/VI/2004</div>
+                  <div className="mt-2 text-xs text-zinc-400">Kepmenaker 102/MEN/VI/2004</div>
                 </div>
                 <div className="p-5">
                   <div className="space-y-2 text-sm">
                     <FormulaRow label="Formula" value="Gaji Pokok / 173 jam" />
-                    <div className="text-[10px] text-zinc-400">173 = 40 jam/minggu x 52 minggu / 12 bulan</div>
+                    <div className="text-xs text-zinc-400">173 = 40 jam/minggu x 52 minggu / 12 bulan</div>
                   </div>
                 </div>
               </div>
@@ -811,9 +811,9 @@ export default function PayrollPage() {
 
           {/* ── TAB: Laporan ── */}
           <TabsContent value="reports" className="mt-4">
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-              <div className="px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black">
-                <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Laporan Payroll — {selectedLabel}</span>
+            <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
+              <div className="px-5 py-2.5 bg-slate-900 dark:bg-zinc-950 border-b border-border">
+                <span className="text-xs font-semibold text-zinc-400">Laporan Payroll — {selectedLabel}</span>
               </div>
 
               {!run ? (
@@ -822,7 +822,7 @@ export default function PayrollPage() {
                   animate={{ opacity: 1, scale: 1 }}
                   className="flex-1 flex flex-col items-center justify-center py-16 text-zinc-400"
                 >
-                  <div className="w-16 h-16 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
+                  <div className="w-16 h-16 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
                     <IconReceipt className="h-7 w-7 text-zinc-200 dark:text-zinc-700" />
                   </div>
                   <span className="text-sm font-bold">Belum ada payroll run untuk periode ini</span>
@@ -867,10 +867,10 @@ export default function PayrollPage() {
 
                   {/* Compliance Section */}
                   {compliance && compliance.totals && (
-                    <div className="border-2 border-black p-4">
+                    <div className="border border-border p-4">
                       <div className="mb-3 flex items-center gap-2">
                         <IconShieldCheck className="h-4 w-4 text-zinc-600" />
-                        <span className="text-xs font-black uppercase tracking-widest text-zinc-600">Ringkasan Compliance</span>
+                        <span className="text-xs font-semibold text-zinc-600">Ringkasan Compliance</span>
                       </div>
                       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                         <ComplianceMetric label="BPJS Kesehatan" value={formatCurrency(compliance.totals.bpjsKesehatan ?? 0)} />
@@ -899,9 +899,9 @@ export default function PayrollPage() {
 
           {/* ── TAB: Pengaturan ── */}
           <TabsContent value="settings" className="mt-4">
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-              <div className="px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black">
-                <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Pengaturan Payroll</span>
+            <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
+              <div className="px-5 py-2.5 bg-slate-900 dark:bg-zinc-950 border-b border-border">
+                <span className="text-xs font-semibold text-zinc-400">Pengaturan Payroll</span>
               </div>
               <div className="p-5">
                 <div className="grid gap-4 md:grid-cols-2">
@@ -911,7 +911,7 @@ export default function PayrollPage() {
                   <SettingItem label="Formula Version" value="2026.02" description="Versi formula kalkulasi yang digunakan saat ini" />
                 </div>
                 <div className="mt-4 border-t border-zinc-200 dark:border-zinc-700 pt-4">
-                  <p className="text-[10px] font-bold text-zinc-400">Pengaturan lanjutan (konfigurasi per karyawan, PTKP per status pernikahan, custom tunjangan) akan tersedia di update berikutnya.</p>
+                  <p className="text-xs font-bold text-zinc-400">Pengaturan lanjutan (konfigurasi per karyawan, PTKP per status pernikahan, custom tunjangan) akan tersedia di update berikutnya.</p>
                 </div>
               </div>
             </div>
@@ -927,7 +927,7 @@ export default function PayrollPage() {
 function StatusStep({ label, active, done }: { label: string; active: boolean; done: boolean }) {
   return (
     <div
-      className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-widest transition-colors rounded-none ${
+      className={`px-2.5 py-1 text-xs font-semibold   transition-colors rounded-md ${
         done
           ? "border border-emerald-400 bg-emerald-50 text-emerald-700"
           : active
@@ -952,9 +952,9 @@ function FormulaRow({ label, value }: { label: string; value: string }) {
 function InfoItem({ label, value, badge }: { label: string; value: string; badge?: "emerald" | "amber" | "zinc" }) {
   return (
     <div>
-      <div className="text-xs font-black uppercase tracking-widest text-zinc-400">{label}</div>
+      <div className="text-xs font-semibold text-zinc-400">{label}</div>
       {badge ? (
-        <span className={`inline-flex items-center gap-1.5 mt-1 text-[9px] font-black uppercase tracking-wide px-2 py-1 border rounded-none ${
+        <span className={`inline-flex items-center gap-1.5 mt-1 text-xs font-semibold   px-2 py-1 border rounded-md ${
           badge === "emerald"
             ? "bg-emerald-50 border-emerald-300 text-emerald-700"
             : badge === "amber"
@@ -977,7 +977,7 @@ function ComplianceMetric({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <div className="text-xs font-bold text-zinc-500">{label}</div>
-      <div className="text-sm font-black tabular-nums text-zinc-900 dark:text-white">{value}</div>
+      <div className="text-sm font-semibold tabular-nums text-zinc-900 dark:text-white">{value}</div>
     </div>
   )
 }
@@ -985,9 +985,9 @@ function ComplianceMetric({ label, value }: { label: string; value: string }) {
 function SettingItem({ label, value, description }: { label: string; value: string; description: string }) {
   return (
     <div className="border border-zinc-200 dark:border-zinc-700 p-3">
-      <div className="text-xs font-black uppercase tracking-widest text-zinc-500">{label}</div>
+      <div className="text-xs font-semibold text-zinc-500">{label}</div>
       <div className="mt-1 text-sm font-bold text-zinc-900 dark:text-white">{value}</div>
-      <div className="mt-1 text-[10px] text-zinc-400">{description}</div>
+      <div className="mt-1 text-xs text-zinc-400">{description}</div>
     </div>
   )
 }

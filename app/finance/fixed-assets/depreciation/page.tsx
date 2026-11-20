@@ -124,25 +124,25 @@ export default function DepreciationRunPage() {
     return (
         <div className="mf-page min-h-screen space-y-4">
             {/* HEADER */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white">
+            <div className="border border-border shadow-sm overflow-hidden bg-white">
                 <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-purple-500">
                     <div className="flex items-center gap-3">
                         <Calculator className="h-6 w-6 text-purple-500" />
                         <div>
-                            <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900">Penyusutan Aset Tetap</h1>
+                            <h1 className="text-xl font-semibold tracking-tight text-zinc-900">Penyusutan Aset Tetap</h1>
                             <p className="text-zinc-600 text-xs font-bold mt-0.5">Jalankan dan kelola penyusutan periodik aset tetap</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
                         <Link href="/finance/fixed-assets">
-                            <Button variant="outline" className="h-9 border-2 border-black font-bold uppercase text-[10px] tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all bg-white">
+                            <Button variant="outline" className="h-9 border border-border font-bold text-xs shadow-sm hover:shadow-none transition-all bg-white">
                                 <ArrowLeft className="mr-2 h-3.5 w-3.5" /> Kembali
                             </Button>
                         </Link>
                         <Button
                             variant="outline"
                             onClick={() => queryClient.invalidateQueries({ queryKey: queryKeys.depreciationRuns.all })}
-                            className="h-9 border-2 border-black font-bold uppercase text-[10px] tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all bg-white"
+                            className="h-9 border border-border font-bold text-xs shadow-sm hover:shadow-none transition-all bg-white"
                         >
                             <RefreshCcw className="mr-2 h-3.5 w-3.5" /> Refresh
                         </Button>
@@ -151,9 +151,9 @@ export default function DepreciationRunPage() {
             </div>
 
             {/* SECTION 1: JALANKAN PENYUSUTAN */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white">
-                <div className="bg-zinc-50 border-b-2 border-black p-4">
-                    <h2 className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
+            <div className="border border-border shadow-sm bg-white">
+                <div className="bg-zinc-50 border-b border-border p-4">
+                    <h2 className="text-lg font-semibold tracking-tight flex items-center gap-2">
                         <Play className="h-5 w-5 text-purple-500" />
                         Jalankan Penyusutan
                     </h2>
@@ -161,7 +161,7 @@ export default function DepreciationRunPage() {
 
                 <div className="p-6 space-y-5">
                     {/* Warning Banner */}
-                    <div className="bg-amber-50 border-2 border-amber-400 p-4 flex items-start gap-3">
+                    <div className="bg-amber-50 border border-amber-400 p-4 flex items-start gap-3">
                         <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
                         <div>
                             <p className="font-bold text-sm text-amber-800">Perhatian: Kunci Periode Fiskal</p>
@@ -206,7 +206,7 @@ export default function DepreciationRunPage() {
                         <Button
                             onClick={handlePreview}
                             disabled={previewing || !periodStart || !periodEnd}
-                            className="h-10 bg-purple-600 text-white hover:bg-purple-700 border-2 border-purple-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] uppercase font-black text-[10px] tracking-wider hover:translate-y-[1px] hover:shadow-none transition-all px-6"
+                            className="h-10 bg-purple-600 text-white hover:bg-purple-700 border border-purple-700 shadow-sm font-semibold text-xs hover:shadow-none transition-all px-6"
                         >
                             {previewing ? (
                                 <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Memproses...</>
@@ -241,9 +241,9 @@ export default function DepreciationRunPage() {
                                                 </tr>
                                             ))}
                                             {/* Total Row */}
-                                            <tr className="border-t-2 border-black bg-zinc-50">
-                                                <td colSpan={3} className={NB.tableCell + " font-black uppercase text-[10px] tracking-widest text-zinc-500 text-right"}>Total Penyusutan</td>
-                                                <td className={NB.tableCell + " font-mono font-black text-red-700 text-base"}>{formatCurrency(totalDepreciation)}</td>
+                                            <tr className="border-t border-border bg-zinc-50">
+                                                <td colSpan={3} className={NB.tableCell + "font-semibold text-xs text-zinc-500 text-right"}>Total Penyusutan</td>
+                                                <td className={NB.tableCell + " font-mono font-semibold text-red-700 text-base"}>{formatCurrency(totalDepreciation)}</td>
                                                 <td colSpan={2} />
                                             </tr>
                                         </tbody>
@@ -260,7 +260,7 @@ export default function DepreciationRunPage() {
                                 <Button
                                     onClick={handlePost}
                                     disabled={posting}
-                                    className="h-10 bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-[10px] tracking-wider px-8"
+                                    className="h-10 bg-slate-900 text-white border border-border shadow-sm hover:shadow-sm transition-all font-semibold text-xs px-8"
                                 >
                                     {posting ? (
                                         <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Memposting...</>
@@ -274,7 +274,7 @@ export default function DepreciationRunPage() {
 
                     {/* Empty Preview State */}
                     {previewData && previewData.length === 0 && (
-                        <div className="text-center py-12 border-2 border-dashed border-zinc-300">
+                        <div className="text-center py-12 border border-dashed border-zinc-300">
                             <Calculator className="h-10 w-10 mx-auto mb-3 text-zinc-300" />
                             <p className="font-bold text-zinc-500">Tidak ada aset untuk disusutkan</p>
                             <p className="text-xs text-zinc-400 mt-1">Semua aset sudah disusutkan penuh atau tidak ada aset aktif dalam periode ini</p>
@@ -284,9 +284,9 @@ export default function DepreciationRunPage() {
             </div>
 
             {/* SECTION 2: RIWAYAT PENYUSUTAN */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white">
-                <div className="bg-zinc-50 border-b-2 border-black p-4">
-                    <h2 className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
+            <div className="border border-border shadow-sm bg-white">
+                <div className="bg-zinc-50 border-b border-border p-4">
+                    <h2 className="text-lg font-semibold tracking-tight flex items-center gap-2">
                         <RefreshCcw className="h-5 w-5 text-purple-500" />
                         Riwayat Penyusutan
                     </h2>
@@ -295,9 +295,9 @@ export default function DepreciationRunPage() {
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead>
-                            <tr className="border-b-2 border-black bg-zinc-50">
+                            <tr className="border-b border-border bg-zinc-50">
                                 {["Tanggal Run", "Periode", "Jumlah Aset", "Total Penyusutan", "Status", "Aksi"].map(h => (
-                                    <th key={h} className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-3 text-left">{h}</th>
+                                    <th key={h} className="text-xs font-semibold text-zinc-500 px-4 py-3 text-left">{h}</th>
                                 ))}
                             </tr>
                         </thead>
@@ -327,7 +327,7 @@ export default function DepreciationRunPage() {
                                             <td className="px-4 py-3 font-mono font-bold text-sm text-center">{run.totalAssets ?? run._count?.entries ?? "-"}</td>
                                             <td className="px-4 py-3 font-mono font-bold text-sm text-red-600">{formatCurrency(Number(run.totalDepreciation) || 0)}</td>
                                             <td className="px-4 py-3">
-                                                <Badge variant="outline" className={`text-[10px] font-black uppercase border-2 ${status.color}`}>
+                                                <Badge variant="outline" className={`text-xs font-semibold border ${status.color}`}>
                                                     {status.label}
                                                 </Badge>
                                             </td>
@@ -338,7 +338,7 @@ export default function DepreciationRunPage() {
                                                         size="sm"
                                                         disabled={reversingId === run.id}
                                                         onClick={() => handleReverse(run.id)}
-                                                        className="h-7 text-[10px] font-black uppercase border-2 border-red-300 text-red-600 hover:bg-red-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all"
+                                                        className="h-7 text-xs font-semibold border border-red-300 text-red-600 hover:bg-red-50 shadow-sm hover:shadow-none transition-all"
                                                     >
                                                         {reversingId === run.id ? (
                                                             <><Loader2 className="mr-1 h-3 w-3 animate-spin" /> Proses...</>

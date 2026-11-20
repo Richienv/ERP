@@ -116,18 +116,18 @@ export function PODetailsSheet({ order, isOpen, onClose, userRole }: PODetailsSh
                 {/* Status + Summary */}
                 <NBSection icon={Package} title="Ringkasan">
                     <div className="flex justify-between items-center">
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Status</span>
-                        <Badge variant="outline" className="text-sm font-bold rounded-none border-black">
+                        <span className="text-xs font-bold text-zinc-500">Status</span>
+                        <Badge variant="outline" className="text-sm font-bold rounded-md border-border">
                             {order.status}
                         </Badge>
                     </div>
                     <div className="grid grid-cols-2 gap-4 pt-1">
                         <div>
-                            <div className="text-[10px] uppercase font-bold text-zinc-500">Total Amount</div>
-                            <div className="text-xl font-black">{formatIDR(order.total)}</div>
+                            <div className="text-xs font-bold text-zinc-500">Total Amount</div>
+                            <div className="text-xl font-semibold">{formatIDR(order.total)}</div>
                         </div>
                         <div>
-                            <div className="text-[10px] uppercase font-bold text-zinc-500">Items</div>
+                            <div className="text-xs font-bold text-zinc-500">Items</div>
                             <div className="text-xl font-mono">{order.items} Items</div>
                         </div>
                     </div>
@@ -156,7 +156,7 @@ export function PODetailsSheet({ order, isOpen, onClose, userRole }: PODetailsSh
                                 size="sm"
                                 variant="outline"
                                 onClick={() => setRejectMode(false)}
-                                className="rounded-none text-[10px] font-bold uppercase tracking-wider"
+                                className="rounded-md text-xs font-bold  "
                             >
                                 Batal
                             </Button>
@@ -165,7 +165,7 @@ export function PODetailsSheet({ order, isOpen, onClose, userRole }: PODetailsSh
                                 variant="destructive"
                                 onClick={() => handleAction('reject')}
                                 disabled={processing}
-                                className="rounded-none text-[10px] font-bold uppercase tracking-wider gap-1.5"
+                                className="rounded-md text-xs font-bold gap-1.5"
                             >
                                 {processing && <Loader2 className="h-3 w-3 animate-spin" />}
                                 Konfirmasi Tolak
@@ -188,7 +188,7 @@ export function PODetailsSheet({ order, isOpen, onClose, userRole }: PODetailsSh
                                 size="sm"
                                 variant="outline"
                                 onClick={() => setVendorConfirmMode(false)}
-                                className="rounded-none text-[10px] font-bold uppercase tracking-wider"
+                                className="rounded-md text-xs font-bold  "
                             >
                                 Batal
                             </Button>
@@ -196,7 +196,7 @@ export function PODetailsSheet({ order, isOpen, onClose, userRole }: PODetailsSh
                                 size="sm"
                                 onClick={() => handleAction('vendor_confirm')}
                                 disabled={processing}
-                                className="bg-blue-600 text-white hover:bg-blue-700 rounded-none text-[10px] font-bold uppercase tracking-wider gap-1.5"
+                                className="bg-blue-600 text-white hover:bg-blue-700 rounded-md text-xs font-bold gap-1.5"
                             >
                                 {processing && <Loader2 className="h-3 w-3 animate-spin" />}
                                 Konfirmasi Vendor
@@ -218,7 +218,7 @@ export function PODetailsSheet({ order, isOpen, onClose, userRole }: PODetailsSh
                                 size="sm"
                                 variant="outline"
                                 onClick={() => setShipMode(false)}
-                                className="rounded-none text-[10px] font-bold uppercase tracking-wider"
+                                className="rounded-md text-xs font-bold  "
                             >
                                 Batal
                             </Button>
@@ -226,7 +226,7 @@ export function PODetailsSheet({ order, isOpen, onClose, userRole }: PODetailsSh
                                 size="sm"
                                 onClick={() => handleAction('ship')}
                                 disabled={processing}
-                                className="bg-blue-600 text-white hover:bg-blue-700 rounded-none text-[10px] font-bold uppercase tracking-wider gap-1.5"
+                                className="bg-blue-600 text-white hover:bg-blue-700 rounded-md text-xs font-bold gap-1.5"
                             >
                                 {processing && <Loader2 className="h-3 w-3 animate-spin" />}
                                 Tandai Dikirim
@@ -244,7 +244,7 @@ export function PODetailsSheet({ order, isOpen, onClose, userRole }: PODetailsSh
                             <Button
                                 onClick={() => handleAction('submit')}
                                 disabled={processing}
-                                className="bg-blue-600 text-white hover:bg-blue-700 rounded-none text-[10px] font-black uppercase tracking-wider h-8 px-4 gap-1.5"
+                                className="bg-blue-600 text-white hover:bg-blue-700 rounded-md text-xs font-semibold h-8 px-4 gap-1.5"
                             >
                                 {processing && <Loader2 className="h-3 w-3 animate-spin" />}
                                 <Send className="h-3.5 w-3.5" /> Submit for Approval
@@ -254,7 +254,7 @@ export function PODetailsSheet({ order, isOpen, onClose, userRole }: PODetailsSh
                             <Button
                                 onClick={() => handleAction('approve')}
                                 disabled={processing}
-                                className="bg-black text-white hover:bg-zinc-800 rounded-none text-[10px] font-black uppercase tracking-wider h-8 px-4 gap-1.5"
+                                className="bg-slate-900 text-white hover:bg-zinc-800 rounded-md text-xs font-semibold h-8 px-4 gap-1.5"
                             >
                                 {processing && <Loader2 className="h-3 w-3 animate-spin" />}
                                 <ShieldCheck className="h-3.5 w-3.5" /> Approve Order
@@ -264,7 +264,7 @@ export function PODetailsSheet({ order, isOpen, onClose, userRole }: PODetailsSh
                             <Button
                                 onClick={() => handleAction('order')}
                                 disabled={processing}
-                                className="bg-emerald-600 text-white hover:bg-emerald-700 rounded-none text-[10px] font-black uppercase tracking-wider h-8 px-4 gap-1.5"
+                                className="bg-emerald-600 text-white hover:bg-emerald-700 rounded-md text-xs font-semibold h-8 px-4 gap-1.5"
                             >
                                 {processing && <Loader2 className="h-3 w-3 animate-spin" />}
                                 <Package className="h-3.5 w-3.5" /> Mark as Ordered
@@ -274,7 +274,7 @@ export function PODetailsSheet({ order, isOpen, onClose, userRole }: PODetailsSh
                             <Button
                                 onClick={() => { setVendorConfirmNotes(''); setVendorConfirmMode(true) }}
                                 disabled={processing}
-                                className="bg-blue-600 text-white hover:bg-blue-700 rounded-none text-[10px] font-black uppercase tracking-wider h-8 px-4 gap-1.5"
+                                className="bg-blue-600 text-white hover:bg-blue-700 rounded-md text-xs font-semibold h-8 px-4 gap-1.5"
                             >
                                 <CheckCircle className="h-3.5 w-3.5" /> Vendor Confirmed
                             </Button>
@@ -283,7 +283,7 @@ export function PODetailsSheet({ order, isOpen, onClose, userRole }: PODetailsSh
                             <Button
                                 onClick={() => { setTrackingNumber(''); setShipMode(true) }}
                                 disabled={processing}
-                                className="bg-blue-600 text-white hover:bg-blue-700 rounded-none text-[10px] font-black uppercase tracking-wider h-8 px-4 gap-1.5"
+                                className="bg-blue-600 text-white hover:bg-blue-700 rounded-md text-xs font-semibold h-8 px-4 gap-1.5"
                             >
                                 <Truck className="h-3.5 w-3.5" /> Mark as Shipped
                             </Button>
@@ -293,7 +293,7 @@ export function PODetailsSheet({ order, isOpen, onClose, userRole }: PODetailsSh
                                 variant="destructive"
                                 onClick={() => setRejectMode(true)}
                                 disabled={processing}
-                                className="rounded-none text-[10px] font-black uppercase tracking-wider h-8 px-4 gap-1.5"
+                                className="rounded-md text-xs font-semibold h-8 px-4 gap-1.5"
                             >
                                 <XCircle className="h-3.5 w-3.5" /> Reject Order
                             </Button>
@@ -305,7 +305,7 @@ export function PODetailsSheet({ order, isOpen, onClose, userRole }: PODetailsSh
                         variant="outline"
                         onClick={onClose}
                         disabled={processing}
-                        className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none disabled:opacity-50"
+                        className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold text-xs px-4 h-8 rounded-md disabled:opacity-50"
                     >
                         Tutup
                     </Button>

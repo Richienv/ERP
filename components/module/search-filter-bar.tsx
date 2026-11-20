@@ -63,7 +63,7 @@ export function SearchFilterBar({
             <input
               type="text"
               className={cn(
-                "border font-medium h-9 w-[280px] text-xs rounded-none pl-9 pr-8 outline-none placeholder:text-zinc-400 transition-all",
+                "border font-medium h-9 w-[280px] text-xs rounded-md pl-9 pr-8 outline-none placeholder:text-zinc-400 transition-all",
                 filters && filters.length > 0 ? "border-r-0" : "",
                 hasSearch ? NB.inputActive : NB.inputEmpty,
               )}
@@ -98,10 +98,10 @@ export function SearchFilterBar({
                 value={filter.value}
                 onChange={(e) => filter.onChange(e.target.value)}
                 className={cn(
-                  "appearance-none h-9 px-3 text-xs font-medium min-w-[120px] rounded-none border outline-none transition-all cursor-pointer",
+                  "appearance-none h-9 px-3 text-xs font-medium min-w-[120px] rounded-md border outline-none transition-all cursor-pointer",
                   !isLast && "border-r-0",
                   hasValue
-                    ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 text-zinc-900 dark:text-white"
+                    ? "border-blue-400 dark:border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 text-zinc-900 dark:text-white"
                     : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800",
                 )}
               >
@@ -136,7 +136,7 @@ export function SearchFilterBar({
           <button
             type="button"
             onClick={onResetFilters}
-            className="text-zinc-400 text-[10px] font-bold uppercase h-9 px-3 rounded-none hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors ml-1.5 flex items-center gap-1"
+            className="text-zinc-400 text-xs font-bold h-9 px-3 rounded-md hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors ml-1.5 flex items-center gap-1"
           >
             <RotateCcw className="h-3 w-3" />
             Reset
@@ -155,7 +155,7 @@ export function SearchFilterBar({
               action.variant === "primary"
                 ? NB.toolbarBtnPrimary
                 : action.variant === "ghost"
-                  ? "text-zinc-500 dark:text-zinc-400 text-[10px] font-bold uppercase tracking-wider h-9 px-3 rounded-none hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
+                  ? "text-zinc-500 dark:text-zinc-400 text-xs font-bold h-9 px-3 rounded-md hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
                   : NB.toolbarBtn,
               "flex items-center gap-1.5",
             )}
@@ -166,7 +166,7 @@ export function SearchFilterBar({
         ))}
 
         {resultCount && (
-          <span className="hidden md:inline text-[11px] font-medium text-zinc-400 ml-1">
+          <span className="hidden md:inline text-xs font-medium text-zinc-400 ml-1">
             <span className="font-mono font-bold text-zinc-600 dark:text-zinc-300">
               {resultCount}
             </span>

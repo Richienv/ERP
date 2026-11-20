@@ -96,7 +96,7 @@ export default async function VehicleDetailPage({
                             <IconTruck className="w-5 h-5 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-xl font-black uppercase tracking-tight font-mono">{vehicle.plateNumber}</h1>
+                            <h1 className="text-xl font-semibold tracking-tight font-mono">{vehicle.plateNumber}</h1>
                             <p className="text-sm text-zinc-500">{vehicle.brand} {vehicle.model} {vehicle.variant ?? ""} · {vehicle.year}</p>
                         </div>
                     </div>
@@ -122,7 +122,7 @@ export default async function VehicleDetailPage({
                     </CardHeader>
                     <CardContent className="grid grid-cols-2 gap-y-3 gap-x-6 text-sm">
                         <Detail label="Status" value={
-                            <Badge className="font-bold uppercase text-xs tracking-wider">{STATUS_LABEL[vehicle.status] || vehicle.status}</Badge>
+                            <Badge className="font-bold text-xs">{STATUS_LABEL[vehicle.status] || vehicle.status}</Badge>
                         } />
                         <Detail label="Tipe" value={vehicle.vehicleType} />
                         <Detail label="Warna" value={vehicle.color || "—"} />
@@ -148,11 +148,11 @@ export default async function VehicleDetailPage({
                     </CardHeader>
                     <CardContent className="space-y-3 text-sm">
                         <div>
-                            <div className="text-xs uppercase font-bold text-zinc-500 tracking-wider">Harian</div>
+                            <div className="text-xs font-bold text-zinc-500">Harian</div>
                             <div className="text-lg font-mono font-bold">{vehicle.dailyRate ? formatIDR(vehicle.dailyRate) : "—"}</div>
                         </div>
                         <div>
-                            <div className="text-xs uppercase font-bold text-zinc-500 tracking-wider">Bulanan</div>
+                            <div className="text-xs font-bold text-zinc-500">Bulanan</div>
                             <div className="text-lg font-mono font-bold">{vehicle.monthlyRate ? formatIDR(vehicle.monthlyRate) : "—"}</div>
                         </div>
                     </CardContent>
@@ -188,7 +188,7 @@ export default async function VehicleDetailPage({
 function Detail({ label, value }: { label: string; value: React.ReactNode }) {
     return (
         <div>
-            <div className="text-xs uppercase font-bold text-zinc-500 tracking-wider">{label}</div>
+            <div className="text-xs font-bold text-zinc-500">{label}</div>
             <div className="text-sm">{value}</div>
         </div>
     )
@@ -206,8 +206,8 @@ function DocBlock({ title, number, expiry, insurer }: {
     const text = bucket === "OVERDUE" ? "text-red-700" : bucket === "DUE_SOON" ? "text-amber-700" : "text-zinc-600"
 
     return (
-        <div className={`border-2 rounded-none p-3 ${border}`}>
-            <div className="text-xs uppercase font-bold text-zinc-600 tracking-wider mb-1">{title}</div>
+        <div className={`border rounded-md p-3 ${border}`}>
+            <div className="text-xs font-bold text-zinc-600 mb-1">{title}</div>
             <div className="text-sm font-semibold">{number || "—"}</div>
             {insurer && <div className="text-xs text-zinc-500 mt-0.5">{insurer}</div>}
             {title !== "BPKB" && (

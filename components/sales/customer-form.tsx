@@ -217,10 +217,10 @@ export function CustomerForm({
         {/* ── Page Header ── */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-black uppercase tracking-wider">
+            <h1 className="text-lg font-semibold  ">
               {isEdit ? "Edit Pelanggan" : "Tambah Pelanggan Baru"}
             </h1>
-            <p className="text-[11px] font-medium text-zinc-400 mt-0.5">
+            <p className="text-xs font-medium text-zinc-400 mt-0.5">
               {isEdit ? "Perbarui informasi pelanggan" : "Isi form di bawah untuk menambah pelanggan baru"}
             </p>
           </div>
@@ -229,14 +229,14 @@ export function CustomerForm({
               type="button"
               onClick={onCancel}
               disabled={isSubmitting || isLoading}
-              className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none disabled:opacity-50 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+              className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold text-xs px-4 h-8 rounded-md disabled:opacity-50 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
             >
               Batal
             </button>
             <button
               type="submit"
               disabled={isSubmitting || isLoading}
-              className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none disabled:opacity-50 transition-colors flex items-center gap-1.5"
+              className="bg-slate-900 text-white border border-border hover:bg-zinc-800 font-semibold text-xs px-5 h-8 rounded-md disabled:opacity-50 transition-colors flex items-center gap-1.5"
             >
               {isSubmitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {isSubmitting ? "Menyimpan..." : isEdit ? "Perbarui" : "Simpan Pelanggan"}
@@ -262,7 +262,7 @@ export function CustomerForm({
                     ) : autoCodeError && !isEdit ? (
                       <div>
                         <NBInput label="Kode Pelanggan" required value={field.value} onChange={field.onChange} placeholder="CUST001" />
-                        <p className="text-[10px] font-medium text-amber-500 mt-0.5">Auto-generate gagal — input manual</p>
+                        <p className="text-xs font-medium text-amber-500 mt-0.5">Auto-generate gagal — input manual</p>
                       </div>
                     ) : (
                       <div>
@@ -270,7 +270,7 @@ export function CustomerForm({
                         <div className="h-8 border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex items-center px-3 text-sm font-mono font-bold text-zinc-600 dark:text-zinc-300">
                           {field.value || "..."}
                           {!isEdit && (
-                            <span className="ml-auto text-[9px] font-bold text-orange-400 uppercase tracking-widest">Auto</span>
+                            <span className="ml-auto text-xs font-bold text-blue-400  ">Auto</span>
                           )}
                         </div>
                       </div>
@@ -297,7 +297,7 @@ export function CustomerForm({
                       ]}
                     />
                     {detectedType && !typeManuallySetRef.current && !isEdit && (
-                      <p className="text-[10px] font-medium text-orange-500 mt-0.5">
+                      <p className="text-xs font-medium text-blue-500 mt-0.5">
                         Terdeteksi sebagai {detectedType === "COMPANY" ? "Perusahaan" : "Perorangan"}
                       </p>
                     )}
@@ -341,8 +341,8 @@ export function CustomerForm({
               <FormField control={form.control} name="isTaxable" render={({ field }) => (
                 <div className="flex items-center justify-between border border-zinc-200 dark:border-zinc-700 px-3 py-2">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Kena Pajak</span>
-                    <span className="text-[10px] font-medium text-zinc-400 dark:text-zinc-500 mt-0.5 block">Apakah pelanggan ini dikenakan pajak?</span>
+                    <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400">Kena Pajak</span>
+                    <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500 mt-0.5 block">Apakah pelanggan ini dikenakan pajak?</span>
                   </div>
                   <button
                     type="button"
@@ -395,12 +395,12 @@ export function CustomerForm({
                             placeholder="01.234.567.8-901.0000"
                           />
                           {npwpDigits.length > 0 && !isValidNpwp(npwpValue) && (
-                            <p className="text-[10px] text-red-500 font-bold mt-0.5">
+                            <p className="text-xs text-red-500 font-bold mt-0.5">
                               NPWP harus 15 atau 16 digit ({npwpDigits.length}/16)
                             </p>
                           )}
                           {isValidNpwp(npwpValue) && (
-                            <p className="text-[10px] text-emerald-500 font-bold mt-0.5 flex items-center gap-1">
+                            <p className="text-xs text-emerald-500 font-bold mt-0.5 flex items-center gap-1">
                               <Check className="h-3 w-3" /> NPWP valid
                             </p>
                           )}
@@ -450,12 +450,12 @@ export function CustomerForm({
                   <FormItem>
                     <NBInput label="Email" value={field.value || ""} onChange={field.onChange} placeholder="info@perusahaan.com" />
                     {emailValue && emailValid && (
-                      <p className="text-[10px] text-emerald-500 font-bold mt-0.5 flex items-center gap-1">
+                      <p className="text-xs text-emerald-500 font-bold mt-0.5 flex items-center gap-1">
                         <Check className="h-3 w-3" /> Format valid
                       </p>
                     )}
                     {emailValue && !emailValid && (
-                      <p className="text-[10px] text-red-500 font-bold mt-0.5">Format email tidak valid</p>
+                      <p className="text-xs text-red-500 font-bold mt-0.5">Format email tidak valid</p>
                     )}
                     <FormMessage />
                   </FormItem>
@@ -506,7 +506,7 @@ export function CustomerForm({
                     disabled={isCashTerm}
                   />
                   {isCashTerm && (
-                    <p className="text-[10px] font-medium text-zinc-400 mt-0.5">Tidak berlaku untuk pembayaran tunai</p>
+                    <p className="text-xs font-medium text-zinc-400 mt-0.5">Tidak berlaku untuk pembayaran tunai</p>
                   )}
                   <FormMessage />
                 </FormItem>
@@ -536,7 +536,7 @@ export function CustomerForm({
                     onChange={() => {}}
                     disabled
                   />
-                  <p className="text-[10px] font-medium text-zinc-400 mt-0.5">
+                  <p className="text-xs font-medium text-zinc-400 mt-0.5">
                     {isCashTerm ? "Tunai = 0 hari kredit" : `Otomatis dari ${(paymentTermValue || "").replace(/_/g, " ")}`}
                   </p>
                   <FormMessage />
@@ -582,8 +582,8 @@ export function CustomerForm({
               <FormField control={form.control} name="isActive" render={({ field }) => (
                 <div className="flex items-center justify-between border border-zinc-200 dark:border-zinc-700 px-3 py-2">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Status Aktif</span>
-                    <span className="text-[10px] font-medium text-zinc-400 dark:text-zinc-500 mt-0.5 block">Pelanggan dapat bertransaksi</span>
+                    <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400">Status Aktif</span>
+                    <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500 mt-0.5 block">Pelanggan dapat bertransaksi</span>
                   </div>
                   <button
                     type="button"
@@ -602,8 +602,8 @@ export function CustomerForm({
               <FormField control={form.control} name="isProspect" render={({ field }) => (
                 <div className="flex items-center justify-between border border-zinc-200 dark:border-zinc-700 px-3 py-2">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Prospek</span>
-                    <span className="text-[10px] font-medium text-zinc-400 dark:text-zinc-500 mt-0.5 block">Tandai sebagai calon pelanggan</span>
+                    <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400">Prospek</span>
+                    <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500 mt-0.5 block">Tandai sebagai calon pelanggan</span>
                   </div>
                   <button
                     type="button"

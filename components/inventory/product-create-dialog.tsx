@@ -309,14 +309,14 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                         <div className="border border-zinc-200">
                             <div className="bg-zinc-100 px-3 py-1.5 border-b border-zinc-200 flex items-center gap-2">
                                 <Tag className="h-3.5 w-3.5 text-zinc-400" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Kode Produk Terstruktur</span>
+                                <span className="text-xs font-semibold text-zinc-500">Kode Produk Terstruktur</span>
                             </div>
 
                             <div className="p-3 space-y-3">
                                 <div className="grid grid-cols-4 gap-3">
                                     {/* Segment 1: Category */}
                                     <div>
-                                        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Kategori</label>
+                                        <label className="text-xs font-semibold text-zinc-400 mb-1 block">Kategori</label>
                                         <Select
                                             value={watchCat}
                                             onValueChange={v => {
@@ -324,14 +324,14 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                                                 form.setValue("productType", CATEGORY_TO_PRODUCT_TYPE[v] as any)
                                             }}
                                         >
-                                            <SelectTrigger className="border border-zinc-300 font-mono font-black text-xs h-8 w-full rounded-none">
+                                            <SelectTrigger className="border border-zinc-300 font-mono font-semibold text-xs h-8 w-full rounded-md">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {CODE_CATEGORIES.map(c => (
                                                     <SelectItem key={c.code} value={c.code}>
                                                         <span className="font-mono font-bold">{c.code}</span>
-                                                        <span className="text-zinc-400 ml-1.5 text-[10px]">{c.label}</span>
+                                                        <span className="text-zinc-400 ml-1.5 text-xs">{c.label}</span>
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
@@ -340,19 +340,19 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
 
                                     {/* Segment 2: Product Type */}
                                     <div>
-                                        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Tipe Produk</label>
+                                        <label className="text-xs font-semibold text-zinc-400 mb-1 block">Tipe Produk</label>
                                         <Select
                                             value={currentTypeValid ? watchType : (availableTypes[0]?.code || "")}
                                             onValueChange={v => form.setValue("codeType", v)}
                                         >
-                                            <SelectTrigger className="border border-zinc-300 font-mono font-black text-xs h-8 w-full rounded-none">
+                                            <SelectTrigger className="border border-zinc-300 font-mono font-semibold text-xs h-8 w-full rounded-md">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {availableTypes.map(t => (
                                                     <SelectItem key={t.code} value={t.code}>
                                                         <span className="font-mono font-bold">{t.code}</span>
-                                                        <span className="text-zinc-400 ml-1.5 text-[10px]">{t.label}</span>
+                                                        <span className="text-zinc-400 ml-1.5 text-xs">{t.label}</span>
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
@@ -361,7 +361,7 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
 
                                     {/* Segment 3: Brand */}
                                     <div>
-                                        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Brand</label>
+                                        <label className="text-xs font-semibold text-zinc-400 mb-1 block">Brand</label>
                                         <ComboboxWithCreate
                                             options={brandOptions}
                                             value={watchBrand}
@@ -377,7 +377,7 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
 
                                     {/* Segment 4: Color */}
                                     <div>
-                                        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Warna</label>
+                                        <label className="text-xs font-semibold text-zinc-400 mb-1 block">Warna</label>
                                         <ComboboxWithCreate
                                             options={colorOptions}
                                             value={watchColor}
@@ -396,16 +396,16 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                                 <div className="bg-zinc-50 border border-zinc-200 p-3 flex items-center justify-between">
                                     <div>
                                         <div className="flex items-center gap-1.5 mb-0.5">
-                                            <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-400">Preview Kode</span>
-                                            <span className="text-[8px] font-bold text-orange-400 uppercase tracking-widest border border-orange-200 bg-orange-50 px-1 py-px">otomatis</span>
+                                            <span className="text-xs font-bold text-zinc-400">Preview Kode</span>
+                                            <span className="text-xs font-bold text-blue-400 border border-blue-200 bg-blue-50 px-1 py-px">otomatis</span>
                                         </div>
-                                        <span className="font-mono font-black text-base tracking-wider">{previewCode}</span>
+                                        <span className="font-mono font-semibold text-base ">{previewCode}</span>
                                     </div>
                                     <div className="text-right">
-                                        <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 block mb-0.5">Barcode</span>
+                                        <span className="text-xs font-bold text-zinc-400 block mb-0.5">Barcode</span>
                                         <div className="flex items-center gap-1.5">
                                             <Barcode className="h-3.5 w-3.5 text-zinc-400" />
-                                            <span className="font-mono font-bold text-[11px] text-zinc-600">{previewBarcode}</span>
+                                            <span className="font-mono font-bold text-xs text-zinc-600">{previewBarcode}</span>
                                             <button
                                                 type="button"
                                                 onClick={handleCopyBarcode}
@@ -422,7 +422,7 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                                 </div>
 
                                 {/* Workflow enforcement hint */}
-                                <div className={`px-3 py-2 border-l-4 text-[10px] font-bold ${hint.borderColor} ${hint.bgColor} ${hint.textColor}`}>
+                                <div className={`px-3 py-2 border-l text-xs font-bold ${hint.borderColor} ${hint.bgColor} ${hint.textColor}`}>
                                     <div className="flex items-center gap-1.5">
                                         <CatIcon className="h-3.5 w-3.5 flex-shrink-0" />
                                         {hint.text}
@@ -444,7 +444,7 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                                 <p className={NB.error}>{form.formState.errors.name.message}</p>
                             )}
                             {duplicateWarning && (
-                                <p className="flex items-center gap-1 text-[10px] font-bold text-amber-600 mt-0.5">
+                                <p className="flex items-center gap-1 text-xs font-bold text-amber-600 mt-0.5">
                                     <AlertTriangle className="h-3 w-3 flex-shrink-0" />
                                     Produk serupa sudah ada: {duplicateWarning}
                                 </p>
@@ -463,8 +463,8 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                                     rows={2}
                                 />
                                 {autoTags.desc && (
-                                    <p className="flex items-center gap-1 text-[9px] text-orange-400 font-bold mt-0.5">
-                                        <span className="border border-orange-200 bg-orange-50 px-1 py-px text-[8px] uppercase tracking-widest">otomatis</span>
+                                    <p className="flex items-center gap-1 text-xs text-blue-400 font-bold mt-0.5">
+                                        <span className="border border-blue-200 bg-blue-50 px-1 py-px text-xs  ">otomatis</span>
                                         template berdasarkan kategori — isi bagian ___ sesuai produk
                                     </p>
                                 )}
@@ -474,7 +474,7 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                                 <label className={NB.label}>
                                     Satuan <span className={NB.labelRequired}>*</span>
                                     {autoTags.unit && (
-                                        <span className="ml-1.5 text-[8px] font-bold text-orange-400 uppercase tracking-widest border border-orange-200 bg-orange-50 px-1 py-px inline-block">otomatis</span>
+                                        <span className="ml-1.5 text-xs font-bold text-blue-400 border border-blue-200 bg-blue-50 px-1 py-px inline-block">otomatis</span>
                                     )}
                                 </label>
                                 <ComboboxWithCreate
@@ -522,12 +522,12 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                                             setAutoTags(prev => ({ ...prev, sellPrice: false }))
                                         }}
                                     />
-                                    <p className="text-[9px] text-zinc-400 mt-0.5">
+                                    <p className="text-xs text-zinc-400 mt-0.5">
                                         Kosongkan jika belum ditentukan — produk tidak bisa dijual sampai harga diatur.
                                     </p>
                                     {autoTags.sellPrice && marginPreset !== null && (
-                                        <p className="flex items-center gap-1 text-[9px] text-orange-400 font-bold mt-0.5">
-                                            <span className="border border-orange-200 bg-orange-50 px-1 py-px text-[8px] uppercase tracking-widest">otomatis</span>
+                                        <p className="flex items-center gap-1 text-xs text-blue-400 font-bold mt-0.5">
+                                            <span className="border border-blue-200 bg-blue-50 px-1 py-px text-xs  ">otomatis</span>
                                             margin {marginPreset}% dari HPP
                                         </p>
                                     )}
@@ -537,14 +537,14 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                             {/* Margin preset selector — visible when HPP > 0 */}
                             {watchCost > 0 && (
                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mr-0.5">Margin:</span>
+                                    <span className="text-xs font-bold text-zinc-400 mr-0.5">Margin:</span>
                                     {MARGIN_PRESETS.map(pct => (
                                         <button
                                             key={pct}
                                             type="button"
                                             onClick={() => handleMarginClick(pct)}
                                             className={cn(
-                                                "px-2 py-0.5 text-[10px] font-bold border transition-colors",
+                                                "px-2 py-0.5 text-xs font-bold border transition-colors",
                                                 marginPreset === pct
                                                     ? "bg-emerald-50 border-emerald-400 text-emerald-700"
                                                     : "bg-white border-zinc-200 text-zinc-500 hover:border-zinc-400"
@@ -554,7 +554,7 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                                         </button>
                                     ))}
                                     {marginPreset !== null && (
-                                        <span className="text-[10px] font-mono font-bold text-emerald-600 ml-1">
+                                        <span className="text-xs font-mono font-bold text-emerald-600 ml-1">
                                             = Rp {Math.ceil(watchCost * (1 + marginPreset / 100)).toLocaleString('id-ID')}
                                         </span>
                                     )}
@@ -572,7 +572,7 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                                     {watchSell >= watchCost ? (
                                         <>
                                             <span className="text-xs font-bold text-emerald-700">Margin Keuntungan</span>
-                                            <span className="font-black text-sm text-emerald-700">
+                                            <span className="font-semibold text-sm text-emerald-700">
                                                 {margin.toFixed(1)}% &middot; Rp {(watchSell - watchCost).toLocaleString('id-ID')}/unit
                                             </span>
                                         </>
@@ -582,7 +582,7 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                                                 <AlertTriangle className="h-3 w-3" />
                                                 Harga jual di bawah HPP (rugi)
                                             </span>
-                                            <span className="font-black text-sm text-red-600">
+                                            <span className="font-semibold text-sm text-red-600">
                                                 {margin.toFixed(1)}% &middot; Rp {(watchSell - watchCost).toLocaleString('id-ID')}/unit
                                             </span>
                                         </>
@@ -592,13 +592,13 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
 
                             {/* Smart hints */}
                             {watchCost === 0 && (
-                                <p className="flex items-center gap-1 text-[10px] text-zinc-400 font-medium">
+                                <p className="flex items-center gap-1 text-xs text-zinc-400 font-medium">
                                     <Info className="h-3 w-3 flex-shrink-0" />
                                     HPP belum diisi — akan diupdate dari Purchase Order
                                 </p>
                             )}
                             {watchCost > 0 && watchSell === 0 && (
-                                <p className="flex items-center gap-1 text-[10px] text-amber-500 font-bold">
+                                <p className="flex items-center gap-1 text-xs text-amber-500 font-bold">
                                     <AlertTriangle className="h-3 w-3 flex-shrink-0" />
                                     Harga jual belum diisi
                                 </p>
@@ -630,9 +630,9 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                                         placeholder="0"
                                     />
                                     {autoTags.maxStock && (
-                                        <p className="flex items-center justify-between text-[9px] mt-0.5">
+                                        <p className="flex items-center justify-between text-xs mt-0.5">
                                             <span className="text-zinc-400 font-medium">3x stok minimum</span>
-                                            <span className="border border-orange-200 bg-orange-50 px-1 py-px text-[8px] font-bold text-orange-400 uppercase tracking-widest">otomatis</span>
+                                            <span className="border border-blue-200 bg-blue-50 px-1 py-px text-xs font-bold text-blue-400  ">otomatis</span>
                                         </p>
                                     )}
                                 </div>
@@ -649,16 +649,16 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                                         placeholder="0"
                                     />
                                     {autoTags.reorder && (
-                                        <p className="flex items-center justify-between text-[9px] mt-0.5">
+                                        <p className="flex items-center justify-between text-xs mt-0.5">
                                             <span className="text-zinc-400 font-medium">1.5x stok minimum</span>
-                                            <span className="border border-orange-200 bg-orange-50 px-1 py-px text-[8px] font-bold text-orange-400 uppercase tracking-widest">otomatis</span>
+                                            <span className="border border-blue-200 bg-blue-50 px-1 py-px text-xs font-bold text-blue-400  ">otomatis</span>
                                         </p>
                                     )}
                                 </div>
                             </div>
 
                             {watchMinStock === 0 && watchReorder === 0 && (
-                                <p className="flex items-center gap-1 text-[10px] text-zinc-400 font-medium">
+                                <p className="flex items-center gap-1 text-xs text-zinc-400 font-medium">
                                     <Info className="h-3 w-3 flex-shrink-0" />
                                     Tidak ada peringatan stok rendah
                                 </p>
@@ -668,7 +668,7 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                         {/* ====== FOOTER ====== */}
                         <div className="flex items-center justify-between pt-1">
                             <div className="flex items-center gap-2">
-                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 border text-[10px] font-black uppercase tracking-wider ${catStyle.bg} ${catStyle.border} ${catStyle.text}`}>
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 border text-xs font-semibold ${catStyle.bg} ${catStyle.border} ${catStyle.text}`}>
                                     <CatIcon className="h-3 w-3" />
                                     {CODE_CATEGORIES.find(c => c.code === watchCat)?.label}
                                 </span>

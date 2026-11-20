@@ -23,11 +23,11 @@ export function FinanceMetricCard({
     className
 }: FinanceMetricCardProps) {
     const colorStyles = {
-        emerald: "text-emerald-600 bg-white border-l-4 border-l-emerald-500 border border-zinc-200",
-        blue: "text-zinc-700 bg-white border-l-4 border-l-zinc-400 border border-zinc-200",
-        rose: "text-red-600 bg-white border-l-4 border-l-red-500 border border-zinc-200",
-        amber: "text-amber-600 bg-white border-l-4 border-l-amber-500 border border-zinc-200",
-        indigo: "text-zinc-700 bg-white border-l-4 border-l-orange-500 border border-zinc-200",
+        emerald: "text-emerald-600 bg-white border-l border-l-emerald-500 border border-zinc-200",
+        blue: "text-zinc-700 bg-white border-l border-l-zinc-400 border border-zinc-200",
+        rose: "text-red-600 bg-white border-l border-l-red-500 border border-zinc-200",
+        amber: "text-amber-600 bg-white border-l border-l-amber-500 border border-zinc-200",
+        indigo: "text-zinc-700 bg-white border-l border-l-orange-500 border border-zinc-200",
     }
 
     return (
@@ -37,7 +37,7 @@ export function FinanceMetricCard({
         )}>
             <div className="flex justify-between items-start">
                 <div>
-                    <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{title}</p>
+                    <p className="text-sm font-medium text-muted-foreground  ">{title}</p>
                     <h3 className="text-3xl font-bold mt-2 font-serif text-foreground">{value}</h3>
                 </div>
                 <div className={cn("p-3 rounded-xl", colorStyles[color])}>

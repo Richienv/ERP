@@ -9,7 +9,7 @@ export default function VendorsPage() {
     const { data, isFetching } = useVendorsList()
 
     if (!data) {
-        return <CardPageSkeleton accentColor="bg-orange-400" />
+        return <CardPageSkeleton accentColor="bg-blue-400" />
     }
 
     return (

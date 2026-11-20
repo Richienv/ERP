@@ -249,7 +249,7 @@ export function ImportProductsDialog() {
             <Button
                 variant="outline"
                 onClick={() => setOpen(true)}
-                className="border-2 border-black font-black uppercase text-xs tracking-wider rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all bg-white text-black"
+                className="border border-border font-semibold text-xs rounded-md shadow-sm hover:shadow-sm transition-all bg-white text-black"
             >
                 <Upload className="h-3.5 w-3.5 mr-1.5" />
                 Import
@@ -269,11 +269,11 @@ export function ImportProductsDialog() {
                         <>
                             <div
                                 onClick={() => fileInputRef.current?.click()}
-                                className="border-2 border-dashed border-black bg-zinc-50 hover:bg-emerald-50 transition-colors cursor-pointer p-8 flex flex-col items-center gap-3 rounded-none"
+                                className="border border-dashed border-border bg-zinc-50 hover:bg-emerald-50 transition-colors cursor-pointer p-8 flex flex-col items-center gap-3 rounded-md"
                             >
                                 <Upload className="h-8 w-8 text-zinc-400" />
                                 <div className="text-center">
-                                    <p className="text-sm font-black uppercase tracking-wider text-zinc-700">
+                                    <p className="text-sm font-semibold text-zinc-700">
                                         {fileName ? fileName : "Pilih File Excel atau CSV"}
                                     </p>
                                     <p className="text-xs text-zinc-400 mt-1">
@@ -301,10 +301,10 @@ export function ImportProductsDialog() {
                                     <table className="w-full text-xs">
                                         <thead>
                                             <tr className="bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-200">
-                                                <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left">Header Kolom</th>
-                                                <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left">Field</th>
-                                                <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left">Wajib?</th>
-                                                <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left">Keterangan</th>
+                                                <th className="px-3 py-2 text-xs font-semibold text-zinc-500 text-left">Header Kolom</th>
+                                                <th className="px-3 py-2 text-xs font-semibold text-zinc-500 text-left">Field</th>
+                                                <th className="px-3 py-2 text-xs font-semibold text-zinc-500 text-left">Wajib?</th>
+                                                <th className="px-3 py-2 text-xs font-semibold text-zinc-500 text-left">Keterangan</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -322,7 +322,7 @@ export function ImportProductsDialog() {
                                                     <td className="px-3 py-2 text-zinc-500">{field}</td>
                                                     <td className="px-3 py-2">
                                                         {req === "Ya"
-                                                            ? <span className="text-red-600 font-black">Wajib</span>
+                                                            ? <span className="text-red-600 font-semibold">Wajib</span>
                                                             : <span className="text-zinc-400">Opsional</span>}
                                                     </td>
                                                     <td className="px-3 py-2 text-zinc-500">{note}</td>
@@ -335,7 +335,7 @@ export function ImportProductsDialog() {
 
                             <button
                                 onClick={handleDownloadTemplate}
-                                className="text-xs font-black text-emerald-700 underline underline-offset-2 hover:text-emerald-900"
+                                className="text-xs font-semibold text-emerald-700 underline underline-offset-2 hover:text-emerald-900"
                             >
                                 Download template Excel
                             </button>
@@ -346,16 +346,16 @@ export function ImportProductsDialog() {
                     {step === "preview" && rows.length > 0 && (
                         <>
                             <div className="flex items-center gap-3 flex-wrap">
-                                <div className="border border-black bg-emerald-50 px-3 py-1.5 flex items-center gap-1.5">
+                                <div className="border border-border bg-emerald-50 px-3 py-1.5 flex items-center gap-1.5">
                                     <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                                    <span className="text-xs font-black text-emerald-700">
+                                    <span className="text-xs font-semibold text-emerald-700">
                                         {validRows.length} baris siap diimport
                                     </span>
                                 </div>
                                 {errorRows.length > 0 && (
                                     <div className="border border-red-500 bg-red-50 px-3 py-1.5 flex items-center gap-1.5">
                                         <AlertTriangle className="h-3.5 w-3.5 text-red-600" />
-                                        <span className="text-xs font-black text-red-700">
+                                        <span className="text-xs font-semibold text-red-700">
                                             {errorRows.length} baris bermasalah (akan dilewati)
                                         </span>
                                     </div>
@@ -368,13 +368,13 @@ export function ImportProductsDialog() {
                                         <table className="w-full text-xs min-w-[700px]">
                                             <thead className="sticky top-0 z-10">
                                                 <tr className="bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-200">
-                                                    <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left w-8">#</th>
-                                                    <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left">Nama Produk</th>
-                                                    <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left">Kode</th>
-                                                    <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left">Kategori</th>
-                                                    <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left">Satuan</th>
-                                                    <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">HPP</th>
-                                                    <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Harga Jual</th>
+                                                    <th className="px-3 py-2 text-xs font-semibold text-zinc-500 text-left w-8">#</th>
+                                                    <th className="px-3 py-2 text-xs font-semibold text-zinc-500 text-left">Nama Produk</th>
+                                                    <th className="px-3 py-2 text-xs font-semibold text-zinc-500 text-left">Kode</th>
+                                                    <th className="px-3 py-2 text-xs font-semibold text-zinc-500 text-left">Kategori</th>
+                                                    <th className="px-3 py-2 text-xs font-semibold text-zinc-500 text-left">Satuan</th>
+                                                    <th className="px-3 py-2 text-xs font-semibold text-zinc-500 text-right">HPP</th>
+                                                    <th className="px-3 py-2 text-xs font-semibold text-zinc-500 text-right">Harga Jual</th>
                                                     <th className="px-3 py-2 w-8"></th>
                                                 </tr>
                                             </thead>
@@ -420,7 +420,7 @@ export function ImportProductsDialog() {
 
                             {errorRows.length > 0 && (
                                 <div className="border border-amber-400 bg-amber-50 p-3 space-y-1">
-                                    <p className="text-xs font-black uppercase tracking-wider text-amber-700 mb-2">
+                                    <p className="text-xs font-semibold text-amber-700 mb-2">
                                         Baris yang akan dilewati:
                                     </p>
                                     {errorRows.map((r) => (
@@ -437,10 +437,10 @@ export function ImportProductsDialog() {
                     {step === "importing" && (
                         <div className="py-8 flex flex-col items-center gap-4">
                             <Loader2 className="h-10 w-10 animate-spin text-emerald-500" />
-                            <p className="text-sm font-black uppercase tracking-wider">
+                            <p className="text-sm font-semibold  ">
                                 Mengimport {validRows.length} produk...
                             </p>
-                            <div className="w-full border border-black bg-zinc-100 h-3 overflow-hidden">
+                            <div className="w-full border border-border bg-zinc-100 h-3 overflow-hidden">
                                 <div
                                     className="h-full bg-emerald-400 transition-all duration-500"
                                     style={{ width: `${progress}%` }}
@@ -453,13 +453,13 @@ export function ImportProductsDialog() {
                     {/* ── Step: Done ── */}
                     {step === "done" && importResult && (
                         <>
-                            <div className="border border-black p-5 flex items-center gap-4 bg-zinc-50">
+                            <div className="border border-border p-5 flex items-center gap-4 bg-zinc-50">
                                 {importResult.imported > 0
                                     ? <CheckCircle2 className="h-10 w-10 text-emerald-500 shrink-0" />
                                     : <X className="h-10 w-10 text-red-500 shrink-0" />
                                 }
                                 <div>
-                                    <p className="text-xl font-black">
+                                    <p className="text-xl font-semibold">
                                         {importResult.imported} produk berhasil diimport
                                     </p>
                                     {importResult.errors.length > 0 && (
@@ -493,14 +493,14 @@ export function ImportProductsDialog() {
                                 <Button
                                     variant="outline"
                                     onClick={() => handleOpenChange(false)}
-                                    className="border border-zinc-300 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none"
+                                    className="border border-zinc-300 text-zinc-500 font-bold text-xs px-4 h-8 rounded-md"
                                 >
                                     Batal
                                 </Button>
                                 {step === "preview" && validRows.length > 0 && (
                                     <Button
                                         onClick={handleImport}
-                                        className="bg-emerald-600 text-white border border-emerald-600 hover:bg-emerald-700 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none gap-1.5"
+                                        className="bg-emerald-600 text-white border border-emerald-600 hover:bg-emerald-700 font-semibold text-xs px-5 h-8 rounded-md gap-1.5"
                                     >
                                         <Upload className="h-3.5 w-3.5 mr-1.5" />
                                         Mulai Import ({validRows.length} produk)
@@ -510,7 +510,7 @@ export function ImportProductsDialog() {
                         ) : step === "done" ? (
                             <Button
                                 onClick={() => handleOpenChange(false)}
-                                className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none"
+                                className="bg-slate-900 text-white border border-border hover:bg-zinc-800 font-semibold text-xs px-5 h-8 rounded-md"
                             >
                                 Selesai
                             </Button>

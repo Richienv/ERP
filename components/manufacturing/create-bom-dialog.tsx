@@ -85,7 +85,7 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
         }
       } catch (error) {
         console.error(error);
-        toast.error("Failed to load products", { className: "font-bold border-2 border-black rounded-none" });
+        toast.error("Failed to load products", { className: "font-bold border border-border rounded-md" });
       } finally {
         setLoadingOptions(false);
       }
@@ -144,20 +144,20 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
 
   const handleSubmit = async () => {
     if (!productId) {
-      toast.error("Pilih produk jadi terlebih dahulu", { className: "font-bold border-2 border-black rounded-none" });
+      toast.error("Pilih produk jadi terlebih dahulu", { className: "font-bold border border-border rounded-md" });
       return;
     }
 
     const validLines = lines.filter((line) => line.materialId && Number(line.quantity) > 0);
     if (validLines.length === 0) {
-      toast.error("Minimal satu material diperlukan", { className: "font-bold border-2 border-black rounded-none" });
+      toast.error("Minimal satu material diperlukan", { className: "font-bold border border-border rounded-md" });
       return;
     }
 
     const duplicated = new Set<string>();
     for (const line of validLines) {
       if (duplicated.has(line.materialId)) {
-        toast.error("Material duplikat tidak diperbolehkan", { className: "font-bold border-2 border-black rounded-none" });
+        toast.error("Material duplikat tidak diperbolehkan", { className: "font-bold border border-border rounded-md" });
         return;
       }
       duplicated.add(line.materialId);
@@ -188,13 +188,13 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
       const payload = await response.json();
       if (!payload.success) {
         toast.error(payload.error || (mode === "edit" ? "Gagal memperbarui BOM" : "Gagal membuat BOM"), {
-          className: "font-bold border-2 border-black rounded-none"
+          className: "font-bold border border-border rounded-md"
         });
         return;
       }
 
       toast.success(mode === "edit" ? "BOM berhasil diperbarui" : "BOM berhasil dibuat", {
-        className: "font-bold border-2 border-black rounded-none"
+        className: "font-bold border border-border rounded-md"
       });
       resetForm();
       onOpenChange(false);
@@ -202,7 +202,7 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
       if (onCreated) await onCreated();
     } catch (error) {
       console.error(error);
-      toast.error("Terjadi kesalahan jaringan", { className: "font-bold border-2 border-black rounded-none" });
+      toast.error("Terjadi kesalahan jaringan", { className: "font-bold border border-border rounded-md" });
     } finally {
       setSubmitting(false);
     }
@@ -230,7 +230,7 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
             >
               {products.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
-                  <span className="font-mono text-[10px] text-muted-foreground mr-2 font-bold">{p.code}</span>
+                  <span className="font-mono text-xs text-muted-foreground mr-2 font-bold">{p.code}</span>
                   {p.name}
                 </SelectItem>
               ))}
@@ -256,7 +256,7 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
             />
           </div>
           {selectedProduct && (
-            <p className="text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest mt-1">
+            <p className="text-xs font-mono font-bold text-muted-foreground mt-1">
               {selectedProduct.code} &middot; {selectedProduct.name}
             </p>
           )}
@@ -270,7 +270,7 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
               variant="outline"
               size="sm"
               onClick={addLine}
-              className="border border-zinc-300 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-3 h-7 rounded-none"
+              className="border border-zinc-300 text-zinc-500 font-bold text-xs px-3 h-7 rounded-md"
             >
               <Plus className="mr-1.5 h-3.5 w-3.5" />
               Tambah
@@ -280,7 +280,7 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
           {lines.length === 0 ? (
             <div className="border border-dashed border-zinc-300 p-8 text-center">
               <Package className="h-8 w-8 text-zinc-300 mx-auto mb-2" />
-              <p className="text-sm font-bold text-muted-foreground uppercase tracking-wide mb-3">
+              <p className="text-sm font-bold text-muted-foreground mb-3">
                 Belum ada material
               </p>
               <Button
@@ -288,7 +288,7 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
                 variant="outline"
                 size="sm"
                 onClick={addLine}
-                className="border border-zinc-300 font-bold uppercase text-[10px] tracking-wider rounded-none h-8 px-4"
+                className="border border-zinc-300 font-bold text-xs rounded-md h-8 px-4"
               >
                 <Plus className="mr-1.5 h-3.5 w-3.5" /> Tambah Material
               </Button>
@@ -297,10 +297,10 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
             <div className="border border-zinc-200 overflow-hidden">
               {/* Column headers */}
               <div className="hidden sm:grid grid-cols-[1fr_80px_60px_60px_40px] gap-0 bg-zinc-800 text-white">
-                <div className="p-2 text-[10px] font-black uppercase tracking-widest border-r border-zinc-700">Material</div>
-                <div className="p-2 text-[10px] font-black uppercase tracking-widest border-r border-zinc-700 text-center">Qty</div>
-                <div className="p-2 text-[10px] font-black uppercase tracking-widest border-r border-zinc-700 text-center">Unit</div>
-                <div className="p-2 text-[10px] font-black uppercase tracking-widest border-r border-zinc-700 text-center">Waste%</div>
+                <div className="p-2 text-xs font-semibold border-r border-zinc-700">Material</div>
+                <div className="p-2 text-xs font-semibold border-r border-zinc-700 text-center">Qty</div>
+                <div className="p-2 text-xs font-semibold border-r border-zinc-700 text-center">Unit</div>
+                <div className="p-2 text-xs font-semibold border-r border-zinc-700 text-center">Waste%</div>
                 <div className="p-2" />
               </div>
 
@@ -314,13 +314,13 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
                 >
                   <div className="p-2 border-b sm:border-b-0 sm:border-r border-zinc-200 h-full flex flex-col justify-center">
                     <Select value={line.materialId} onValueChange={(value) => updateMaterial(index, value)}>
-                      <SelectTrigger className="text-xs border-none font-bold bg-transparent h-8 p-0 focus:ring-0 focus:ring-offset-0 px-2 rounded-none">
+                      <SelectTrigger className="text-xs border-none font-bold bg-transparent h-8 p-0 focus:ring-0 focus:ring-offset-0 px-2 rounded-md">
                         <SelectValue placeholder="Pilih Material..." />
                       </SelectTrigger>
                       <SelectContent className="max-h-60">
                         {materialOptions.map((m) => (
                           <SelectItem key={m.id} value={m.id}>
-                            <span className="font-mono text-[10px] text-muted-foreground mr-1.5 font-bold">{m.code}</span>
+                            <span className="font-mono text-xs text-muted-foreground mr-1.5 font-bold">{m.code}</span>
                             {m.name}
                           </SelectItem>
                         ))}
@@ -335,7 +335,7 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
                       step="0.01"
                       value={line.quantity}
                       onChange={(e) => updateLine(index, { quantity: e.target.value })}
-                      className="text-xs border-none font-bold text-center bg-transparent h-8 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none w-full"
+                      className="text-xs border-none font-bold text-center bg-transparent h-8 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-md w-full"
                       placeholder="0"
                     />
                   </div>
@@ -353,7 +353,7 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
                       step="0.1"
                       value={line.wastePct}
                       onChange={(e) => updateLine(index, { wastePct: e.target.value })}
-                      className="text-xs border-none font-bold text-center bg-transparent h-8 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none w-full"
+                      className="text-xs border-none font-bold text-center bg-transparent h-8 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-md w-full"
                       placeholder="0"
                     />
                   </div>
@@ -363,7 +363,7 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-none transition-colors"
+                      className="h-8 w-8 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
                       onClick={() => removeLine(index)}
                     >
                       <Trash2 className="h-4 w-4" />

@@ -2,6 +2,7 @@ import Link from "next/link"
 import { IconInbox } from "@tabler/icons-react"
 import type { Icon } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 interface EmptyStateProps {
   icon?: Icon
@@ -13,6 +14,7 @@ interface EmptyStateProps {
   className?: string
 }
 
+/** Calm "nothing here yet" panel: one icon, one sentence, at most one obvious button. */
 export function EmptyState({
   icon: IconComponent = IconInbox,
   title,
@@ -26,22 +28,23 @@ export function EmptyState({
     <Button
       onClick={onAction}
       asChild={!!actionHref}
-      className="rounded-none border-2 border-black bg-zinc-900 text-white hover:bg-zinc-800 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-semibold"
+      size="lg"
+      className="mt-6 h-11 min-w-40 px-6 text-[15px] font-semibold"
     >
       {actionHref ? <Link href={actionHref}>{actionLabel}</Link> : actionLabel}
     </Button>
   )
 
   return (
-    <div className={`flex flex-col items-center justify-center py-16 px-4 ${className || ""}`}>
-      <div className="flex items-center justify-center w-16 h-16 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 mb-4">
-        <IconComponent className="w-8 h-8 text-zinc-300 dark:text-zinc-600" />
+    <div className={cn("flex flex-col items-center justify-center px-4 py-14 text-center", className)}>
+      <div className="mb-4 flex size-14 items-center justify-center rounded-full bg-slate-100 ring-1 ring-slate-200 dark:bg-zinc-800 dark:ring-zinc-700">
+        <IconComponent aria-hidden className="size-7 text-slate-500 dark:text-zinc-400" />
       </div>
-      <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
+      <h3 className="text-lg font-semibold text-foreground">
         {title}
       </h3>
       {description && (
-        <p className="text-sm text-muted-foreground text-center max-w-sm mb-6">
+        <p className="mt-1.5 max-w-md text-[15px] leading-relaxed text-muted-foreground">
           {description}
         </p>
       )}

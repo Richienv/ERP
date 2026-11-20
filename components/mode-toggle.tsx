@@ -15,21 +15,19 @@ import {
 export function ModeToggle() {
     const { setTheme, theme } = useTheme()
 
+    // Two clear choices for everyday users; the old experimental palettes stay loadable but unlisted.
     const themes = [
-        { name: "Light", value: "light" },
-        { name: "Dark", value: "dark" },
-        { name: "Claude", value: "claude" },
-        { name: "Ritchie Pop", value: "ritchie" },
-        { name: "Ritchie Minimal", value: "ritchie-minimal" },
+        { name: "Terang", value: "light" },
+        { name: "Gelap", value: "dark" },
     ]
 
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" className="h-9 w-9 rounded-full border-zinc-800 bg-transparent text-zinc-400 hover:text-foreground hover:bg-zinc-800/50 backdrop-blur-sm">
+                <Button variant="outline" size="icon" className="h-10 w-10 rounded-md border-slate-300 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50" title="Tampilan terang / gelap">
                     <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
                     <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                    <span className="sr-only">Toggle theme</span>
+                    <span className="sr-only">Ganti tampilan terang / gelap</span>
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40 bg-popover/90 backdrop-blur-lg border-border/50">

@@ -87,18 +87,18 @@ export default function NewPriceListPage() {
             {/* Back Button */}
             <Link
                 href="/sales/pricelists"
-                className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors mb-5"
+                className="inline-flex items-center gap-2 text-xs font-semibold text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors mb-5"
             >
                 <ArrowLeft className="h-4 w-4" />
                 Kembali ke Daftar Harga
             </Link>
 
             {/* Page Header */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mb-6 overflow-hidden bg-white dark:bg-zinc-900">
+            <div className="border border-border shadow-sm mb-6 overflow-hidden bg-white dark:bg-zinc-900">
                 <div className="px-6 py-4 flex items-center gap-3 border-l-[6px] border-l-emerald-400">
                     <Tag className="h-5 w-5 text-emerald-500" />
                     <div>
-                        <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
+                        <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-white">
                             Buat Daftar Harga Baru
                         </h1>
                         <p className="text-zinc-400 text-xs font-medium mt-0.5">
@@ -112,10 +112,10 @@ export default function NewPriceListPage() {
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
                     {/* SECTION 1 — Informasi Daftar Harga */}
-                    <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-                        <div className="bg-emerald-50 dark:bg-emerald-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-emerald-400">
+                    <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
+                        <div className="bg-emerald-50 dark:bg-emerald-950/20 px-5 py-2.5 border-b border-border flex items-center gap-2 border-l-[5px] border-l-emerald-400">
                             <Tag className="h-4 w-4 text-emerald-600" />
-                            <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">Informasi Daftar Harga</h3>
+                            <h3 className="text-xs font-semibold text-zinc-700 dark:text-zinc-200">Informasi Daftar Harga</h3>
                         </div>
                         <div className="p-5">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
@@ -124,9 +124,9 @@ export default function NewPriceListPage() {
                                     name="code"
                                     render={({ field }) => (
                                         <FormItem className="space-y-1.5">
-                                            <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Kode *</Label>
+                                            <Label className="text-xs font-semibold text-zinc-500">Kode *</Label>
                                             <FormControl>
-                                                <Input placeholder="PL-001" className="border-2 border-black h-10 font-medium" {...field} />
+                                                <Input placeholder="PL-001" className="border border-border h-10 font-medium" {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -137,9 +137,9 @@ export default function NewPriceListPage() {
                                     name="name"
                                     render={({ field }) => (
                                         <FormItem className="space-y-1.5">
-                                            <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Nama Daftar Harga *</Label>
+                                            <Label className="text-xs font-semibold text-zinc-500">Nama Daftar Harga *</Label>
                                             <FormControl>
-                                                <Input placeholder="Harga Retail Standar" className="border-2 border-black h-10 font-medium" {...field} />
+                                                <Input placeholder="Harga Retail Standar" className="border border-border h-10 font-medium" {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -150,10 +150,10 @@ export default function NewPriceListPage() {
                     </div>
 
                     {/* SECTION 2 — Deskripsi */}
-                    <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-                        <div className="bg-emerald-50 dark:bg-emerald-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-emerald-400">
+                    <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
+                        <div className="bg-emerald-50 dark:bg-emerald-950/20 px-5 py-2.5 border-b border-border flex items-center gap-2 border-l-[5px] border-l-emerald-400">
                             <StickyNote className="h-4 w-4 text-emerald-600" />
-                            <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">Deskripsi</h3>
+                            <h3 className="text-xs font-semibold text-zinc-700 dark:text-zinc-200">Deskripsi</h3>
                         </div>
                         <div className="p-5">
                             <FormField
@@ -161,11 +161,11 @@ export default function NewPriceListPage() {
                                 name="description"
                                 render={({ field }) => (
                                     <FormItem className="space-y-1.5">
-                                        <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Penjelasan Daftar Harga</Label>
+                                        <Label className="text-xs font-semibold text-zinc-500">Penjelasan Daftar Harga</Label>
                                         <FormControl>
                                             <Textarea
                                                 placeholder="Penjelasan singkat mengenai daftar harga ini..."
-                                                className="border-2 border-black min-h-[80px] resize-none"
+                                                className="border border-border min-h-[80px] resize-none"
                                                 {...field}
                                             />
                                         </FormControl>
@@ -177,10 +177,10 @@ export default function NewPriceListPage() {
                     </div>
 
                     {/* SECTION 3 — Mata Uang */}
-                    <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-                        <div className="bg-emerald-50 dark:bg-emerald-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-emerald-400">
+                    <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
+                        <div className="bg-emerald-50 dark:bg-emerald-950/20 px-5 py-2.5 border-b border-border flex items-center gap-2 border-l-[5px] border-l-emerald-400">
                             <Coins className="h-4 w-4 text-emerald-600" />
-                            <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">Mata Uang</h3>
+                            <h3 className="text-xs font-semibold text-zinc-700 dark:text-zinc-200">Mata Uang</h3>
                         </div>
                         <div className="p-5">
                             <FormField
@@ -188,10 +188,10 @@ export default function NewPriceListPage() {
                                 name="currency"
                                 render={({ field }) => (
                                     <FormItem className="space-y-1.5 max-w-[240px]">
-                                        <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Pilih Mata Uang</Label>
+                                        <Label className="text-xs font-semibold text-zinc-500">Pilih Mata Uang</Label>
                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                                             <FormControl>
-                                                <SelectTrigger className="border-2 border-black h-10 font-medium">
+                                                <SelectTrigger className="border border-border h-10 font-medium">
                                                     <SelectValue placeholder="Pilih mata uang" />
                                                 </SelectTrigger>
                                             </FormControl>
@@ -208,20 +208,20 @@ export default function NewPriceListPage() {
                     </div>
 
                     {/* Submit Bar */}
-                    <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                    <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
                         <div className="p-5 flex items-center justify-end gap-3">
                             <Button
                                 type="button"
                                 variant="outline"
                                 onClick={() => router.push("/sales/pricelists")}
-                                className="border-2 border-zinc-300 dark:border-zinc-600 font-bold uppercase text-xs tracking-wide h-11 px-6 hover:border-zinc-500 transition-colors"
+                                className="border border-zinc-300 dark:border-zinc-600 font-bold text-xs h-11 px-6 hover:border-zinc-500 transition-colors"
                             >
                                 Batal
                             </Button>
                             <Button
                                 type="submit"
                                 disabled={isLoading}
-                                className="bg-emerald-500 text-white hover:bg-emerald-600 border-2 border-emerald-600 font-black uppercase text-xs tracking-wide h-11 px-8 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] transition-all active:scale-[0.98]"
+                                className="bg-emerald-500 text-white hover:bg-emerald-600 border border-emerald-600 font-semibold text-xs h-11 px-8 shadow-sm hover:shadow-sm transition-all active:scale-[0.98]"
                             >
                                 {isLoading ? (
                                     <>

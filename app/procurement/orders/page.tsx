@@ -12,7 +12,7 @@ export default function PurchaseOrdersPage() {
     const highlightId = searchParams.get("highlight")
 
     if (!data) {
-        return <TablePageSkeleton accentColor="bg-orange-400" />
+        return <TablePageSkeleton accentColor="bg-blue-400" />
     }
 
     return (

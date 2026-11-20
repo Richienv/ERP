@@ -162,20 +162,20 @@ export default function CycleCountsPage() {
     return (
         <div className="mf-page">
             {/* COMMAND HEADER */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white">
+            <div className="border border-border shadow-sm overflow-hidden bg-white">
                 <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-amber-400">
                     <div className="flex items-center gap-3">
-                        <Button variant="outline" size="icon" asChild className="border-2 border-black h-8 w-8 rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none">
+                        <Button variant="outline" size="icon" asChild className="border border-border h-8 w-8 rounded-md shadow-sm hover:shadow-none">
                             <Link href="/inventory/audit"><ArrowLeft className="h-4 w-4" /></Link>
                         </Button>
                         <div>
-                            <h1 className="text-xl font-black uppercase tracking-tight">Stok Opname Batch</h1>
+                            <h1 className="text-xl font-semibold tracking-tight">Stok Opname Batch</h1>
                             <p className="text-zinc-400 text-xs font-medium mt-0.5">Hitung stok seluruh gudang dalam satu sesi</p>
                         </div>
                     </div>
                     <Button
                         onClick={() => setCreateOpen(true)}
-                        className="bg-orange-500 text-white hover:bg-orange-600 border-2 border-orange-600 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold text-xs tracking-wide hover:translate-y-[1px] hover:shadow-none transition-all h-9 rounded-none"
+                        className="bg-blue-500 text-white hover:bg-blue-600 border border-blue-600 shadow-sm font-bold text-xs hover:shadow-none transition-all h-9 rounded-md"
                     >
                         <Plus className="mr-2 h-3.5 w-3.5" /> Buat Sesi Baru
                     </Button>
@@ -183,43 +183,43 @@ export default function CycleCountsPage() {
             </div>
 
             {/* KPI STRIP */}
-            <div className="bg-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+            <div className="bg-white border border-border shadow-sm overflow-hidden">
                 <div className="grid grid-cols-2 md:grid-cols-4">
-                    <div className="relative p-4 md:p-5 border-r-2 border-b-2 md:border-b-0 border-zinc-100">
+                    <div className="relative p-4 md:p-5 border-r border-b md:border-b-0 border-zinc-100">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-400" />
-                        <div className="flex items-center gap-2 mb-2"><Hash className="h-4 w-4 text-zinc-400" /><span className="text-xs font-black uppercase tracking-widest text-zinc-500">Total Sesi</span></div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900">{sessions?.length ?? 0}</div>
+                        <div className="flex items-center gap-2 mb-2"><Hash className="h-4 w-4 text-zinc-400" /><span className="text-xs font-semibold text-zinc-500">Total Sesi</span></div>
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-zinc-900">{sessions?.length ?? 0}</div>
                     </div>
-                    <div className="relative p-4 md:p-5 border-r-2 border-b-2 md:border-b-0 border-zinc-100">
+                    <div className="relative p-4 md:p-5 border-r border-b md:border-b-0 border-zinc-100">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-amber-400" />
-                        <div className="flex items-center gap-2 mb-2"><ClipboardList className="h-4 w-4 text-zinc-400" /><span className="text-xs font-black uppercase tracking-widest text-zinc-500">Berlangsung</span></div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-amber-600">{sessions?.filter((s) => s.status !== "COMPLETED").length ?? 0}</div>
+                        <div className="flex items-center gap-2 mb-2"><ClipboardList className="h-4 w-4 text-zinc-400" /><span className="text-xs font-semibold text-zinc-500">Berlangsung</span></div>
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-amber-600">{sessions?.filter((s) => s.status !== "COMPLETED").length ?? 0}</div>
                     </div>
-                    <div className="relative p-4 md:p-5 border-r-2 border-b-2 md:border-b-0 border-zinc-100">
+                    <div className="relative p-4 md:p-5 border-r border-b md:border-b-0 border-zinc-100">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
-                        <div className="flex items-center gap-2 mb-2"><CheckCircle2 className="h-4 w-4 text-zinc-400" /><span className="text-xs font-black uppercase tracking-widest text-zinc-500">Selesai</span></div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-emerald-600">{sessions?.filter((s) => s.status === "COMPLETED").length ?? 0}</div>
+                        <div className="flex items-center gap-2 mb-2"><CheckCircle2 className="h-4 w-4 text-zinc-400" /><span className="text-xs font-semibold text-zinc-500">Selesai</span></div>
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-emerald-600">{sessions?.filter((s) => s.status === "COMPLETED").length ?? 0}</div>
                     </div>
                     <div className="relative p-4 md:p-5">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-red-400" />
-                        <div className="flex items-center gap-2 mb-2"><AlertTriangle className="h-4 w-4 text-zinc-400" /><span className="text-xs font-black uppercase tracking-widest text-zinc-500">Selisih Ditemukan</span></div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-red-600">{sessions?.reduce((acc, s) => acc + s.varianceCount, 0) ?? 0}</div>
+                        <div className="flex items-center gap-2 mb-2"><AlertTriangle className="h-4 w-4 text-zinc-400" /><span className="text-xs font-semibold text-zinc-500">Selisih Ditemukan</span></div>
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-red-600">{sessions?.reduce((acc, s) => acc + s.varianceCount, 0) ?? 0}</div>
                     </div>
                 </div>
             </div>
 
             {/* SESSION LIST */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white">
+            <div className="border border-border shadow-sm overflow-hidden bg-white">
                 <Table>
-                    <TableHeader className="bg-zinc-50 border-b-2 border-black">
+                    <TableHeader className="bg-zinc-50 border-b border-border">
                         <TableRow className="hover:bg-zinc-50">
-                            <TableHead className="font-black text-black uppercase text-xs tracking-wider">Gudang</TableHead>
-                            <TableHead className="font-black text-black uppercase text-xs tracking-wider">Tanggal</TableHead>
-                            <TableHead className="font-black text-black uppercase text-xs tracking-wider text-center">Item</TableHead>
-                            <TableHead className="font-black text-black uppercase text-xs tracking-wider text-center">Dihitung</TableHead>
-                            <TableHead className="font-black text-black uppercase text-xs tracking-wider text-center">Selisih</TableHead>
-                            <TableHead className="font-black text-black uppercase text-xs tracking-wider text-center">Status</TableHead>
-                            <TableHead className="font-black text-black uppercase text-xs tracking-wider text-right">Aksi</TableHead>
+                            <TableHead className="font-semibold text-black text-xs">Gudang</TableHead>
+                            <TableHead className="font-semibold text-black text-xs">Tanggal</TableHead>
+                            <TableHead className="font-semibold text-black text-xs text-center">Item</TableHead>
+                            <TableHead className="font-semibold text-black text-xs text-center">Dihitung</TableHead>
+                            <TableHead className="font-semibold text-black text-xs text-center">Selisih</TableHead>
+                            <TableHead className="font-semibold text-black text-xs text-center">Status</TableHead>
+                            <TableHead className="font-semibold text-black text-xs text-right">Aksi</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -239,33 +239,33 @@ export default function CycleCountsPage() {
                                                 <Warehouse className="h-3.5 w-3.5 text-zinc-400" />
                                                 <div>
                                                     <div className="font-bold text-sm">{session.warehouseName}</div>
-                                                    <div className="text-[10px] font-mono text-zinc-400">{session.warehouseCode}</div>
+                                                    <div className="text-xs font-mono text-zinc-400">{session.warehouseCode}</div>
                                                 </div>
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-xs font-bold text-zinc-500">
                                             <div className="flex items-center gap-1.5"><Calendar className="h-3 w-3" />{new Date(session.scheduledDate).toLocaleDateString("id-ID")}</div>
                                         </TableCell>
-                                        <TableCell className="text-center font-black">{session.itemCount}</TableCell>
-                                        <TableCell className="text-center font-black text-zinc-900">{session.countedCount}/{session.itemCount}</TableCell>
+                                        <TableCell className="text-center font-semibold">{session.itemCount}</TableCell>
+                                        <TableCell className="text-center font-semibold text-zinc-900">{session.countedCount}/{session.itemCount}</TableCell>
                                         <TableCell className="text-center">
                                             {session.varianceCount > 0 ? (
-                                                <span className="font-black text-red-600">{session.varianceCount}</span>
+                                                <span className="font-semibold text-red-600">{session.varianceCount}</span>
                                             ) : session.countedCount > 0 ? (
-                                                <span className="font-black text-emerald-600">0</span>
+                                                <span className="font-semibold text-emerald-600">0</span>
                                             ) : (
                                                 <span className="text-zinc-300">&mdash;</span>
                                             )}
                                         </TableCell>
                                         <TableCell className="text-center">
-                                            <Badge className={`${cfg.bg} ${cfg.text} border-0 rounded-none text-xs font-black uppercase`}>{cfg.label}</Badge>
+                                            <Badge className={`${cfg.bg} ${cfg.text} border-0 rounded-md text-xs font-semibold `}>{cfg.label}</Badge>
                                         </TableCell>
                                         <TableCell className="text-right">
                                             {session.status !== "COMPLETED" && (
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
-                                                    className="h-7 text-xs uppercase font-black border-2 border-black bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[1px] rounded-none"
+                                                    className="h-7 text-xs font-semibold border border-border bg-white shadow-sm hover:shadow-none rounded-md"
                                                     onClick={() => handleOpenCount(session.id)}
                                                 >
                                                     Hitung
@@ -289,9 +289,9 @@ export default function CycleCountsPage() {
                     </DialogHeader>
                     <div className="p-5 space-y-4">
                         <div>
-                            <label className="text-xs font-black uppercase tracking-wider text-zinc-500 mb-1 block">Gudang <span className="text-red-500">*</span></label>
+                            <label className="text-xs font-semibold text-zinc-500 mb-1 block">Gudang <span className="text-red-500">*</span></label>
                             <Select value={newWarehouseId} onValueChange={setNewWarehouseId}>
-                                <SelectTrigger className="border-2 border-black font-bold h-10 rounded-none">
+                                <SelectTrigger className="border border-border font-bold h-10 rounded-md">
                                     <SelectValue placeholder="Pilih gudang..." />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -302,14 +302,14 @@ export default function CycleCountsPage() {
                             </Select>
                         </div>
                         <div>
-                            <label className="text-xs font-black uppercase tracking-wider text-zinc-500 mb-1 block">Tanggal</label>
-                            <Input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} className="border-2 border-black font-mono h-10 rounded-none" />
+                            <label className="text-xs font-semibold text-zinc-500 mb-1 block">Tanggal</label>
+                            <Input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} className="border border-border font-mono h-10 rounded-md" />
                         </div>
                         <div>
-                            <label className="text-xs font-black uppercase tracking-wider text-zinc-500 mb-1 block">Catatan</label>
-                            <Input value={newNotes} onChange={(e) => setNewNotes(e.target.value)} placeholder="Opsional..." className="border-2 border-black h-10 rounded-none" />
+                            <label className="text-xs font-semibold text-zinc-500 mb-1 block">Catatan</label>
+                            <Input value={newNotes} onChange={(e) => setNewNotes(e.target.value)} placeholder="Opsional..." className="border border-border h-10 rounded-md" />
                         </div>
-                        <Button onClick={handleCreate} disabled={creating} className="w-full bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs h-10 rounded-none">
+                        <Button onClick={handleCreate} disabled={creating} className="w-full bg-slate-900 text-white border border-border shadow-sm hover:shadow-sm transition-all font-semibold text-xs h-10 rounded-md">
                             {creating ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
                             Buat Sesi
                         </Button>
@@ -326,12 +326,12 @@ export default function CycleCountsPage() {
                     </DialogHeader>
                     <div className="p-5">
                         <Table>
-                            <TableHeader className="bg-zinc-50 border-b-2 border-black">
+                            <TableHeader className="bg-zinc-50 border-b border-border">
                                 <TableRow>
-                                    <TableHead className="font-black text-black uppercase text-xs tracking-wider">Produk</TableHead>
-                                    <TableHead className="font-black text-black uppercase text-xs tracking-wider text-right w-[100px]">Sistem</TableHead>
-                                    <TableHead className="font-black text-black uppercase text-xs tracking-wider text-right w-[120px]">Aktual</TableHead>
-                                    <TableHead className="font-black text-black uppercase text-xs tracking-wider text-center w-[80px]">Selisih</TableHead>
+                                    <TableHead className="font-semibold text-black text-xs">Produk</TableHead>
+                                    <TableHead className="font-semibold text-black text-xs text-right w-[100px]">Sistem</TableHead>
+                                    <TableHead className="font-semibold text-black text-xs text-right w-[120px]">Aktual</TableHead>
+                                    <TableHead className="font-semibold text-black text-xs text-center w-[80px]">Selisih</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -342,7 +342,7 @@ export default function CycleCountsPage() {
                                         <TableRow key={item.id} className="border-b border-zinc-100">
                                             <TableCell>
                                                 <div className="font-bold text-sm">{item.productName}</div>
-                                                <div className="text-[10px] font-mono text-zinc-400">{item.productCode} &middot; {item.unit}</div>
+                                                <div className="text-xs font-mono text-zinc-400">{item.productCode} &middot; {item.unit}</div>
                                             </TableCell>
                                             <TableCell className="text-right font-mono font-bold">{item.expectedQty.toLocaleString()}</TableCell>
                                             <TableCell className="text-right">
@@ -350,13 +350,13 @@ export default function CycleCountsPage() {
                                                     type="number"
                                                     value={counts[item.id] ?? ""}
                                                     onChange={(e) => setCounts((prev) => ({ ...prev, [item.id]: e.target.value }))}
-                                                    className="border-2 border-black font-mono font-bold h-8 text-right w-full rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                    className="border border-border font-mono font-bold h-8 text-right w-full rounded-md [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                                     placeholder="—"
                                                 />
                                             </TableCell>
                                             <TableCell className="text-center">
                                                 {variance !== null ? (
-                                                    <span className={`font-black ${variance === 0 ? "text-emerald-600" : "text-red-600"}`}>
+                                                    <span className={`font-semibold ${variance === 0 ? "text-emerald-600" : "text-red-600"}`}>
                                                         {variance > 0 ? "+" : ""}{variance}
                                                     </span>
                                                 ) : (
@@ -372,7 +372,7 @@ export default function CycleCountsPage() {
                             <Button
                                 onClick={handleSubmitCounts}
                                 disabled={submitting}
-                                className="flex-1 bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs h-10 rounded-none"
+                                className="flex-1 bg-slate-900 text-white border border-border shadow-sm hover:shadow-sm transition-all font-semibold text-xs h-10 rounded-md"
                             >
                                 {submitting ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
                                 Simpan Hitungan
@@ -381,7 +381,7 @@ export default function CycleCountsPage() {
                                 <Button
                                     onClick={handleFinalize}
                                     disabled={finalizing}
-                                    className="bg-emerald-600 text-white border-2 border-emerald-800 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs h-10 rounded-none px-6"
+                                    className="bg-emerald-600 text-white border border-emerald-800 shadow-sm hover:shadow-sm transition-all font-semibold text-xs h-10 rounded-md px-6"
                                 >
                                     {finalizing ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
                                     Finalisasi

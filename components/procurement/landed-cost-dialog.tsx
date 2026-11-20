@@ -205,13 +205,13 @@ export function LandedCostDialog({
         <>
             <Button
                 variant="outline"
-                className="h-8 px-3 text-[9px] font-black uppercase border-2 border-black rounded-none gap-1"
+                className="h-8 px-3 text-xs font-semibold border border-border rounded-md gap-1"
                 onClick={() => setOpen(true)}
             >
                 <Ship className="h-3.5 w-3.5" />
                 Landed Cost
                 {currentLandedCost > 0 && (
-                    <span className="bg-black text-white text-[8px] px-1 py-0.5 ml-1">
+                    <span className="bg-slate-900 text-white text-xs px-1 py-0.5 ml-1">
                         Rp {formatIDR(currentLandedCost)}
                     </span>
                 )}
@@ -250,13 +250,13 @@ export function LandedCostDialog({
                             />
                         </div>
 
-                        <div className="flex items-center justify-between pt-2 border-t-2 border-black">
-                            <span className="text-xs font-black uppercase">Total Landed Cost</span>
+                        <div className="flex items-center justify-between pt-2 border-t border-border">
+                            <span className="text-xs font-semibold ">Total Landed Cost</span>
                             <div className="text-right">
-                                <span className="text-lg font-black font-mono">
+                                <span className="text-lg font-semibold font-mono">
                                     Rp {formatIDR(totalLandedCost)}
                                 </span>
-                                <span className="text-[10px] text-zinc-400 font-bold ml-2">
+                                <span className="text-xs text-zinc-400 font-bold ml-2">
                                     ({landedPct}% dari subtotal)
                                 </span>
                             </div>
@@ -298,7 +298,7 @@ export function LandedCostDialog({
                                             <tr key={item.id} className={NB.tableRow}>
                                                 <td className={NB.tableCell}>
                                                     <div className="font-bold">{item.productName}</div>
-                                                    <div className="text-[9px] text-zinc-400 font-mono">{item.productCode}</div>
+                                                    <div className="text-xs text-zinc-400 font-mono">{item.productCode}</div>
                                                 </td>
                                                 <td className={`${NB.tableCell} text-right font-mono`}>{item.quantity}</td>
                                                 <td className={`${NB.tableCell} text-right font-mono`}>
@@ -307,7 +307,7 @@ export function LandedCostDialog({
                                                 <td className={`${NB.tableCell} text-right font-mono font-bold text-blue-600`}>
                                                     +Rp {formatIDR(alloc.allocated)}
                                                 </td>
-                                                <td className={`${NB.tableCell} text-right font-mono font-black`}>
+                                                <td className={`${NB.tableCell} text-right font-mono font-semibold`}>
                                                     Rp {formatIDR(alloc.landedUnitCost)}
                                                 </td>
                                             </tr>
@@ -315,11 +315,11 @@ export function LandedCostDialog({
                                     })}
                                 </tbody>
                                 <tfoot>
-                                    <tr className="bg-zinc-100 border-t-2 border-black">
-                                        <td className={`${NB.tableCell} font-black`} colSpan={3}>
+                                    <tr className="bg-zinc-100 border-t border-border">
+                                        <td className={`${NB.tableCell} font-semibold`} colSpan={3}>
                                             Total
                                         </td>
-                                        <td className={`${NB.tableCell} text-right font-mono font-black text-blue-600`}>
+                                        <td className={`${NB.tableCell} text-right font-mono font-semibold text-blue-600`}>
                                             Rp {formatIDR(totalLandedCost)}
                                         </td>
                                         <td />

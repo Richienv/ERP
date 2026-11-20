@@ -343,12 +343,12 @@ export function MasterView({
                 {/* ============================================================= */}
                 {/* Command Header                                                */}
                 {/* ============================================================= */}
-                <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+                <div className="border border-border shadow-sm overflow-hidden bg-white dark:bg-zinc-900">
                     <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-blue-400">
                         <div className="flex items-center gap-3">
                             <Database className="h-5 w-5 text-blue-500" />
                             <div>
-                                <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
+                                <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-white">
                                     Data Master
                                 </h1>
                                 <p className="text-zinc-400 text-xs font-medium mt-0.5">
@@ -362,55 +362,55 @@ export function MasterView({
                 {/* ============================================================= */}
                 {/* KPI Pulse Strip                                               */}
                 {/* ============================================================= */}
-                <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                     <div className="grid grid-cols-2 md:grid-cols-4">
                         {/* Total Kategori */}
-                        <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
+                        <div className="relative p-4 md:p-5 border-r border-zinc-100 dark:border-zinc-800 border-b md:border-b-0">
                             <div className="absolute top-0 left-0 right-0 h-1 bg-blue-400" />
                             <div className="flex items-center gap-2 mb-2">
                                 <FolderKanban className="h-4 w-4 text-zinc-400" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                <span className="text-xs font-semibold text-zinc-500">
                                     Total Kategori
                                 </span>
                             </div>
-                            <div className="text-2xl md:text-3xl font-black tracking-tighter text-blue-600">
+                            <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-blue-600">
                                 {totalCategories}
                             </div>
-                            <div className="text-[10px] font-bold text-blue-600 mt-1">
+                            <div className="text-xs font-bold text-blue-600 mt-1">
                                 Kategori terdaftar
                             </div>
                         </div>
 
                         {/* Kategori Aktif */}
-                        <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
+                        <div className="relative p-4 md:p-5 border-r border-zinc-100 dark:border-zinc-800 border-b md:border-b-0">
                             <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
                             <div className="flex items-center gap-2 mb-2">
                                 <CheckCircle2 className="h-4 w-4 text-zinc-400" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                <span className="text-xs font-semibold text-zinc-500">
                                     Kategori Aktif
                                 </span>
                             </div>
-                            <div className="text-2xl md:text-3xl font-black tracking-tighter text-emerald-600">
+                            <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-emerald-600">
                                 {activeCategories}
                             </div>
-                            <div className="text-[10px] font-bold text-emerald-600 mt-1">
+                            <div className="text-xs font-bold text-emerald-600 mt-1">
                                 Siap digunakan
                             </div>
                         </div>
 
                         {/* Total Gudang */}
-                        <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
+                        <div className="relative p-4 md:p-5 border-r border-zinc-100 dark:border-zinc-800">
                             <div className="absolute top-0 left-0 right-0 h-1 bg-amber-400" />
                             <div className="flex items-center gap-2 mb-2">
                                 <Warehouse className="h-4 w-4 text-zinc-400" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                <span className="text-xs font-semibold text-zinc-500">
                                     Total Gudang
                                 </span>
                             </div>
-                            <div className="text-2xl md:text-3xl font-black tracking-tighter text-amber-600">
+                            <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-amber-600">
                                 {totalWarehouses}
                             </div>
-                            <div className="text-[10px] font-bold text-amber-600 mt-1">
+                            <div className="text-xs font-bold text-amber-600 mt-1">
                                 Gudang terdaftar
                             </div>
                         </div>
@@ -420,14 +420,14 @@ export function MasterView({
                             <div className="absolute top-0 left-0 right-0 h-1 bg-indigo-400" />
                             <div className="flex items-center gap-2 mb-2">
                                 <CheckCircle2 className="h-4 w-4 text-zinc-400" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                <span className="text-xs font-semibold text-zinc-500">
                                     Gudang Aktif
                                 </span>
                             </div>
-                            <div className="text-2xl md:text-3xl font-black tracking-tighter text-indigo-600">
+                            <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-indigo-600">
                                 {activeWarehouses}
                             </div>
-                            <div className="text-[10px] font-bold text-indigo-600 mt-1">
+                            <div className="text-xs font-bold text-indigo-600 mt-1">
                                 Beroperasi
                             </div>
                         </div>
@@ -439,10 +439,10 @@ export function MasterView({
                 {/* ============================================================= */}
 
                 {/* Search & Filter Bar */}
-                <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                     <div className="px-4 py-3 flex items-center gap-3 border-l-[6px] border-l-blue-400">
                         <FolderKanban className="h-4 w-4 text-blue-500" />
-                        <span className="text-xs font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-300">
+                        <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                             Kategori Produk Master
                         </span>
                     </div>
@@ -453,13 +453,13 @@ export function MasterView({
                                 placeholder="Cari kode, nama, deskripsi..."
                                 value={catSearch}
                                 onChange={(e) => setCatSearch(e.target.value)}
-                                className="pl-9 border-2 border-black font-bold h-10 placeholder:text-zinc-400 rounded-none"
+                                className="pl-9 border border-border font-bold h-10 placeholder:text-zinc-400 rounded-md"
                             />
                         </div>
                         <Button
                             disabled={!canManage}
                             onClick={openAddCategory}
-                            className="border-2 border-black bg-black text-white font-black uppercase text-[10px] tracking-widest h-10 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all"
+                            className="border border-border bg-slate-900 text-white font-semibold text-xs h-10 shadow-sm hover:shadow-none transition-all"
                         >
                             <Plus className="h-3.5 w-3.5 mr-1.5" /> Tambah Kategori
                         </Button>
@@ -467,33 +467,33 @@ export function MasterView({
                 </div>
 
                 {/* Category Table */}
-                <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left">
-                            <thead className="bg-zinc-50 dark:bg-zinc-800 border-b-2 border-black">
+                            <thead className="bg-zinc-50 dark:bg-zinc-800 border-b border-border">
                                 <tr>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                    <th className="h-10 px-4 text-xs font-semibold text-zinc-500">
                                         Kode
                                     </th>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                    <th className="h-10 px-4 text-xs font-semibold text-zinc-500">
                                         Nama
                                     </th>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 hidden md:table-cell">
+                                    <th className="h-10 px-4 text-xs font-semibold text-zinc-500 hidden md:table-cell">
                                         Deskripsi
                                     </th>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 hidden lg:table-cell">
+                                    <th className="h-10 px-4 text-xs font-semibold text-zinc-500 hidden lg:table-cell">
                                         Parent
                                     </th>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">
+                                    <th className="h-10 px-4 text-xs font-semibold text-zinc-500 text-right">
                                         Item
                                     </th>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                    <th className="h-10 px-4 text-xs font-semibold text-zinc-500">
                                         Status
                                     </th>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 hidden lg:table-cell">
+                                    <th className="h-10 px-4 text-xs font-semibold text-zinc-500 hidden lg:table-cell">
                                         Update
                                     </th>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                    <th className="h-10 px-4 text-xs font-semibold text-zinc-500">
                                         Aksi
                                     </th>
                                 </tr>
@@ -503,7 +503,7 @@ export function MasterView({
                                     <tr>
                                         <td colSpan={8} className="p-12 text-center">
                                             <FolderKanban className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                                            <p className="text-xs font-semibold text-zinc-400">
                                                 Tidak ada kategori ditemukan
                                             </p>
                                         </td>
@@ -531,16 +531,16 @@ export function MasterView({
                                             </td>
                                             <td className="p-4">
                                                 {cat.isActive ? (
-                                                    <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-widest border rounded-sm bg-emerald-50 text-emerald-700 border-emerald-300">
+                                                    <span className="px-1.5 py-0.5 text-xs font-semibold border rounded-sm bg-emerald-50 text-emerald-700 border-emerald-300">
                                                         Aktif
                                                     </span>
                                                 ) : (
-                                                    <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-widest border rounded-sm bg-zinc-50 text-zinc-500 border-zinc-300">
+                                                    <span className="px-1.5 py-0.5 text-xs font-semibold border rounded-sm bg-zinc-50 text-zinc-500 border-zinc-300">
                                                         Nonaktif
                                                     </span>
                                                 )}
                                             </td>
-                                            <td className="p-4 text-[10px] text-zinc-400 hidden lg:table-cell whitespace-nowrap">
+                                            <td className="p-4 text-xs text-zinc-400 hidden lg:table-cell whitespace-nowrap">
                                                 {formatDateTime(cat.updatedAt)}
                                             </td>
                                             <td className="p-4">
@@ -549,7 +549,7 @@ export function MasterView({
                                                     size="sm"
                                                     disabled={!canManage}
                                                     onClick={() => openEditCategory(cat)}
-                                                    className="border-2 border-black font-black uppercase text-[9px] tracking-widest h-7 px-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all"
+                                                    className="border border-border font-semibold text-xs h-7 px-2 shadow-sm hover:shadow-none transition-all"
                                                 >
                                                     <Pencil className="h-3 w-3 mr-1" />
                                                     Edit
@@ -568,10 +568,10 @@ export function MasterView({
                 {/* ============================================================= */}
 
                 {/* Search & Filter Bar */}
-                <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                     <div className="px-4 py-3 flex items-center gap-3 border-l-[6px] border-l-amber-400">
                         <Warehouse className="h-4 w-4 text-amber-500" />
-                        <span className="text-xs font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-300">
+                        <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                             Master Gudang & Lokasi
                         </span>
                     </div>
@@ -582,13 +582,13 @@ export function MasterView({
                                 placeholder="Cari kode, nama, kota, provinsi..."
                                 value={whSearch}
                                 onChange={(e) => setWhSearch(e.target.value)}
-                                className="pl-9 border-2 border-black font-bold h-10 placeholder:text-zinc-400 rounded-none"
+                                className="pl-9 border border-border font-bold h-10 placeholder:text-zinc-400 rounded-md"
                             />
                         </div>
                         <Button
                             disabled={!canManage}
                             onClick={openAddWarehouse}
-                            className="border-2 border-black bg-black text-white font-black uppercase text-[10px] tracking-widest h-10 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all"
+                            className="border border-border bg-slate-900 text-white font-semibold text-xs h-10 shadow-sm hover:shadow-none transition-all"
                         >
                             <Plus className="h-3.5 w-3.5 mr-1.5" /> Tambah Gudang
                         </Button>
@@ -596,30 +596,30 @@ export function MasterView({
                 </div>
 
                 {/* Warehouse Table */}
-                <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left">
-                            <thead className="bg-zinc-50 dark:bg-zinc-800 border-b-2 border-black">
+                            <thead className="bg-zinc-50 dark:bg-zinc-800 border-b border-border">
                                 <tr>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                    <th className="h-10 px-4 text-xs font-semibold text-zinc-500">
                                         Kode
                                     </th>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                    <th className="h-10 px-4 text-xs font-semibold text-zinc-500">
                                         Nama
                                     </th>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 hidden md:table-cell">
+                                    <th className="h-10 px-4 text-xs font-semibold text-zinc-500 hidden md:table-cell">
                                         Lokasi
                                     </th>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right hidden lg:table-cell">
+                                    <th className="h-10 px-4 text-xs font-semibold text-zinc-500 text-right hidden lg:table-cell">
                                         Kapasitas
                                     </th>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 hidden lg:table-cell">
+                                    <th className="h-10 px-4 text-xs font-semibold text-zinc-500 hidden lg:table-cell">
                                         Manager
                                     </th>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                    <th className="h-10 px-4 text-xs font-semibold text-zinc-500">
                                         Status
                                     </th>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                    <th className="h-10 px-4 text-xs font-semibold text-zinc-500">
                                         Aksi
                                     </th>
                                 </tr>
@@ -629,7 +629,7 @@ export function MasterView({
                                     <tr>
                                         <td colSpan={7} className="p-12 text-center">
                                             <Warehouse className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                                            <p className="text-xs font-semibold text-zinc-400">
                                                 Tidak ada gudang ditemukan
                                             </p>
                                         </td>
@@ -665,7 +665,7 @@ export function MasterView({
                                                                 {wh.managerName}
                                                             </div>
                                                             {wh.managerCode && (
-                                                                <div className="font-mono text-[10px] text-zinc-400">
+                                                                <div className="font-mono text-xs text-zinc-400">
                                                                     {wh.managerCode}
                                                                 </div>
                                                             )}
@@ -676,11 +676,11 @@ export function MasterView({
                                                 </td>
                                                 <td className="p-4">
                                                     {wh.isActive ? (
-                                                        <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-widest border rounded-sm bg-emerald-50 text-emerald-700 border-emerald-300">
+                                                        <span className="px-1.5 py-0.5 text-xs font-semibold border rounded-sm bg-emerald-50 text-emerald-700 border-emerald-300">
                                                             Aktif
                                                         </span>
                                                     ) : (
-                                                        <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-widest border rounded-sm bg-zinc-50 text-zinc-500 border-zinc-300">
+                                                        <span className="px-1.5 py-0.5 text-xs font-semibold border rounded-sm bg-zinc-50 text-zinc-500 border-zinc-300">
                                                             Nonaktif
                                                         </span>
                                                     )}
@@ -691,7 +691,7 @@ export function MasterView({
                                                         size="sm"
                                                         disabled={!canManage}
                                                         onClick={() => openEditWarehouse(wh)}
-                                                        className="border-2 border-black font-black uppercase text-[9px] tracking-widest h-7 px-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all"
+                                                        className="border border-border font-semibold text-xs h-7 px-2 shadow-sm hover:shadow-none transition-all"
                                                     >
                                                         <Pencil className="h-3 w-3 mr-1" />
                                                         Edit
@@ -750,7 +750,7 @@ export function MasterView({
                                 .map((c) => ({ value: c.id, label: `${c.code} - ${c.name}` }))}
                         />
                         <div className="flex items-center justify-between py-1">
-                            <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+                            <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400">
                                 Status Aktif
                             </label>
                             <div className="flex items-center gap-2">
@@ -839,7 +839,7 @@ export function MasterView({
                             }))}
                         />
                         <div className="flex items-center justify-between py-1">
-                            <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+                            <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400">
                                 Status Aktif
                             </label>
                             <div className="flex items-center gap-2">

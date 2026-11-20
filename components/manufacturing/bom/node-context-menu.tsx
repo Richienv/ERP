@@ -44,7 +44,7 @@ export function NodeContextMenu({
     return (
         <div
             ref={ref}
-            className="fixed z-[9999] bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] min-w-[180px] py-1"
+            className="fixed z-[9999] bg-white border border-border shadow-sm min-w-[180px] py-1"
             style={{ left: x, top: y }}
         >
             {items.map((item, i) => {

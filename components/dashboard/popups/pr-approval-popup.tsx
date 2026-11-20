@@ -169,7 +169,7 @@ export function PRApprovalPopup({ open, onClose, onAllActioned }: PRApprovalPopu
                                         </p>
                                     </div>
                                     {pr.priority !== "NORMAL" && (
-                                        <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 border shrink-0 ${
+                                        <span className={`text-xs font-semibold   px-1.5 py-0.5 border shrink-0 ${
                                             pr.priority === "URGENT"
                                                 ? "border-red-300 bg-red-50 text-red-700"
                                                 : "border-amber-300 bg-amber-50 text-amber-700"
@@ -183,7 +183,7 @@ export function PRApprovalPopup({ open, onClose, onAllActioned }: PRApprovalPopu
                                 {pr.items.length > 0 && (
                                     <div className="border border-zinc-200 dark:border-zinc-700">
                                         <div className="bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1 border-b border-zinc-200 dark:border-zinc-700">
-                                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Item</span>
+                                            <span className="text-xs font-semibold text-zinc-400">Item</span>
                                         </div>
                                         <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
                                             {pr.items.map((item) => (
@@ -211,7 +211,7 @@ export function PRApprovalPopup({ open, onClose, onAllActioned }: PRApprovalPopu
                                 {/* Estimated Total */}
                                 {pr.estimatedTotal > 0 && (
                                     <div className="flex justify-between items-center px-1">
-                                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Estimasi Total</span>
+                                        <span className="text-xs font-bold text-zinc-500">Estimasi Total</span>
                                         <span className="text-sm font-mono font-bold text-emerald-700">{formatIDR(pr.estimatedTotal)}</span>
                                     </div>
                                 )}
@@ -236,7 +236,7 @@ export function PRApprovalPopup({ open, onClose, onAllActioned }: PRApprovalPopu
                                                 size="sm"
                                                 disabled={acting === pr.id || !rejectReason.trim()}
                                                 onClick={() => handleReject(pr)}
-                                                className="flex-1 h-7 px-3 rounded-none bg-red-600 hover:bg-red-700 text-white text-[10px] font-black uppercase tracking-wider"
+                                                className="flex-1 h-7 px-3 rounded-md bg-red-600 hover:bg-red-700 text-white text-xs font-semibold  "
                                             >
                                                 {acting === pr.id ? (
                                                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -249,7 +249,7 @@ export function PRApprovalPopup({ open, onClose, onAllActioned }: PRApprovalPopu
                                                 size="sm"
                                                 variant="outline"
                                                 onClick={() => { setRejectingId(null); setRejectReason("") }}
-                                                className="h-7 px-3 rounded-none border-zinc-300 text-zinc-600 text-[10px] font-black uppercase tracking-wider"
+                                                className="h-7 px-3 rounded-md border-zinc-300 text-zinc-600 text-xs font-semibold  "
                                             >
                                                 Batal
                                             </Button>
@@ -261,7 +261,7 @@ export function PRApprovalPopup({ open, onClose, onAllActioned }: PRApprovalPopu
                                             size="sm"
                                             disabled={acting === pr.id}
                                             onClick={() => handleApprove(pr)}
-                                            className="flex-1 h-7 px-3 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-wider"
+                                            className="flex-1 h-7 px-3 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold  "
                                         >
                                             {acting === pr.id ? (
                                                 <Loader2 className="h-3 w-3 animate-spin" />
@@ -275,7 +275,7 @@ export function PRApprovalPopup({ open, onClose, onAllActioned }: PRApprovalPopu
                                             variant="outline"
                                             disabled={acting === pr.id}
                                             onClick={() => setRejectingId(pr.id)}
-                                            className="flex-1 h-7 px-3 rounded-none border-red-300 text-red-600 hover:bg-red-50 text-[10px] font-black uppercase tracking-wider"
+                                            className="flex-1 h-7 px-3 rounded-md border-red-300 text-red-600 hover:bg-red-50 text-xs font-semibold  "
                                         >
                                             <XCircle className="h-3 w-3 mr-1" />
                                             Tolak

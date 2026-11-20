@@ -276,7 +276,7 @@ export function AccountingModuleActions() {
                   <div>
                     <label className={NB.label}>Jumlah <span className={NB.labelRequired}>*</span></label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-zinc-400">Rp</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-zinc-400">Rp</span>
                       <Input type="number" min="0" value={apAmount} onChange={(e) => setApAmount(e.target.value)} placeholder="0" className={NB.inputMono + " pl-9"} />
                     </div>
                   </div>
@@ -333,20 +333,20 @@ export function AccountingModuleActions() {
                       { value: "LIABILITY" as const, label: "Liability", icon: CreditCard, activeBg: "bg-red-50", activeIcon: "text-red-600" },
                       { value: "EQUITY" as const, label: "Equity", icon: PiggyBank, activeBg: "bg-blue-50", activeIcon: "text-blue-600" },
                       { value: "REVENUE" as const, label: "Revenue", icon: Wallet, activeBg: "bg-purple-50", activeIcon: "text-purple-600" },
-                      { value: "EXPENSE" as const, label: "Expense", icon: Receipt, activeBg: "bg-orange-50", activeIcon: "text-orange-600" },
+                      { value: "EXPENSE" as const, label: "Expense", icon: Receipt, activeBg: "bg-blue-50", activeIcon: "text-blue-600" },
                     ]).map(({ value, label, icon: Icon, activeBg, activeIcon }) => (
                       <button
                         key={value}
                         type="button"
                         onClick={() => setCoaType(value)}
-                        className={`flex flex-col items-center gap-1.5 p-2.5 border-2 transition-all ${
+                        className={`flex flex-col items-center gap-1.5 p-2.5 border transition-all ${
                           coaType === value
-                            ? `border-black ${activeBg} shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]`
+                            ? `border-border ${activeBg} shadow-sm`
                             : "border-zinc-200 bg-white hover:border-zinc-400 hover:bg-zinc-50"
                         }`}
                       >
                         <Icon className={`h-4 w-4 ${coaType === value ? activeIcon : "text-zinc-400"}`} />
-                        <span className={`text-[8px] font-black uppercase tracking-widest ${coaType === value ? "text-black" : "text-zinc-400"}`}>
+                        <span className={`text-xs font-semibold   ${coaType === value ? "text-black" : "text-zinc-400"}`}>
                           {label}
                         </span>
                       </button>
@@ -368,11 +368,11 @@ export function AccountingModuleActions() {
 
                 {/* Preview strip */}
                 {(coaCode.trim() || coaName.trim()) && (
-                  <div className="border-2 border-dashed border-zinc-300 bg-zinc-50 px-4 py-2.5 flex items-center gap-3">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Preview</span>
+                  <div className="border border-dashed border-zinc-300 bg-zinc-50 px-4 py-2.5 flex items-center gap-3">
+                    <span className="text-xs font-semibold text-zinc-400">Preview</span>
                     <span className="font-mono font-bold text-sm text-zinc-900">{coaCode || "—"}</span>
                     <span className="text-sm font-bold text-zinc-700">{coaName || "—"}</span>
-                    <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 border border-zinc-300 text-zinc-500 ml-auto">{coaType}</span>
+                    <span className="text-xs font-semibold px-1.5 py-0.5 border border-zinc-300 text-zinc-500 ml-auto">{coaType}</span>
                   </div>
                 )}
 
@@ -454,7 +454,7 @@ export function AccountingModuleActions() {
                     <div>
                       <label className={NB.label}>Nominal <span className={NB.labelRequired}>*</span></label>
                       <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-zinc-400">Rp</span>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-zinc-400">Rp</span>
                         <Input type="number" min="0" value={journalAmount} onChange={(e) => setJournalAmount(e.target.value)} placeholder="0" className={NB.inputMono + " pl-9"} />
                       </div>
                     </div>
@@ -501,13 +501,13 @@ export function AccountingModuleActions() {
                         key={value}
                         type="button"
                         onClick={() => setReportType(value)}
-                        className={`p-3 border-2 text-center transition-all ${
+                        className={`p-3 border text-center transition-all ${
                           reportType === value
-                            ? "border-black bg-zinc-900 text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+                            ? "border-border bg-zinc-900 text-white shadow-sm"
                             : "border-zinc-200 bg-white hover:border-zinc-400 hover:bg-zinc-50"
                         }`}
                       >
-                        <span className="text-[9px] font-black uppercase tracking-widest">{label}</span>
+                        <span className="text-xs font-semibold  ">{label}</span>
                       </button>
                     ))}
                   </div>

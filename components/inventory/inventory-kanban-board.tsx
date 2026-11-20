@@ -123,19 +123,19 @@ function KanbanColumn({ title, status, products, color, onDrop, onCardClick, onR
 
     return (
         <div
-            className="flex-1 min-w-[320px] max-w-[400px] flex flex-col border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden"
+            className="flex-1 min-w-[320px] max-w-[400px] flex flex-col border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden"
             onDragOver={handleDragOver}
             onDrop={handleDrop}
         >
             {/* Column Header */}
-            <div className={`px-4 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] ${accentColor} ${headerBg}`}>
+            <div className={`px-4 py-2.5 border-b border-border flex items-center gap-2 border-l-[5px] ${accentColor} ${headerBg}`}>
                 <div className="flex items-center gap-2 flex-1">
                     <StatusIcon className={`h-4 w-4 ${iconColor}`} />
-                    <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">
+                    <h3 className="text-xs font-semibold text-zinc-700 dark:text-zinc-200">
                         {title}
                     </h3>
                 </div>
-                <span className={`${countBg} text-white text-[10px] font-black px-2 py-0.5 min-w-[20px] text-center rounded-sm`}>
+                <span className={`${countBg} text-white text-xs font-semibold px-2 py-0.5 min-w-[20px] text-center rounded-sm`}>
                     {products.length}
                 </span>
             </div>
@@ -150,7 +150,7 @@ function KanbanColumn({ title, status, products, color, onDrop, onCardClick, onR
                             onDragStart={(e) => e.dataTransfer.setData('productId', product.id)}
                             onClick={() => onCardClick(product.id)}
                             className={cn(
-                                "p-4 bg-white dark:bg-zinc-800 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] cursor-pointer active:cursor-grabbing relative group hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all",
+                                "p-4 bg-white dark:bg-zinc-800 border border-border shadow-sm cursor-pointer active:cursor-grabbing relative group hover:shadow-sm transition-all",
                                 product.manualAlert && "border-red-600 shadow-red-900/20"
                             )}
                         >
@@ -168,31 +168,31 @@ function KanbanColumn({ title, status, products, color, onDrop, onCardClick, onR
                                     <div className="absolute -top-1.5 -right-1.5 z-10 flex items-center gap-1" title={warnings.join(', ')}>
                                         <span className="relative flex h-3.5 w-3.5">
                                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                                            <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-red-500 border-2 border-white" />
+                                            <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-red-500 border border-white" />
                                         </span>
                                     </div>
                                 )
                             })()}
 
                             <div className="flex justify-between items-start mb-2">
-                                <span className="text-[10px] font-black uppercase tracking-wide px-2 py-0.5 border-2 border-black bg-zinc-100 text-zinc-700">
+                                <span className="text-xs font-semibold px-2 py-0.5 border border-border bg-zinc-100 text-zinc-700">
                                     {product.code}
                                 </span>
                                 <div className="flex items-center gap-1">
                                     {product.hasPendingPR && (
-                                        <span className="text-[9px] font-black uppercase px-1.5 py-0.5 bg-violet-600 text-white border-2 border-violet-800">
+                                        <span className="text-xs font-semibold px-1.5 py-0.5 bg-violet-600 text-white border border-violet-800">
                                             PR
                                         </span>
                                     )}
                                     {product.manualAlert && (
-                                        <span className="text-[9px] font-black uppercase px-1.5 py-0.5 bg-red-600 text-white border-2 border-red-800">
+                                        <span className="text-xs font-semibold px-1.5 py-0.5 bg-red-600 text-white border border-red-800">
                                             ALERT
                                         </span>
                                     )}
                                 </div>
                             </div>
 
-                            <h4 className="font-black text-sm leading-tight mb-1 text-zinc-900 dark:text-zinc-100 line-clamp-2 uppercase">
+                            <h4 className="font-semibold text-sm leading-tight mb-1 text-zinc-900 dark:text-zinc-100 line-clamp-2 ">
                                 {product.name}
                             </h4>
 
@@ -202,7 +202,7 @@ function KanbanColumn({ title, status, products, color, onDrop, onCardClick, onR
                                 const hasNoCategory = !categoryName || categoryName === 'Uncategorized' || categoryName === 'UNCATEGORIZED'
                                 return (
                                     <p className={cn(
-                                        "text-[10px] uppercase tracking-widest font-bold mb-3",
+                                        "text-xs font-bold mb-3",
                                         hasNoCategory ? "text-red-500" : "text-zinc-400"
                                     )}>
                                         {hasNoCategory ? 'Kategori kosong' : categoryName}
@@ -210,16 +210,16 @@ function KanbanColumn({ title, status, products, color, onDrop, onCardClick, onR
                                 )
                             })()}
 
-                            <div className="flex items-center justify-between pt-3 border-t-2 border-zinc-100 dark:border-zinc-700">
+                            <div className="flex items-center justify-between pt-3 border-t border-zinc-100 dark:border-zinc-700">
                                 <div>
-                                    <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Level Stok</div>
-                                    <div className={cn("font-black text-base leading-none mt-0.5", product.totalStock === 0 ? "text-red-600" : "text-zinc-900 dark:text-zinc-100")}>
-                                        {product.totalStock} <span className="text-[10px] text-zinc-400 font-bold">{product.unit}</span>
+                                    <div className="text-xs font-semibold text-zinc-400">Level Stok</div>
+                                    <div className={cn("font-semibold text-base leading-none mt-0.5", product.totalStock === 0 ? "text-red-600" : "text-zinc-900 dark:text-zinc-100")}>
+                                        {product.totalStock} <span className="text-xs text-zinc-400 font-bold">{product.unit}</span>
                                     </div>
                                 </div>
                                 {product.status !== 'HEALTHY' && (
                                     <span className={cn(
-                                        "text-[9px] font-black uppercase px-2 py-1 border-2 border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]",
+                                        "text-xs font-semibold px-2 py-1 border border-border shadow-sm",
                                         product.status === 'CRITICAL' ? "bg-red-100 text-red-800" :
                                             product.status === 'LOW_STOCK' ? "bg-amber-100 text-amber-800" :
                                                 product.status === 'PLANNING' ? "bg-violet-100 text-violet-800" :
@@ -232,18 +232,18 @@ function KanbanColumn({ title, status, products, color, onDrop, onCardClick, onR
 
                             {/* PR Requested Quantity */}
                             {(product.prQuantity ?? 0) > 0 && (
-                                <div className="mt-2 pt-2 border-t-2 border-violet-100 dark:border-violet-900">
+                                <div className="mt-2 pt-2 border-t border-violet-100 dark:border-violet-900">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-[8px] font-black uppercase tracking-wider text-zinc-400">Diminta (PR)</span>
-                                        <span className="text-sm font-black text-violet-700">
-                                            {product.prQuantity} <span className="text-[9px] font-bold text-zinc-400">{product.unit}</span>
+                                        <span className="text-xs font-semibold text-zinc-400">Diminta (PR)</span>
+                                        <span className="text-sm font-semibold text-violet-700">
+                                            {product.prQuantity} <span className="text-xs font-bold text-zinc-400">{product.unit}</span>
                                         </span>
                                     </div>
                                     {product.prNumber && (
-                                        <div className="text-[9px] font-mono font-bold text-violet-500 mt-0.5">
+                                        <div className="text-xs font-mono font-bold text-violet-500 mt-0.5">
                                             {product.prNumber}
                                             <span className={cn(
-                                                "ml-1 px-1 py-0.5 text-[7px] font-black uppercase border",
+                                                "ml-1 px-1 py-0.5 text-[7px] font-semibold border",
                                                 product.prStatus === 'APPROVED' ? "bg-emerald-100 text-emerald-800 border-emerald-300"
                                                     : product.prStatus === 'REJECTED' ? "bg-red-100 text-red-800 border-red-300"
                                                         : "bg-violet-100 text-violet-800 border-violet-300"
@@ -258,13 +258,13 @@ function KanbanColumn({ title, status, products, color, onDrop, onCardClick, onR
                             {/* PO Pipeline Status */}
                             {product.procurementDetail && product.procurementDetail.type === 'PO' && (
                                 <div className={cn(
-                                    "mt-2 pt-2 border-t-2",
+                                    "mt-2 pt-2 border-t",
                                     (product.prQuantity ?? 0) > 0 ? "border-cyan-100 dark:border-cyan-900" : "border-cyan-100 dark:border-cyan-900"
                                 )}>
                                     <div className="flex items-center justify-between">
-                                        <span className="text-[8px] font-black uppercase tracking-wider text-zinc-400">Pipeline</span>
+                                        <span className="text-xs font-semibold text-zinc-400">Pipeline</span>
                                         <span className={cn(
-                                            "text-[8px] font-black uppercase px-1.5 py-0.5 border",
+                                            "text-xs font-semibold px-1.5 py-0.5 border",
                                             product.procurementDetail.status === 'SHIPPED' ? "bg-cyan-100 text-cyan-800 border-cyan-300"
                                                 : product.procurementDetail.status === 'ORDERED' ? "bg-blue-100 text-blue-800 border-blue-300"
                                                     : product.procurementDetail.status === 'VENDOR_CONFIRMED' ? "bg-indigo-100 text-indigo-800 border-indigo-300"
@@ -281,15 +281,15 @@ function KanbanColumn({ title, status, products, color, onDrop, onCardClick, onR
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-1 mt-1">
-                                        <span className="text-[9px] font-mono font-bold text-zinc-500">
+                                        <span className="text-xs font-mono font-bold text-zinc-500">
                                             {product.procurementDetail.number}
                                         </span>
                                         {product.procurementDetail.supplierName && (
-                                            <span className="text-[9px] text-zinc-400">• {product.procurementDetail.supplierName}</span>
+                                            <span className="text-xs text-zinc-400">• {product.procurementDetail.supplierName}</span>
                                         )}
                                     </div>
                                     {product.procurementDetail.expectedDate && (
-                                        <div className="text-[9px] text-cyan-600 font-bold mt-0.5">
+                                        <div className="text-xs text-cyan-600 font-bold mt-0.5">
                                             ETA: {new Date(product.procurementDetail.expectedDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
                                         </div>
                                     )}
@@ -298,18 +298,18 @@ function KanbanColumn({ title, status, products, color, onDrop, onCardClick, onR
 
                             {/* PR-only Pipeline Status (no PO yet) */}
                             {product.procurementDetail && product.procurementDetail.type === 'PR' && (product.prQuantity ?? 0) === 0 && (
-                                <div className="mt-2 pt-2 border-t-2 border-violet-100 dark:border-violet-900">
+                                <div className="mt-2 pt-2 border-t border-violet-100 dark:border-violet-900">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-[8px] font-black uppercase tracking-wider text-zinc-400">Pipeline</span>
+                                        <span className="text-xs font-semibold text-zinc-400">Pipeline</span>
                                         <span className={cn(
-                                            "text-[8px] font-black uppercase px-1.5 py-0.5 border",
+                                            "text-xs font-semibold px-1.5 py-0.5 border",
                                             product.procurementDetail.status === 'APPROVED' ? "bg-emerald-100 text-emerald-800 border-emerald-300"
                                                 : "bg-violet-100 text-violet-800 border-violet-300"
                                         )}>
                                             PR {product.procurementDetail.status}
                                         </span>
                                     </div>
-                                    <div className="text-[9px] font-mono font-bold text-zinc-500 mt-1">
+                                    <div className="text-xs font-mono font-bold text-zinc-500 mt-1">
                                         {product.procurementDetail.number}
                                     </div>
                                 </div>
@@ -322,9 +322,9 @@ function KanbanColumn({ title, status, products, color, onDrop, onCardClick, onR
                                 const hasNoCost = !product.costPrice || product.costPrice === 0
                                 if (!hasNoCategory && !hasNoCost) return null
                                 return (
-                                    <div className="mt-2 pt-2 border-t-2 border-dashed border-red-200 dark:border-red-800 flex items-center gap-1.5">
+                                    <div className="mt-2 pt-2 border-t border-dashed border-red-200 dark:border-red-800 flex items-center gap-1.5">
                                         <AlertCircle className="h-3 w-3 text-red-500 flex-shrink-0" />
-                                        <span className="text-[8px] font-black uppercase tracking-wide text-red-500">
+                                        <span className="text-xs font-semibold text-red-500">
                                             {[hasNoCategory && 'Kategori', hasNoCost && 'HPP'].filter(Boolean).join(' & ')} belum diisi
                                         </span>
                                     </div>
@@ -341,7 +341,7 @@ function KanbanColumn({ title, status, products, color, onDrop, onCardClick, onR
                                         }}
                                         disabled={product.hasPendingPR}
                                         className={cn(
-                                            "flex items-center gap-1 text-[8px] font-black uppercase tracking-wider px-2 py-1 border-2 border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all",
+                                            "flex items-center gap-1 text-xs font-semibold px-2 py-1 border border-border shadow-sm hover:shadow-none transition-all",
                                             product.hasPendingPR
                                                 ? "bg-zinc-100 text-zinc-400 cursor-not-allowed border-zinc-300 shadow-none"
                                                 : "bg-violet-100 text-violet-800 hover:bg-violet-200"
@@ -350,7 +350,7 @@ function KanbanColumn({ title, status, products, color, onDrop, onCardClick, onR
                                         <ShoppingCart className="h-2.5 w-2.5" />
                                         {product.hasPendingPR ? 'PR Aktif' : 'Request PR'}
                                     </button>
-                                    <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-1">
+                                    <span className="text-xs font-semibold text-zinc-400 flex items-center gap-1">
                                         <Eye className="h-2.5 w-2.5" /> Detail
                                     </span>
                                 </div>
@@ -358,9 +358,9 @@ function KanbanColumn({ title, status, products, color, onDrop, onCardClick, onR
                         </div>
                     ))}
                     {products.length === 0 && (
-                        <div className="text-center py-12 border-2 border-dashed border-zinc-200 dark:border-zinc-700">
+                        <div className="text-center py-12 border border-dashed border-zinc-200 dark:border-zinc-700">
                             <Package className="h-8 w-8 text-zinc-300 mx-auto mb-2" />
-                            <p className="text-xs font-black uppercase tracking-widest text-zinc-400">Kosong</p>
+                            <p className="text-xs font-semibold text-zinc-400">Kosong</p>
                         </div>
                     )}
                 </div>
@@ -649,9 +649,9 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, ca
 
             {/* PR / RESTOCK DIALOG */}
             <Dialog open={confirmDialog.isOpen} onOpenChange={(open) => !open && setConfirmDialog(prev => ({ ...prev, isOpen: false }))}>
-                <DialogContent className="max-w-xl p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0">
-                    <DialogHeader className="bg-black text-white px-6 py-4">
-                        <DialogTitle className="text-lg font-black uppercase tracking-wider text-white flex items-center gap-2">
+                <DialogContent className="max-w-xl p-0 border border-border shadow-sm rounded-md overflow-hidden gap-0">
+                    <DialogHeader className="bg-slate-900 text-white px-6 py-4">
+                        <DialogTitle className="text-lg font-semibold text-white flex items-center gap-2">
                             {confirmDialog.mode === 'critical_restock' ? (
                                 <><AlertCircle className="h-5 w-5 text-red-400" /> Permintaan Restock Kritis</>
                             ) : confirmDialog.mode === 'request_pr' ? (
@@ -660,7 +660,7 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, ca
                                 "Hapus Alert Kritis"
                             )}
                         </DialogTitle>
-                        <p className="text-zinc-400 text-[11px] font-bold mt-0.5">
+                        <p className="text-zinc-400 text-xs font-bold mt-0.5">
                             {confirmDialog.mode === 'critical_restock'
                                 ? "Produk akan ditandai KRITIS dan Purchase Request otomatis dibuat."
                                 : confirmDialog.mode === 'request_pr'
@@ -673,23 +673,23 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, ca
                     {(confirmDialog.mode === 'critical_restock' || confirmDialog.mode === 'request_pr') && currentProduct && (
                         <div className="p-6 space-y-4">
                             {/* Product Summary */}
-                            <div className="flex items-center gap-4 bg-zinc-50 dark:bg-zinc-800 p-4 border-2 border-black">
-                                <div className="h-12 w-12 bg-white dark:bg-zinc-900 border-2 border-black flex items-center justify-center">
+                            <div className="flex items-center gap-4 bg-zinc-50 dark:bg-zinc-800 p-4 border border-border">
+                                <div className="h-12 w-12 bg-white dark:bg-zinc-900 border border-border flex items-center justify-center">
                                     <Package className="h-6 w-6 text-zinc-400" />
                                 </div>
                                 <div>
-                                    <h4 className="font-black text-sm uppercase">{currentProduct.name}</h4>
-                                    <p className="text-[10px] text-zinc-400 font-mono font-bold">{currentProduct.code} &bull; Stok: {currentProduct.totalStock} {currentProduct.unit}</p>
+                                    <h4 className="font-semibold text-sm ">{currentProduct.name}</h4>
+                                    <p className="text-xs text-zinc-400 font-mono font-bold">{currentProduct.code} &bull; Stok: {currentProduct.totalStock} {currentProduct.unit}</p>
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Jumlah Restock</label>
+                                    <label className="text-xs font-semibold text-zinc-500 mb-1 block">Jumlah Restock</label>
                                     <div className="relative">
                                         <Input
                                             type="number"
-                                            className="font-mono font-bold pl-8 border-2 border-black h-10"
+                                            className="font-mono font-bold pl-8 border border-border h-10"
                                             value={prForm.quantity}
                                             onChange={(e) => setPrForm(prev => ({ ...prev, quantity: e.target.value }))}
                                         />
@@ -698,9 +698,9 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, ca
                                 </div>
                                 {confirmDialog.mode === 'critical_restock' && (
                                     <div>
-                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Gudang Tujuan</label>
+                                        <label className="text-xs font-semibold text-zinc-500 mb-1 block">Gudang Tujuan</label>
                                         <Select value={prForm.warehouseId} onValueChange={(val) => setPrForm(prev => ({ ...prev, warehouseId: val }))}>
-                                            <SelectTrigger className="border-2 border-black font-bold h-10">
+                                            <SelectTrigger className="border border-border font-bold h-10">
                                                 <SelectValue placeholder="Pilih..." />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -713,9 +713,9 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, ca
                                 )}
                                 {confirmDialog.mode === 'request_pr' && (
                                     <div>
-                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Gudang (opsional)</label>
+                                        <label className="text-xs font-semibold text-zinc-500 mb-1 block">Gudang (opsional)</label>
                                         <Select value={prForm.warehouseId} onValueChange={(val) => setPrForm(prev => ({ ...prev, warehouseId: val }))}>
-                                            <SelectTrigger className="border-2 border-black font-bold h-10">
+                                            <SelectTrigger className="border border-border font-bold h-10">
                                                 <SelectValue placeholder="Pilih gudang..." />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -729,9 +729,9 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, ca
                             </div>
 
                             <div>
-                                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Catatan / Alasan</label>
+                                <label className="text-xs font-semibold text-zinc-500 mb-1 block">Catatan / Alasan</label>
                                 <Textarea
-                                    className="border-2 border-black font-medium resize-none min-h-[60px]"
+                                    className="border border-border font-medium resize-none min-h-[60px]"
                                     placeholder="Contoh: Pesanan pelanggan mendesak..."
                                     value={prForm.notes}
                                     onChange={(e) => setPrForm(prev => ({ ...prev, notes: e.target.value }))}
@@ -741,13 +741,13 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, ca
                             {/* Auto Calculation */}
                             {Number(currentProduct.costPrice || 0) > 0 && Number(prForm.quantity || 0) > 0 && (
                                 <div className={cn(
-                                    "border-2 p-4 space-y-2",
+                                    "border p-4 space-y-2",
                                     confirmDialog.mode === 'critical_restock'
                                         ? "bg-red-50 dark:bg-red-950/20 border-red-300"
                                         : "bg-blue-50 dark:bg-blue-950/20 border-blue-300"
                                 )}>
                                     <div className={cn(
-                                        "flex items-center gap-2 font-black text-[10px] uppercase tracking-widest",
+                                        "flex items-center gap-2 font-semibold text-xs  ",
                                         confirmDialog.mode === 'critical_restock'
                                             ? "text-red-800 dark:text-red-400"
                                             : "text-blue-800 dark:text-blue-400"
@@ -763,7 +763,7 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, ca
                                         <span className="font-mono font-bold">Rp {tax.toLocaleString()}</span>
                                     </div>
                                     <div className={cn(
-                                        "border-t pt-2 flex justify-between items-center font-black text-lg",
+                                        "border-t pt-2 flex justify-between items-center font-semibold text-lg",
                                         confirmDialog.mode === 'critical_restock' ? "border-red-200 dark:border-red-700" : "border-blue-200 dark:border-blue-700"
                                     )}>
                                         <span>Total Estimasi</span>
@@ -774,11 +774,11 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, ca
                         </div>
                     )}
 
-                    <div className="flex items-center justify-end gap-3 px-6 py-4 border-t-2 border-black bg-zinc-50 dark:bg-zinc-800">
+                    <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-zinc-50 dark:bg-zinc-800">
                         <Button
                             variant="outline"
                             onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
-                            className="border-2 border-black font-black uppercase text-xs tracking-wider px-6 h-9"
+                            className="border border-border font-semibold text-xs px-6 h-9"
                         >
                             Batal
                         </Button>
@@ -786,12 +786,12 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, ca
                             onClick={confirmAction}
                             disabled={isSubmittingPR}
                             className={cn(
-                                "border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all uppercase font-black text-xs tracking-wider px-6 h-9",
+                                "border border-border shadow-sm hover:shadow-sm transition-all font-semibold text-xs px-6 h-9",
                                 confirmDialog.mode === 'critical_restock'
                                     ? "bg-red-600 hover:bg-red-700 text-white border-red-700"
                                     : confirmDialog.mode === 'request_pr'
                                         ? "bg-violet-600 hover:bg-violet-700 text-white border-violet-700"
-                                        : "bg-black text-white"
+                                        : "bg-slate-900 text-white"
                             )}
                         >
                             {confirmDialog.mode === 'critical_restock' ? (

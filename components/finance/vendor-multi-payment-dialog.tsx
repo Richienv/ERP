@@ -319,18 +319,18 @@ export function VendorMultiPaymentDialog({
 
                     {/* Vendor AP Balance KPI — keep as-is */}
                     {vendorBalance && (
-                        <div className="border-2 border-black bg-amber-50 dark:bg-amber-950 p-3 flex items-center justify-between">
+                        <div className="border border-border bg-amber-50 dark:bg-amber-950 p-3 flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <Banknote className="h-4 w-4 text-amber-600" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-amber-700">
+                                <span className="text-xs font-semibold text-amber-700">
                                     Saldo AP {vendorBalance.vendorName}
                                 </span>
                             </div>
                             <div className="text-right">
-                                <span className="font-mono font-black text-lg text-amber-800">
+                                <span className="font-mono font-semibold text-lg text-amber-800">
                                     {formatIDR(vendorBalance.totalOutstanding)}
                                 </span>
-                                <span className="text-[10px] text-amber-600 ml-2">
+                                <span className="text-xs text-amber-600 ml-2">
                                     ({vendorBalance.billCount} tagihan)
                                 </span>
                             </div>
@@ -344,7 +344,7 @@ export function VendorMultiPaymentDialog({
                         <div className="bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <FileText className="h-3.5 w-3.5 text-zinc-400" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                <span className="text-xs font-semibold text-zinc-500">
                                     Alokasi Tagihan ({allocations.length})
                                 </span>
                             </div>
@@ -353,7 +353,7 @@ export function VendorMultiPaymentDialog({
                                     type="button"
                                     variant="ghost"
                                     onClick={selectAll}
-                                    className="text-[9px] font-black uppercase tracking-widest h-7 px-2"
+                                    className="text-xs font-semibold h-7 px-2"
                                 >
                                     <Check className="h-3 w-3 mr-1" /> Pilih Semua
                                 </Button>
@@ -361,7 +361,7 @@ export function VendorMultiPaymentDialog({
                                     type="button"
                                     variant="ghost"
                                     onClick={deselectAll}
-                                    className="text-[9px] font-black uppercase tracking-widest h-7 px-2"
+                                    className="text-xs font-semibold h-7 px-2"
                                 >
                                     <Minus className="h-3 w-3 mr-1" /> Batal Semua
                                 </Button>
@@ -371,7 +371,7 @@ export function VendorMultiPaymentDialog({
                         {allocations.length === 0 ? (
                             <div className="p-8 text-center">
                                 <FileText className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                                <p className="text-xs font-semibold text-zinc-400">
                                     Vendor ini tidak memiliki tagihan terbuka
                                 </p>
                             </div>
@@ -397,7 +397,7 @@ export function VendorMultiPaymentDialog({
                                             NB.tableRow +
                                             " grid grid-cols-12 gap-2 items-center px-3 py-2" +
                                             (row.selected ? " bg-emerald-50 dark:bg-emerald-950/30" : "") +
-                                            (row.isOverdue ? " border-l-4 border-l-red-400" : "")
+                                            (row.isOverdue ? " border-l border-l-red-400" : "")
                                         }
                                     >
                                         <div className="col-span-1 flex items-center justify-center">
@@ -411,7 +411,7 @@ export function VendorMultiPaymentDialog({
                                                 {row.billNumber}
                                             </span>
                                             {row.isOverdue && (
-                                                <span className="ml-2 text-[9px] font-black uppercase text-red-600 bg-red-100 px-1.5 py-0.5">
+                                                <span className="ml-2 text-xs font-semibold text-red-600 bg-red-100 px-1.5 py-0.5">
                                                     Jatuh Tempo
                                                 </span>
                                             )}
@@ -438,7 +438,7 @@ export function VendorMultiPaymentDialog({
                                                     }
                                                     max={row.balanceDue}
                                                     min={0}
-                                                    className="border-2 border-black font-mono font-bold h-8 text-right rounded-none text-xs w-full"
+                                                    className="border border-border font-mono font-bold h-8 text-right rounded-md text-xs w-full"
                                                 />
                                             ) : (
                                                 <div className="text-right text-xs text-zinc-300 font-mono">
@@ -455,8 +455,8 @@ export function VendorMultiPaymentDialog({
 
                 {/* Potong PPh Section — keep as-is */}
                 {selectedCount > 0 && (
-                    <div className="border-2 border-black p-3 space-y-3">
-                        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest cursor-pointer">
+                    <div className="border border-border p-3 space-y-3">
+                        <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
                             <input
                                 type="checkbox"
                                 checked={enablePPh}
@@ -470,9 +470,9 @@ export function VendorMultiPaymentDialog({
                             <div className="space-y-3 pl-6">
                                 <div className="grid grid-cols-2 gap-2">
                                     <div className="space-y-1">
-                                        <label className="text-[10px] font-bold uppercase text-zinc-500">Jenis PPh</label>
+                                        <label className="text-xs font-bold text-zinc-500">Jenis PPh</label>
                                         <Select value={pphType} onValueChange={(v: string) => setPPhType(v as PPhTypeValue)}>
-                                            <SelectTrigger className="h-8 rounded-none text-xs border-2 border-black">
+                                            <SelectTrigger className="h-8 rounded-md text-xs border border-border">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -482,13 +482,13 @@ export function VendorMultiPaymentDialog({
                                         </Select>
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-[10px] font-bold uppercase text-zinc-500">Tarif (%)</label>
+                                        <label className="text-xs font-bold text-zinc-500">Tarif (%)</label>
                                         <Input
                                             type="number"
                                             step="0.01"
                                             value={pphRate}
                                             onChange={(e) => setPPhRate(Number(e.target.value))}
-                                            className="h-8 rounded-none text-xs border-2 border-black font-mono"
+                                            className="h-8 rounded-md text-xs border border-border font-mono"
                                         />
                                     </div>
                                 </div>
@@ -505,16 +505,16 @@ export function VendorMultiPaymentDialog({
                                 </div>
 
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-bold uppercase text-zinc-500">No. Bukti Potong</label>
+                                    <label className="text-xs font-bold text-zinc-500">No. Bukti Potong</label>
                                     <Input
                                         value={buktiPotongNo}
                                         onChange={(e) => setBuktiPotongNo(e.target.value)}
                                         placeholder="Opsional..."
-                                        className="h-8 rounded-none text-xs border-2 border-black placeholder:text-zinc-300"
+                                        className="h-8 rounded-md text-xs border border-border placeholder:text-zinc-300"
                                     />
                                 </div>
 
-                                <div className="bg-amber-50 border-2 border-amber-300 p-2 text-xs">
+                                <div className="bg-amber-50 border border-amber-300 p-2 text-xs">
                                     <span className="font-bold">Dibayar ke vendor:</span>{" "}
                                     <span className="font-mono font-bold text-lg">{formatIDR(pphCalc?.netAmount || pphBaseAmount)}</span>
                                 </div>
@@ -525,10 +525,10 @@ export function VendorMultiPaymentDialog({
 
                 {/* Payment Summary — keep as-is */}
                 {selectedCount > 0 && (
-                    <div className="border-2 border-black bg-emerald-50 dark:bg-emerald-950 p-4">
+                    <div className="border border-border bg-emerald-50 dark:bg-emerald-950 p-4">
                         <div className="flex items-center justify-between">
                             <div>
-                                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                                <span className="text-xs font-semibold text-emerald-700">
                                     Ringkasan Pembayaran
                                 </span>
                                 <p className="text-xs text-emerald-600 mt-0.5">
@@ -536,10 +536,10 @@ export function VendorMultiPaymentDialog({
                                 </p>
                             </div>
                             <div className="text-right">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 block">
+                                <span className="text-xs font-semibold text-emerald-700 block">
                                     Total Bayar
                                 </span>
-                                <span className="font-mono font-black text-2xl text-emerald-800">
+                                <span className="font-mono font-semibold text-2xl text-emerald-800">
                                     {formatIDR(totalAllocated)}
                                 </span>
                             </div>
@@ -547,10 +547,10 @@ export function VendorMultiPaymentDialog({
 
                         {/* GL Entry Preview */}
                         <div className="mt-3 pt-3 border-t border-emerald-200 dark:border-emerald-800">
-                            <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600 block mb-1">
+                            <span className="text-xs font-semibold text-emerald-600 block mb-1">
                                 Jurnal Otomatis
                             </span>
-                            <div className="grid grid-cols-3 gap-1 text-[10px] font-bold">
+                            <div className="grid grid-cols-3 gap-1 text-xs font-bold">
                                 <span className="text-emerald-700">Akun</span>
                                 <span className="text-emerald-700 text-right">Debit</span>
                                 <span className="text-emerald-700 text-right">Kredit</span>
@@ -585,14 +585,14 @@ export function VendorMultiPaymentDialog({
                     variant="outline"
                     onClick={resetAndClose}
                     disabled={submitting}
-                    className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none disabled:opacity-50"
+                    className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold text-xs px-4 h-8 rounded-md disabled:opacity-50"
                 >
                     Batal
                 </Button>
                 <Button
                     onClick={handleSubmit}
                     disabled={submitting || selectedCount === 0 || totalAllocated <= 0}
-                    className="bg-emerald-700 text-white border border-emerald-800 hover:bg-emerald-800 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none gap-1.5 disabled:opacity-50 transition-colors"
+                    className="bg-emerald-700 text-white border border-emerald-800 hover:bg-emerald-800 font-semibold text-xs px-5 h-8 rounded-md gap-1.5 disabled:opacity-50 transition-colors"
                 >
                     <Banknote className="h-4 w-4" />
                     {submitting

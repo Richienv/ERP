@@ -66,7 +66,7 @@ export function SummaryCards({ cards, columns = 3, className }: SummaryCardsProp
   return (
     <div
       className={cn(
-        "grid border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden",
+        "grid border border-border shadow-sm overflow-hidden",
         colsClass[columns],
         className,
       )}
@@ -81,7 +81,7 @@ export function SummaryCards({ cards, columns = 3, className }: SummaryCardsProp
               bgTint[c],
               // Right border between cards (not on last per row — handled by grid gap-0)
               i < cards.length - 1 &&
-                "border-b sm:border-b-0 sm:border-r-2 border-black",
+                "border-b sm:border-b-0 sm:border-r border-border",
               // On mobile stacked, add bottom border except last
               i === cards.length - 1 && "border-b-0",
             )}
@@ -93,7 +93,7 @@ export function SummaryCards({ cards, columns = 3, className }: SummaryCardsProp
               )}
               <span
                 className={cn(
-                  "text-xs font-black uppercase tracking-widest",
+                  "text-xs font-semibold  ",
                   labelColor[c],
                 )}
               >
@@ -105,7 +105,7 @@ export function SummaryCards({ cards, columns = 3, className }: SummaryCardsProp
             <div className="flex items-baseline gap-2">
               <span
                 className={cn(
-                  "text-3xl font-black tabular-nums",
+                  "text-3xl font-semibold tabular-nums",
                   valueColor[c],
                 )}
               >

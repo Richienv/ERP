@@ -32,16 +32,16 @@ export function GarmentMeasurementChart({ measurements, title }: GarmentMeasurem
     const passRate = totalCount > 0 ? Math.round((passCount / totalCount) * 100) : 0
 
     return (
-        <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-zinc-50 dark:bg-zinc-800">
                 <div className="flex items-center gap-2">
                     <Ruler className="h-4 w-4 text-zinc-500" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                    <span className="text-xs font-semibold text-zinc-500">
                         {title ?? 'Measurement Chart'}
                     </span>
                 </div>
-                <span className={`text-[10px] font-black px-2 py-0.5 border-2 border-black ${
+                <span className={`text-xs font-semibold px-2 py-0.5 border border-border ${
                     passRate >= 95 ? 'bg-emerald-100 text-emerald-700' :
                     passRate >= 80 ? 'bg-amber-100 text-amber-700' :
                     'bg-red-100 text-red-700'
@@ -53,8 +53,8 @@ export function GarmentMeasurementChart({ measurements, title }: GarmentMeasurem
             {/* Chart */}
             <div className="p-4">
                 {measurements.length === 0 ? (
-                    <div className="h-[200px] flex items-center justify-center border-2 border-dashed border-zinc-200">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Belum ada data pengukuran</span>
+                    <div className="h-[200px] flex items-center justify-center border border-dashed border-zinc-200">
+                        <span className="text-xs font-semibold text-zinc-400">Belum ada data pengukuran</span>
                     </div>
                 ) : (
                     <div className="h-[200px]">
@@ -102,15 +102,15 @@ export function GarmentMeasurementChart({ measurements, title }: GarmentMeasurem
 
             {/* Detail table */}
             {measurements.length > 0 && (
-                <div className="border-t-2 border-black">
+                <div className="border-t border-border">
                     <table className="w-full text-xs">
-                        <thead className="bg-zinc-100 border-b-2 border-black">
+                        <thead className="bg-zinc-100 border-b border-border">
                             <tr>
-                                <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-1.5 text-left">Titik Ukur</th>
-                                <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-1.5 text-center">Spec</th>
-                                <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-1.5 text-center">Aktual</th>
-                                <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-1.5 text-center">Tol.</th>
-                                <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-1.5 text-center">Status</th>
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-1.5 text-left">Titik Ukur</th>
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-1.5 text-center">Spec</th>
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-1.5 text-center">Aktual</th>
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-1.5 text-center">Tol.</th>
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-1.5 text-center">Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -121,7 +121,7 @@ export function GarmentMeasurementChart({ measurements, title }: GarmentMeasurem
                                     <td className="px-3 py-1.5 text-center font-mono font-bold">{m.actualValue.toFixed(1)}</td>
                                     <td className="px-3 py-1.5 text-center font-mono text-zinc-400">±{m.tolerance.toFixed(1)}</td>
                                     <td className="px-3 py-1.5 text-center">
-                                        <span className={`inline-block px-1.5 py-0.5 text-[9px] font-black border ${
+                                        <span className={`inline-block px-1.5 py-0.5 text-xs font-semibold border ${
                                             m.withinSpec ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-red-100 text-red-700 border-red-300'
                                         }`}>
                                             {m.withinSpec ? 'OK' : 'NG'}

@@ -386,15 +386,15 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
       {/* ================================================================== */}
       {/* SECTION 1 — Customer & Quotation                                   */}
       {/* ================================================================== */}
-      <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-        <div className="bg-amber-50 dark:bg-amber-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-amber-400">
+      <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
+        <div className="bg-amber-50 dark:bg-amber-950/20 px-5 py-2.5 border-b border-border flex items-center gap-2 border-l-[5px] border-l-amber-400">
           <User className="h-4 w-4 text-amber-600" />
-          <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">Customer & Quotation</h3>
+          <h3 className="text-xs font-semibold text-zinc-700 dark:text-zinc-200">Customer & Quotation</h3>
         </div>
         <div className="p-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Customer *</Label>
+              <Label className="text-xs font-semibold text-zinc-500">Customer *</Label>
               <ComboboxWithCreate
                 options={customers.map((c) => ({ value: c.id, label: c.name, subtitle: c.code }))}
                 value={form.customerId}
@@ -417,9 +417,9 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Quotation (Opsional)</Label>
+              <Label className="text-xs font-semibold text-zinc-500">Quotation (Opsional)</Label>
               <Select value={form.quotationId || "none"} onValueChange={onQuotationChange} disabled={loadingOptions}>
-                <SelectTrigger className="border-2 border-black h-10 font-medium">
+                <SelectTrigger className="border border-border h-10 font-medium">
                   <SelectValue placeholder="Tanpa quotation" />
                 </SelectTrigger>
                 <SelectContent>
@@ -434,19 +434,19 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Referensi Customer</Label>
+              <Label className="text-xs font-semibold text-zinc-500">Referensi Customer</Label>
               <Input
                 value={form.customerRef}
                 onChange={(event) => updateForm("customerRef", event.target.value)}
                 placeholder="Nomor PO / referensi customer"
-                className="border-2 border-black h-10 font-medium"
+                className="border border-border h-10 font-medium"
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Term Pembayaran</Label>
+              <Label className="text-xs font-semibold text-zinc-500">Term Pembayaran</Label>
               <Select value={form.paymentTerm} onValueChange={(value) => updateForm("paymentTerm", value)}>
-                <SelectTrigger className="border-2 border-black h-10 font-medium">
+                <SelectTrigger className="border border-border h-10 font-medium">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -458,9 +458,9 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Salesperson</Label>
+              <Label className="text-xs font-semibold text-zinc-500">Salesperson</Label>
               <Select value={form.salespersonId || "none"} onValueChange={(value) => updateForm("salespersonId", value === "none" ? "" : value)} disabled={loadingOptions}>
-                <SelectTrigger className="border-2 border-black h-10 font-medium">
+                <SelectTrigger className="border border-border h-10 font-medium">
                   <SelectValue placeholder="Pilih salesperson" />
                 </SelectTrigger>
                 <SelectContent>
@@ -489,40 +489,40 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
       {/* ================================================================== */}
       {/* SECTION 2 — Tanggal & Pengiriman                                   */}
       {/* ================================================================== */}
-      <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-        <div className="bg-amber-50 dark:bg-amber-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-amber-400">
+      <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
+        <div className="bg-amber-50 dark:bg-amber-950/20 px-5 py-2.5 border-b border-border flex items-center gap-2 border-l-[5px] border-l-amber-400">
           <CalendarDays className="h-4 w-4 text-amber-600" />
-          <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">Tanggal & Pengiriman</h3>
+          <h3 className="text-xs font-semibold text-zinc-700 dark:text-zinc-200">Tanggal & Pengiriman</h3>
         </div>
         <div className="p-5">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Tanggal Pesanan</Label>
+              <Label className="text-xs font-semibold text-zinc-500">Tanggal Pesanan</Label>
               <Input
                 type="date"
                 value={form.orderDate}
                 onChange={(event) => updateForm("orderDate", event.target.value)}
-                className="border-2 border-black h-10 font-medium"
+                className="border border-border h-10 font-medium"
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Tanggal Diminta</Label>
+              <Label className="text-xs font-semibold text-zinc-500">Tanggal Diminta</Label>
               <Input
                 type="date"
                 value={form.requestedDate}
                 onChange={(event) => updateForm("requestedDate", event.target.value)}
-                className="border-2 border-black h-10 font-medium"
+                className="border border-border h-10 font-medium"
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Delivery Term</Label>
+              <Label className="text-xs font-semibold text-zinc-500">Delivery Term</Label>
               <Input
                 value={form.deliveryTerm}
                 onChange={(event) => updateForm("deliveryTerm", event.target.value)}
                 placeholder="Ex-work / FOB / CIF"
-                className="border-2 border-black h-10 font-medium"
+                className="border border-border h-10 font-medium"
               />
             </div>
           </div>
@@ -532,19 +532,19 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
       {/* ================================================================== */}
       {/* SECTION 3 — Item Pesanan                                           */}
       {/* ================================================================== */}
-      <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-        <div className="bg-amber-50 dark:bg-amber-950/20 px-5 py-2.5 border-b-2 border-black flex items-center justify-between border-l-[5px] border-l-amber-400">
+      <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
+        <div className="bg-amber-50 dark:bg-amber-950/20 px-5 py-2.5 border-b border-border flex items-center justify-between border-l-[5px] border-l-amber-400">
           <div className="flex items-center gap-2">
             <Calculator className="h-4 w-4 text-amber-600" />
-            <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">Item Pesanan</h3>
-            <span className="bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 min-w-[20px] text-center rounded-sm">
+            <h3 className="text-xs font-semibold text-zinc-700 dark:text-zinc-200">Item Pesanan</h3>
+            <span className="bg-amber-500 text-white text-xs font-semibold px-2 py-0.5 min-w-[20px] text-center rounded-sm">
               {items.length}
             </span>
           </div>
           <Button
             type="button"
             onClick={addItem}
-            className="bg-amber-500 text-white hover:bg-amber-600 border-2 border-amber-600 text-[10px] font-black uppercase tracking-wide h-8 px-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
+            className="bg-amber-500 text-white hover:bg-amber-600 border border-amber-600 text-xs font-semibold h-8 px-3 shadow-sm active:shadow-none transition-all"
           >
             <Plus className="h-3.5 w-3.5 mr-1" /> Tambah
           </Button>
@@ -562,17 +562,17 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
               <div key={index} className={`p-4 ${index % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/50 dark:bg-zinc-800/30"}`}>
                 {/* Row 1: Product + Delete */}
                 <div className="flex items-start gap-3 mb-3">
-                  <div className="flex-none w-7 h-7 bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 flex items-center justify-center text-xs font-black rounded-sm">
+                  <div className="flex-none w-7 h-7 bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 flex items-center justify-center text-xs font-semibold rounded-sm">
                     {index + 1}
                   </div>
                   <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3">
                     <div className="space-y-1.5">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Produk</Label>
+                      <Label className="text-xs font-semibold text-zinc-400">Produk</Label>
                       <Select
                         value={item.productId || "none"}
                         onValueChange={(value) => onProductChange(index, value === "none" ? "" : value)}
                       >
-                        <SelectTrigger className="border-2 border-black h-10 font-medium">
+                        <SelectTrigger className="border border-border h-10 font-medium">
                           <SelectValue placeholder="Pilih produk" />
                         </SelectTrigger>
                         <SelectContent>
@@ -614,28 +614,28 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
                 {/* Row 3: Qty, Price, Disc, Tax, Total */}
                 <div className="ml-10 grid grid-cols-2 md:grid-cols-5 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Qty</Label>
+                    <Label className="text-xs font-semibold text-zinc-400">Qty</Label>
                     <Input
                       type="number"
                       min="0.001"
                       step="0.001"
                       value={item.quantity}
                       onChange={(event) => updateItem(index, { quantity: Number(event.target.value || 0) })}
-                      className="border-2 border-black h-10 font-bold text-center"
+                      className="border border-border h-10 font-bold text-center"
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Harga</Label>
+                    <Label className="text-xs font-semibold text-zinc-400">Harga</Label>
                     <Input
                       type="number"
                       min="0"
                       value={item.unitPrice}
                       onChange={(event) => updateItem(index, { unitPrice: Number(event.target.value || 0) })}
-                      className="border-2 border-black h-10 font-bold"
+                      className="border border-border h-10 font-bold"
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Diskon %</Label>
+                    <Label className="text-xs font-semibold text-zinc-400">Diskon %</Label>
                     <Input
                       type="number"
                       min="0"
@@ -646,7 +646,7 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">PPN %</Label>
+                    <Label className="text-xs font-semibold text-zinc-400">PPN %</Label>
                     <Input
                       type="number"
                       min="0"
@@ -657,8 +657,8 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Total</Label>
-                    <div className="h-10 bg-amber-50 dark:bg-amber-950/20 border-2 border-amber-300 dark:border-amber-700 flex items-center justify-end px-3 font-black text-sm font-mono text-amber-900 dark:text-amber-200">
+                    <Label className="text-xs font-semibold text-zinc-400">Total</Label>
+                    <div className="h-10 bg-amber-50 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-700 flex items-center justify-end px-3 font-semibold text-sm font-mono text-amber-900 dark:text-amber-200">
                       {formatCurrency(lineTotal)}
                     </div>
                   </div>
@@ -672,28 +672,28 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
       {/* ================================================================== */}
       {/* SECTION 4 — Catatan                                                */}
       {/* ================================================================== */}
-      <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-        <div className="bg-amber-50 dark:bg-amber-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-amber-400">
+      <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
+        <div className="bg-amber-50 dark:bg-amber-950/20 px-5 py-2.5 border-b border-border flex items-center gap-2 border-l-[5px] border-l-amber-400">
           <StickyNote className="h-4 w-4 text-amber-600" />
-          <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">Catatan</h3>
+          <h3 className="text-xs font-semibold text-zinc-700 dark:text-zinc-200">Catatan</h3>
         </div>
         <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
           <div className="space-y-1.5">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Catatan Operasional</Label>
+            <Label className="text-xs font-semibold text-zinc-500">Catatan Operasional</Label>
             <Textarea
               value={form.notes}
               onChange={(event) => updateForm("notes", event.target.value)}
               placeholder="Catatan untuk operasional & pengiriman"
-              className="border-2 border-black min-h-[80px] resize-none"
+              className="border border-border min-h-[80px] resize-none"
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Catatan Internal</Label>
+            <Label className="text-xs font-semibold text-zinc-500">Catatan Internal</Label>
             <Textarea
               value={form.internalNotes}
               onChange={(event) => updateForm("internalNotes", event.target.value)}
               placeholder="Catatan internal tim sales"
-              className="border-2 border-black min-h-[80px] resize-none"
+              className="border border-border min-h-[80px] resize-none"
             />
           </div>
         </div>
@@ -702,30 +702,30 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
       {/* ================================================================== */}
       {/* SECTION 5 — Ringkasan & Submit                                     */}
       {/* ================================================================== */}
-      <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-        <div className="bg-amber-50 dark:bg-amber-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-amber-400">
+      <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
+        <div className="bg-amber-50 dark:bg-amber-950/20 px-5 py-2.5 border-b border-border flex items-center gap-2 border-l-[5px] border-l-amber-400">
           <FileText className="h-4 w-4 text-amber-600" />
-          <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">Ringkasan Pesanan</h3>
+          <h3 className="text-xs font-semibold text-zinc-700 dark:text-zinc-200">Ringkasan Pesanan</h3>
         </div>
         <div className="p-5">
           <div className="max-w-md ml-auto space-y-3">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Subtotal</span>
+              <span className="text-xs font-semibold text-zinc-500">Subtotal</span>
               <span className="font-mono font-bold">{formatCurrency(totals.subtotal)}</span>
             </div>
             {totals.discount > 0 && (
               <div className="flex items-center justify-between text-sm">
-                <span className="text-[10px] font-black uppercase tracking-widest text-red-500">Diskon</span>
+                <span className="text-xs font-semibold text-red-500">Diskon</span>
                 <span className="font-mono font-bold text-red-600">- {formatCurrency(totals.discount)}</span>
               </div>
             )}
             <div className="flex items-center justify-between text-sm">
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">PPN</span>
+              <span className="text-xs font-semibold text-zinc-500">PPN</span>
               <span className="font-mono font-bold">{formatCurrency(totals.tax)}</span>
             </div>
-            <div className="border-t-2 border-amber-300 dark:border-amber-700 pt-3 flex items-center justify-between">
-              <span className="text-sm font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">Grand Total</span>
-              <span className="text-2xl font-black font-mono text-amber-700 dark:text-amber-300">
+            <div className="border-t border-amber-300 dark:border-amber-700 pt-3 flex items-center justify-between">
+              <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">Grand Total</span>
+              <span className="text-2xl font-semibold font-mono text-amber-700 dark:text-amber-300">
                 {formatCurrency(totals.total)}
               </span>
             </div>
@@ -736,14 +736,14 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
               type="button"
               variant="outline"
               onClick={() => router.push("/sales/orders")}
-              className="border-2 border-zinc-300 dark:border-zinc-600 font-bold uppercase text-xs tracking-wide h-11 px-6 hover:border-zinc-500 transition-colors"
+              className="border border-zinc-300 dark:border-zinc-600 font-bold text-xs h-11 px-6 hover:border-zinc-500 transition-colors"
             >
               Batal
             </Button>
             <Button
               type="submit"
               disabled={submitting || loadingOptions}
-              className="bg-amber-500 text-white hover:bg-amber-600 border-2 border-amber-600 font-black uppercase text-xs tracking-wide h-11 px-8 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] transition-all active:scale-[0.98]"
+              className="bg-amber-500 text-white hover:bg-amber-600 border border-amber-600 font-semibold text-xs h-11 px-8 shadow-sm hover:shadow-sm transition-all active:scale-[0.98]"
             >
               {submitting ? (
                 <>

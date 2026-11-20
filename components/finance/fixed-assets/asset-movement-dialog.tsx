@@ -112,7 +112,7 @@ export function AssetMovementDialog({ open, onOpenChange, asset }: Props) {
                     {isFinancial && (
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                                <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1 block">
                                     Nilai Buku Bersih
                                 </label>
                                 <div className="border font-mono font-bold h-8 flex items-center px-3 text-sm bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
@@ -130,11 +130,11 @@ export function AssetMovementDialog({ open, onOpenChange, asset }: Props) {
                     )}
 
                     {isFinancial && gainLoss !== null && (
-                        <div className={`p-3 border-2 ${gainLoss >= 0 ? "border-emerald-500 bg-emerald-50" : "border-red-500 bg-red-50"}`}>
-                            <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500">
+                        <div className={`p-3 border ${gainLoss >= 0 ? "border-emerald-500 bg-emerald-50" : "border-red-500 bg-red-50"}`}>
+                            <span className="text-xs font-semibold text-zinc-500">
                                 {gainLoss >= 0 ? "Keuntungan" : "Kerugian"} {type === "SALE" ? "Penjualan" : "Penghapusan"}
                             </span>
-                            <div className={`text-lg font-black ${gainLoss >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+                            <div className={`text-lg font-semibold ${gainLoss >= 0 ? "text-emerald-700" : "text-red-700"}`}>
                                 {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(Math.abs(gainLoss))}
                             </div>
                         </div>

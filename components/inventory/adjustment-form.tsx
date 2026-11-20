@@ -120,20 +120,20 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
         <div className="space-y-4">
             {/* Loading Dialog */}
             <Dialog open={loading || isPending} onOpenChange={() => { }}>
-                <DialogContent className="max-w-[300px] border-2 border-black p-8 text-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] [&>button]:hidden">
+                <DialogContent className="max-w-[300px] border border-border p-8 text-center shadow-sm [&>button]:hidden">
                     <Loader2 className="h-10 w-10 animate-spin mx-auto text-black mb-4" />
-                    <h3 className="font-black uppercase text-lg">Memproses...</h3>
+                    <h3 className="font-semibold text-lg">Memproses...</h3>
                     <p className="text-xs text-zinc-500 font-medium">Mohon tunggu sebentar</p>
                 </DialogContent>
             </Dialog>
 
             {/* Type Section */}
             <div>
-                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
+                <label className="text-xs font-semibold text-zinc-500 mb-1 block">
                     Tipe Penyesuaian <span className="text-red-500">*</span>
                 </label>
                 <Select value={type} onValueChange={(val: any) => setType(val)}>
-                    <SelectTrigger className="border-2 border-black font-bold h-10 w-full rounded-none">
+                    <SelectTrigger className="border border-border font-bold h-10 w-full rounded-md">
                         <SelectValue placeholder="Pilih tipe" />
                     </SelectTrigger>
                     <SelectContent>
@@ -158,7 +158,7 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
 
             {/* Product — Searchable Combobox */}
             <div>
-                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
+                <label className="text-xs font-semibold text-zinc-500 mb-1 block">
                     Produk <span className="text-red-500">*</span>
                 </label>
                 <ComboboxWithCreate
@@ -174,11 +174,11 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
             {/* Warehouse(s) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                    <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
+                    <label className="text-xs font-semibold text-zinc-500 mb-1 block">
                         {type === 'TRANSFER' ? 'Gudang Asal' : 'Gudang'} <span className="text-red-500">*</span>
                     </label>
                     <Select value={warehouseId} onValueChange={setWarehouseId}>
-                        <SelectTrigger className="border-2 border-black font-bold h-10 w-full rounded-none">
+                        <SelectTrigger className="border border-border font-bold h-10 w-full rounded-md">
                             <SelectValue placeholder="Pilih gudang..." />
                         </SelectTrigger>
                         <SelectContent>
@@ -191,11 +191,11 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
 
                 {type === 'TRANSFER' && (
                     <div>
-                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
+                        <label className="text-xs font-semibold text-zinc-500 mb-1 block">
                             Gudang Tujuan <span className="text-red-500">*</span>
                         </label>
                         <Select value={targetWarehouseId} onValueChange={setTargetWarehouseId}>
-                            <SelectTrigger className="border-2 border-black font-bold h-10 w-full rounded-none">
+                            <SelectTrigger className="border border-border font-bold h-10 w-full rounded-md">
                                 <SelectValue placeholder="Pilih tujuan..." />
                             </SelectTrigger>
                             <SelectContent>
@@ -210,7 +210,7 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
 
             {/* Quantity */}
             <div>
-                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
+                <label className="text-xs font-semibold text-zinc-500 mb-1 block">
                     Jumlah <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -219,9 +219,9 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
                         value={quantity}
                         onChange={(e) => setQuantity(e.target.value)}
                         placeholder="0"
-                        className="border-2 border-black font-mono font-bold h-10 text-lg rounded-none pr-12 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="border border-border font-mono font-bold h-10 text-lg rounded-md pr-12 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-zinc-400 uppercase">
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-zinc-400 ">
                         UNIT
                     </div>
                 </div>
@@ -229,11 +229,11 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
 
             {/* Reason */}
             <div>
-                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
+                <label className="text-xs font-semibold text-zinc-500 mb-1 block">
                     Alasan <span className="text-red-500">*</span>
                 </label>
                 <Select value={reason} onValueChange={setReason}>
-                    <SelectTrigger className="border-2 border-black font-bold h-10 w-full rounded-none">
+                    <SelectTrigger className="border border-border font-bold h-10 w-full rounded-md">
                         <SelectValue placeholder="Pilih alasan..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -246,21 +246,21 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
 
             {/* Notes */}
             <div>
-                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
+                <label className="text-xs font-semibold text-zinc-500 mb-1 block">
                     Catatan Tambahan
                 </label>
                 <Textarea
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder="Detail tambahan..."
-                    className="border-2 border-black font-medium min-h-[80px] resize-none rounded-none"
+                    className="border border-border font-medium min-h-[80px] resize-none rounded-md"
                 />
             </div>
 
             {/* Submit */}
             <Button
                 onClick={handleSubmit}
-                className="w-full bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider h-10 mt-2 rounded-none"
+                className="w-full bg-slate-900 text-white border border-border shadow-sm hover:shadow-sm transition-all font-semibold text-xs h-10 mt-2 rounded-md"
                 disabled={loading || isPending}
             >
                 {loading || isPending ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Box className="mr-2 h-4 w-4" />}

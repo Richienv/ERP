@@ -39,10 +39,10 @@ export default function InventoryPage() {
                 headerSlot={
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                            <h1 className="text-2xl md:text-3xl font-black text-zinc-900 dark:text-white tracking-tighter uppercase flex items-center gap-2">
+                            <h1 className="text-2xl md:text-3xl font-semibold text-zinc-900 dark:text-white tracking-tighter flex items-center gap-2">
                                 Logistik Command Center
                             </h1>
-                            <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mt-0.5">Real-time warehouse &amp; inventory monitoring</p>
+                            <p className="text-xs font-bold text-zinc-400 mt-0.5">Real-time warehouse &amp; inventory monitoring</p>
                         </div>
                         <div className="flex gap-2">
                             <MaterialInputForm />
@@ -53,11 +53,11 @@ export default function InventoryPage() {
                 mainLeftSlot={<MaterialTableWrapper data={materialGap ?? []} />}
                 mainRightSlot={
                     <div className="flex flex-col gap-2 h-full overflow-y-auto p-3">
-                        <div className="text-xs font-black uppercase tracking-widest text-zinc-400 px-1">
+                        <div className="text-xs font-semibold text-zinc-400 px-1">
                             Gudang Aktif
                         </div>
                         {liveWarehouses.length === 0 ? (
-                            <div className="border-2 border-dashed border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-4 text-xs text-zinc-500 font-bold text-center">
+                            <div className="border border-dashed border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-4 text-xs text-zinc-500 font-bold text-center">
                                 Belum ada gudang aktif.
                             </div>
                         ) : (

@@ -47,7 +47,7 @@ function categoryColor(cat: DowntimeCategory): string {
     switch (cat) {
         case 'MECHANICAL': return 'bg-red-100 text-red-700 border-red-300'
         case 'ELECTRICAL': return 'bg-amber-100 text-amber-700 border-amber-300'
-        case 'MATERIAL_SHORTAGE': return 'bg-orange-100 text-orange-700 border-orange-300'
+        case 'MATERIAL_SHORTAGE': return 'bg-blue-100 text-blue-700 border-blue-300'
         case 'OPERATOR_ERROR': return 'bg-violet-100 text-violet-700 border-violet-300'
         case 'CHANGEOVER': return 'bg-blue-100 text-blue-700 border-blue-300'
         case 'PLANNED_MAINTENANCE': return 'bg-emerald-100 text-emerald-700 border-emerald-300'
@@ -68,20 +68,20 @@ export function MachineDowntimeWidget({ logs }: MachineDowntimeWidgetProps) {
     const ongoingCount = logs.filter((l) => l.endTime === null).length
 
     return (
-        <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] h-full flex flex-col">
+        <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm h-full flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-zinc-50 dark:bg-zinc-800">
                 <div className="flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4 text-zinc-500" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Downtime Mesin</span>
+                    <span className="text-xs font-semibold text-zinc-500">Downtime Mesin</span>
                 </div>
                 <div className="flex items-center gap-2">
                     {ongoingCount > 0 && (
-                        <span className="text-[9px] font-black px-1.5 py-0.5 bg-red-500 text-white border-2 border-black animate-pulse">
+                        <span className="text-xs font-semibold px-1.5 py-0.5 bg-red-500 text-white border border-border animate-pulse">
                             {ongoingCount} AKTIF
                         </span>
                     )}
-                    <span className="text-[10px] font-black px-2 py-0.5 border-2 border-black bg-zinc-100 text-zinc-700">
+                    <span className="text-xs font-semibold px-2 py-0.5 border border-border bg-zinc-100 text-zinc-700">
                         {formatDuration(totalDowntime)}
                     </span>
                 </div>
@@ -92,7 +92,7 @@ export function MachineDowntimeWidget({ logs }: MachineDowntimeWidgetProps) {
                 {logs.length === 0 && (
                     <div className="flex flex-col items-center justify-center h-full text-center p-4">
                         <Settings className="h-6 w-6 text-zinc-300 mb-2" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                        <span className="text-xs font-semibold text-zinc-400">
                             Tidak ada downtime hari ini
                         </span>
                     </div>
@@ -101,25 +101,25 @@ export function MachineDowntimeWidget({ logs }: MachineDowntimeWidgetProps) {
                     <div key={log.id} className="px-4 py-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
                         <div className="flex items-center justify-between mb-1">
                             <div className="flex items-center gap-2">
-                                <span className="text-xs font-black text-zinc-900 dark:text-white">
+                                <span className="text-xs font-semibold text-zinc-900 dark:text-white">
                                     {log.machineCode}
                                 </span>
-                                <span className={`inline-flex items-center gap-1 text-[9px] font-black px-1.5 py-0.5 border ${categoryColor(log.category)}`}>
+                                <span className={`inline-flex items-center gap-1 text-xs font-semibold px-1.5 py-0.5 border ${categoryColor(log.category)}`}>
                                     {categoryIcon(log.category)}
                                     {categoryLabel(log.category)}
                                 </span>
                             </div>
-                            <div className="flex items-center gap-1 text-[10px] font-bold text-zinc-400">
+                            <div className="flex items-center gap-1 text-xs font-bold text-zinc-400">
                                 <Clock className="h-3 w-3" />
                                 {log.endTime === null ? (
-                                    <span className="text-red-500 font-black">Ongoing</span>
+                                    <span className="text-red-500 font-semibold">Ongoing</span>
                                 ) : (
                                     <span>{formatDuration(log.durationMinutes)}</span>
                                 )}
                             </div>
                         </div>
                         {log.notes && (
-                            <p className="text-[10px] font-medium text-zinc-500 line-clamp-1">{log.notes}</p>
+                            <p className="text-xs font-medium text-zinc-500 line-clamp-1">{log.notes}</p>
                         )}
                     </div>
                 ))}

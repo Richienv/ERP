@@ -61,8 +61,8 @@ const kpiData = [
         trend: "+8 Hari",
         trendUp: false,
         icon: Package,
-        color: "text-orange-600",
-        bgColor: "bg-orange-100",
+        color: "text-blue-600",
+        bgColor: "bg-blue-100",
         chartColor: "#ea580c",
         data: [60, 62, 61, 64, 66, 68]
     },

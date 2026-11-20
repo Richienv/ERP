@@ -28,14 +28,14 @@ export default function OpeningBalancesPage() {
                 {/* Row 1: Title */}
                 <div className={`px-5 py-3.5 flex items-center justify-between ${NB.pageRowBorder}`}>
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-orange-500 flex items-center justify-center">
+                        <div className="w-9 h-9 bg-blue-500 flex items-center justify-center">
                             <Scale className="h-4.5 w-4.5 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-base font-black uppercase tracking-wider text-zinc-900 dark:text-white">
+                            <h1 className="text-base font-semibold text-zinc-900 dark:text-white">
                                 Saldo Awal
                             </h1>
-                            <p className="text-zinc-400 text-[11px] font-medium">
+                            <p className="text-zinc-400 text-xs font-medium">
                                 Input saldo awal GL, hutang vendor (AP), dan piutang pelanggan (AR) untuk migrasi data
                             </p>
                         </div>
@@ -78,9 +78,9 @@ export default function OpeningBalancesPage() {
                     <div className="flex items-center gap-0">
                         <button
                             onClick={() => setActiveTab("gl")}
-                            className={`flex items-center gap-1.5 h-9 px-4 border text-xs font-bold uppercase tracking-wider rounded-none transition-all ${
+                            className={`flex items-center gap-1.5 h-9 px-4 border text-xs font-bold   rounded-md transition-all ${
                                 activeTab === "gl"
-                                    ? "bg-black dark:bg-white text-white dark:text-black border-black dark:border-white"
+                                    ? "bg-slate-900 dark:bg-white text-white dark:text-black border-border dark:border-white"
                                     : "border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 border-r-0"
                             }`}
                         >
@@ -89,9 +89,9 @@ export default function OpeningBalancesPage() {
                         </button>
                         <button
                             onClick={() => setActiveTab("apar")}
-                            className={`flex items-center gap-1.5 h-9 px-4 border text-xs font-bold uppercase tracking-wider rounded-none transition-all ${
+                            className={`flex items-center gap-1.5 h-9 px-4 border text-xs font-bold   rounded-md transition-all ${
                                 activeTab === "apar"
-                                    ? "bg-black dark:bg-white text-white dark:text-black border-black dark:border-white"
+                                    ? "bg-slate-900 dark:bg-white text-white dark:text-black border-border dark:border-white"
                                     : "border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                             }`}
                         >
@@ -99,7 +99,7 @@ export default function OpeningBalancesPage() {
                             Saldo AP/AR
                         </button>
                     </div>
-                    <span className="hidden md:inline text-[11px] font-medium text-zinc-400">
+                    <span className="hidden md:inline text-xs font-medium text-zinc-400">
                         {activeTab === "gl" ? "Jurnal saldo awal buku besar" : "Invoice saldo awal hutang/piutang"}
                     </span>
                 </div>

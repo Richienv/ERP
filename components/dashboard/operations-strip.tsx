@@ -96,7 +96,7 @@ export function OperationsStrip({
     ]
 
     return (
-        <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+        <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
             <div className="grid grid-cols-2 md:grid-cols-5">
                 {tiles.map((tile, i) => (
                     <Link
@@ -104,14 +104,14 @@ export function OperationsStrip({
                         href={tile.href}
                         className={`
                             group relative p-4 transition-all hover:bg-zinc-50 dark:hover:bg-zinc-800/50 active:scale-[0.98]
-                            ${i < tiles.length - 1 ? "md:border-r-2 border-b-2 md:border-b-0 border-black" : ""}
+                            ${i < tiles.length - 1 ? "md:border-r border-b md:border-b-0 border-border" : ""}
                         `}
                     >
                         {/* Header row: Icon + Label + Health dot */}
                         <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-1.5">
                                 <span className="text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors">{tile.icon}</span>
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors">
+                                <span className="text-xs font-semibold text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors">
                                     {tile.label}
                                 </span>
                             </div>
@@ -119,12 +119,12 @@ export function OperationsStrip({
                         </div>
 
                         {/* Big number */}
-                        <p className="text-2xl font-black tracking-tighter text-zinc-900 dark:text-white">
+                        <p className="text-2xl font-semibold tracking-tighter text-zinc-900 dark:text-white">
                             {tile.value}
                         </p>
 
                         {/* Detail */}
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mt-0.5">
+                        <p className="text-xs font-bold text-zinc-400 mt-0.5">
                             {tile.detail}
                         </p>
                     </Link>

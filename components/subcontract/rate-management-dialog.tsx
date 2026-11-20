@@ -149,11 +149,11 @@ export function RateManagementDialog({
                             </div>
                             <div className={NB.sectionBody}>
                                 {loading ? (
-                                    <div className="text-[10px] font-bold text-zinc-400 text-center py-4">
+                                    <div className="text-xs font-bold text-zinc-400 text-center py-4">
                                         Memuat tarif...
                                     </div>
                                 ) : rates.length === 0 ? (
-                                    <div className="text-[10px] font-bold text-zinc-400 text-center py-4">
+                                    <div className="text-xs font-bold text-zinc-400 text-center py-4">
                                         Belum ada tarif
                                     </div>
                                 ) : (
@@ -180,7 +180,7 @@ export function RateManagementDialog({
                                                 {rates.map((rate) => (
                                                     <tr key={rate.id} className={NB.tableRow}>
                                                         <td className={NB.tableCell}>
-                                                            <span className="text-xs font-black">
+                                                            <span className="text-xs font-semibold">
                                                                 {getOperationLabel(rate.operation)}
                                                             </span>
                                                         </td>
@@ -195,7 +195,7 @@ export function RateManagementDialog({
                                                             </span>
                                                         </td>
                                                         <td className={NB.tableCell}>
-                                                            <span className="text-[10px] font-bold text-zinc-500">
+                                                            <span className="text-xs font-bold text-zinc-500">
                                                                 {new Date(rate.validFrom).toLocaleDateString("id-ID")}
                                                                 {rate.validTo
                                                                     ? ` — ${new Date(rate.validTo).toLocaleDateString("id-ID")}`
@@ -319,7 +319,7 @@ export function RateManagementDialog({
                                     type="button"
                                     onClick={handleAddRate}
                                     disabled={saving}
-                                    className="flex items-center gap-1.5 bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-[10px] tracking-wider px-4 h-8 rounded-none"
+                                    className="flex items-center gap-1.5 bg-slate-900 text-white border border-border shadow-sm hover:shadow-sm transition-all font-semibold text-xs px-4 h-8 rounded-md"
                                 >
                                     <Plus className="h-3.5 w-3.5" />
                                     {saving ? "Menyimpan..." : "Tambah Tarif"}

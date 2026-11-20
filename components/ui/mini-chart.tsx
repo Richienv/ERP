@@ -62,7 +62,7 @@ export function MiniChart({ className }: MiniChartProps) {
                                             <div className="rounded-lg border border-border bg-popover p-2 shadow-sm">
                                                 <div className="grid grid-cols-2 gap-2">
                                                     <div className="flex flex-col">
-                                                        <span className="text-[0.70rem] uppercase text-muted-foreground">
+                                                        <span className="text-[0.70rem] text-muted-foreground">
                                                             Pengunjung
                                                         </span>
                                                         <span className="font-bold text-muted-foreground">

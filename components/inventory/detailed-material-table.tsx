@@ -156,18 +156,18 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
         enabled: useVirtual,
     })
 
-    if (!data.length) return <div className="p-8 text-center text-muted-foreground border-2 border-dashed border-black">No material data found.</div>
+    if (!data.length) return <div className="p-8 text-center text-muted-foreground border border-dashed border-border">No material data found.</div>
 
     // Helper for currency
     const formatCurrency = (val: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val)
     const formatDate = (date: Date | null) => date ? new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '-'
 
     return (
-        <Card className="overflow-hidden bg-white rounded-none border-0 shadow-none h-full flex flex-col">
-            <CardHeader className="p-6 border-b-2 border-black bg-zinc-50">
+        <Card className="overflow-hidden bg-white rounded-md border-0 shadow-none h-full flex flex-col">
+            <CardHeader className="p-6 border-b border-border bg-zinc-50">
                 <div className="flex items-center justify-between">
                     <div>
-                        <CardTitle className="text-xl font-black uppercase tracking-wider flex items-center gap-2">
+                        <CardTitle className="text-xl font-semibold flex items-center gap-2">
                             <Package className="h-5 w-5 text-purple-600" />
                             Material Gap Analysis
                         </CardTitle>
@@ -178,46 +178,46 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                     <div className="flex bg-zinc-100 p-1 border border-zinc-200">
                         <button
                             onClick={() => setFilter('alert')}
-                            className={`px-3 py-1.5 text-xs font-bold uppercase transition-all flex items-center gap-1.5 ${filter === 'alert' ? 'bg-red-600 text-white shadow-sm ring-1 ring-red-700' : 'text-zinc-500 hover:text-red-600'}`}
+                            className={`px-3 py-1.5 text-xs font-bold  transition-all flex items-center gap-1.5 ${filter === 'alert' ? 'bg-red-600 text-white shadow-sm ring-1 ring-red-700' : 'text-zinc-500 hover:text-red-600'}`}
                         >
                             Alert
-                            <span className={`text-[9px] px-1.5 py-0.5 font-black ${filter === 'alert' ? 'bg-white text-red-600' : 'bg-red-100 text-red-600'}`}>
+                            <span className={`text-xs px-1.5 py-0.5 font-semibold ${filter === 'alert' ? 'bg-white text-red-600' : 'bg-red-100 text-red-600'}`}>
                                 {data.filter(i => i.manualAlert || (i.gap > 0 && !i.isPendingRequest && (!i.openPOs || i.openPOs.length === 0))).length}
                             </span>
                         </button>
                         <button
                             onClick={() => setFilter('requested')}
-                            className={`px-3 py-1.5 text-xs font-bold uppercase transition-all flex items-center gap-1.5 ${filter === 'requested' ? 'bg-amber-100 text-amber-900 border border-amber-200 shadow-sm' : 'text-zinc-500 hover:text-amber-600'}`}
+                            className={`px-3 py-1.5 text-xs font-bold  transition-all flex items-center gap-1.5 ${filter === 'requested' ? 'bg-amber-100 text-amber-900 border border-amber-200 shadow-sm' : 'text-zinc-500 hover:text-amber-600'}`}
                         >
                             Requested
-                            <span className="bg-amber-600 text-white text-[9px] px-1 h-4 flex items-center justify-center">
+                            <span className="bg-amber-600 text-white text-xs px-1 h-4 flex items-center justify-center">
                                 {data.filter(i => !i.manualAlert && (i.isPendingRequest || optimisticPendingRequests.has(i.id))).length}
                             </span>
                         </button>
                         <button
                             onClick={() => setFilter('approved')}
-                            className={`px-3 py-1.5 text-xs font-bold uppercase transition-all flex items-center gap-1.5 ${filter === 'approved' ? 'bg-blue-100 text-blue-900 border border-blue-200 shadow-sm' : 'text-zinc-500 hover:text-blue-600'}`}
+                            className={`px-3 py-1.5 text-xs font-bold  transition-all flex items-center gap-1.5 ${filter === 'approved' ? 'bg-blue-100 text-blue-900 border border-blue-200 shadow-sm' : 'text-zinc-500 hover:text-blue-600'}`}
                         >
                             Approved
-                            <span className="bg-blue-600 text-white text-[9px] px-1 h-4 flex items-center justify-center">
+                            <span className="bg-blue-600 text-white text-xs px-1 h-4 flex items-center justify-center">
                                 {data.filter(i => !i.manualAlert && ((i.openPOs && i.openPOs.length > 0) || (optimisticPOs[i.id] && optimisticPOs[i.id].length > 0))).length}
                             </span>
                         </button>
                         <button
                             onClick={() => setFilter('rejected')}
-                            className={`px-3 py-1.5 text-xs font-bold uppercase transition-all flex items-center gap-1.5 ${filter === 'rejected' ? 'bg-red-100 text-red-900 border border-red-200 shadow-sm' : 'text-zinc-500 hover:text-red-600'}`}
+                            className={`px-3 py-1.5 text-xs font-bold  transition-all flex items-center gap-1.5 ${filter === 'rejected' ? 'bg-red-100 text-red-900 border border-red-200 shadow-sm' : 'text-zinc-500 hover:text-red-600'}`}
                         >
                             Rejected
-                            <span className="bg-red-600 text-white text-[9px] px-1 h-4 flex items-center justify-center">
+                            <span className="bg-red-600 text-white text-xs px-1 h-4 flex items-center justify-center">
                                 {data.filter(i => i.isRejectedRequest).length}
                             </span>
                         </button>
                         <button
                             onClick={() => setFilter('completed')}
-                            className={`px-3 py-1.5 text-xs font-bold uppercase transition-all flex items-center gap-1.5 ${filter === 'completed' ? 'bg-emerald-100 text-emerald-900 border border-emerald-200 shadow-sm' : 'text-zinc-500 hover:text-emerald-600'}`}
+                            className={`px-3 py-1.5 text-xs font-bold  transition-all flex items-center gap-1.5 ${filter === 'completed' ? 'bg-emerald-100 text-emerald-900 border border-emerald-200 shadow-sm' : 'text-zinc-500 hover:text-emerald-600'}`}
                         >
                             Completed
-                            <span className="bg-emerald-600 text-white text-[9px] px-1 h-4 flex items-center justify-center">
+                            <span className="bg-emerald-600 text-white text-xs px-1 h-4 flex items-center justify-center">
                                 {data.filter(i => !i.manualAlert && i.gap <= 0 && !i.isPendingRequest && (!i.openPOs || i.openPOs.length === 0)).length}
                             </span>
                         </button>
@@ -232,7 +232,7 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                             <div ref={scrollRef} className="overflow-auto" style={{ maxHeight: 600 }}>
                                 <table className="w-full text-left text-sm">
                                     <thead className="sticky top-0 z-10">
-                                        <tr className="border-b-2 border-black bg-zinc-100 uppercase text-[10px] font-black tracking-wider">
+                                        <tr className="border-b border-border bg-zinc-100 text-xs font-semibold">
                                             <th className="p-4">Material Info</th>
                                             <th className="p-4 text-center">Stock & Demand</th>
                                             <th className="p-4">Planning</th>
@@ -280,7 +280,7 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                         <div className="overflow-x-auto">
                             <table className="w-full text-left text-sm">
                                 <thead>
-                                    <tr className="border-b-2 border-black bg-zinc-100 uppercase text-[10px] font-black tracking-wider">
+                                    <tr className="border-b border-border bg-zinc-100 text-xs font-semibold">
                                         <th className="p-4">Material Info</th>
                                         <th className="p-4 text-center">Stock & Demand</th>
                                         <th className="p-4">Planning</th>
@@ -318,18 +318,18 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
             <>
                 {/* Material Info */}
                 <td className="p-4 align-top w-[250px]">
-                    <div className="font-black text-black">{item.name}</div>
-                    <div className="text-[10px] text-zinc-500 font-mono mt-1">
+                    <div className="font-semibold text-black">{item.name}</div>
+                    <div className="text-xs text-zinc-500 font-mono mt-1">
                         {item.category} • {item.sku}
                     </div>
                     <div className="flex gap-1 mt-1 flex-wrap">
                         {item.manualAlert && (
-                            <Badge variant="destructive" className="text-[9px] h-4 uppercase font-black tracking-tighter">
+                            <Badge variant="destructive" className="text-xs h-4 font-semibold tracking-tighter">
                                 Manual Alert
                             </Badge>
                         )}
                         {item.alternative && (
-                            <Badge variant="outline" className="text-[9px] h-4 border-emerald-500 text-emerald-700 bg-emerald-50">
+                            <Badge variant="outline" className="text-xs h-4 border-emerald-500 text-emerald-700 bg-emerald-50">
                                 Alt: {item.alternative.code}
                             </Badge>
                         )}
@@ -344,14 +344,14 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                             return (
                                 <>
                                     <div className="flex items-baseline justify-center gap-1">
-                                        <span className={`text-xl font-black ${item.currentStock < demand ? 'text-red-600' : 'text-emerald-600'}`}>
+                                        <span className={`text-xl font-semibold ${item.currentStock < demand ? 'text-red-600' : 'text-emerald-600'}`}>
                                             {item.currentStock}
                                         </span>
                                         <span className="text-zinc-400 font-bold text-sm">/</span>
-                                        <span className="text-xl font-black text-zinc-700">{demand}</span>
+                                        <span className="text-xl font-semibold text-zinc-700">{demand}</span>
                                         <span className="text-sm font-normal text-zinc-500 ml-0.5">{item.unit}</span>
                                     </div>
-                                    <div className="text-[9px] font-bold text-zinc-400 uppercase mt-0.5">
+                                    <div className="text-xs font-bold text-zinc-400 mt-0.5">
                                         Stok / {item.pendingRestockQty > 0 ? 'Diminta (PR)' : 'Kebutuhan'}
                                     </div>
                                 </>
@@ -360,7 +360,7 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
 
                         {/* Incoming from PO */}
                         {item.incomingQty > 0 && (
-                            <div className="text-[10px] font-bold text-cyan-600 mt-1 bg-cyan-50 border border-cyan-200 py-0.5 px-2 inline-block">
+                            <div className="text-xs font-bold text-cyan-600 mt-1 bg-cyan-50 border border-cyan-200 py-0.5 px-2 inline-block">
                                 +{item.incomingQty} {item.unit} incoming (PO)
                             </div>
                         )}
@@ -369,7 +369,7 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                         {item.warehouses.length > 0 && (
                             <div className="flex flex-wrap justify-center gap-1 mt-1.5">
                                 {item.warehouses.map(w => (
-                                    <span key={w.name} className="text-[9px] bg-zinc-100 px-1 border border-zinc-200" title={w.name}>
+                                    <span key={w.name} className="text-xs bg-zinc-100 px-1 border border-zinc-200" title={w.name}>
                                         {w.name.substring(0, 3)}: {w.qty}
                                     </span>
                                 ))}
@@ -379,16 +379,16 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                         {/* Active Demand Warning */}
                         {item.demandSources.length > 0 && (
                             <div className="mt-2 text-left bg-purple-50 p-2 border border-purple-200">
-                                <div className="text-[10px] font-bold text-purple-700 uppercase flex items-center gap-1">
+                                <div className="text-xs font-bold text-purple-700 flex items-center gap-1">
                                     <AlertCircle className="h-3 w-3" /> Needed for WO
                                 </div>
                                 <div className="space-y-1 mt-1">
                                     {item.demandSources.slice(0, 2).map((wo, i) => (
-                                        <div key={i} className="text-[9px] text-purple-800 font-mono">
+                                        <div key={i} className="text-xs text-purple-800 font-mono">
                                             WO-{wo.number}: {wo.qty} {item.unit}
                                         </div>
                                     ))}
-                                    {item.demandSources.length > 2 && <div className="text-[9px] text-center text-purple-400">+{item.demandSources.length - 2} more</div>}
+                                    {item.demandSources.length > 2 && <div className="text-xs text-center text-purple-400">+{item.demandSources.length - 2} more</div>}
                                 </div>
                             </div>
                         )}
@@ -398,19 +398,19 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                 {/* Planning (Safety, ROP, Burn) */}
                 <td className="p-4 align-top">
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                        <span className="text-zinc-500 text-[10px] uppercase font-bold">Safe Stock</span>
+                        <span className="text-zinc-500 text-xs font-bold">Safe Stock</span>
                         <span className="font-mono font-bold text-right">{item.safetyStock}</span>
 
-                        <span className="text-zinc-500 text-[10px] uppercase font-bold">R. Point</span>
+                        <span className="text-zinc-500 text-xs font-bold">R. Point</span>
                         <span className="font-mono font-bold text-right text-amber-600">{item.reorderPoint}</span>
 
-                        <span className="text-zinc-500 text-[10px] uppercase font-bold">Lead Time</span>
+                        <span className="text-zinc-500 text-xs font-bold">Lead Time</span>
                         <span className="font-mono text-right">{item.leadTime}d</span>
 
-                        <span className="text-zinc-500 text-[10px] uppercase font-bold">Burn Rate</span>
+                        <span className="text-zinc-500 text-xs font-bold">Burn Rate</span>
                         <span className="font-mono text-right">{item.consumptionRate}/d</span>
                     </div>
-                    <div className={`mt-2 text-[10px] font-black uppercase text-center border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] p-1 ${item.stockEndsInDays < 7 ? 'bg-red-200 text-red-900' : 'bg-emerald-200 text-emerald-900'}`}>
+                    <div className={`mt-2 text-xs font-semibold  text-center border border-border shadow-sm p-1 ${item.stockEndsInDays < 7 ? 'bg-red-200 text-red-900' : 'bg-emerald-200 text-emerald-900'}`}>
                         Stock ends: {item.stockEndsInDays === 999 ? '∞' : `${item.stockEndsInDays} days`}
                     </div>
                 </td>
@@ -420,28 +420,28 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                     <div className="text-xs space-y-2">
                         {/* Supplier */}
                         <div>
-                            <div className="text-[9px] uppercase font-bold text-zinc-400">Preferred Vendor</div>
+                            <div className="text-xs font-bold text-zinc-400">Preferred Vendor</div>
                             <div className="font-bold truncate w-[120px]">{item.supplier?.name || 'Unknown'}</div>
                         </div>
 
                         {/* Incoming PO - Hide if Manual Alert (User treats it as insufficient/ignored) */}
                         {!item.manualAlert && ((item.activePO) || (optimisticPOs[item.id] && optimisticPOs[item.id].length > 0)) && !optimisticResolvedItems.has(item.id) ? (
-                            <div className="bg-blue-100 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] p-2 relative mt-1">
-                                <div className="absolute -top-1.5 -right-1.5 bg-blue-500 text-white text-[8px] font-black px-1 border border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] rotate-3">
+                            <div className="bg-blue-100 border border-border shadow-sm p-2 relative mt-1">
+                                <div className="absolute -top-1.5 -right-1.5 bg-blue-500 text-white text-xs font-semibold px-1 border border-border shadow-sm rotate-3">
                                     INCOMING
                                 </div>
-                                <div className="text-[10px] font-bold mt-1 leading-tight">
+                                <div className="text-xs font-bold mt-1 leading-tight">
                                     {(optimisticPOs[item.id] && optimisticPOs[item.id].length > 0) ? optimisticPOs[item.id][0].orderedQty : item.activePO?.qty} {item.unit}
                                 </div>
-                                <div className="text-[9px] font-mono text-blue-900">
+                                <div className="text-xs font-mono text-blue-900">
                                     via {(optimisticPOs[item.id] && optimisticPOs[item.id].length > 0) ? `PO-${optimisticPOs[item.id][0].number}` : `PO-${item.activePO?.number}`}
                                 </div>
-                                <div className="text-[9px] font-bold text-black/60 mt-0.5 border-t border-black/10 pt-0.5">
+                                <div className="text-xs font-bold text-black/60 mt-0.5 border-t border-black/10 pt-0.5">
                                     ETA: {formatDate((optimisticPOs[item.id] && optimisticPOs[item.id].length > 0) ? optimisticPOs[item.id][0].expectedDate : item.activePO?.eta)}
                                 </div>
                             </div>
                         ) : (
-                            <div className="text-[10px] text-zinc-400 italic">No active orders</div>
+                            <div className="text-xs text-zinc-400 italic">No active orders</div>
                         )}
                     </div>
                 </td>
@@ -452,12 +452,12 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                     {/* Hide gap/impact if pending request exists */}
                     {item.gap > 0 && !optimisticResolvedItems.has(item.id) && !item.isPendingRequest && !optimisticPendingRequests.has(item.id) ? (
                         <div className="mt-2 text-right">
-                            <div className="text-[10px] text-zinc-400 uppercase font-bold">Budget Needed</div>
-                            <div className="text-sm font-black text-red-600">{formatCurrency(item.totalGapCost)}</div>
-                            <div className="text-[10px] text-red-500 font-bold">Deficit: {item.gap} {item.unit}</div>
+                            <div className="text-xs text-zinc-400 font-bold">Budget Needed</div>
+                            <div className="text-sm font-semibold text-red-600">{formatCurrency(item.totalGapCost)}</div>
+                            <div className="text-xs text-red-500 font-bold">Deficit: {item.gap} {item.unit}</div>
                         </div>
                     ) : (
-                        <div className="mt-2 text-[10px] text-black font-black bg-emerald-300 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] inline-block px-2 py-0.5 rotate-[-2deg]">
+                        <div className="mt-2 text-xs text-black font-semibold bg-emerald-300 border border-border shadow-sm inline-block px-2 py-0.5 rotate-[-2deg]">
                             HEALTHY
                         </div>
                     )}
@@ -511,7 +511,7 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                                     // B. No Active PO -> Check if Pending
                                     (item.isPendingRequest || optimisticPendingRequests.has(item.id)) ? (
                                         // B1. Pending -> Show Badge
-                                        <div className="flex items-center justify-end gap-2 text-amber-600 font-bold text-xs uppercase">
+                                        <div className="flex items-center justify-end gap-2 text-amber-600 font-bold text-xs ">
                                             <span className="bg-amber-100 px-2 py-1 border border-amber-200 flex items-center gap-1">
                                                 <Loader2 className="h-3 w-3 animate-spin" />
                                                 Pending Request
@@ -538,7 +538,7 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                                 )
                         ) : (
                             // NO GAP (Healthy) -> Show Badge
-                            <div className="flex items-center justify-end gap-2 text-emerald-600 font-bold text-xs uppercase">
+                            <div className="flex items-center justify-end gap-2 text-emerald-600 font-bold text-xs ">
                                 <span className="bg-emerald-100 px-2 py-1 border border-emerald-200">
                                     All Good
                                 </span>

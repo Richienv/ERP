@@ -111,7 +111,7 @@ export default function OpeningStockPage() {
     return (
         <div className="mf-page">
             {/* Page Header */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+            <div className="border border-border shadow-sm overflow-hidden bg-white dark:bg-zinc-900">
                 <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-orange-500">
                     <div className="flex items-center gap-3">
                         <IconPackage className="h-6 w-6" />
@@ -127,7 +127,7 @@ export default function OpeningStockPage() {
                             variant="outline"
                             size="sm"
                             onClick={addLine}
-                            className="border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none transition-shadow"
+                            className="border border-border shadow-sm hover:shadow-none transition-shadow"
                         >
                             <IconPlus className="h-4 w-4 mr-1" />
                             Tambah Baris
@@ -136,7 +136,7 @@ export default function OpeningStockPage() {
                             size="sm"
                             onClick={handleSubmit}
                             disabled={submitMutation.isPending}
-                            className="bg-orange-500 hover:bg-orange-600 text-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none transition-shadow"
+                            className="bg-blue-500 hover:bg-blue-600 text-white border border-border shadow-sm hover:shadow-none transition-shadow"
                         >
                             <IconDeviceFloppy className="h-4 w-4 mr-1" />
                             {submitMutation.isPending ? "Menyimpan..." : "Simpan Semua"}
@@ -146,9 +146,9 @@ export default function OpeningStockPage() {
             </div>
 
             {/* Bulk Entry Form */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
-                <div className="px-6 py-3 bg-zinc-50 dark:bg-zinc-800 border-b-2 border-black flex items-center justify-between">
-                    <span className="text-sm font-bold uppercase tracking-wide">
+            <div className="border border-border shadow-sm overflow-hidden bg-white dark:bg-zinc-900">
+                <div className="px-6 py-3 bg-zinc-50 dark:bg-zinc-800 border-b border-border flex items-center justify-between">
+                    <span className="text-sm font-bold  ">
                         Entri Saldo Awal
                     </span>
                     <span className="text-sm font-mono font-bold text-zinc-900 dark:text-white">
@@ -159,14 +159,14 @@ export default function OpeningStockPage() {
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead>
-                            <tr className="border-b-2 border-black bg-zinc-50 dark:bg-zinc-800">
-                                <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide w-8">#</th>
-                                <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide">Produk</th>
-                                <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide">Gudang</th>
-                                <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide w-32">Kuantitas</th>
-                                <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide w-44">Harga Satuan (Rp)</th>
-                                <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wide w-44">Total Nilai</th>
-                                <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wide w-16"></th>
+                            <tr className="border-b border-border bg-zinc-50 dark:bg-zinc-800">
+                                <th className="px-4 py-3 text-left text-xs font-bold w-8">#</th>
+                                <th className="px-4 py-3 text-left text-xs font-bold  ">Produk</th>
+                                <th className="px-4 py-3 text-left text-xs font-bold  ">Gudang</th>
+                                <th className="px-4 py-3 text-left text-xs font-bold w-32">Kuantitas</th>
+                                <th className="px-4 py-3 text-left text-xs font-bold w-44">Harga Satuan (Rp)</th>
+                                <th className="px-4 py-3 text-right text-xs font-bold w-44">Total Nilai</th>
+                                <th className="px-4 py-3 text-center text-xs font-bold w-16"></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -212,7 +212,7 @@ export default function OpeningStockPage() {
                                                 value={line.quantity}
                                                 onChange={(e) => updateLine(line.id, "quantity", e.target.value)}
                                                 placeholder="0"
-                                                className="w-full border-2 border-black placeholder:text-zinc-300"
+                                                className="w-full border border-border placeholder:text-zinc-300"
                                             />
                                         </td>
                                         <td className="px-4 py-2">
@@ -223,7 +223,7 @@ export default function OpeningStockPage() {
                                                 value={line.unitCost}
                                                 onChange={(e) => updateLine(line.id, "unitCost", e.target.value)}
                                                 placeholder="0"
-                                                className="w-full border-2 border-black placeholder:text-zinc-300"
+                                                className="w-full border border-border placeholder:text-zinc-300"
                                             />
                                         </td>
                                         <td className="px-4 py-2 text-right text-sm font-mono font-medium">
@@ -245,8 +245,8 @@ export default function OpeningStockPage() {
                             })}
                         </tbody>
                         <tfoot>
-                            <tr className="border-t-2 border-black bg-zinc-50 dark:bg-zinc-800">
-                                <td colSpan={5} className="px-4 py-3 text-right text-sm font-bold uppercase tracking-wide">
+                            <tr className="border-t border-border bg-zinc-50 dark:bg-zinc-800">
+                                <td colSpan={5} className="px-4 py-3 text-right text-sm font-bold  ">
                                     Grand Total
                                 </td>
                                 <td className="px-4 py-3 text-right text-sm font-mono font-bold text-zinc-900 dark:text-white">
@@ -263,7 +263,7 @@ export default function OpeningStockPage() {
                         variant="outline"
                         size="sm"
                         onClick={addLine}
-                        className="border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none transition-shadow"
+                        className="border border-border shadow-sm hover:shadow-none transition-shadow"
                     >
                         <IconPlus className="h-4 w-4 mr-1" />
                         Tambah Baris
@@ -276,10 +276,10 @@ export default function OpeningStockPage() {
 
             {/* Existing Transactions */}
             {existingTransactions.length > 0 && (
-                <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
-                    <div className="px-6 py-3 bg-zinc-50 dark:bg-zinc-800 border-b-2 border-black flex items-center gap-2">
+                <div className="border border-border shadow-sm overflow-hidden bg-white dark:bg-zinc-900">
+                    <div className="px-6 py-3 bg-zinc-50 dark:bg-zinc-800 border-b border-border flex items-center gap-2">
                         <IconClipboardList className="h-4 w-4" />
-                        <span className="text-sm font-bold uppercase tracking-wide">
+                        <span className="text-sm font-bold  ">
                             Riwayat Saldo Awal ({existingTransactions.length} transaksi)
                         </span>
                     </div>
@@ -287,12 +287,12 @@ export default function OpeningStockPage() {
                         <table className="w-full">
                             <thead>
                                 <tr className="border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800">
-                                    <th className="px-4 py-2 text-left text-xs font-bold uppercase">Tanggal</th>
-                                    <th className="px-4 py-2 text-left text-xs font-bold uppercase">Produk</th>
-                                    <th className="px-4 py-2 text-left text-xs font-bold uppercase">Gudang</th>
-                                    <th className="px-4 py-2 text-right text-xs font-bold uppercase">Kuantitas</th>
-                                    <th className="px-4 py-2 text-right text-xs font-bold uppercase">Harga Satuan</th>
-                                    <th className="px-4 py-2 text-right text-xs font-bold uppercase">Total Nilai</th>
+                                    <th className="px-4 py-2 text-left text-xs font-bold ">Tanggal</th>
+                                    <th className="px-4 py-2 text-left text-xs font-bold ">Produk</th>
+                                    <th className="px-4 py-2 text-left text-xs font-bold ">Gudang</th>
+                                    <th className="px-4 py-2 text-right text-xs font-bold ">Kuantitas</th>
+                                    <th className="px-4 py-2 text-right text-xs font-bold ">Harga Satuan</th>
+                                    <th className="px-4 py-2 text-right text-xs font-bold ">Total Nilai</th>
                                 </tr>
                             </thead>
                             <tbody>

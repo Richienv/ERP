@@ -127,16 +127,16 @@ export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingL
 
     return (
         <>
-            <div className="h-full flex flex-col bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+            <div className="h-full flex flex-col bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                 {/* Header */}
-                <div className="flex-none bg-amber-400 dark:bg-amber-500 px-4 py-3 border-b-2 border-black">
+                <div className="flex-none bg-amber-400 dark:bg-amber-500 px-4 py-3 border-b border-border">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <ShieldAlert className="h-5 w-5 text-black" />
-                            <h3 className="text-sm font-black uppercase tracking-widest text-black">Pusat Aksi</h3>
+                            <h3 className="text-sm font-semibold text-black">Pusat Aksi</h3>
                         </div>
                         {totalBadge > 0 && (
-                            <span className="bg-black text-white text-[10px] font-black px-2 py-0.5 min-w-[20px] text-center">
+                            <span className="bg-slate-900 text-white text-xs font-semibold px-2 py-0.5 min-w-[20px] text-center">
                                 {totalBadge}
                             </span>
                         )}
@@ -144,22 +144,22 @@ export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingL
                 </div>
 
                 {/* Tab Bar */}
-                <div className="flex-none flex border-b-2 border-black">
+                <div className="flex-none flex border-b border-border">
                     {tabs.map((tab) => (
                         <button
                             key={tab.key}
                             onClick={() => setActiveTab(tab.key)}
-                            className={`flex-1 px-2 py-2 text-[10px] font-black uppercase tracking-wider transition-all relative
+                            className={`flex-1 px-2 py-2 text-xs font-semibold   transition-all relative
                                 ${activeTab === tab.key
-                                    ? "bg-black text-white"
+                                    ? "bg-slate-900 text-white"
                                     : "bg-white dark:bg-zinc-900 text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                                 }
-                                ${tab.key !== "actions" ? "border-r-2 border-black" : ""}
+                                ${tab.key !== "actions" ? "border-r border-border" : ""}
                             `}
                         >
                             {tab.label}
                             {tab.count > 0 && (
-                                <span className={`ml-1 inline-flex items-center justify-center px-1 min-w-[16px] h-4 text-[9px] font-black rounded-full
+                                <span className={`ml-1 inline-flex items-center justify-center px-1 min-w-[16px] h-4 text-xs font-semibold rounded-full
                                     ${activeTab === tab.key ? "bg-amber-400 text-black" : "bg-red-500 text-white"}
                                 `}>
                                     {tab.count}
@@ -179,18 +179,18 @@ export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingL
                                 {(totalPRs > 0 || totalPOs > 0) && (
                                     <div className="grid grid-cols-3 gap-1.5 mb-3">
                                         <Link href="/procurement/requests" className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-2 text-center hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors">
-                                            <div className="text-lg font-black text-blue-900 dark:text-blue-300">{totalPRs}</div>
-                                            <div className="text-[9px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">Total PR</div>
-                                            {pendingPRs > 0 && <div className="text-[9px] font-bold text-amber-600 mt-0.5">{pendingPRs} pending</div>}
+                                            <div className="text-lg font-semibold text-blue-900 dark:text-blue-300">{totalPRs}</div>
+                                            <div className="text-xs font-semibold text-blue-600 dark:text-blue-400">Total PR</div>
+                                            {pendingPRs > 0 && <div className="text-xs font-bold text-amber-600 mt-0.5">{pendingPRs} pending</div>}
                                         </Link>
                                         <Link href="/procurement/orders" className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-2 text-center hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors">
-                                            <div className="text-lg font-black text-emerald-900 dark:text-emerald-300">{totalPOs}</div>
-                                            <div className="text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Total PO</div>
-                                            <div className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 mt-0.5">{activeCount} aktif</div>
+                                            <div className="text-lg font-semibold text-emerald-900 dark:text-emerald-300">{totalPOs}</div>
+                                            <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Total PO</div>
+                                            <div className="text-xs font-bold text-emerald-700 dark:text-emerald-400 mt-0.5">{activeCount} aktif</div>
                                         </Link>
                                         <div className="bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-2 text-center">
-                                            <div className="text-sm font-black text-zinc-900 dark:text-zinc-100">{formatCompact(totalPOValue)}</div>
-                                            <div className="text-[9px] font-black uppercase tracking-wider text-zinc-500">Nilai PO</div>
+                                            <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{formatCompact(totalPOValue)}</div>
+                                            <div className="text-xs font-semibold text-zinc-500">Nilai PO</div>
                                         </div>
                                     </div>
                                 )}
@@ -199,22 +199,22 @@ export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingL
                                     pendingApproval.map((po) => (
                                         <div
                                             key={po.id}
-                                            className="w-full text-left bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-300 dark:border-amber-800 p-3
+                                            className="w-full text-left bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 p-3
                                                        transition-all"
                                         >
                                             <div className="flex justify-between items-start mb-1">
-                                                <span className="font-mono text-[10px] font-black text-amber-900 dark:text-amber-300">{po.number}</span>
-                                                <span className="text-xs font-black text-black dark:text-white">{formatIDR(po.netAmount)}</span>
+                                                <span className="font-mono text-xs font-semibold text-amber-900 dark:text-amber-300">{po.number}</span>
+                                                <span className="text-xs font-semibold text-black dark:text-white">{formatIDR(po.netAmount)}</span>
                                             </div>
                                             <div className="text-xs font-bold text-amber-800 dark:text-amber-400">{po.supplier.name}</div>
-                                            <div className="text-[10px] text-amber-600 dark:text-amber-500 mt-0.5">{po.itemCount} item</div>
+                                            <div className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">{po.itemCount} item</div>
                                             {/* Inline Action Buttons */}
                                             <div className="flex items-center gap-2 mt-2 pt-2 border-t border-amber-200 dark:border-amber-700">
                                                 <button
                                                     onClick={() => handleApprove(po)}
                                                     disabled={processing}
-                                                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-wider
-                                                               hover:bg-emerald-700 active:scale-[0.97] transition-all disabled:opacity-50 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                                                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-semibold  
+                                                               hover:bg-emerald-700 active:scale-[0.97] transition-all disabled:opacity-50 border border-border shadow-sm"
                                                 >
                                                     {processing ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
                                                     Setujui
@@ -222,15 +222,15 @@ export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingL
                                                 <button
                                                     onClick={() => setSelectedPO(po)}
                                                     disabled={processing}
-                                                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white dark:bg-zinc-800 text-red-600 text-[10px] font-black uppercase tracking-wider
-                                                               hover:bg-red-50 dark:hover:bg-red-950/30 active:scale-[0.97] transition-all disabled:opacity-50 border-2 border-red-400 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]"
+                                                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white dark:bg-zinc-800 text-red-600 text-xs font-semibold  
+                                                               hover:bg-red-50 dark:hover:bg-red-950/30 active:scale-[0.97] transition-all disabled:opacity-50 border border-red-400 shadow-sm"
                                                 >
                                                     <XCircle className="h-3 w-3" />
                                                     Tolak
                                                 </button>
                                                 <button
                                                     onClick={() => setSelectedPO(po)}
-                                                    className="flex items-center justify-center p-1.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 text-[10px]
+                                                    className="flex items-center justify-center p-1.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 text-xs
                                                                hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors border border-zinc-300"
                                                     title="Detail"
                                                 >
@@ -242,12 +242,12 @@ export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingL
                                 ) : (
                                     <div className="text-center py-4">
                                         <CheckCircle className="h-8 w-8 mx-auto text-emerald-400 mb-2" />
-                                        <p className="text-xs font-black uppercase tracking-wide text-zinc-400">Semua Beres</p>
-                                        <p className="text-[10px] text-zinc-400 mt-1">Tidak ada persetujuan yang menunggu</p>
+                                        <p className="text-xs font-semibold text-zinc-400">Semua Beres</p>
+                                        <p className="text-xs text-zinc-400 mt-1">Tidak ada persetujuan yang menunggu</p>
                                     </div>
                                 )}
                                 <Link href="/dashboard/approvals">
-                                    <div className="text-center py-2 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-black dark:hover:text-white transition-colors">
+                                    <div className="text-center py-2 text-xs font-semibold text-zinc-400 hover:text-black dark:hover:text-white transition-colors">
                                         Lihat Semua <ArrowRight className="h-3 w-3 inline ml-1" />
                                     </div>
                                 </Link>
@@ -261,14 +261,14 @@ export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingL
                                     alerts.map((alert, i) => (
                                         <div
                                             key={i}
-                                            className="border-2 border-black p-3 bg-white dark:bg-zinc-900"
+                                            className="border border-border p-3 bg-white dark:bg-zinc-900"
                                         >
                                             <div className="flex items-start gap-2">
                                                 <AlertTriangle className={`h-4 w-4 mt-0.5 flex-none ${alert.severity === "critical" ? "text-red-500" : "text-amber-500"
                                                     }`} />
                                                 <div className="min-w-0">
-                                                    <p className="text-xs font-black uppercase tracking-wide truncate">{alert.title}</p>
-                                                    <p className="text-[10px] text-zinc-500 mt-0.5 line-clamp-2">{alert.message}</p>
+                                                    <p className="text-xs font-semibold truncate">{alert.title}</p>
+                                                    <p className="text-xs text-zinc-500 mt-0.5 line-clamp-2">{alert.message}</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -276,8 +276,8 @@ export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingL
                                 ) : (
                                     <div className="text-center py-8">
                                         <CheckCircle className="h-8 w-8 mx-auto text-emerald-400 mb-2" />
-                                        <p className="text-xs font-black uppercase tracking-wide text-zinc-400">Aman</p>
-                                        <p className="text-[10px] text-zinc-400 mt-1">Tidak ada peringatan aktif</p>
+                                        <p className="text-xs font-semibold text-zinc-400">Aman</p>
+                                        <p className="text-xs text-zinc-400 mt-1">Tidak ada peringatan aktif</p>
                                     </div>
                                 )}
                             </div>
@@ -289,23 +289,23 @@ export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingL
                                 {[
                                     { label: "Buat PO", icon: ClipboardList, action: () => setShowPODialog(true), color: "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800" },
                                     { label: "Buat Invoice", icon: FileText, action: () => setShowInvoiceDialog(true), color: "bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800" },
-                                    { label: "Buat WO", icon: Zap, action: () => setShowWODialog(true), color: "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800" },
+                                    { label: "Buat WO", icon: Zap, action: () => setShowWODialog(true), color: "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800" },
                                     { label: "Laporan", icon: BarChart3, href: "/reports", color: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800" },
                                 ].map((item) => (
                                     'action' in item && item.action ? (
                                         <button
                                             key={item.label}
                                             onClick={item.action}
-                                            className={`border-2 ${item.color} p-3 text-center hover:translate-x-[1px] hover:translate-y-[1px] transition-all active:scale-[0.98]`}
+                                            className={`border ${item.color} p-3 text-center transition-all active:scale-[0.98]`}
                                         >
                                             <item.icon className="h-5 w-5 mx-auto mb-1.5 text-zinc-700 dark:text-zinc-300" />
-                                            <span className="text-[10px] font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">{item.label}</span>
+                                            <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{item.label}</span>
                                         </button>
                                     ) : (
                                         <Link key={item.label} href={(item as any).href}>
-                                            <div className={`border-2 ${item.color} p-3 text-center hover:translate-x-[1px] hover:translate-y-[1px] transition-all active:scale-[0.98]`}>
+                                            <div className={`border ${item.color} p-3 text-center transition-all active:scale-[0.98]`}>
                                                 <item.icon className="h-5 w-5 mx-auto mb-1.5 text-zinc-700 dark:text-zinc-300" />
-                                                <span className="text-[10px] font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">{item.label}</span>
+                                                <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{item.label}</span>
                                             </div>
                                         </Link>
                                     )
@@ -318,47 +318,47 @@ export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingL
 
             {/* PO Approval Dialog */}
             <Dialog open={!!selectedPO} onOpenChange={() => { setSelectedPO(null); setRejectMode(false); setRejectReason("") }}>
-                <DialogContent className="max-w-2xl border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none p-0 overflow-hidden">
-                    <DialogHeader className="bg-black text-white px-6 pt-6 pb-4">
-                        <DialogTitle className="flex items-center gap-2 text-xl font-black uppercase tracking-tight text-white">
+                <DialogContent className="max-w-2xl border border-border shadow-sm rounded-md p-0 overflow-hidden">
+                    <DialogHeader className="bg-slate-900 text-white px-6 pt-6 pb-4">
+                        <DialogTitle className="flex items-center gap-2 text-xl font-semibold tracking-tight text-white">
                             <FileText className="h-5 w-5" />
                             Persetujuan Purchase Order
                         </DialogTitle>
-                        <DialogDescription className="text-zinc-400 font-medium text-xs uppercase tracking-wide">
+                        <DialogDescription className="text-zinc-400 font-medium text-xs  ">
                             Tinjau dan setujui atau tolak purchase order ini
                         </DialogDescription>
                     </DialogHeader>
 
                     {selectedPO && (
                         <div className="p-6 space-y-4">
-                            <div className="grid grid-cols-2 gap-4 bg-zinc-50 dark:bg-zinc-800 p-4 border-2 border-black">
+                            <div className="grid grid-cols-2 gap-4 bg-zinc-50 dark:bg-zinc-800 p-4 border border-border">
                                 <div>
-                                    <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500">No. PO</div>
+                                    <div className="text-xs font-semibold text-zinc-500">No. PO</div>
                                     <div className="font-mono font-bold">{selectedPO.number}</div>
                                 </div>
                                 <div>
-                                    <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Vendor</div>
+                                    <div className="text-xs font-semibold text-zinc-500">Vendor</div>
                                     <div className="font-bold">{selectedPO.supplier.name}</div>
                                 </div>
                                 <div>
-                                    <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total</div>
-                                    <div className="font-black text-lg">{formatIDR(selectedPO.netAmount)}</div>
+                                    <div className="text-xs font-semibold text-zinc-500">Total</div>
+                                    <div className="font-semibold text-lg">{formatIDR(selectedPO.netAmount)}</div>
                                 </div>
                                 <div>
-                                    <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Item</div>
+                                    <div className="text-xs font-semibold text-zinc-500">Item</div>
                                     <div className="font-bold">{selectedPO.itemCount} item</div>
                                 </div>
                             </div>
 
                             {/* Items */}
                             <div>
-                                <div className="bg-black text-white p-2 text-[10px] font-black uppercase tracking-widest">Detail Item</div>
-                                <div className="border-2 border-t-0 border-black max-h-40 overflow-y-auto">
+                                <div className="bg-slate-900 text-white p-2 text-xs font-semibold  ">Detail Item</div>
+                                <div className="border border-t-0 border-border max-h-40 overflow-y-auto">
                                     {selectedPO.items.map((item, idx) => (
                                         <div key={idx} className={`px-3 py-2 flex justify-between ${idx % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50 dark:bg-zinc-800"}`}>
                                             <div>
                                                 <div className="font-medium text-sm">{item.productName}</div>
-                                                <div className="text-[10px] text-zinc-400 font-mono">{item.productCode}</div>
+                                                <div className="text-xs text-zinc-400 font-mono">{item.productCode}</div>
                                             </div>
                                             <div className="text-sm font-bold">{item.quantity} pcs</div>
                                         </div>
@@ -367,27 +367,27 @@ export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingL
                             </div>
 
                             {rejectMode && (
-                                <div className="bg-red-50 dark:bg-red-950/30 border-2 border-red-300 dark:border-red-800 p-4 space-y-2">
-                                    <label className="text-sm font-black text-red-900 dark:text-red-300 uppercase">Alasan Penolakan</label>
+                                <div className="bg-red-50 dark:bg-red-950/30 border border-red-300 dark:border-red-800 p-4 space-y-2">
+                                    <label className="text-sm font-semibold text-red-900 dark:text-red-300 ">Alasan Penolakan</label>
                                     <Textarea
                                         placeholder="Berikan alasan yang jelas..."
                                         value={rejectReason}
                                         onChange={(e) => setRejectReason(e.target.value)}
-                                        className="min-h-[80px] border-2 border-black"
+                                        className="min-h-[80px] border border-border"
                                     />
                                 </div>
                             )}
                         </div>
                     )}
 
-                    <DialogFooter className="px-6 py-4 border-t-2 border-black gap-2 bg-zinc-50 dark:bg-zinc-800">
+                    <DialogFooter className="px-6 py-4 border-t border-border gap-2 bg-zinc-50 dark:bg-zinc-800">
                         {!rejectMode ? (
                             <>
                                 <Button
                                     variant="outline"
                                     onClick={() => setRejectMode(true)}
                                     disabled={processing}
-                                    className="border-2 border-red-500 text-red-700 hover:bg-red-50 font-black uppercase text-xs tracking-wide"
+                                    className="border border-red-500 text-red-700 hover:bg-red-50 font-semibold text-xs"
                                 >
                                     <XCircle className="h-4 w-4 mr-2" />
                                     Tolak
@@ -395,7 +395,7 @@ export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingL
                                 <Button
                                     onClick={() => selectedPO && handleApprove(selectedPO)}
                                     disabled={processing}
-                                    className="bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wide active:scale-[0.98]"
+                                    className="bg-slate-900 text-white border border-border shadow-sm hover:shadow-sm transition-all font-semibold text-xs active:scale-[0.98]"
                                 >
                                     {processing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
                                     Setujui
@@ -410,7 +410,7 @@ export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingL
                                     variant="destructive"
                                     onClick={handleReject}
                                     disabled={processing || !rejectReason.trim()}
-                                    className="font-black uppercase text-xs tracking-wide"
+                                    className="font-semibold text-xs"
                                 >
                                     {processing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <XCircle className="h-4 w-4 mr-2" />}
                                     Konfirmasi Tolak

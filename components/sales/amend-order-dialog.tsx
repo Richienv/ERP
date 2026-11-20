@@ -153,7 +153,7 @@ export function AmendOrderDialog({ orderId, orderNumber, currentItems, status }:
             <Button
                 variant="outline"
                 onClick={() => handleOpen(true)}
-                className="border-2 border-black rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none font-black uppercase text-[10px] tracking-wider h-9 px-4 hover:bg-amber-50"
+                className="border border-border rounded-md shadow-sm hover:shadow-none font-semibold text-xs h-9 px-4 hover:bg-amber-50"
             >
                 <Edit3 className="h-3.5 w-3.5 mr-1.5" />
                 Amandemen
@@ -182,11 +182,11 @@ export function AmendOrderDialog({ orderId, orderNumber, currentItems, status }:
                             <table className="w-full text-xs">
                                 <thead className="bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700">
                                     <tr>
-                                        <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left">Produk</th>
-                                        <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right w-24">Qty</th>
-                                        <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right w-32">Harga Satuan</th>
-                                        <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right w-20">Disc %</th>
-                                        <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right w-32">Total</th>
+                                        <th className="px-3 py-2 text-xs font-semibold text-zinc-500 text-left">Produk</th>
+                                        <th className="px-3 py-2 text-xs font-semibold text-zinc-500 text-right w-24">Qty</th>
+                                        <th className="px-3 py-2 text-xs font-semibold text-zinc-500 text-right w-32">Harga Satuan</th>
+                                        <th className="px-3 py-2 text-xs font-semibold text-zinc-500 text-right w-20">Disc %</th>
+                                        <th className="px-3 py-2 text-xs font-semibold text-zinc-500 text-right w-32">Total</th>
                                         <th className="px-3 py-2 w-10"></th>
                                     </tr>
                                 </thead>
@@ -195,7 +195,7 @@ export function AmendOrderDialog({ orderId, orderNumber, currentItems, status }:
                                         <tr key={idx} className="border-b border-zinc-100 dark:border-zinc-800">
                                             <td className="px-3 py-2">
                                                 <span className="font-bold">{item.productName}</span>
-                                                <span className="text-zinc-400 font-mono ml-1 text-[10px]">
+                                                <span className="text-zinc-400 font-mono ml-1 text-xs">
                                                     {item.productCode}
                                                 </span>
                                             </td>
@@ -206,7 +206,7 @@ export function AmendOrderDialog({ orderId, orderNumber, currentItems, status }:
                                                     onChange={(e) =>
                                                         updateItem(idx, "quantity", Math.max(0.001, Number(e.target.value)))
                                                     }
-                                                    className="border border-zinc-300 font-bold h-8 rounded-none text-right text-xs w-full"
+                                                    className="border border-zinc-300 font-bold h-8 rounded-md text-right text-xs w-full"
                                                     min={0.001}
                                                     step="any"
                                                 />
@@ -218,7 +218,7 @@ export function AmendOrderDialog({ orderId, orderNumber, currentItems, status }:
                                                     onChange={(e) =>
                                                         updateItem(idx, "unitPrice", Math.max(0, Number(e.target.value)))
                                                     }
-                                                    className="border border-zinc-300 font-bold h-8 rounded-none text-right text-xs w-full"
+                                                    className="border border-zinc-300 font-bold h-8 rounded-md text-right text-xs w-full"
                                                     min={0}
                                                 />
                                             </td>
@@ -233,12 +233,12 @@ export function AmendOrderDialog({ orderId, orderNumber, currentItems, status }:
                                                             Math.max(0, Math.min(100, Number(e.target.value)))
                                                         )
                                                     }
-                                                    className="border border-zinc-300 font-bold h-8 rounded-none text-right text-xs w-full"
+                                                    className="border border-zinc-300 font-bold h-8 rounded-md text-right text-xs w-full"
                                                     min={0}
                                                     max={100}
                                                 />
                                             </td>
-                                            <td className="px-3 py-2 text-right font-black">
+                                            <td className="px-3 py-2 text-right font-semibold">
                                                 {formatIDR(calcLineTotal(item))}
                                             </td>
                                             <td className="px-3 py-2">
@@ -255,11 +255,11 @@ export function AmendOrderDialog({ orderId, orderNumber, currentItems, status }:
                                     ))}
                                 </tbody>
                                 <tfoot>
-                                    <tr className="border-t-2 border-black bg-zinc-50">
-                                        <td colSpan={4} className="px-3 py-2 text-right font-black uppercase text-[10px] tracking-widest">
+                                    <tr className="border-t border-border bg-zinc-50">
+                                        <td colSpan={4} className="px-3 py-2 text-right font-semibold text-xs">
                                             Grand Total
                                         </td>
-                                        <td className="px-3 py-2 text-right font-black text-sm">
+                                        <td className="px-3 py-2 text-right font-semibold text-sm">
                                             {formatIDR(grandTotal)}
                                         </td>
                                         <td></td>

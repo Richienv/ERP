@@ -58,7 +58,7 @@ export default function ChartOfAccountsPage() {
                 <p className="text-muted-foreground mt-1">Daftar akun standar akuntansi Indonesia.</p>
             </div>
 
-            <Card className="border-black shadow-sm">
+            <Card className="border-border shadow-sm">
                 <CardHeader className="bg-zinc-50/50 border-b flex flex-row items-center justify-between pb-4">
                     <div className="space-y-1">
                         <CardTitle className="text-base">Daftar Akun</CardTitle>

@@ -60,14 +60,14 @@ export function MonthEndChecklist({
 
             <div className={`px-5 py-3.5 flex items-center justify-between gap-3 ${NB.pageRowBorder}`}>
                 <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-9 h-9 flex items-center justify-center ${closed ? "bg-zinc-500" : "bg-orange-500"}`}>
+                    <div className={`w-9 h-9 flex items-center justify-center ${closed ? "bg-zinc-500" : "bg-blue-500"}`}>
                         <Lock className="h-4 w-4 text-white" />
                     </div>
                     <div className="min-w-0">
-                        <h2 className="text-base font-black uppercase tracking-wider text-zinc-900 dark:text-white truncate">
+                        <h2 className="text-base font-semibold text-zinc-900 dark:text-white truncate">
                             {monthEndTitle(titleName, closed)}
                         </h2>
-                        <p className="text-zinc-400 text-[11px] font-medium">
+                        <p className="text-zinc-400 text-xs font-medium">
                             Cockpit tutup buku bulanan — item merah harus hijau sebelum kunci
                         </p>
                     </div>
@@ -90,11 +90,11 @@ export function MonthEndChecklist({
                                 key={p.id}
                                 type="button"
                                 onClick={() => onSelectPeriod(p)}
-                                className={`h-9 px-3 text-[10px] font-black uppercase tracking-widest transition-all border ${
+                                className={`h-9 px-3 text-xs font-semibold   transition-all border ${
                                     idx < monthsInYear.length - 1 ? "border-r-0" : ""
-                                } rounded-none ${
+                                } rounded-md ${
                                     p.month === month
-                                        ? "bg-black dark:bg-white text-white dark:text-black border-black dark:border-white"
+                                        ? "bg-slate-900 dark:bg-white text-white dark:text-black border-border dark:border-white"
                                         : "bg-white dark:bg-zinc-900 text-zinc-400 border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                                 }`}
                             >
@@ -103,7 +103,7 @@ export function MonthEndChecklist({
                         ))}
                     </div>
                     {view && (
-                        <span className="hidden md:inline text-[11px] font-medium text-zinc-400">
+                        <span className="hidden md:inline text-xs font-medium text-zinc-400">
                             <span className="font-mono font-bold text-zinc-600 dark:text-zinc-300">
                                 {view.readyCount}/{view.totalCount}
                             </span>{" "}
@@ -115,7 +115,7 @@ export function MonthEndChecklist({
 
             <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
                 {isLoading && (
-                    <div className="px-5 py-8 flex items-center justify-center gap-2 text-zinc-400 text-[11px] font-bold uppercase tracking-wider">
+                    <div className="px-5 py-8 flex items-center justify-center gap-2 text-zinc-400 text-xs font-bold  ">
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Memuat ceklist tutup buku
                     </div>
@@ -128,7 +128,7 @@ export function MonthEndChecklist({
                 )}
 
                 {view && !view.canClose && view.blockerHint && (
-                    <div className="px-5 py-2.5 bg-red-50/80 dark:bg-red-950/20 text-[11px] font-bold text-red-700 dark:text-red-400">
+                    <div className="px-5 py-2.5 bg-red-50/80 dark:bg-red-950/20 text-xs font-bold text-red-700 dark:text-red-400">
                         {view.blockerHint}
                     </div>
                 )}
@@ -157,7 +157,7 @@ function ClosePeriodButton({
             type="button"
             disabled={!canClose || pending}
             onClick={onClick}
-            className={`${NB.toolbarBtnPrimary} ml-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-orange-500`}
+            className={`${NB.toolbarBtnPrimary} ml-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-blue-500`}
         >
             {pending ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
@@ -178,7 +178,7 @@ function ClosePeriodButton({
                 </span>
             </TooltipTrigger>
             {hint ? (
-                <TooltipContent className="rounded-none border-2 border-black bg-black text-white text-[11px] font-bold max-w-xs">
+                <TooltipContent className="rounded-md border border-border bg-slate-900 text-white text-xs font-bold max-w-xs">
                     {hint}
                 </TooltipContent>
             ) : null}
@@ -200,17 +200,17 @@ function ChecklistRow({ row }: { row: MonthEndChecklistRow }) {
                     {row.ok ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
                 </span>
                 <div className="min-w-0">
-                    <p className="text-[11px] font-black uppercase tracking-wider text-zinc-900 dark:text-white">
+                    <p className="text-xs font-semibold text-zinc-900 dark:text-white">
                         {row.label}
                     </p>
-                    <p className={`text-[11px] font-medium truncate ${row.ok ? "text-zinc-500" : "text-red-600 dark:text-red-400"}`}>
+                    <p className={`text-xs font-medium truncate ${row.ok ? "text-zinc-500" : "text-red-600 dark:text-red-400"}`}>
                         {row.detail}
                     </p>
                 </div>
             </div>
             <div className="flex items-center gap-3 shrink-0">
                 {typeof row.count === "number" && row.count > 0 && (
-                    <span className="font-mono text-sm font-black text-zinc-900 dark:text-white">{row.count}</span>
+                    <span className="font-mono text-sm font-semibold text-zinc-900 dark:text-white">{row.count}</span>
                 )}
                 {typeof row.amount === "number" && row.amount > 0 && (
                     <span className="font-mono text-xs font-bold text-zinc-500">{formatIDR(row.amount)}</span>
@@ -218,7 +218,7 @@ function ChecklistRow({ row }: { row: MonthEndChecklistRow }) {
                 {!row.ok && (
                     <Link
                         href={row.href}
-                        className="inline-flex items-center h-7 px-2 text-[9px] font-black uppercase tracking-wider border border-orange-400 bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-950/20 dark:text-orange-400"
+                        className="inline-flex items-center h-7 px-2 text-xs font-semibold border border-blue-400 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-950/20 dark:text-blue-400"
                     >
                         Perbaiki <ArrowRight className="h-3 w-3 ml-1" />
                     </Link>

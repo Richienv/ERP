@@ -102,7 +102,7 @@ export function AddRoutingStepDialog({ open, onOpenChange, routingId, routingNam
         }
       } catch (error) {
         console.error(error);
-        toast.error("Gagal mendapatkan data mesin/material", { className: "font-bold border-2 border-black rounded-none" });
+        toast.error("Gagal mendapatkan data mesin/material", { className: "font-bold border border-border rounded-md" });
       } finally {
         setLoadingOptions(false);
       }
@@ -119,18 +119,18 @@ export function AddRoutingStepDialog({ open, onOpenChange, routingId, routingNam
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      toast.error("Nama step harus diisi", { className: "font-bold border-2 border-black rounded-none" });
+      toast.error("Nama step harus diisi", { className: "font-bold border border-border rounded-md" });
       return;
     }
 
     const duration = Number(durationMinutes || 0);
     if (!Number.isFinite(duration) || duration <= 0) {
-      toast.error("Durasi harus lebih dari 0", { className: "font-bold border-2 border-black rounded-none" });
+      toast.error("Durasi harus lebih dari 0", { className: "font-bold border border-border rounded-md" });
       return;
     }
 
     if (materialId !== "none" && (!materialQty || Number(materialQty) <= 0)) {
-      toast.error("Quantity material harus diisi", { className: "font-bold border-2 border-black rounded-none" });
+      toast.error("Quantity material harus diisi", { className: "font-bold border border-border rounded-md" });
       return;
     }
 
@@ -154,17 +154,17 @@ export function AddRoutingStepDialog({ open, onOpenChange, routingId, routingNam
 
       const payload = await response.json();
       if (!payload.success) {
-        toast.error(payload.error || "Gagal menambah routing step", { className: "font-bold border-2 border-black rounded-none" });
+        toast.error(payload.error || "Gagal menambah routing step", { className: "font-bold border border-border rounded-md" });
         return;
       }
 
-      toast.success("Routing step berhasil ditambahkan", { className: "font-bold border-2 border-black rounded-none" });
+      toast.success("Routing step berhasil ditambahkan", { className: "font-bold border border-border rounded-md" });
       onOpenChange(false);
       queryClient.invalidateQueries({ queryKey: queryKeys.mfgRouting.all });
       if (onSaved) await onSaved();
     } catch (error) {
       console.error(error);
-      toast.error("Terjadi kesalahan jaringan", { className: "font-bold border-2 border-black rounded-none" });
+      toast.error("Terjadi kesalahan jaringan", { className: "font-bold border border-border rounded-md" });
     } finally {
       setSubmitting(false);
     }
@@ -222,7 +222,7 @@ export function AddRoutingStepDialog({ open, onOpenChange, routingId, routingNam
               <SelectItem value="none">Tidak Ada</SelectItem>
               {machines.map((machine) => (
                 <SelectItem key={machine.id} value={machine.id}>
-                  <span className="font-mono text-[10px] text-zinc-400 mr-2 font-bold">{machine.code}</span>
+                  <span className="font-mono text-xs text-zinc-400 mr-2 font-bold">{machine.code}</span>
                   {machine.name}
                 </SelectItem>
               ))}
@@ -242,7 +242,7 @@ export function AddRoutingStepDialog({ open, onOpenChange, routingId, routingNam
               <SelectItem value="none">Tidak Ada</SelectItem>
               {materials.map((material) => (
                 <SelectItem key={material.id} value={material.id}>
-                  <span className="font-mono text-[10px] text-zinc-400 mr-2 font-bold">{material.code}</span>
+                  <span className="font-mono text-xs text-zinc-400 mr-2 font-bold">{material.code}</span>
                   {material.name}
                 </SelectItem>
               ))}

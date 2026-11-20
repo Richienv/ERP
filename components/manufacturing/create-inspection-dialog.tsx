@@ -276,7 +276,7 @@ export function CreateInspectionDialog({ open, onOpenChange, onCreated }: Props)
               type="button"
               size="sm"
               variant="outline"
-              className="h-7 text-[10px] font-black uppercase tracking-wider border border-zinc-300 rounded-none"
+              className="h-7 text-xs font-semibold border border-zinc-300 rounded-md"
               onClick={addDefect}
             >
               <Plus className="h-3 w-3 mr-1" /> Add Defect
@@ -288,9 +288,9 @@ export function CreateInspectionDialog({ open, onOpenChange, onCreated }: Props)
           {defects.map((defect, index) => (
             <div key={index} className="grid grid-cols-12 gap-2 items-end">
               <div className="col-span-2">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Type</label>
+                <label className="text-xs font-bold text-zinc-600 mb-1 block">Type</label>
                 <Select value={defect.type} onValueChange={(value) => updateDefect(index, { type: value })}>
-                  <SelectTrigger className="h-8 text-sm rounded-none border border-zinc-300">
+                  <SelectTrigger className="h-8 text-sm rounded-md border border-zinc-300">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -301,13 +301,13 @@ export function CreateInspectionDialog({ open, onOpenChange, onCreated }: Props)
                 </Select>
               </div>
               <div className="col-span-6">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Description</label>
-                <Input value={defect.description} onChange={(e) => updateDefect(index, { description: e.target.value })} placeholder="Describe defect" className="h-8 text-sm rounded-none border border-zinc-300" />
+                <label className="text-xs font-bold text-zinc-600 mb-1 block">Description</label>
+                <Input value={defect.description} onChange={(e) => updateDefect(index, { description: e.target.value })} placeholder="Describe defect" className="h-8 text-sm rounded-md border border-zinc-300" />
               </div>
               <div className="col-span-3">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Action</label>
+                <label className="text-xs font-bold text-zinc-600 mb-1 block">Action</label>
                 <Select value={defect.actionTaken} onValueChange={(value) => updateDefect(index, { actionTaken: value })}>
-                  <SelectTrigger className="h-8 text-sm rounded-none border border-zinc-300">
+                  <SelectTrigger className="h-8 text-sm rounded-md border border-zinc-300">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -318,7 +318,7 @@ export function CreateInspectionDialog({ open, onOpenChange, onCreated }: Props)
                 </Select>
               </div>
               <div className="col-span-1">
-                <Button type="button" variant="outline" size="icon" className="border border-red-300 text-red-600 h-8 w-8 rounded-none" onClick={() => removeDefect(index)}>
+                <Button type="button" variant="outline" size="icon" className="border border-red-300 text-red-600 h-8 w-8 rounded-md" onClick={() => removeDefect(index)}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>

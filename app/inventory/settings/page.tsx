@@ -34,11 +34,11 @@ export default function InventorySettingsPage() {
   return (
     <div className="mf-page">
       {/* Header */}
-      <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white">
+      <div className="border border-border shadow-sm overflow-hidden bg-white">
         <div className="px-6 py-4 flex items-center gap-3 border-l-[6px] border-l-orange-500">
           <IconSettings className="h-6 w-6" />
           <div>
-            <h1 className="text-xl font-black uppercase tracking-tight">
+            <h1 className="text-xl font-semibold tracking-tight">
               Pengaturan Inventori
             </h1>
             <p className="text-xs text-zinc-500 font-medium">
@@ -49,9 +49,9 @@ export default function InventorySettingsPage() {
       </div>
 
       {/* Negative Stock Policy Card */}
-      <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white">
-        <div className="bg-zinc-100 px-6 py-3 border-b-2 border-black">
-          <h2 className="text-xs font-black uppercase tracking-widest">
+      <div className="border border-border shadow-sm overflow-hidden bg-white">
+        <div className="bg-zinc-100 px-6 py-3 border-b border-border">
+          <h2 className="text-xs font-semibold  ">
             Kebijakan Stok
           </h2>
         </div>
@@ -76,7 +76,7 @@ export default function InventorySettingsPage() {
 
           {/* Status Indicator */}
           <div
-            className={`flex items-start gap-3 p-4 border-2 border-black ${
+            className={`flex items-start gap-3 p-4 border border-border ${
               data.allowNegativeStock
                 ? "bg-amber-50 border-amber-400"
                 : "bg-green-50 border-green-400"
@@ -103,24 +103,24 @@ export default function InventorySettingsPage() {
 
           {/* Affected Operations */}
           <div className="space-y-2">
-            <p className="text-xs font-black uppercase tracking-wider text-zinc-500">
+            <p className="text-xs font-semibold text-zinc-500">
               Pengecekan berlaku pada:
             </p>
             <ul className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-zinc-700">
               <li className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 bg-black rounded-full shrink-0" />
+                <span className="h-1.5 w-1.5 bg-slate-900 rounded-full shrink-0" />
                 Pengiriman Pesanan Penjualan (SO Shipment)
               </li>
               <li className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 bg-black rounded-full shrink-0" />
+                <span className="h-1.5 w-1.5 bg-slate-900 rounded-full shrink-0" />
                 Penyesuaian Stok (Stock Adjustment)
               </li>
               <li className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 bg-black rounded-full shrink-0" />
+                <span className="h-1.5 w-1.5 bg-slate-900 rounded-full shrink-0" />
                 Pengeluaran Material Produksi
               </li>
               <li className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 bg-black rounded-full shrink-0" />
+                <span className="h-1.5 w-1.5 bg-slate-900 rounded-full shrink-0" />
                 Transfer Stok Antar Gudang
               </li>
             </ul>

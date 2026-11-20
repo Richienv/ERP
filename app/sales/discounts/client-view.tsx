@@ -151,12 +151,12 @@ export function DiscountsClient({ schemes, summary }: DiscountsClientProps) {
     return (
         <div className="mf-page">
             {/* ═══ HEADER ═══ */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+            <div className="border border-border shadow-sm overflow-hidden bg-white dark:bg-zinc-900">
                 <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-emerald-500">
                     <div className="flex items-center gap-3">
                         <Percent className="h-6 w-6 text-emerald-600" />
                         <div>
-                            <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
+                            <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-white">
                                 Skema Diskon
                             </h1>
                             <p className="text-zinc-600 text-xs font-bold mt-0.5">
@@ -169,7 +169,7 @@ export function DiscountsClient({ schemes, summary }: DiscountsClientProps) {
                             variant="outline"
                             size="sm"
                             onClick={handleRefresh}
-                            className="border-2 border-black font-bold text-xs rounded-none"
+                            className="border border-border font-bold text-xs rounded-md"
                         >
                             <RefreshCcw className={`h-3.5 w-3.5 mr-1 ${refreshing ? "animate-spin" : ""}`} />
                             Refresh
@@ -177,7 +177,7 @@ export function DiscountsClient({ schemes, summary }: DiscountsClientProps) {
                         <Button
                             size="sm"
                             onClick={handleCreate}
-                            className="bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider rounded-none"
+                            className="bg-slate-900 text-white border border-border shadow-sm hover:shadow-sm transition-all font-semibold text-xs rounded-md"
                         >
                             <Plus className="h-4 w-4 mr-1" />
                             Buat Skema
@@ -197,17 +197,17 @@ export function DiscountsClient({ schemes, summary }: DiscountsClientProps) {
                 ].map((kpi) => (
                     <div
                         key={kpi.label}
-                        className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 p-3"
+                        className="border border-border shadow-sm bg-white dark:bg-zinc-900 p-3"
                     >
                         <div className="flex items-center gap-2 mb-1">
                             <div className={`p-1 ${kpi.color}`}>
                                 <kpi.icon className="h-3.5 w-3.5" />
                             </div>
-                            <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500">
+                            <span className="text-xs font-semibold text-zinc-500">
                                 {kpi.label}
                             </span>
                         </div>
-                        <div className="text-2xl font-black">{kpi.value}</div>
+                        <div className="text-2xl font-semibold">{kpi.value}</div>
                     </div>
                 ))}
             </div>
@@ -220,11 +220,11 @@ export function DiscountsClient({ schemes, summary }: DiscountsClientProps) {
                         placeholder="Cari..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="pl-9 border-2 border-black font-bold h-9 rounded-none placeholder:text-zinc-300"
+                        className="pl-9 border border-border font-bold h-9 rounded-md placeholder:text-zinc-300"
                     />
                 </div>
                 <Select value={typeFilter} onValueChange={setTypeFilter}>
-                    <SelectTrigger className="w-[160px] border-2 border-black font-bold h-9 rounded-none">
+                    <SelectTrigger className="w-[160px] border border-border font-bold h-9 rounded-md">
                         <SelectValue placeholder="Tipe" />
                     </SelectTrigger>
                     <SelectContent>
@@ -235,7 +235,7 @@ export function DiscountsClient({ schemes, summary }: DiscountsClientProps) {
                     </SelectContent>
                 </Select>
                 <Select value={scopeFilter} onValueChange={setScopeFilter}>
-                    <SelectTrigger className="w-[160px] border-2 border-black font-bold h-9 rounded-none">
+                    <SelectTrigger className="w-[160px] border border-border font-bold h-9 rounded-md">
                         <SelectValue placeholder="Cakupan" />
                     </SelectTrigger>
                     <SelectContent>
@@ -250,33 +250,33 @@ export function DiscountsClient({ schemes, summary }: DiscountsClientProps) {
             </div>
 
             {/* ═══ TABLE ═══ */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+            <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
                 <div className="overflow-x-auto">
                     <Table className="w-full">
                         <TableHeader>
-                            <TableRow className="bg-zinc-100 dark:bg-zinc-800 border-b-2 border-black">
-                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-2.5">
+                            <TableRow className="bg-zinc-100 dark:bg-zinc-800 border-b border-border">
+                                <TableHead className="text-xs font-semibold text-zinc-500 px-4 py-2.5">
                                     Kode
                                 </TableHead>
-                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-2.5">
+                                <TableHead className="text-xs font-semibold text-zinc-500 px-4 py-2.5">
                                     Nama Skema
                                 </TableHead>
-                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-2.5">
+                                <TableHead className="text-xs font-semibold text-zinc-500 px-4 py-2.5">
                                     Tipe
                                 </TableHead>
-                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-2.5">
+                                <TableHead className="text-xs font-semibold text-zinc-500 px-4 py-2.5">
                                     Nilai
                                 </TableHead>
-                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-2.5">
+                                <TableHead className="text-xs font-semibold text-zinc-500 px-4 py-2.5">
                                     Cakupan
                                 </TableHead>
-                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-2.5">
+                                <TableHead className="text-xs font-semibold text-zinc-500 px-4 py-2.5">
                                     Target
                                 </TableHead>
-                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-2.5">
+                                <TableHead className="text-xs font-semibold text-zinc-500 px-4 py-2.5">
                                     Status
                                 </TableHead>
-                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-2.5 w-10">
+                                <TableHead className="text-xs font-semibold text-zinc-500 px-4 py-2.5 w-10">
                                 </TableHead>
                             </TableRow>
                         </TableHeader>
@@ -310,7 +310,7 @@ export function DiscountsClient({ schemes, summary }: DiscountsClientProps) {
                                         <TableCell className="px-4 py-2.5">
                                             <Badge
                                                 variant="outline"
-                                                className={`text-[10px] font-black uppercase border ${TYPE_COLORS[scheme.type] || ""}`}
+                                                className={`text-xs font-semibold  border ${TYPE_COLORS[scheme.type] || ""}`}
                                             >
                                                 {TYPE_LABELS[scheme.type] || scheme.type}
                                             </Badge>
@@ -327,7 +327,7 @@ export function DiscountsClient({ schemes, summary }: DiscountsClientProps) {
                                         <TableCell className="px-4 py-2.5">
                                             <Badge
                                                 variant="outline"
-                                                className={`text-[10px] font-black uppercase border ${
+                                                className={`text-xs font-semibold  border ${
                                                     scheme.isActive
                                                         ? "bg-green-100 text-green-800 border-green-300"
                                                         : "bg-zinc-100 text-zinc-500 border-zinc-300"
@@ -383,9 +383,9 @@ export function DiscountsClient({ schemes, summary }: DiscountsClientProps) {
 
             {/* ═══ DELETE DIALOG ═══ */}
             <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
-                <AlertDialogContent className="border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none">
+                <AlertDialogContent className="border border-border shadow-sm rounded-md">
                     <AlertDialogHeader>
-                        <AlertDialogTitle className="font-black uppercase">
+                        <AlertDialogTitle className="font-semibold ">
                             Hapus Skema Diskon?
                         </AlertDialogTitle>
                         <AlertDialogDescription>
@@ -394,12 +394,12 @@ export function DiscountsClient({ schemes, summary }: DiscountsClientProps) {
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel className="border-2 border-black font-bold rounded-none">
+                        <AlertDialogCancel className="border border-border font-bold rounded-md">
                             Batal
                         </AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleDelete}
-                            className="bg-red-600 text-white border-2 border-black font-black uppercase rounded-none"
+                            className="bg-red-600 text-white border border-border font-semibold rounded-md"
                         >
                             Hapus
                         </AlertDialogAction>

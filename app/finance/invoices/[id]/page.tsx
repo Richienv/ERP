@@ -16,8 +16,8 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
     return (
         <div className="mf-page flex items-center justify-center min-h-[50vh]">
             <div className="text-center space-y-2">
-                <div className="h-6 w-6 border-2 border-black border-t-transparent rounded-full animate-spin mx-auto" />
-                <p className="text-[11px] font-black uppercase tracking-widest text-zinc-400">
+                <div className="h-6 w-6 border border-border border-t-transparent rounded-full animate-spin mx-auto" />
+                <p className="text-xs font-semibold text-zinc-400">
                     Mengalihkan ke halaman invoice...
                 </p>
             </div>

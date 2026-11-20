@@ -190,7 +190,7 @@ export function PurchaseReturnDialog({ warehouses }: Props) {
             <Button
                 variant="outline"
                 onClick={() => setOpen(true)}
-                className="border-2 border-black font-black uppercase text-xs tracking-wider h-9 rounded-none hover:bg-red-50 hover:text-red-700 gap-2"
+                className="border border-border font-semibold text-xs h-9 rounded-md hover:bg-red-50 hover:text-red-700 gap-2"
             >
                 <RotateCcw className="h-3.5 w-3.5" />
                 Retur Pembelian
@@ -267,11 +267,11 @@ export function PurchaseReturnDialog({ warehouses }: Props) {
                                                     <tr key={item.poItemId} className={NB.tableRow}>
                                                         <td className={NB.tableCell}>
                                                             <div className="font-bold text-xs text-zinc-900">{item.productName}</div>
-                                                            <div className="text-[10px] text-zinc-400 font-medium">{item.productCode}</div>
+                                                            <div className="text-xs text-zinc-400 font-medium">{item.productCode}</div>
                                                         </td>
                                                         <td className={NB.tableCell + " text-center font-bold"}>{item.maxQty + (returnItems.find(r => r.poItemId === item.poItemId) ? 0 : 0)}</td>
                                                         <td className={NB.tableCell + " text-center"}>
-                                                            <span className="text-xs font-black text-amber-600">{item.maxQty}</span>
+                                                            <span className="text-xs font-semibold text-amber-600">{item.maxQty}</span>
                                                         </td>
                                                         <td className={NB.tableCell + " text-center"}>
                                                             <Input
@@ -280,13 +280,13 @@ export function PurchaseReturnDialog({ warehouses }: Props) {
                                                                 max={item.maxQty}
                                                                 value={item.quantity || ""}
                                                                 onChange={(e) => updateItemQty(idx, parseInt(e.target.value) || 0)}
-                                                                className="border-2 border-black font-bold h-8 w-20 text-center rounded-none mx-auto"
+                                                                className="border border-border font-bold h-8 w-20 text-center rounded-md mx-auto"
                                                                 placeholder="0"
                                                             />
                                                         </td>
                                                         <td className={NB.tableCell}>
                                                             <Select value={item.reason} onValueChange={(val) => updateItemReason(idx, val)}>
-                                                                <SelectTrigger className="border-2 border-black font-bold h-8 text-[10px] rounded-none">
+                                                                <SelectTrigger className="border border-border font-bold h-8 text-xs rounded-md">
                                                                     <SelectValue />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
@@ -310,7 +310,7 @@ export function PurchaseReturnDialog({ warehouses }: Props) {
                             )}
 
                             {selectedPO && returnItems.length === 0 && (
-                                <div className="flex items-center gap-2 p-4 bg-amber-50 border-2 border-amber-300">
+                                <div className="flex items-center gap-2 p-4 bg-amber-50 border border-amber-300">
                                     <AlertTriangle className="h-4 w-4 text-amber-600" />
                                     <span className="text-xs font-bold text-amber-700">
                                         Semua item dari PO ini sudah diretur sepenuhnya
@@ -329,16 +329,16 @@ export function PurchaseReturnDialog({ warehouses }: Props) {
 
                             {/* Summary */}
                             {activeItems.length > 0 && (
-                                <div className="bg-zinc-50 border-2 border-black p-4">
+                                <div className="bg-zinc-50 border border-border p-4">
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                            <div className="text-xs font-semibold text-zinc-500">
                                                 Total Retur ({activeItems.length} item)
                                             </div>
-                                            <div className="text-lg font-black text-zinc-900 mt-1">
+                                            <div className="text-lg font-semibold text-zinc-900 mt-1">
                                                 {formatIDR(totalReturn)}
                                             </div>
-                                            <div className="text-[10px] text-zinc-400 font-medium">
+                                            <div className="text-xs text-zinc-400 font-medium">
                                                 + PPN {TAX_PERCENT.PPN}% = {formatIDR(Math.round(totalReturn * (1 + TAX_RATES.PPN)))}
                                             </div>
                                         </div>

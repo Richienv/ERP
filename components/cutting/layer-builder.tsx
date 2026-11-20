@@ -87,19 +87,19 @@ export function LayerBuilder({
     }
 
     return (
-        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <div className="px-4 py-2.5 border-b-2 border-black bg-zinc-50 flex items-center justify-between">
+        <div className="bg-white border border-border shadow-sm">
+            <div className="px-4 py-2.5 border-b border-border bg-zinc-50 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <Layers className="h-4 w-4 text-zinc-500" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                    <span className="text-xs font-semibold text-zinc-500">
                         Layer Kain
                     </span>
                 </div>
                 <div className="flex items-center gap-3">
-                    <span className="text-[9px] font-bold text-zinc-400">
+                    <span className="text-xs font-bold text-zinc-400">
                         {layers.length} layer
                     </span>
-                    <span className="text-[9px] font-black px-2 py-0.5 bg-zinc-100 border border-zinc-300">
+                    <span className="text-xs font-semibold px-2 py-0.5 bg-zinc-100 border border-zinc-300">
                         {totalMetersUsed.toFixed(2)} m
                     </span>
                 </div>
@@ -173,7 +173,7 @@ export function LayerBuilder({
                         <button
                             onClick={handleAdd}
                             disabled={loading}
-                            className="border-2 border-black bg-zinc-100 hover:bg-zinc-200 px-3 h-10 rounded-none"
+                            className="border border-border bg-zinc-100 hover:bg-zinc-200 px-3 h-10 rounded-md"
                         >
                             <Plus className="h-4 w-4" />
                         </button>

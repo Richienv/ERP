@@ -128,7 +128,7 @@ export function AssignMachineGroupDialog({ open, onOpenChange, groupId, groupNam
               </SelectItem>
             ))}
           </NBSelect>
-          <p className="text-[9px] text-zinc-400 font-bold">Only unassigned or same-group machines shown</p>
+          <p className="text-xs text-zinc-400 font-bold">Only unassigned or same-group machines shown</p>
         </NBSection>
       </NBDialogBody>
 

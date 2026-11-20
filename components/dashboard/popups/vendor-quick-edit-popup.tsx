@@ -157,7 +157,7 @@ export function VendorQuickEditPopup({ open, onClose, onAllActioned }: VendorQui
                                         {vendor.missingFields.map((field) => (
                                             <span
                                                 key={field}
-                                                className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 border border-amber-300 bg-amber-50 text-amber-700"
+                                                className="inline-flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 border border-amber-300 bg-amber-50 text-amber-700"
                                             >
                                                 <AlertTriangle className="h-2.5 w-2.5" />
                                                 {FIELD_LABELS[field] || field}
@@ -199,7 +199,7 @@ export function VendorQuickEditPopup({ open, onClose, onAllActioned }: VendorQui
                                         size="sm"
                                         disabled={saving === vendor.id}
                                         onClick={() => handleSave(vendor)}
-                                        className="w-full h-7 px-3 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-wider"
+                                        className="w-full h-7 px-3 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold  "
                                     >
                                         {saving === vendor.id ? (
                                             <Loader2 className="h-3 w-3 animate-spin" />

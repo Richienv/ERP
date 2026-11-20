@@ -151,7 +151,7 @@ function GlobalNetwork() {
             {pulses.map((pulse) => (
                 <motion.div
                     key={pulse}
-                    className="absolute w-16 h-16 border-2 border-white/30 rounded-full"
+                    className="absolute w-16 h-16 border border-white/30 rounded-full"
                     initial={{ scale: 0.5, opacity: 1 }}
                     animate={{ scale: 3, opacity: 0 }}
                     transition={{
@@ -171,7 +171,7 @@ function FeaturesSection() {
         <section className="bg-zinc-950 px-6 py-24 min-h-screen flex items-center justify-center">
             <div className="max-w-7xl w-full mx-auto">
                 <motion.p
-                    className="text-gray-400 text-sm uppercase tracking-widest mb-8"
+                    className="text-gray-400 text-sm mb-8"
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}

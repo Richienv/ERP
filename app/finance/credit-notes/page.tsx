@@ -213,7 +213,7 @@ export default function CreditDebitNotesPage() {
     }
 
     // ──────── Loading ────────
-    if (isLoading) return <TablePageSkeleton accentColor="bg-orange-400" />
+    if (isLoading) return <TablePageSkeleton accentColor="bg-blue-400" />
 
     return (
         <div className="mf-page">
@@ -225,14 +225,14 @@ export default function CreditDebitNotesPage() {
                 {/* Row 1: Title + Toolbar Actions */}
                 <div className={`px-5 py-3.5 flex items-center justify-between ${NB.pageRowBorder}`}>
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-orange-500 flex items-center justify-center">
+                        <div className="w-9 h-9 bg-blue-500 flex items-center justify-center">
                             <FileText className="h-4.5 w-4.5 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-base font-black uppercase tracking-wider text-zinc-900 dark:text-white">
+                            <h1 className="text-base font-semibold text-zinc-900 dark:text-white">
                                 Nota Kredit & Debit
                             </h1>
-                            <p className="text-zinc-400 text-[11px] font-medium">
+                            <p className="text-zinc-400 text-xs font-medium">
                                 Kelola nota kredit, nota debit, dan retur
                             </p>
                         </div>
@@ -290,7 +290,7 @@ export default function CreditDebitNotesPage() {
                         >
                             <div className="flex items-center gap-1.5">
                                 <span className={`w-2 h-2 ${
-                                    kpi.color === "orange" ? "bg-orange-500" :
+                                    kpi.color === "orange" ? "bg-blue-500" :
                                     kpi.color === "zinc" ? "bg-zinc-400" : "bg-emerald-500"
                                 }`} />
                                 <span className={NB.kpiLabel}>{kpi.label}</span>
@@ -361,7 +361,7 @@ export default function CreditDebitNotesPage() {
                             label="Tipe"
                             hideLabel
                             triggerClassName={NB.filterDropdown}
-                            triggerActiveClassName={`flex items-center gap-2 border border-orange-400 dark:border-orange-500 border-r-0 h-9 px-3 bg-orange-50/50 dark:bg-orange-950/20 text-xs font-medium min-w-[120px] justify-between transition-all rounded-none`}
+                            triggerActiveClassName={`flex items-center gap-2 border border-blue-400 dark:border-blue-500 border-r-0 h-9 px-3 bg-blue-50/50 dark:bg-blue-950/20 text-xs font-medium min-w-[120px] justify-between transition-all rounded-md`}
                             options={[
                                 { value: "SALES_CN", label: "NK Penjualan" },
                                 { value: "PURCHASE_CN", label: "NK Pembelian" },
@@ -376,7 +376,7 @@ export default function CreditDebitNotesPage() {
                             label="Status"
                             hideLabel
                             triggerClassName={NB.filterDropdown}
-                            triggerActiveClassName={`flex items-center gap-2 border border-orange-400 dark:border-orange-500 border-r-0 h-9 px-3 bg-orange-50/50 dark:bg-orange-950/20 text-xs font-medium min-w-[120px] justify-between transition-all rounded-none`}
+                            triggerActiveClassName={`flex items-center gap-2 border border-blue-400 dark:border-blue-500 border-r-0 h-9 px-3 bg-blue-50/50 dark:bg-blue-950/20 text-xs font-medium min-w-[120px] justify-between transition-all rounded-md`}
                             options={[
                                 { value: "DRAFT", label: "Draft" },
                                 { value: "POSTED", label: "Diposting" },
@@ -393,13 +393,13 @@ export default function CreditDebitNotesPage() {
                         </Button>
                         {/* Reset — only when filters active */}
                         {hasActiveFilters && (
-                            <Button variant="ghost" onClick={resetFilters} className="text-zinc-400 text-[10px] font-bold uppercase h-9 px-3 rounded-none hover:text-zinc-700 dark:hover:text-zinc-200 ml-1.5">
+                            <Button variant="ghost" onClick={resetFilters} className="text-zinc-400 text-xs font-bold h-9 px-3 rounded-md hover:text-zinc-700 dark:hover:text-zinc-200 ml-1.5">
                                 <RotateCcw className="h-3 w-3 mr-1" /> Reset
                             </Button>
                         )}
                     </div>
                     {/* Right: Count */}
-                    <span className="hidden md:inline text-[11px] font-medium text-zinc-400">
+                    <span className="hidden md:inline text-xs font-medium text-zinc-400">
                         <span className="font-mono font-bold text-zinc-600 dark:text-zinc-300">{filtered.length}</span> nota
                     </span>
                 </div>
@@ -407,13 +407,13 @@ export default function CreditDebitNotesPage() {
 
             {/* ─── Nota Table ─── */}
             <div
-                className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex flex-col"
+                className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden flex flex-col"
                 style={{ minHeight: 480 }}
             >
                 {/* Table Header */}
-                <div className="hidden md:grid grid-cols-[1fr_80px_100px_1fr_120px_1fr_110px_90px_100px_100px_120px] gap-2 px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black">
+                <div className="hidden md:grid grid-cols-[1fr_80px_100px_1fr_120px_1fr_110px_90px_100px_100px_120px] gap-2 px-5 py-2.5 bg-slate-900 dark:bg-zinc-950 border-b border-border">
                     {["No. Nota", "Tipe", "Tanggal", "Pihak", "Invoice", "Alasan", "Subtotal", "PPN", "Total", "Status", "Aksi"].map((h) => (
-                        <span key={h} className="text-xs font-black uppercase tracking-widest text-zinc-400">{h}</span>
+                        <span key={h} className="text-xs font-semibold text-zinc-400">{h}</span>
                     ))}
                 </div>
 
@@ -426,7 +426,7 @@ export default function CreditDebitNotesPage() {
                             transition={{ type: "spring" as const, stiffness: 300, damping: 25 }}
                             className="flex-1 flex flex-col items-center justify-center py-16 text-zinc-400"
                         >
-                            <div className="w-16 h-16 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
+                            <div className="w-16 h-16 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
                                 <FileText className="h-7 w-7 text-zinc-200 dark:text-zinc-700" />
                             </div>
                             <span className="text-sm font-bold">Belum ada nota kredit/debit</span>
@@ -444,19 +444,19 @@ export default function CreditDebitNotesPage() {
                                 return (
                                     <div
                                         key={note.id}
-                                        className={`grid grid-cols-1 md:grid-cols-[1fr_80px_100px_1fr_120px_1fr_110px_90px_100px_100px_120px] gap-2 px-5 py-3 items-center transition-all hover:bg-orange-50/50 dark:hover:bg-orange-950/10 ${idx % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/60 dark:bg-zinc-800/20"}`}
+                                        className={`grid grid-cols-1 md:grid-cols-[1fr_80px_100px_1fr_120px_1fr_110px_90px_100px_100px_120px] gap-2 px-5 py-3 items-center transition-all hover:bg-blue-50/50 dark:hover:bg-blue-950/10 ${idx % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/60 dark:bg-zinc-800/20"}`}
                                     >
                                         {/* Number */}
                                         <div>
-                                            <span className="font-mono text-sm font-black text-zinc-900 dark:text-zinc-100">{note.number}</span>
+                                            <span className="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-100">{note.number}</span>
                                         </div>
 
                                         {/* Type badge */}
                                         <div>
-                                            <span className={`text-[9px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-none ${
+                                            <span className={`text-xs font-semibold   px-2 py-0.5 border rounded-md ${
                                                 credit
                                                     ? "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-700 text-blue-600 dark:text-blue-400"
-                                                    : "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-700 text-orange-600 dark:text-orange-400"
+                                                    : "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-700 text-blue-600 dark:text-blue-400"
                                             }`}>
                                                 {TYPE_SHORT[note.type] || note.type}
                                             </span>
@@ -506,14 +506,14 @@ export default function CreditDebitNotesPage() {
 
                                         {/* Total */}
                                         <div>
-                                            <span className={`font-mono text-sm font-black ${credit ? "text-blue-600 dark:text-blue-400" : "text-orange-600 dark:text-orange-400"}`}>
+                                            <span className={`font-mono text-sm font-semibold ${credit ? "text-blue-600 dark:text-blue-400" : "text-blue-600 dark:text-blue-400"}`}>
                                                 {formatIDR(note.totalAmount)}
                                             </span>
                                         </div>
 
                                         {/* Status */}
                                         <div>
-                                            <span className={`inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wide px-2 py-1 border rounded-none ${cfg.bg} ${cfg.text}`}>
+                                            <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-1 border rounded-md ${cfg.bg} ${cfg.text}`}>
                                                 <span className={`w-1.5 h-1.5 ${cfg.dot}`} />
                                                 {cfg.label}
                                             </span>
@@ -528,7 +528,7 @@ export default function CreditDebitNotesPage() {
                                                         whileTap={{ scale: 0.92 }}
                                                         onClick={() => handlePost(note.id)}
                                                         disabled={actionLoading === note.id}
-                                                        className="h-7 px-2 flex items-center justify-center border border-blue-300 dark:border-blue-600 text-blue-500 text-[9px] font-black uppercase tracking-wider hover:bg-blue-50 dark:hover:bg-blue-950/30 hover:border-blue-500 transition-colors rounded-none disabled:opacity-40"
+                                                        className="h-7 px-2 flex items-center justify-center border border-blue-300 dark:border-blue-600 text-blue-500 text-xs font-semibold hover:bg-blue-50 dark:hover:bg-blue-950/30 hover:border-blue-500 transition-colors rounded-md disabled:opacity-40"
                                                     >
                                                         Posting
                                                     </motion.button>
@@ -537,7 +537,7 @@ export default function CreditDebitNotesPage() {
                                                         whileTap={{ scale: 0.92 }}
                                                         onClick={() => handleVoid(note.id)}
                                                         disabled={actionLoading === note.id}
-                                                        className="h-7 px-2 flex items-center justify-center border border-red-300 dark:border-red-600 text-red-500 text-[9px] font-black uppercase tracking-wider hover:bg-red-50 dark:hover:bg-red-950/30 hover:border-red-500 transition-colors rounded-none disabled:opacity-40"
+                                                        className="h-7 px-2 flex items-center justify-center border border-red-300 dark:border-red-600 text-red-500 text-xs font-semibold hover:bg-red-50 dark:hover:bg-red-950/30 hover:border-red-500 transition-colors rounded-md disabled:opacity-40"
                                                     >
                                                         Void
                                                     </motion.button>
@@ -549,7 +549,7 @@ export default function CreditDebitNotesPage() {
                                                         whileHover={{ y: -1 }}
                                                         whileTap={{ scale: 0.92 }}
                                                         onClick={() => setSettlementNote(note)}
-                                                        className="h-7 px-2 flex items-center justify-center border border-emerald-300 dark:border-emerald-600 text-emerald-500 text-[9px] font-black uppercase tracking-wider hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:border-emerald-500 transition-colors rounded-none"
+                                                        className="h-7 px-2 flex items-center justify-center border border-emerald-300 dark:border-emerald-600 text-emerald-500 text-xs font-semibold hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:border-emerald-500 transition-colors rounded-md"
                                                     >
                                                         Terapkan
                                                     </motion.button>
@@ -558,7 +558,7 @@ export default function CreditDebitNotesPage() {
                                                         whileTap={{ scale: 0.92 }}
                                                         onClick={() => handleVoid(note.id)}
                                                         disabled={actionLoading === note.id}
-                                                        className="h-7 px-2 flex items-center justify-center border border-red-300 dark:border-red-600 text-red-500 text-[9px] font-black uppercase tracking-wider hover:bg-red-50 dark:hover:bg-red-950/30 hover:border-red-500 transition-colors rounded-none disabled:opacity-40"
+                                                        className="h-7 px-2 flex items-center justify-center border border-red-300 dark:border-red-600 text-red-500 text-xs font-semibold hover:bg-red-50 dark:hover:bg-red-950/30 hover:border-red-500 transition-colors rounded-md disabled:opacity-40"
                                                     >
                                                         Void
                                                     </motion.button>
@@ -569,7 +569,7 @@ export default function CreditDebitNotesPage() {
                                                     whileHover={{ y: -1 }}
                                                     whileTap={{ scale: 0.92 }}
                                                     onClick={() => setSettlementNote(note)}
-                                                    className="h-7 px-2 flex items-center justify-center border border-emerald-300 dark:border-emerald-600 text-emerald-500 text-[9px] font-black uppercase tracking-wider hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:border-emerald-500 transition-colors rounded-none"
+                                                    className="h-7 px-2 flex items-center justify-center border border-emerald-300 dark:border-emerald-600 text-emerald-500 text-xs font-semibold hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:border-emerald-500 transition-colors rounded-md"
                                                 >
                                                     Terapkan
                                                 </motion.button>
@@ -592,17 +592,17 @@ export default function CreditDebitNotesPage() {
                             <Button
                                 variant="outline"
                                 size="icon"
-                                className="h-7 w-7 border border-zinc-300 dark:border-zinc-600 rounded-none"
+                                className="h-7 w-7 border border-zinc-300 dark:border-zinc-600 rounded-md"
                                 disabled={page <= 1}
                                 onClick={() => setPage(p => p - 1)}
                             >
                                 <ChevronLeft className="h-3.5 w-3.5" />
                             </Button>
-                            <span className="text-xs font-black min-w-[50px] text-center">{page}/{totalPages}</span>
+                            <span className="text-xs font-semibold min-w-[50px] text-center">{page}/{totalPages}</span>
                             <Button
                                 variant="outline"
                                 size="icon"
-                                className="h-7 w-7 border border-zinc-300 dark:border-zinc-600 rounded-none"
+                                className="h-7 w-7 border border-zinc-300 dark:border-zinc-600 rounded-md"
                                 disabled={page >= totalPages}
                                 onClick={() => setPage(p => p + 1)}
                             >

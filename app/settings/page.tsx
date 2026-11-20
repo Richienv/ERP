@@ -107,7 +107,7 @@ export default function SystemSettingsPage() {
                             <Settings className="h-4 w-4" />
                         </div>
                         <div>
-                            <h1 className="text-base font-black uppercase tracking-wider text-zinc-900 dark:text-white">
+                            <h1 className="text-base font-semibold text-zinc-900 dark:text-white">
                                 Pengaturan Sistem
                             </h1>
                             <p className="text-xs font-medium text-zinc-400">
@@ -144,7 +144,7 @@ export default function SystemSettingsPage() {
                             <span className={NB.kpiLabel}>Environment</span>
                         </div>
                         <div className="text-right">
-                            <span className="text-sm font-black uppercase text-zinc-900 dark:text-white">
+                            <span className="text-sm font-semibold text-zinc-900 dark:text-white">
                                 {systemInfo.environment}
                             </span>
                             <p className="text-xs font-medium text-zinc-400">{systemInfo.database}</p>
@@ -166,7 +166,7 @@ export default function SystemSettingsPage() {
                             <span className={NB.kpiLabel}>Last Backup</span>
                         </div>
                         <div className="text-right">
-                            <span className="text-sm font-black text-zinc-900 dark:text-white">
+                            <span className="text-sm font-semibold text-zinc-900 dark:text-white">
                                 {new Date(systemInfo.lastBackup).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
                             </span>
                             <p className="text-xs font-medium text-zinc-400">
@@ -178,13 +178,13 @@ export default function SystemSettingsPage() {
             </div>
 
             <Tabs defaultValue="Manufaktur" className="space-y-4">
-                <TabsList className="h-10 rounded-none border-2 border-black bg-zinc-100 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:bg-zinc-800">
-                    <TabsTrigger value="Manufaktur" className="flex items-center rounded-none text-xs font-bold uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:shadow-none">
+                <TabsList className="h-10 rounded-md border border-border bg-zinc-100 shadow-sm dark:bg-zinc-800">
+                    <TabsTrigger value="Manufaktur" className="flex items-center rounded-md text-xs font-bold data-[state=active]:bg-white data-[state=active]:shadow-none">
                         <Factory className="mr-2 h-4 w-4" />
                         Manufaktur
                     </TabsTrigger>
                     {categories.map((category) => (
-                        <TabsTrigger key={category} value={category} className="flex items-center rounded-none text-xs font-bold uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:shadow-none">
+                        <TabsTrigger key={category} value={category} className="flex items-center rounded-md text-xs font-bold data-[state=active]:bg-white data-[state=active]:shadow-none">
                             {category === 'Umum' && <Settings className="mr-2 h-4 w-4" />}
                             {category === 'Keamanan' && <Shield className="mr-2 h-4 w-4" />}
                             {category === 'Notifikasi' && <Bell className="mr-2 h-4 w-4" />}
@@ -196,9 +196,9 @@ export default function SystemSettingsPage() {
 
                 {/* ── Manufaktur settings (real DB-backed) ── */}
                 <TabsContent value="Manufaktur" className="space-y-4">
-                    <Card className="rounded-none border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                    <Card className="rounded-md border border-border shadow-sm">
                         <CardHeader>
-                            <CardTitle className="text-sm font-black uppercase tracking-wider">Pengaturan Manufaktur</CardTitle>
+                            <CardTitle className="text-sm font-semibold  ">Pengaturan Manufaktur</CardTitle>
                             <CardDescription className="text-xs">
                                 Konfigurasi parameter produksi dan kalkulasi biaya.
                             </CardDescription>
@@ -214,7 +214,7 @@ export default function SystemSettingsPage() {
                                         max={744}
                                         value={workingHoursInput !== "" ? workingHoursInput : workingHours}
                                         onChange={(e) => setWorkingHoursInput(e.target.value)}
-                                        className={`max-w-xs rounded-none ${effectiveHours ? NB.inputActive : NB.inputEmpty}`}
+                                        className={`max-w-xs rounded-md ${effectiveHours ? NB.inputActive : NB.inputEmpty}`}
                                     />
                                     <Button
                                         onClick={async () => {
@@ -245,9 +245,9 @@ export default function SystemSettingsPage() {
 
                 {categories.map((category) => (
                     <TabsContent key={category} value={category} className="space-y-4">
-                        <Card className="rounded-none border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                        <Card className="rounded-md border border-border shadow-sm">
                             <CardHeader>
-                                <CardTitle className="text-sm font-black uppercase tracking-wider">Pengaturan {category}</CardTitle>
+                                <CardTitle className="text-sm font-semibold  ">Pengaturan {category}</CardTitle>
                                 <CardDescription className="text-xs">
                                     Konfigurasi untuk {category.toLowerCase()} sistem.
                                 </CardDescription>
@@ -267,9 +267,9 @@ export default function SystemSettingsPage() {
             </Tabs>
 
             {/* System Actions */}
-            <Card className="rounded-none border-2 border-black bg-zinc-50 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:bg-zinc-900">
+            <Card className="rounded-md border border-border bg-zinc-50 shadow-sm dark:bg-zinc-900">
                 <CardHeader>
-                    <CardTitle className="flex items-center text-sm font-black uppercase tracking-wider text-zinc-900 dark:text-white">
+                    <CardTitle className="flex items-center text-sm font-semibold text-zinc-900 dark:text-white">
                         <Shield className="mr-2 h-5 w-5 text-zinc-600" />
                         Tindakan Sistem Kritis
                     </CardTitle>

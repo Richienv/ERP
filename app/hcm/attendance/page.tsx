@@ -10,7 +10,7 @@ export default function AttendancePage() {
     const { data, isFetching } = useAttendance()
     const searchParams = useSearchParams()
 
-    if (!data) return <TablePageSkeleton accentColor="bg-orange-400" />
+    if (!data) return <TablePageSkeleton accentColor="bg-blue-400" />
 
     return (
         <div className="relative min-h-screen bg-background p-4 md:p-8 pb-24">

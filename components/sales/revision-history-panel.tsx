@@ -43,7 +43,7 @@ function RevisionCard({
     const currentSnapshot = entry.snapshot
 
     return (
-        <div className="border-2 border-black bg-white">
+        <div className="border border-border bg-white">
             {/* Header */}
             <button
                 onClick={() => setExpanded(!expanded)}
@@ -52,14 +52,14 @@ function RevisionCard({
                 <div className="flex items-center gap-3">
                     <Badge
                         variant="outline"
-                        className="text-[10px] font-black uppercase tracking-wider border-2 border-black rounded-none px-2 py-0.5 bg-zinc-100"
+                        className="text-xs font-semibold border border-border rounded-md px-2 py-0.5 bg-zinc-100"
                     >
                         Rev.{entry.revision}
                     </Badge>
                     <div className="text-left">
                         <p className="text-xs font-bold text-zinc-700">{entry.reason}</p>
                         <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-[10px] text-zinc-400 font-medium flex items-center gap-1">
+                            <span className="text-xs text-zinc-400 font-medium flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
                                 {new Date(entry.changedAt).toLocaleDateString("id-ID", {
                                     day: "numeric",
@@ -69,7 +69,7 @@ function RevisionCard({
                                     minute: "2-digit",
                                 })}
                             </span>
-                            <span className="text-[10px] text-zinc-400 font-medium flex items-center gap-1">
+                            <span className="text-xs text-zinc-400 font-medium flex items-center gap-1">
                                 <User className="h-3 w-3" />
                                 {entry.changedByEmail}
                             </span>
@@ -77,7 +77,7 @@ function RevisionCard({
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="text-xs font-black">{formatIDR(currentSnapshot.total)}</span>
+                    <span className="text-xs font-semibold">{formatIDR(currentSnapshot.total)}</span>
                     {expanded ? (
                         <ChevronUp className="h-4 w-4 text-zinc-400" />
                     ) : (
@@ -88,24 +88,24 @@ function RevisionCard({
 
             {/* Expanded detail */}
             {expanded && (
-                <div className="border-t-2 border-black px-4 py-3 bg-zinc-50/50">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">
+                <div className="border-t border-border px-4 py-3 bg-zinc-50/50">
+                    <p className="text-xs font-semibold text-zinc-500 mb-2">
                         Snapshot Sebelum Revisi
                     </p>
                     <div className="overflow-x-auto">
                         <table className="w-full text-xs">
                             <thead>
                                 <tr className="border-b border-zinc-200">
-                                    <th className="text-left py-1.5 font-black uppercase text-[10px] text-zinc-500">
+                                    <th className="text-left py-1.5 font-semibold text-xs text-zinc-500">
                                         Produk
                                     </th>
-                                    <th className="text-right py-1.5 font-black uppercase text-[10px] text-zinc-500">
+                                    <th className="text-right py-1.5 font-semibold text-xs text-zinc-500">
                                         Qty
                                     </th>
-                                    <th className="text-right py-1.5 font-black uppercase text-[10px] text-zinc-500">
+                                    <th className="text-right py-1.5 font-semibold text-xs text-zinc-500">
                                         Harga
                                     </th>
-                                    <th className="text-right py-1.5 font-black uppercase text-[10px] text-zinc-500">
+                                    <th className="text-right py-1.5 font-semibold text-xs text-zinc-500">
                                         Total
                                     </th>
                                 </tr>
@@ -115,22 +115,22 @@ function RevisionCard({
                                     <tr key={idx}>
                                         <td className="py-1.5">
                                             <span className="font-bold">{item.productName}</span>
-                                            <span className="text-zinc-400 font-mono ml-1 text-[10px]">
+                                            <span className="text-zinc-400 font-mono ml-1 text-xs">
                                                 {item.productCode}
                                             </span>
                                         </td>
                                         <td className="py-1.5 text-right font-mono">{item.quantity}</td>
                                         <td className="py-1.5 text-right font-mono">{formatIDR(item.unitPrice)}</td>
-                                        <td className="py-1.5 text-right font-black">{formatIDR(item.lineTotal)}</td>
+                                        <td className="py-1.5 text-right font-semibold">{formatIDR(item.lineTotal)}</td>
                                     </tr>
                                 ))}
                             </tbody>
                             <tfoot>
-                                <tr className="border-t-2 border-black">
-                                    <td colSpan={3} className="py-1.5 text-right font-black text-[10px] uppercase">
+                                <tr className="border-t border-border">
+                                    <td colSpan={3} className="py-1.5 text-right font-semibold text-xs ">
                                         Total
                                     </td>
-                                    <td className="py-1.5 text-right font-black">{formatIDR(currentSnapshot.total)}</td>
+                                    <td className="py-1.5 text-right font-semibold">{formatIDR(currentSnapshot.total)}</td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -145,17 +145,17 @@ export function RevisionHistoryPanel({ currentRevision, history, documentType = 
     if (currentRevision === 0 && history.length === 0) return null
 
     return (
-        <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white overflow-hidden">
-            <div className="px-6 py-3 border-b-2 border-black bg-zinc-50 flex items-center justify-between">
+        <div className="border border-border shadow-sm bg-white overflow-hidden">
+            <div className="px-6 py-3 border-b border-border bg-zinc-50 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <History className="h-4 w-4 text-zinc-500" />
-                    <span className="text-xs font-black uppercase tracking-widest text-zinc-500">
+                    <span className="text-xs font-semibold text-zinc-500">
                         Riwayat Revisi
                     </span>
                 </div>
                 <Badge
                     variant="outline"
-                    className="text-[10px] font-black uppercase tracking-wider border-2 border-black rounded-none px-2 py-0.5"
+                    className="text-xs font-semibold border border-border rounded-md px-2 py-0.5"
                 >
                     Rev.{currentRevision} (Saat Ini)
                 </Badge>

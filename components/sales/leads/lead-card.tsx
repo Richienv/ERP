@@ -34,7 +34,7 @@ export function LeadCard({ lead }: LeadCardProps) {
             <div
                 ref={setNodeRef}
                 style={style}
-                className="opacity-50 bg-muted/50 border-2 border-dashed border-primary/50 rounded-lg h-[180px] mb-3"
+                className="opacity-50 bg-muted/50 border border-dashed border-primary/50 rounded-lg h-[180px] mb-3"
             />
         );
     }
@@ -64,10 +64,10 @@ export function LeadCard({ lead }: LeadCardProps) {
 
     return (
         <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="mb-3 touch-none group">
-            <Card className="hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing border-l-4 overflow-hidden" style={{ borderLeftColor: getPriorityColor(lead.priority) }}>
+            <Card className="hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing border-l overflow-hidden" style={{ borderLeftColor: getPriorityColor(lead.priority) }}>
                 <CardHeader className="p-3 pb-2 space-y-0">
                     <div className="flex justify-between items-start gap-2">
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 font-normal text-muted-foreground">
+                        <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 font-normal text-muted-foreground">
                             {lead.source}
                         </Badge>
                         <Button variant="ghost" size="icon" className="h-6 w-6 -mr-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -86,24 +86,24 @@ export function LeadCard({ lead }: LeadCardProps) {
 
                     <div className="flex justify-between items-end mt-3">
                         <div>
-                            <p className="text-[10px] text-muted-foreground mb-0.5">Nilai Estimasi</p>
+                            <p className="text-xs text-muted-foreground mb-0.5">Nilai Estimasi</p>
                             <p className="text-sm font-bold text-primary">
                                 {formatCurrency(lead.estimatedValue)}
                             </p>
                         </div>
                         <div className="flex items-center gap-1.5">
-                            <div className="text-[10px] font-medium bg-secondary px-1.5 py-0.5 rounded text-secondary-foreground">
+                            <div className="text-xs font-medium bg-secondary px-1.5 py-0.5 rounded text-secondary-foreground">
                                 {lead.probability}%
                             </div>
-                            <Avatar className="h-6 w-6 border-2 border-background">
-                                <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                            <Avatar className="h-6 w-6 border border-background">
+                                <AvatarFallback className="text-xs bg-primary/10 text-primary">
                                     {lead.assignedTo?.name.charAt(0) || "U"}
                                 </AvatarFallback>
                             </Avatar>
                         </div>
                     </div>
 
-                    <div className="mt-3 pt-2 border-t flex justify-between items-center text-[10px] text-muted-foreground">
+                    <div className="mt-3 pt-2 border-t flex justify-between items-center text-xs text-muted-foreground">
                         <div className="flex items-center gap-1">
                             <User className="h-3 w-3" />
                             <span className="truncate max-w-[80px]">{lead.contactName}</span>

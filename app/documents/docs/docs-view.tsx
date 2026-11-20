@@ -362,12 +362,12 @@ export function DocsView({
             {/* =========================================================== */}
             {/* COMMAND HEADER                                               */}
             {/* =========================================================== */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+            <div className="border border-border shadow-sm overflow-hidden bg-white dark:bg-zinc-900">
                 <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-amber-400">
                     <div className="flex items-center gap-3">
                         <ShieldCheck className="h-5 w-5 text-amber-500" />
                         <div>
-                            <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
+                            <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-white">
                                 Dokumentasi Sistem
                             </h1>
                             <p className="text-zinc-400 text-xs font-medium mt-0.5">
@@ -377,7 +377,7 @@ export function DocsView({
                     </div>
                     <div className="flex items-center gap-2">
                         <span
-                            className={`px-2 py-1 text-[9px] font-black uppercase tracking-widest border-2 rounded-sm ${
+                            className={`px-2 py-1 text-xs font-semibold   border rounded-sm ${
                                 canManage
                                     ? "border-emerald-400 bg-emerald-50 text-emerald-700"
                                     : "border-zinc-300 bg-zinc-100 text-zinc-500"
@@ -385,7 +385,7 @@ export function DocsView({
                         >
                             {canManage ? "Mode Kelola" : "View Only"}
                         </span>
-                        <span className="px-2 py-1 text-[9px] font-black uppercase tracking-widest border-2 border-zinc-300 rounded-sm bg-white text-zinc-600">
+                        <span className="px-2 py-1 text-xs font-semibold border border-zinc-300 rounded-sm bg-white text-zinc-600">
                             {currentUserRole}
                         </span>
                     </div>
@@ -397,39 +397,39 @@ export function DocsView({
             {/* =========================================================== */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
                 {/* Total Role */}
-                <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 p-4 border-l-[5px] border-l-amber-400">
+                <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 p-4 border-l-[5px] border-l-amber-400">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Total Role</p>
-                            <p className="text-2xl font-black text-zinc-900 dark:text-white mt-1">{totalRoles}</p>
+                            <p className="text-xs font-semibold text-zinc-400">Total Role</p>
+                            <p className="text-2xl font-semibold text-zinc-900 dark:text-white mt-1">{totalRoles}</p>
                         </div>
-                        <div className="h-10 w-10 border-2 border-amber-300 bg-amber-50 flex items-center justify-center">
+                        <div className="h-10 w-10 border border-amber-300 bg-amber-50 flex items-center justify-center">
                             <ShieldCheck className="h-5 w-5 text-amber-500" />
                         </div>
                     </div>
                 </div>
 
                 {/* Custom Role */}
-                <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 p-4 border-l-[5px] border-l-blue-400">
+                <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 p-4 border-l-[5px] border-l-blue-400">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Custom Role</p>
-                            <p className="text-2xl font-black text-zinc-900 dark:text-white mt-1">{customRoles}</p>
+                            <p className="text-xs font-semibold text-zinc-400">Custom Role</p>
+                            <p className="text-2xl font-semibold text-zinc-900 dark:text-white mt-1">{customRoles}</p>
                         </div>
-                        <div className="h-10 w-10 border-2 border-blue-300 bg-blue-50 flex items-center justify-center">
+                        <div className="h-10 w-10 border border-blue-300 bg-blue-50 flex items-center justify-center">
                             <Layers className="h-5 w-5 text-blue-500" />
                         </div>
                     </div>
                 </div>
 
                 {/* Event Audit */}
-                <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 p-4 border-l-[5px] border-l-indigo-400">
+                <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 p-4 border-l-[5px] border-l-indigo-400">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Event Audit</p>
-                            <p className="text-2xl font-black text-zinc-900 dark:text-white mt-1">{totalAuditEvents}</p>
+                            <p className="text-xs font-semibold text-zinc-400">Event Audit</p>
+                            <p className="text-2xl font-semibold text-zinc-900 dark:text-white mt-1">{totalAuditEvents}</p>
                         </div>
-                        <div className="h-10 w-10 border-2 border-indigo-300 bg-indigo-50 flex items-center justify-center">
+                        <div className="h-10 w-10 border border-indigo-300 bg-indigo-50 flex items-center justify-center">
                             <Clock className="h-5 w-5 text-indigo-500" />
                         </div>
                     </div>
@@ -440,11 +440,11 @@ export function DocsView({
             {/* SECTION A: ROLE SISTEM & MODUL                               */}
             {/* =========================================================== */}
             <div className="mt-6">
-                <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
                     {/* Section heading */}
-                    <div className="bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 border-b-2 border-black flex items-center gap-2">
+                    <div className="bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 border-b border-border flex items-center gap-2">
                         <ShieldCheck className="h-4 w-4 text-zinc-500" />
-                        <span className="text-xs font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-300">
+                        <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                             Role Sistem & Modul
                         </span>
                     </div>
@@ -457,13 +457,13 @@ export function DocsView({
                                 value={roleSearch}
                                 onChange={(e) => setRoleSearch(e.target.value)}
                                 placeholder="Cari role berdasarkan kode, nama, deskripsi..."
-                                className="pl-9 border-2 border-zinc-300 dark:border-zinc-600 rounded-none h-9 font-medium text-sm placeholder:italic placeholder:text-zinc-400 focus:border-black dark:focus:border-white"
+                                className="pl-9 border border-zinc-300 dark:border-zinc-600 rounded-md h-9 font-medium text-sm placeholder:italic placeholder:text-zinc-400 focus:border-border dark:focus:border-white"
                             />
                         </div>
                         {canManage && (
                             <Button
                                 onClick={openCreateRole}
-                                className="bg-black text-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-y-[3px] active:shadow-none transition-all font-black uppercase text-[10px] tracking-widest rounded-none h-9 px-4"
+                                className="bg-slate-900 text-white border border-border shadow-sm hover:shadow-sm active:shadow-none transition-all font-semibold text-xs rounded-md h-9 px-4"
                             >
                                 <Plus className="h-3.5 w-3.5 mr-1.5" />
                                 Tambah Role
@@ -482,23 +482,23 @@ export function DocsView({
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead>
-                                    <tr className="bg-zinc-100 dark:bg-zinc-800 border-b-2 border-black">
-                                        <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">
+                                    <tr className="bg-zinc-100 dark:bg-zinc-800 border-b border-border">
+                                        <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">
                                             Code
                                         </th>
-                                        <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">
+                                        <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">
                                             Nama Role
                                         </th>
-                                        <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left hidden md:table-cell">
+                                        <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left hidden md:table-cell">
                                             Deskripsi
                                         </th>
-                                        <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">
+                                        <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">
                                             Permissions
                                         </th>
-                                        <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">
+                                        <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">
                                             Tipe
                                         </th>
-                                        <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-right">
+                                        <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-right">
                                             Aksi
                                         </th>
                                     </tr>
@@ -523,28 +523,28 @@ export function DocsView({
                                                     {role.permissions.slice(0, 3).map((p) => (
                                                         <span
                                                             key={p}
-                                                            className="font-mono text-[9px] px-1.5 py-0.5 border rounded-sm bg-zinc-100 text-zinc-600 border-zinc-300"
+                                                            className="font-mono text-xs px-1.5 py-0.5 border rounded-sm bg-zinc-100 text-zinc-600 border-zinc-300"
                                                         >
                                                             {p}
                                                         </span>
                                                     ))}
                                                     {role.permissions.length > 3 && (
-                                                        <span className="font-mono text-[9px] px-1.5 py-0.5 border rounded-sm bg-zinc-100 text-zinc-500 border-zinc-300">
+                                                        <span className="font-mono text-xs px-1.5 py-0.5 border rounded-sm bg-zinc-100 text-zinc-500 border-zinc-300">
                                                             +{role.permissions.length - 3}
                                                         </span>
                                                     )}
                                                     {role.permissions.length === 0 && (
-                                                        <span className="text-[10px] text-zinc-400 italic">Tidak ada</span>
+                                                        <span className="text-xs text-zinc-400 italic">Tidak ada</span>
                                                     )}
                                                 </div>
                                             </td>
                                             <td className="px-3 py-2">
                                                 {role.isSystem ? (
-                                                    <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 border rounded-sm bg-zinc-100 text-zinc-600 border-zinc-300">
+                                                    <span className="text-xs font-semibold px-1.5 py-0.5 border rounded-sm bg-zinc-100 text-zinc-600 border-zinc-300">
                                                         System
                                                     </span>
                                                 ) : (
-                                                    <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 border rounded-sm bg-blue-50 text-blue-700 border-blue-300">
+                                                    <span className="text-xs font-semibold px-1.5 py-0.5 border rounded-sm bg-blue-50 text-blue-700 border-blue-300">
                                                         Custom
                                                     </span>
                                                 )}
@@ -556,7 +556,7 @@ export function DocsView({
                                                             variant="outline"
                                                             size="sm"
                                                             onClick={() => openPermManager(role)}
-                                                            className="border-2 border-black rounded-none h-7 px-2 text-[9px] font-black uppercase tracking-widest shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
+                                                            className="border border-border rounded-md h-7 px-2 text-xs font-semibold shadow-sm hover:shadow-sm transition-all"
                                                         >
                                                             <Layers className="h-3 w-3 mr-1" />
                                                             Permissions
@@ -568,7 +568,7 @@ export function DocsView({
                                                             size="sm"
                                                             onClick={() => openEditRole(role)}
                                                             disabled={role.isSystem}
-                                                            className="border-2 border-black rounded-none h-7 px-2 text-[9px] font-black uppercase tracking-widest shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-40 disabled:shadow-none disabled:cursor-not-allowed"
+                                                            className="border border-border rounded-md h-7 px-2 text-xs font-semibold shadow-sm hover:shadow-sm transition-all disabled:opacity-40 disabled:shadow-none disabled:cursor-not-allowed"
                                                         >
                                                             <Pencil className="h-3 w-3 mr-1" />
                                                             Edit
@@ -589,11 +589,11 @@ export function DocsView({
             {/* SECTION B: RIWAYAT PERUBAHAN HAK AKSES (AUDIT TRAIL)         */}
             {/* =========================================================== */}
             <div className="mt-6">
-                <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
                     {/* Section heading */}
-                    <div className="bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 border-b-2 border-black flex items-center gap-2">
+                    <div className="bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2 border-b border-border flex items-center gap-2">
                         <Clock className="h-4 w-4 text-zinc-500" />
-                        <span className="text-xs font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-300">
+                        <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                             Riwayat Perubahan Hak Akses
                         </span>
                     </div>
@@ -608,7 +608,7 @@ export function DocsView({
                                     value={auditSearch}
                                     onChange={(e) => { setAuditSearch(e.target.value); setAuditPage(1) }}
                                     placeholder="Cari audit..."
-                                    className="pl-9 border-2 border-zinc-300 dark:border-zinc-600 rounded-none h-8 font-medium text-xs placeholder:italic placeholder:text-zinc-400 focus:border-black dark:focus:border-white"
+                                    className="pl-9 border border-zinc-300 dark:border-zinc-600 rounded-md h-8 font-medium text-xs placeholder:italic placeholder:text-zinc-400 focus:border-border dark:focus:border-white"
                                 />
                             </div>
 
@@ -616,7 +616,7 @@ export function DocsView({
                             <select
                                 value={auditRoleFilter}
                                 onChange={(e) => { setAuditRoleFilter(e.target.value); setAuditPage(1) }}
-                                className="border-2 border-zinc-300 dark:border-zinc-600 rounded-none h-8 px-2 text-xs font-medium bg-white dark:bg-zinc-800 focus:border-black dark:focus:border-white"
+                                className="border border-zinc-300 dark:border-zinc-600 rounded-md h-8 px-2 text-xs font-medium bg-white dark:bg-zinc-800 focus:border-border dark:focus:border-white"
                             >
                                 <option value="__all__">Semua Role</option>
                                 {auditRoleCodes.map((code) => (
@@ -628,7 +628,7 @@ export function DocsView({
                             <select
                                 value={auditEventFilter}
                                 onChange={(e) => { setAuditEventFilter(e.target.value); setAuditPage(1) }}
-                                className="border-2 border-zinc-300 dark:border-zinc-600 rounded-none h-8 px-2 text-xs font-medium bg-white dark:bg-zinc-800 focus:border-black dark:focus:border-white"
+                                className="border border-zinc-300 dark:border-zinc-600 rounded-md h-8 px-2 text-xs font-medium bg-white dark:bg-zinc-800 focus:border-border dark:focus:border-white"
                             >
                                 <option value="__all__">Semua Event</option>
                                 {auditEventTypes.map((et) => (
@@ -640,7 +640,7 @@ export function DocsView({
                             <select
                                 value={auditActorFilter}
                                 onChange={(e) => { setAuditActorFilter(e.target.value); setAuditPage(1) }}
-                                className="border-2 border-zinc-300 dark:border-zinc-600 rounded-none h-8 px-2 text-xs font-medium bg-white dark:bg-zinc-800 focus:border-black dark:focus:border-white"
+                                className="border border-zinc-300 dark:border-zinc-600 rounded-md h-8 px-2 text-xs font-medium bg-white dark:bg-zinc-800 focus:border-border dark:focus:border-white"
                             >
                                 <option value="__all__">Semua Aktor</option>
                                 {auditActors.map((a) => (
@@ -653,7 +653,7 @@ export function DocsView({
                                 type="date"
                                 value={auditDateFrom}
                                 onChange={(e) => { setAuditDateFrom(e.target.value); setAuditPage(1) }}
-                                className="border-2 border-zinc-300 dark:border-zinc-600 rounded-none h-8 text-xs font-medium w-[140px] focus:border-black dark:focus:border-white"
+                                className="border border-zinc-300 dark:border-zinc-600 rounded-md h-8 text-xs font-medium w-[140px] focus:border-border dark:focus:border-white"
                             />
 
                             {/* Date to */}
@@ -661,7 +661,7 @@ export function DocsView({
                                 type="date"
                                 value={auditDateTo}
                                 onChange={(e) => { setAuditDateTo(e.target.value); setAuditPage(1) }}
-                                className="border-2 border-zinc-300 dark:border-zinc-600 rounded-none h-8 text-xs font-medium w-[140px] focus:border-black dark:focus:border-white"
+                                className="border border-zinc-300 dark:border-zinc-600 rounded-md h-8 text-xs font-medium w-[140px] focus:border-border dark:focus:border-white"
                             />
 
                             {/* CSV export */}
@@ -669,7 +669,7 @@ export function DocsView({
                                 variant="outline"
                                 size="sm"
                                 onClick={handleExportCsv}
-                                className="border-2 border-black rounded-none h-8 px-3 text-[9px] font-black uppercase tracking-widest shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all whitespace-nowrap"
+                                className="border border-border rounded-md h-8 px-3 text-xs font-semibold shadow-sm hover:shadow-sm transition-all whitespace-nowrap"
                             >
                                 <Download className="h-3 w-3 mr-1" />
                                 Export CSV
@@ -689,20 +689,20 @@ export function DocsView({
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm">
                                     <thead>
-                                        <tr className="bg-zinc-100 dark:bg-zinc-800 border-b-2 border-black">
-                                            <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">
+                                        <tr className="bg-zinc-100 dark:bg-zinc-800 border-b border-border">
+                                            <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">
                                                 Waktu
                                             </th>
-                                            <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">
+                                            <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">
                                                 Role
                                             </th>
-                                            <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">
+                                            <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">
                                                 Event
                                             </th>
-                                            <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left hidden md:table-cell">
+                                            <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left hidden md:table-cell">
                                                 Aktor
                                             </th>
-                                            <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">
+                                            <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">
                                                 Perubahan
                                             </th>
                                         </tr>
@@ -713,21 +713,21 @@ export function DocsView({
                                                 key={event.id}
                                                 className="border-b border-zinc-200 dark:border-zinc-700 last:border-b-0 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors"
                                             >
-                                                <td className="px-3 py-2 font-mono text-[11px] text-zinc-500 whitespace-nowrap">
+                                                <td className="px-3 py-2 font-mono text-xs text-zinc-500 whitespace-nowrap">
                                                     {formatDateTime(event.createdAt)}
                                                 </td>
                                                 <td className="px-3 py-2">
-                                                    <span className="font-mono text-[10px] font-bold text-zinc-700 dark:text-zinc-300">
+                                                    <span className="font-mono text-xs font-bold text-zinc-700 dark:text-zinc-300">
                                                         {event.roleCode}
                                                     </span>
                                                     {event.roleName && (
-                                                        <span className="text-[10px] text-zinc-400 ml-1">
+                                                        <span className="text-xs text-zinc-400 ml-1">
                                                             ({event.roleName})
                                                         </span>
                                                     )}
                                                 </td>
                                                 <td className="px-3 py-2">
-                                                    <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 border rounded-sm bg-indigo-50 text-indigo-700 border-indigo-300">
+                                                    <span className="text-xs font-semibold px-1.5 py-0.5 border rounded-sm bg-indigo-50 text-indigo-700 border-indigo-300">
                                                         {event.eventType}
                                                     </span>
                                                 </td>
@@ -739,18 +739,18 @@ export function DocsView({
                                                         {event.changedPermissions.slice(0, 4).map((p) => (
                                                             <span
                                                                 key={p}
-                                                                className="font-mono text-[9px] px-1.5 py-0.5 border rounded-sm bg-amber-50 text-amber-700 border-amber-300"
+                                                                className="font-mono text-xs px-1.5 py-0.5 border rounded-sm bg-amber-50 text-amber-700 border-amber-300"
                                                             >
                                                                 {p}
                                                             </span>
                                                         ))}
                                                         {event.changedPermissions.length > 4 && (
-                                                            <span className="font-mono text-[9px] px-1.5 py-0.5 border rounded-sm bg-zinc-100 text-zinc-500 border-zinc-300">
+                                                            <span className="font-mono text-xs px-1.5 py-0.5 border rounded-sm bg-zinc-100 text-zinc-500 border-zinc-300">
                                                                 +{event.changedPermissions.length - 4}
                                                             </span>
                                                         )}
                                                         {event.changedPermissions.length === 0 && (
-                                                            <span className="text-[10px] text-zinc-400 italic">Tidak ada perubahan</span>
+                                                            <span className="text-xs text-zinc-400 italic">Tidak ada perubahan</span>
                                                         )}
                                                     </div>
                                                 </td>
@@ -762,14 +762,14 @@ export function DocsView({
 
                             {/* Pagination footer */}
                             <div className="px-4 py-3 border-t border-zinc-200 dark:border-zinc-700 flex flex-col sm:flex-row items-center justify-between gap-2">
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+                                <p className="text-xs font-bold text-zinc-400">
                                     Menampilkan {auditStartIdx}-{auditEndIdx} dari {filteredAudit.length} event
                                 </p>
                                 <div className="flex items-center gap-2">
                                     <select
                                         value={auditPageSize}
                                         onChange={(e) => { setAuditPageSize(Number(e.target.value)); setAuditPage(1) }}
-                                        className="border-2 border-zinc-300 dark:border-zinc-600 rounded-none h-7 px-1.5 text-[10px] font-bold bg-white dark:bg-zinc-800"
+                                        className="border border-zinc-300 dark:border-zinc-600 rounded-md h-7 px-1.5 text-xs font-bold bg-white dark:bg-zinc-800"
                                     >
                                         {[10, 15, 25, 50].map((size) => (
                                             <option key={size} value={size}>{size} / halaman</option>
@@ -781,11 +781,11 @@ export function DocsView({
                                         size="sm"
                                         disabled={clampedAuditPage <= 1}
                                         onClick={() => setAuditPage((p) => Math.max(1, p - 1))}
-                                        className="border-2 border-black rounded-none h-7 px-2 text-[10px] font-black uppercase tracking-widest disabled:opacity-40 disabled:shadow-none"
+                                        className="border border-border rounded-md h-7 px-2 text-xs font-semibold disabled:opacity-40 disabled:shadow-none"
                                     >
                                         Prev
                                     </Button>
-                                    <span className="text-[10px] font-bold text-zinc-500">
+                                    <span className="text-xs font-bold text-zinc-500">
                                         {clampedAuditPage} / {auditTotalPages}
                                     </span>
                                     <Button
@@ -793,7 +793,7 @@ export function DocsView({
                                         size="sm"
                                         disabled={clampedAuditPage >= auditTotalPages}
                                         onClick={() => setAuditPage((p) => Math.min(auditTotalPages, p + 1))}
-                                        className="border-2 border-black rounded-none h-7 px-2 text-[10px] font-black uppercase tracking-widest disabled:opacity-40 disabled:shadow-none"
+                                        className="border border-border rounded-md h-7 px-2 text-xs font-semibold disabled:opacity-40 disabled:shadow-none"
                                     >
                                         Next
                                     </Button>
@@ -844,7 +844,7 @@ export function DocsView({
                             {permissionGroups.map(([group, options]) => (
                                 <div key={group}>
                                     <div className="bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700">
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                        <span className="text-xs font-semibold text-zinc-500">
                                             {group}
                                         </span>
                                     </div>
@@ -893,7 +893,7 @@ export function DocsView({
                                 {permissionGroups.map(([group, options]) => (
                                     <div key={group}>
                                         <div className="bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700">
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                            <span className="text-xs font-semibold text-zinc-500">
                                                 {group}
                                             </span>
                                         </div>
@@ -917,10 +917,10 @@ export function DocsView({
                                 ))}
                             </div>
                             <div className="mt-2 flex items-center gap-2">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                                <span className="text-xs font-semibold text-zinc-400">
                                     Terpilih:
                                 </span>
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-300">
+                                <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                                     {permSelections.length} permission{permSelections.length !== 1 ? "s" : ""}
                                 </span>
                             </div>

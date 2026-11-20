@@ -217,10 +217,10 @@ export function QuickOrderDialog({
                 {/* Customer Info Strip */}
                 <div className="bg-amber-50 border border-amber-300 px-4 py-3 flex items-center justify-between">
                     <div>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-amber-600">Pelanggan</p>
-                        <p className="text-sm font-black uppercase">{customerName}</p>
+                        <p className="text-xs font-semibold text-amber-600">Pelanggan</p>
+                        <p className="text-sm font-semibold ">{customerName}</p>
                     </div>
-                    <span className="text-[10px] font-mono font-bold text-amber-700 bg-amber-100 border border-amber-300 px-2 py-0.5">
+                    <span className="text-xs font-mono font-bold text-amber-700 bg-amber-100 border border-amber-300 px-2 py-0.5">
                         {customerCode}
                     </span>
                 </div>
@@ -228,13 +228,13 @@ export function QuickOrderDialog({
                 {/* Item List — complex, keep as-is inside NBSection */}
                 <NBSection icon={Package} title="Item Pesanan">
                     <div className="flex items-center justify-between mb-2">
-                        <span className="bg-black text-white text-[10px] font-black px-2 py-0.5 min-w-[20px] text-center">
+                        <span className="bg-slate-900 text-white text-xs font-semibold px-2 py-0.5 min-w-[20px] text-center">
                             {items.length}
                         </span>
                         <Button
                             type="button"
                             onClick={addItem}
-                            className="bg-black text-white border border-black text-[10px] font-black uppercase tracking-wide h-7 px-3 rounded-none hover:bg-zinc-800 transition-colors"
+                            className="bg-slate-900 text-white border border-border text-xs font-semibold h-7 px-3 rounded-md hover:bg-zinc-800 transition-colors"
                         >
                             <Plus className="h-3 w-3 mr-1" /> Tambah
                         </Button>
@@ -243,7 +243,7 @@ export function QuickOrderDialog({
                     {loading ? (
                         <div className="p-8 text-center">
                             <Loader2 className="h-6 w-6 animate-spin mx-auto text-zinc-400" />
-                            <p className="text-[10px] font-bold text-zinc-400 mt-2">Memuat produk...</p>
+                            <p className="text-xs font-bold text-zinc-400 mt-2">Memuat produk...</p>
                         </div>
                     ) : (
                         <div className="divide-y divide-zinc-200">
@@ -258,7 +258,7 @@ export function QuickOrderDialog({
                                     <div key={index} className={`p-4 ${index % 2 === 1 ? "bg-zinc-50/50" : ""}`}>
                                         {/* Product select + delete */}
                                         <div className="flex items-start gap-3 mb-3">
-                                            <div className="flex-none w-6 h-6 bg-zinc-100 border border-zinc-300 text-zinc-500 flex items-center justify-center text-[10px] font-black">
+                                            <div className="flex-none w-6 h-6 bg-zinc-100 border border-zinc-300 text-zinc-500 flex items-center justify-center text-xs font-semibold">
                                                 {index + 1}
                                             </div>
                                             <div className="flex-1">
@@ -266,7 +266,7 @@ export function QuickOrderDialog({
                                                     value={item.productId || "none"}
                                                     onValueChange={(v) => onProductChange(index, v === "none" ? "" : v)}
                                                 >
-                                                    <SelectTrigger className="h-8 text-sm rounded-none border border-zinc-300">
+                                                    <SelectTrigger className="h-8 text-sm rounded-md border border-zinc-300">
                                                         <SelectValue placeholder="Pilih produk" />
                                                     </SelectTrigger>
                                                     <SelectContent>
@@ -286,7 +286,7 @@ export function QuickOrderDialog({
                                                 size="icon"
                                                 onClick={() => removeItem(index)}
                                                 disabled={items.length === 1}
-                                                className="h-10 w-10 border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30 rounded-none"
+                                                className="h-10 w-10 border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30 rounded-md"
                                             >
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
@@ -295,51 +295,51 @@ export function QuickOrderDialog({
                                         {/* Qty, Price, Disc, Tax, Total */}
                                         <div className="ml-9 grid grid-cols-5 gap-2">
                                             <div className="space-y-1">
-                                                <Label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Qty</Label>
+                                                <Label className="text-xs font-semibold text-zinc-400">Qty</Label>
                                                 <Input
                                                     type="number"
                                                     min="0.001"
                                                     step="0.001"
                                                     value={item.quantity}
                                                     onChange={(e) => updateItem(index, { quantity: Number(e.target.value || 0) })}
-                                                    className="border border-zinc-300 h-9 font-bold text-center text-sm rounded-none"
+                                                    className="border border-zinc-300 h-9 font-bold text-center text-sm rounded-md"
                                                 />
                                             </div>
                                             <div className="space-y-1">
-                                                <Label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Harga</Label>
+                                                <Label className="text-xs font-semibold text-zinc-400">Harga</Label>
                                                 <Input
                                                     type="number"
                                                     min="0"
                                                     value={item.unitPrice}
                                                     onChange={(e) => updateItem(index, { unitPrice: Number(e.target.value || 0) })}
-                                                    className="border border-zinc-300 h-9 font-bold text-sm rounded-none"
+                                                    className="border border-zinc-300 h-9 font-bold text-sm rounded-md"
                                                 />
                                             </div>
                                             <div className="space-y-1">
-                                                <Label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Disc %</Label>
+                                                <Label className="text-xs font-semibold text-zinc-400">Disc %</Label>
                                                 <Input
                                                     type="number"
                                                     min="0"
                                                     max="100"
                                                     value={item.discount}
                                                     onChange={(e) => updateItem(index, { discount: Number(e.target.value || 0) })}
-                                                    className="border border-zinc-300 h-9 text-center text-sm rounded-none"
+                                                    className="border border-zinc-300 h-9 text-center text-sm rounded-md"
                                                 />
                                             </div>
                                             <div className="space-y-1">
-                                                <Label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">PPN %</Label>
+                                                <Label className="text-xs font-semibold text-zinc-400">PPN %</Label>
                                                 <Input
                                                     type="number"
                                                     min="0"
                                                     max="100"
                                                     value={item.taxRate}
                                                     onChange={(e) => updateItem(index, { taxRate: Number(e.target.value || 0) })}
-                                                    className="border border-zinc-300 h-9 text-center text-sm rounded-none"
+                                                    className="border border-zinc-300 h-9 text-center text-sm rounded-md"
                                                 />
                                             </div>
                                             <div className="space-y-1">
-                                                <Label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Total</Label>
-                                                <div className="h-9 bg-amber-50 border border-amber-300 flex items-center justify-end px-2 font-black text-xs font-mono text-amber-900">
+                                                <Label className="text-xs font-semibold text-zinc-400">Total</Label>
+                                                <div className="h-9 bg-amber-50 border border-amber-300 flex items-center justify-end px-2 font-semibold text-xs font-mono text-amber-900">
                                                     {formatCurrency(lineTotal)}
                                                 </div>
                                             </div>
@@ -364,22 +364,22 @@ export function QuickOrderDialog({
                 <div className="border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-4">
                     <div className="space-y-2">
                         <div className="flex justify-between text-sm">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Subtotal</span>
+                            <span className="text-xs font-semibold text-zinc-500">Subtotal</span>
                             <span className="font-mono font-bold">{formatCurrency(totals.subtotal)}</span>
                         </div>
                         {totals.discount > 0 && (
                             <div className="flex justify-between text-sm">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-red-500">Diskon</span>
+                                <span className="text-xs font-semibold text-red-500">Diskon</span>
                                 <span className="font-mono font-bold text-red-600">- {formatCurrency(totals.discount)}</span>
                             </div>
                         )}
                         <div className="flex justify-between text-sm">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">PPN</span>
+                            <span className="text-xs font-semibold text-zinc-500">PPN</span>
                             <span className="font-mono font-bold">{formatCurrency(totals.tax)}</span>
                         </div>
-                        <div className="border-t-2 border-black pt-2 flex justify-between items-center">
-                            <span className="text-sm font-black uppercase tracking-widest">Grand Total</span>
-                            <span className="text-xl font-black font-mono text-amber-700">
+                        <div className="border-t border-border pt-2 flex justify-between items-center">
+                            <span className="text-sm font-semibold  ">Grand Total</span>
+                            <span className="text-xl font-semibold font-mono text-amber-700">
                                 {formatCurrency(totals.total)}
                             </span>
                         </div>

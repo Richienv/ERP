@@ -25,7 +25,7 @@ const DAY_NAMES = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
 
 const SHIFT_CONFIG = {
     MORNING: { label: 'Pagi', icon: Sun, color: 'bg-amber-100 text-amber-700 border-amber-300', time: '07:00-15:00' },
-    AFTERNOON: { label: 'Siang', icon: Sunset, color: 'bg-orange-100 text-orange-700 border-orange-300', time: '15:00-23:00' },
+    AFTERNOON: { label: 'Siang', icon: Sunset, color: 'bg-blue-100 text-blue-700 border-blue-300', time: '15:00-23:00' },
     NIGHT: { label: 'Malam', icon: Moon, color: 'bg-indigo-100 text-indigo-700 border-indigo-300', time: '23:00-07:00' },
 } as const
 
@@ -81,13 +81,13 @@ export function ShiftCalendar({
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <Calendar className="h-5 w-5" />
-                    <h2 className="text-sm font-black uppercase tracking-widest">Jadwal Shift</h2>
+                    <h2 className="text-sm font-semibold  ">Jadwal Shift</h2>
                 </div>
                 <div className="flex items-center gap-2">
                     <Button
                         variant="outline"
                         size="sm"
-                        className="h-8 w-8 p-0 border-2 border-black rounded-none"
+                        className="h-8 w-8 p-0 border border-border rounded-md"
                         onClick={() => navigateWeek(-1)}
                     >
                         <ChevronLeft className="h-4 w-4" />
@@ -98,7 +98,7 @@ export function ShiftCalendar({
                     <Button
                         variant="outline"
                         size="sm"
-                        className="h-8 w-8 p-0 border-2 border-black rounded-none"
+                        className="h-8 w-8 p-0 border border-border rounded-md"
                         onClick={() => navigateWeek(1)}
                     >
                         <ChevronRight className="h-4 w-4" />
@@ -107,9 +107,9 @@ export function ShiftCalendar({
             </div>
 
             {/* Weekly overview grid */}
-            <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                <div className="px-4 py-2.5 border-b-2 border-black bg-zinc-50">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+            <div className="bg-white border border-border shadow-sm">
+                <div className="px-4 py-2.5 border-b border-border bg-zinc-50">
+                    <span className="text-xs font-semibold text-zinc-500">
                         Ringkasan Mingguan
                     </span>
                 </div>
@@ -119,7 +119,7 @@ export function ShiftCalendar({
                         return (
                             <div key={day.date} className={`p-2.5 ${isWeekend ? 'bg-zinc-50' : ''}`}>
                                 <div className="text-center mb-2">
-                                    <div className="text-[9px] font-black uppercase text-zinc-400">
+                                    <div className="text-xs font-semibold text-zinc-400">
                                         {DAY_NAMES[day.dayOfWeek]}
                                     </div>
                                     <div className="text-xs font-bold font-mono">{formatDate(day.date)}</div>
@@ -128,7 +128,7 @@ export function ShiftCalendar({
                                     const ShiftIcon = config.icon
                                     const count = day.shifts[key].length
                                     return (
-                                        <div key={key} className={`flex items-center gap-1 mb-1 text-[8px] font-bold px-1.5 py-0.5 border ${config.color}`}>
+                                        <div key={key} className={`flex items-center gap-1 mb-1 text-xs font-bold px-1.5 py-0.5 border ${config.color}`}>
                                             <ShiftIcon className="h-2.5 w-2.5" />
                                             <span>{count}</span>
                                         </div>
@@ -141,21 +141,21 @@ export function ShiftCalendar({
             </div>
 
             {/* Employee shift assignments by department */}
-            <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                <div className="px-4 py-2.5 border-b-2 border-black bg-zinc-50 flex items-center justify-between">
+            <div className="bg-white border border-border shadow-sm">
+                <div className="px-4 py-2.5 border-b border-border bg-zinc-50 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Users className="h-4 w-4 text-zinc-500" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                        <span className="text-xs font-semibold text-zinc-500">
                             Assignment Karyawan
                         </span>
                     </div>
-                    <span className="text-[10px] font-bold text-zinc-400">{employees.length} karyawan</span>
+                    <span className="text-xs font-bold text-zinc-400">{employees.length} karyawan</span>
                 </div>
 
                 {departments.map((dept) => (
                     <div key={dept}>
                         <div className="px-4 py-1.5 bg-zinc-100 border-b border-zinc-200">
-                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
+                            <span className="text-xs font-semibold text-zinc-500">
                                 {dept}
                             </span>
                         </div>
@@ -166,14 +166,14 @@ export function ShiftCalendar({
                                     <div key={emp.employeeId} className="px-4 py-2 flex items-center justify-between">
                                         <div>
                                             <span className="text-xs font-bold">{emp.employeeName}</span>
-                                            <span className="text-[9px] text-zinc-400 font-mono ml-2">({emp.employeeCode})</span>
+                                            <span className="text-xs text-zinc-400 font-mono ml-2">({emp.employeeCode})</span>
                                         </div>
                                         <Select
                                             value={emp.defaultShift || 'MORNING'}
                                             onValueChange={(v) => handleShiftChange(emp.employeeId, v)}
                                             disabled={loading === emp.employeeId}
                                         >
-                                            <SelectTrigger className="w-32 h-7 text-[10px] font-bold border-2 border-black rounded-none">
+                                            <SelectTrigger className="w-32 h-7 text-xs font-bold border border-border rounded-md">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -202,7 +202,7 @@ export function ShiftCalendar({
             </div>
 
             {/* Legend */}
-            <div className="flex items-center gap-4 text-[9px] font-bold text-zinc-400">
+            <div className="flex items-center gap-4 text-xs font-bold text-zinc-400">
                 {(Object.entries(SHIFT_CONFIG) as [string, { label: string; time: string }][]).map(([key, config]) => (
                     <span key={key}>{config.label}: {config.time}</span>
                 ))}

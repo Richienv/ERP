@@ -90,7 +90,7 @@ export function WarehouseEditDialog({ warehouse }: WarehouseEditDialogProps) {
       <Button
         variant="outline"
         onClick={() => setOpen(true)}
-        className="border border-zinc-300 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none"
+        className="border border-zinc-300 text-zinc-500 font-bold text-xs px-4 h-8 rounded-md"
       >
         <Edit className="mr-2 h-4 w-4" /> Edit Configuration
       </Button>

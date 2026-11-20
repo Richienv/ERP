@@ -163,31 +163,31 @@ export default function FixedAssetCategoriesPage() {
     return (
         <div className="mf-page min-h-screen space-y-4">
             {/* HEADER */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white">
+            <div className="border border-border shadow-sm overflow-hidden bg-white">
                 <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-purple-500">
                     <div className="flex items-center gap-3">
                         <FolderTree className="h-6 w-6 text-purple-500" />
                         <div>
-                            <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900">Kategori Aset Tetap</h1>
+                            <h1 className="text-xl font-semibold tracking-tight text-zinc-900">Kategori Aset Tetap</h1>
                             <p className="text-zinc-600 text-xs font-bold mt-0.5">Kelola kategori dan pengaturan default penyusutan</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
                         <Link href="/finance/fixed-assets">
-                            <Button variant="outline" className="h-9 border-2 border-black font-bold uppercase text-[10px] tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all bg-white">
+                            <Button variant="outline" className="h-9 border border-border font-bold text-xs shadow-sm hover:shadow-none transition-all bg-white">
                                 <ArrowLeft className="mr-2 h-3.5 w-3.5" /> Kembali
                             </Button>
                         </Link>
                         <Button
                             variant="outline"
                             onClick={() => queryClient.invalidateQueries({ queryKey: queryKeys.fixedAssetCategories.all })}
-                            className="h-9 border-2 border-black font-bold uppercase text-[10px] tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all bg-white"
+                            className="h-9 border border-border font-bold text-xs shadow-sm hover:shadow-none transition-all bg-white"
                         >
                             <RefreshCcw className="mr-2 h-3.5 w-3.5" /> Refresh
                         </Button>
                         <Button
                             onClick={openCreate}
-                            className="h-9 bg-purple-600 text-white hover:bg-purple-700 border-2 border-purple-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] uppercase font-black text-[10px] tracking-wider hover:translate-y-[1px] hover:shadow-none transition-all px-4"
+                            className="h-9 bg-purple-600 text-white hover:bg-purple-700 border border-purple-700 shadow-sm font-semibold text-xs hover:shadow-none transition-all px-4"
                         >
                             <Plus className="mr-2 h-3.5 w-3.5" /> Tambah Kategori
                         </Button>
@@ -196,13 +196,13 @@ export default function FixedAssetCategoriesPage() {
             </div>
 
             {/* TABLE */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white">
+            <div className="border border-border shadow-sm bg-white">
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead>
-                            <tr className="border-b-2 border-black bg-zinc-50">
+                            <tr className="border-b border-border bg-zinc-50">
                                 {["Kode", "Nama Kategori", "Metode Default", "Masa Manfaat", "Residu (%)", "Akun Aset", "Akun Akum.", "Akun Beban", "Jumlah Aset", "Aksi"].map(h => (
-                                    <th key={h} className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-3 text-left">{h}</th>
+                                    <th key={h} className="text-xs font-semibold text-zinc-500 px-4 py-3 text-left">{h}</th>
                                 ))}
                             </tr>
                         </thead>
@@ -221,7 +221,7 @@ export default function FixedAssetCategoriesPage() {
                                         <td className="px-4 py-3 font-mono font-bold text-sm text-purple-700">{cat.code}</td>
                                         <td className="px-4 py-3">
                                             <div className="font-bold text-sm">{cat.name}</div>
-                                            {cat.description && <div className="text-[10px] text-zinc-400 mt-0.5">{cat.description}</div>}
+                                            {cat.description && <div className="text-xs text-zinc-400 mt-0.5">{cat.description}</div>}
                                         </td>
                                         <td className="px-4 py-3 text-sm font-medium text-zinc-600">{methodLabels[cat.defaultMethod] || cat.defaultMethod}</td>
                                         <td className="px-4 py-3 text-sm font-bold text-zinc-700">{cat.defaultUsefulLife} bulan</td>
@@ -230,7 +230,7 @@ export default function FixedAssetCategoriesPage() {
                                         <td className="px-4 py-3 text-xs font-medium text-zinc-500">{cat.accDepAccount ? `${cat.accDepAccount.code} - ${cat.accDepAccount.name}` : <span className="text-zinc-300">-</span>}</td>
                                         <td className="px-4 py-3 text-xs font-medium text-zinc-500">{cat.depExpAccount ? `${cat.depExpAccount.code} - ${cat.depExpAccount.name}` : <span className="text-zinc-300">-</span>}</td>
                                         <td className="px-4 py-3">
-                                            <span className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-purple-100 text-purple-700 font-black text-xs border border-purple-200">
+                                            <span className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-purple-100 text-purple-700 font-semibold text-xs border border-purple-200">
                                                 {cat._count?.assets ?? 0}
                                             </span>
                                         </td>
@@ -240,7 +240,7 @@ export default function FixedAssetCategoriesPage() {
                                                     variant="outline"
                                                     size="sm"
                                                     onClick={() => openEdit(cat)}
-                                                    className="h-7 w-7 p-0 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all"
+                                                    className="h-7 w-7 p-0 border border-border shadow-sm hover:shadow-none transition-all"
                                                 >
                                                     <Pencil className="h-3 w-3" />
                                                 </Button>
@@ -248,7 +248,7 @@ export default function FixedAssetCategoriesPage() {
                                                     variant="outline"
                                                     size="sm"
                                                     onClick={() => setDeleteTarget({ id: cat.id, name: cat.name })}
-                                                    className="h-7 w-7 p-0 border-2 border-red-300 text-red-600 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] hover:bg-red-50 hover:translate-y-[1px] hover:shadow-none transition-all"
+                                                    className="h-7 w-7 p-0 border border-red-300 text-red-600 shadow-sm hover:bg-red-50 hover:shadow-none transition-all"
                                                 >
                                                     <Trash2 className="h-3 w-3" />
                                                 </Button>
@@ -472,7 +472,7 @@ export default function FixedAssetCategoriesPage() {
                         <div className={NB.section}>
                             <div className={NB.sectionBody}>
                                 <p className="text-sm font-medium text-zinc-700">
-                                    Apakah Anda yakin ingin menghapus kategori <span className="font-black text-red-600">&quot;{deleteTarget?.name}&quot;</span>?
+                                    Apakah Anda yakin ingin menghapus kategori <span className="font-semibold text-red-600">&quot;{deleteTarget?.name}&quot;</span>?
                                 </p>
                                 <p className="text-xs text-zinc-500 mt-2">
                                     Kategori yang masih memiliki aset terdaftar tidak dapat dihapus. Tindakan ini tidak dapat dibatalkan.
@@ -488,7 +488,7 @@ export default function FixedAssetCategoriesPage() {
                                 Batal
                             </Button>
                             <Button
-                                className="bg-red-600 text-white border-2 border-red-700 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider px-8 h-9 rounded-none"
+                                className="bg-red-600 text-white border border-red-700 shadow-sm hover:shadow-sm transition-all font-semibold text-xs px-8 h-9 rounded-md"
                                 onClick={handleDelete}
                                 disabled={deleting}
                             >

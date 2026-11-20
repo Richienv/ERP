@@ -107,19 +107,19 @@ export const columns: ColumnDef<ProductWithStock>[] = [
             <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100">{product.name}</span>
           </div>
           {product.description && (
-            <div className="text-[10px] text-zinc-400 font-medium line-clamp-1 mt-0.5">
+            <div className="text-xs text-zinc-400 font-medium line-clamp-1 mt-0.5">
               {product.description}
             </div>
           )}
           {(product.costPrice === 0 || !product.category) && (
             <div className="flex items-center gap-1 mt-0.5">
               {!product.category && (
-                <span className="inline-flex items-center px-1.5 py-0 text-[9px] font-black uppercase bg-red-100 text-red-600 border border-red-200">
+                <span className="inline-flex items-center px-1.5 py-0 text-xs font-semibold bg-red-100 text-red-600 border border-red-200">
                   Kategori kosong
                 </span>
               )}
               {product.costPrice === 0 && (
-                <span className="inline-flex items-center px-1.5 py-0 text-[9px] font-black uppercase bg-red-100 text-red-600 border border-red-200">
+                <span className="inline-flex items-center px-1.5 py-0 text-xs font-semibold bg-red-100 text-red-600 border border-red-200">
                   HPP kosong
                 </span>
               )}
@@ -136,7 +136,7 @@ export const columns: ColumnDef<ProductWithStock>[] = [
       const category = row.original.category
       const name = category ? category.name : "Tanpa Kategori"
       return (
-        <span className="text-[10px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-sm bg-emerald-50 border-emerald-200 text-emerald-700">
+        <span className="text-xs font-semibold px-2 py-0.5 border rounded-sm bg-emerald-50 border-emerald-200 text-emerald-700">
           {name}
         </span>
       )
@@ -146,7 +146,7 @@ export const columns: ColumnDef<ProductWithStock>[] = [
     accessorKey: "unit",
     header: "Satuan",
     cell: ({ row }) => (
-      <span className="text-xs font-bold text-zinc-500 uppercase">{row.getValue("unit")}</span>
+      <span className="text-xs font-bold text-zinc-500 ">{row.getValue("unit")}</span>
     ),
   },
   {
@@ -183,8 +183,8 @@ export const columns: ColumnDef<ProductWithStock>[] = [
 
       return (
         <div className="text-center">
-          <div className="font-mono font-black text-sm">{formatNumber(product.currentStock)}</div>
-          <div className="text-[10px] text-zinc-400 font-medium mt-0.5">
+          <div className="font-mono font-semibold text-sm">{formatNumber(product.currentStock)}</div>
+          <div className="text-xs text-zinc-400 font-medium mt-0.5">
             Min: {product.minStock} | Max: {product.maxStock}
           </div>
         </div>
@@ -326,13 +326,13 @@ export function ProductDataTable({ data, categories = [] }: ProductDataTableProp
   return (
     <div className="w-full space-y-4">
       {/* Search & Filter Bar */}
-      <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+      <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
         <div className="p-4">
           <div className="flex flex-col md:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
               <Input
-                className="border-2 border-black h-10 pl-9 font-medium rounded-none"
+                className="border border-border h-10 pl-9 font-medium rounded-md"
                 placeholder="Cari produk, kode, atau kategori..."
                 value={globalFilter}
                 onChange={(event) => setGlobalFilter(event.target.value)}
@@ -342,14 +342,14 @@ export function ProductDataTable({ data, categories = [] }: ProductDataTableProp
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  className="border-2 border-black font-bold uppercase text-[10px] tracking-wide h-10 px-4 rounded-none"
+                  className="border border-border font-bold text-xs h-10 px-4 rounded-md"
                 >
                   <Filter className="mr-1.5 h-3.5 w-3.5" />
                   Filter Stok
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest">Status Stok</DropdownMenuLabel>
+                <DropdownMenuLabel className="text-xs font-semibold  ">Status Stok</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuCheckboxItem
                   checked={columnFilters.find(f => f.id === "status")?.value === "normal"}
@@ -393,7 +393,7 @@ export function ProductDataTable({ data, categories = [] }: ProductDataTableProp
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  className="border-2 border-black font-bold uppercase text-[10px] tracking-wide h-10 px-4 rounded-none"
+                  className="border border-border font-bold text-xs h-10 px-4 rounded-md"
                 >
                   <Settings2 className="mr-1.5 h-3.5 w-3.5" />
                   Kolom
@@ -401,7 +401,7 @@ export function ProductDataTable({ data, categories = [] }: ProductDataTableProp
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest">Tampilkan Kolom</DropdownMenuLabel>
+                <DropdownMenuLabel className="text-xs font-semibold  ">Tampilkan Kolom</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {table
                   .getAllColumns()
@@ -424,7 +424,7 @@ export function ProductDataTable({ data, categories = [] }: ProductDataTableProp
             </DropdownMenu>
             <Button
               variant="outline"
-              className="border-2 border-black font-bold uppercase text-[10px] tracking-wide h-10 px-4 rounded-none"
+              className="border border-border font-bold text-xs h-10 px-4 rounded-md"
               onClick={() => exportTableToExcel(table, { filename: "produk" })}
             >
               <Download className="mr-1.5 h-3.5 w-3.5" />
@@ -435,14 +435,14 @@ export function ProductDataTable({ data, categories = [] }: ProductDataTableProp
       </div>
 
       {/* Table */}
-      <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex flex-col">
+      <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden flex flex-col">
         {/* Table Section Header */}
-        <div className="bg-emerald-50 dark:bg-emerald-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-emerald-400">
+        <div className="bg-emerald-50 dark:bg-emerald-950/20 px-5 py-2.5 border-b border-border flex items-center gap-2 border-l-[5px] border-l-emerald-400">
           <Package className="h-4 w-4 text-emerald-600" />
-          <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">
+          <h3 className="text-xs font-semibold text-zinc-700 dark:text-zinc-200">
             Daftar Produk
           </h3>
-          <span className="bg-emerald-500 text-white text-[10px] font-black px-2 py-0.5 min-w-[20px] text-center rounded-sm">
+          <span className="bg-emerald-500 text-white text-xs font-semibold px-2 py-0.5 min-w-[20px] text-center rounded-sm">
             {table.getFilteredRowModel().rows.length}
           </span>
         </div>
@@ -452,10 +452,10 @@ export function ProductDataTable({ data, categories = [] }: ProductDataTableProp
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id} className="border-b-2 border-black bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-50">
+                <TableRow key={headerGroup.id} className="border-b border-border bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-50">
                   {headerGroup.headers.map((header) => {
                     return (
-                      <TableHead key={header.id} className="text-[10px] font-black uppercase tracking-widest text-zinc-500 h-10">
+                      <TableHead key={header.id} className="text-xs font-semibold text-zinc-500 h-10">
                         {header.isPlaceholder
                           ? null
                           : flexRender(
@@ -494,7 +494,7 @@ export function ProductDataTable({ data, categories = [] }: ProductDataTableProp
                   >
                     <div className="flex flex-col items-center gap-2 text-zinc-400">
                       <Package className="h-6 w-6 text-zinc-300" />
-                      <span className="text-xs font-bold uppercase tracking-widest">Tidak ada produk ditemukan</span>
+                      <span className="text-xs font-bold  ">Tidak ada produk ditemukan</span>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -504,8 +504,8 @@ export function ProductDataTable({ data, categories = [] }: ProductDataTableProp
         </div>
 
         {/* Pagination */}
-        <div className="px-5 py-3 border-t-2 border-black flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
-          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+        <div className="px-5 py-3 border-t border-border flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
+          <span className="text-xs font-semibold text-zinc-400">
             {table.getFilteredRowModel().rows.length} produk
           </span>
           {pageCount > 1 && (
@@ -513,19 +513,19 @@ export function ProductDataTable({ data, categories = [] }: ProductDataTableProp
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8 border-2 border-black"
+                className="h-8 w-8 border border-border"
                 onClick={() => table.previousPage()}
                 disabled={!table.getCanPreviousPage()}
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
               </Button>
-              <span className="text-xs font-black min-w-[50px] text-center">
+              <span className="text-xs font-semibold min-w-[50px] text-center">
                 {pageIndex + 1}/{pageCount}
               </span>
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8 border-2 border-black"
+                className="h-8 w-8 border border-border"
                 onClick={() => table.nextPage()}
                 disabled={!table.getCanNextPage()}
               >

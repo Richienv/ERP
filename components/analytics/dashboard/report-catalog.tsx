@@ -42,12 +42,12 @@ export function ReportCatalog() {
                     {/* Column 1: Favorites & Production */}
                     <div className="space-y-6">
                         <div>
-                            <h4 className="text-xs font-bold text-muted-foreground uppercase mb-3 flex items-center gap-1">
+                            <h4 className="text-xs font-bold text-muted-foreground mb-3 flex items-center gap-1">
                                 <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" /> Favorit Richie
                             </h4>
                             <div className="space-y-2">
                                 {reports.favorit.map((item, i) => (
-                                    <Button key={i} variant="secondary" className="w-full justify-between h-auto py-2 px-3 text-sm font-medium bg-white dark:bg-black border shadow-sm hover:border-indigo-300 transition-all group">
+                                    <Button key={i} variant="secondary" className="w-full justify-between h-auto py-2 px-3 text-sm font-medium bg-white dark:bg-slate-900 border shadow-sm hover:border-indigo-300 transition-all group">
                                         <span className="flex items-center gap-2">
                                             <FileText className="h-3 w-3 text-indigo-500" />
                                             {item.title}
@@ -59,15 +59,15 @@ export function ReportCatalog() {
                         </div>
 
                         <div>
-                            <h4 className="text-xs font-bold text-muted-foreground uppercase mb-3 flex items-center gap-2">
+                            <h4 className="text-xs font-bold text-muted-foreground mb-3 flex items-center gap-2">
                                 <Factory className="h-3 w-3" /> Produksi
                             </h4>
                             <div className="space-y-2">
                                 {reports.produksi.map((item, i) => (
-                                    <div key={i} className="group p-3 rounded-lg bg-white dark:bg-black border hover:border-indigo-400 cursor-pointer transition-all shadow-sm flex justify-between items-center">
+                                    <div key={i} className="group p-3 rounded-lg bg-white dark:bg-slate-900 border hover:border-indigo-400 cursor-pointer transition-all shadow-sm flex justify-between items-center">
                                         <div>
                                             <div className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{item.title}</div>
-                                            <div className="text-[10px] text-muted-foreground">{item.desc}</div>
+                                            <div className="text-xs text-muted-foreground">{item.desc}</div>
                                         </div>
                                         <ChevronRight className="h-4 w-4 text-muted-foreground opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                                     </div>
@@ -78,15 +78,15 @@ export function ReportCatalog() {
 
                     {/* Column 2: Finance */}
                     <div>
-                        <h4 className="text-xs font-bold text-muted-foreground uppercase mb-3 flex items-center gap-2">
+                        <h4 className="text-xs font-bold text-muted-foreground mb-3 flex items-center gap-2">
                             <BarChart2 className="h-3 w-3" /> Keuangan
                         </h4>
                         <div className="space-y-2">
                             {reports.keuangan.map((item, i) => (
-                                <div key={i} className="group p-3 rounded-lg bg-white dark:bg-black border hover:border-emerald-400 cursor-pointer transition-all shadow-sm flex justify-between items-center">
+                                <div key={i} className="group p-3 rounded-lg bg-white dark:bg-slate-900 border hover:border-emerald-400 cursor-pointer transition-all shadow-sm flex justify-between items-center">
                                     <div>
                                         <div className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{item.title}</div>
-                                        <div className="text-[10px] text-muted-foreground">{item.desc}</div>
+                                        <div className="text-xs text-muted-foreground">{item.desc}</div>
                                     </div>
                                     <ChevronRight className="h-4 w-4 text-muted-foreground opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                                 </div>
@@ -97,15 +97,15 @@ export function ReportCatalog() {
                     {/* Column 3: Inventory & SDM */}
                     <div className="space-y-6">
                         <div>
-                            <h4 className="text-xs font-bold text-muted-foreground uppercase mb-3 flex items-center gap-2">
+                            <h4 className="text-xs font-bold text-muted-foreground mb-3 flex items-center gap-2">
                                 <BarChart2 className="h-3 w-3" /> Persediaan
                             </h4>
                             <div className="space-y-2">
                                 {reports.persediaan.map((item, i) => (
-                                    <div key={i} className="group p-3 rounded-lg bg-white dark:bg-black border hover:border-orange-400 cursor-pointer transition-all shadow-sm flex justify-between items-center">
+                                    <div key={i} className="group p-3 rounded-lg bg-white dark:bg-slate-900 border hover:border-blue-400 cursor-pointer transition-all shadow-sm flex justify-between items-center">
                                         <div>
                                             <div className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{item.title}</div>
-                                            <div className="text-[10px] text-muted-foreground">{item.desc}</div>
+                                            <div className="text-xs text-muted-foreground">{item.desc}</div>
                                         </div>
                                         <ChevronRight className="h-4 w-4 text-muted-foreground opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                                     </div>
@@ -114,15 +114,15 @@ export function ReportCatalog() {
                         </div>
 
                         <div>
-                            <h4 className="text-xs font-bold text-muted-foreground uppercase mb-3 flex items-center gap-2">
+                            <h4 className="text-xs font-bold text-muted-foreground mb-3 flex items-center gap-2">
                                 <Users className="h-3 w-3" /> SDM & Ops
                             </h4>
                             <div className="space-y-2">
                                 {reports.sdm.map((item, i) => (
-                                    <div key={i} className="group p-3 rounded-lg bg-white dark:bg-black border hover:border-blue-400 cursor-pointer transition-all shadow-sm flex justify-between items-center">
+                                    <div key={i} className="group p-3 rounded-lg bg-white dark:bg-slate-900 border hover:border-blue-400 cursor-pointer transition-all shadow-sm flex justify-between items-center">
                                         <div>
                                             <div className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{item.title}</div>
-                                            <div className="text-[10px] text-muted-foreground">{item.desc}</div>
+                                            <div className="text-xs text-muted-foreground">{item.desc}</div>
                                         </div>
                                         <ChevronRight className="h-4 w-4 text-muted-foreground opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                                     </div>
@@ -133,7 +133,7 @@ export function ReportCatalog() {
 
                     {/* Column 4: Self-Service Info */}
                     <div className="bg-indigo-50 dark:bg-indigo-950/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-900 border-dashed flex flex-col items-center text-center justify-center">
-                        <div className="p-3 bg-white dark:bg-black rounded-full shadow-sm mb-3">
+                        <div className="p-3 bg-white dark:bg-slate-900 rounded-full shadow-sm mb-3">
                             <Book className="h-6 w-6 text-indigo-600" />
                         </div>
                         <h4 className="font-bold text-indigo-900 dark:text-indigo-200 mb-2">Butuh Laporan Baru?</h4>

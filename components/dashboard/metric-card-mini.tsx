@@ -19,7 +19,7 @@ export function MetricCardMini({ title, value, trend, trendUp = true, className 
             "hover:border-border transition-all duration-300 hover:shadow-lg shadow-sm",
             className
         )}>
-            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{title}</p>
+            <p className="text-sm font-medium text-muted-foreground  ">{title}</p>
 
             <div className="space-y-1 mt-4">
                 <h3 className="text-3xl font-medium font-serif text-foreground tracking-tight group-hover:scale-105 transition-transform origin-left">{value}</h3>

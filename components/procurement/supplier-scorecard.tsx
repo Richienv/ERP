@@ -62,7 +62,7 @@ export function getGrade(score: number): { letter: string; color: string; bg: st
     if (score >= 90) return { letter: 'A', color: 'text-emerald-700', bg: 'bg-emerald-100' }
     if (score >= 80) return { letter: 'B', color: 'text-blue-700', bg: 'bg-blue-100' }
     if (score >= 70) return { letter: 'C', color: 'text-amber-700', bg: 'bg-amber-100' }
-    if (score >= 60) return { letter: 'D', color: 'text-orange-700', bg: 'bg-orange-100' }
+    if (score >= 60) return { letter: 'D', color: 'text-blue-700', bg: 'bg-blue-100' }
     return { letter: 'F', color: 'text-red-700', bg: 'bg-red-100' }
 }
 
@@ -86,16 +86,16 @@ export function SupplierScorecard({ data }: SupplierScorecardProps) {
     const formatIDR = (n: number) => n.toLocaleString('id-ID')
 
     return (
-        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <div className="bg-white border border-border shadow-sm">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b-2 border-black bg-zinc-50">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-zinc-50">
                 <div className="flex items-center gap-2">
                     <Award className="h-4 w-4 text-zinc-500" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                    <span className="text-xs font-semibold text-zinc-500">
                         Scorecard Vendor
                     </span>
                 </div>
-                <span className="text-[10px] font-bold text-zinc-400 font-mono">
+                <span className="text-xs font-bold text-zinc-400 font-mono">
                     {supplier.code}
                 </span>
             </div>
@@ -103,14 +103,14 @@ export function SupplierScorecard({ data }: SupplierScorecardProps) {
             {/* Supplier name + grade */}
             <div className="px-4 py-3 border-b border-zinc-200 flex items-center justify-between">
                 <div>
-                    <h3 className="text-sm font-black">{supplier.name}</h3>
-                    <span className="text-[10px] text-zinc-400 font-bold">
+                    <h3 className="text-sm font-semibold">{supplier.name}</h3>
+                    <span className="text-xs text-zinc-400 font-bold">
                         {metrics.totalPOs} PO · {metrics.completedPOs} selesai
                     </span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="text-2xl font-black font-mono">{overallScore}</span>
-                    <span className={`text-lg font-black px-2 py-0.5 border-2 border-black ${grade.bg} ${grade.color}`}>
+                    <span className="text-2xl font-semibold font-mono">{overallScore}</span>
+                    <span className={`text-lg font-semibold px-2 py-0.5 border border-border ${grade.bg} ${grade.color}`}>
                         {grade.letter}
                     </span>
                 </div>
@@ -166,12 +166,12 @@ export function SupplierScorecard({ data }: SupplierScorecardProps) {
             </div>
 
             {/* Bottom stats */}
-            <div className="px-4 py-2.5 border-t-2 border-black bg-zinc-50 flex items-center justify-between">
-                <div className="flex items-center gap-1 text-[9px] font-bold text-zinc-400">
+            <div className="px-4 py-2.5 border-t border-border bg-zinc-50 flex items-center justify-between">
+                <div className="flex items-center gap-1 text-xs font-bold text-zinc-400">
                     <Package className="h-3 w-3" />
                     Total Spend
                 </div>
-                <span className="text-xs font-black font-mono">
+                <span className="text-xs font-semibold font-mono">
                     Rp {formatIDR(metrics.totalSpend)}
                 </span>
             </div>
@@ -194,9 +194,9 @@ function MetricCell({
         <div className="px-3 py-2.5 text-center">
             <div className="flex items-center justify-center gap-1 text-zinc-400 mb-1">
                 {icon}
-                <span className="text-[8px] font-black uppercase tracking-widest">{label}</span>
+                <span className="text-xs font-semibold  ">{label}</span>
             </div>
-            <span className={`text-sm font-black font-mono ${color}`}>{value}</span>
+            <span className={`text-sm font-semibold font-mono ${color}`}>{value}</span>
         </div>
     )
 }

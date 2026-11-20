@@ -189,17 +189,17 @@ export function WorkCentersClient({ initialMachines, initialSummary }: Props) {
     ];
 
     return (
-        <div className="w-full bg-zinc-50 dark:bg-black font-sans min-h-[calc(100svh-theme(spacing.16))]">
+        <div className="w-full bg-zinc-50 dark:bg-slate-900 font-sans min-h-[calc(100svh-theme(spacing.16))]">
             <div className="mf-page">
 
                 {/* Header */}
                 <div className="flex-none flex items-center justify-between">
                     <div>
-                        <h1 className="text-lg font-black uppercase tracking-widest text-zinc-900 dark:text-white flex items-center gap-2">
+                        <h1 className="text-lg font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
                             <Monitor className="h-6 w-6" />
                             Pusat Kerja & Routing
                         </h1>
-                        <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mt-1">
+                        <p className="text-xs font-bold text-zinc-400 mt-1">
                             Monitor status mesin, kapasitas produksi, dan maintenance
                         </p>
                     </div>
@@ -209,12 +209,12 @@ export function WorkCentersClient({ initialMachines, initialSummary }: Props) {
                             size="icon"
                             onClick={fetchMachines}
                             disabled={refreshing}
-                            className="h-10 w-10 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[1px] hover:translate-y-[1px] hover:bg-zinc-100 transition-all rounded-none"
+                            className="h-10 w-10 border border-border shadow-sm hover:shadow-sm hover:bg-zinc-100 transition-all rounded-md"
                         >
                             <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
                         </Button>
                         <Button
-                            className="h-10 bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] active:scale-[0.98] transition-all uppercase font-black tracking-widest text-xs rounded-none px-6"
+                            className="h-10 bg-slate-900 text-white hover:bg-zinc-800 border border-border shadow-sm hover:shadow-sm active:scale-[0.98] transition-all font-semibold text-xs rounded-md px-6"
                             onClick={handleCreateMachine}
                         >
                             <Plus className="mr-2 h-4 w-4" /> Tambah Mesin
@@ -223,8 +223,8 @@ export function WorkCentersClient({ initialMachines, initialSummary }: Props) {
                 </div>
 
                 {/* KPI Strip */}
-                <div className="flex-none bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                    <div className="grid grid-cols-2 md:grid-cols-4 divide-x-2 divide-black divide-y-2 md:divide-y-0">
+                <div className="flex-none bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
+                    <div className="grid grid-cols-2 md:grid-cols-4 divide-x-2 divide-border divide-y-2 md:divide-y-0">
                         {kpis.map((kpi, i) => (
                             <div
                                 key={kpi.label}
@@ -238,15 +238,15 @@ export function WorkCentersClient({ initialMachines, initialSummary }: Props) {
                                         <span className={cn("text-zinc-400 group-hover:text-black dark:group-hover:text-zinc-200 transition-colors", kpi.color)}>
                                             <kpi.icon className="h-5 w-5" />
                                         </span>
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-black dark:group-hover:text-zinc-300 transition-colors">
+                                        <span className="text-xs font-semibold text-zinc-500 group-hover:text-black dark:group-hover:text-zinc-300 transition-colors">
                                             {kpi.label}
                                         </span>
                                     </div>
                                 </div>
-                                <p className={cn("text-2xl font-black tracking-tighter", kpi.color)}>
+                                <p className={cn("text-2xl font-semibold tracking-tighter", kpi.color)}>
                                     {kpi.value}
                                 </p>
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mt-1">
+                                <p className="text-xs font-bold text-zinc-400 mt-1">
                                     {kpi.detail}
                                 </p>
                             </div>
@@ -262,7 +262,7 @@ export function WorkCentersClient({ initialMachines, initialSummary }: Props) {
                         </div>
                         <Input
                             placeholder="Cari mesin, kode, atau brand..."
-                            className="pl-10 h-10 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,0.3)] focus-visible:ring-0 focus-visible:translate-x-[1px] focus-visible:translate-y-[1px] focus-visible:shadow-[1px_1px_0px_0px_rgba(0,0,0,0.3)] transition-all bg-white dark:bg-zinc-900 rounded-none font-medium"
+                            className="pl-10 h-10 border border-border shadow-sm focus-visible:ring-0 focus-visible:shadow-sm transition-all bg-white dark:bg-zinc-900 rounded-md font-medium"
                             value={searchQuery}
                             onChange={(e) => handleSearchChange(e.target.value)}
                         />
@@ -274,10 +274,10 @@ export function WorkCentersClient({ initialMachines, initialSummary }: Props) {
                                 variant="outline"
                                 size="sm"
                                 className={cn(
-                                    "border-2 border-black rounded-none text-[10px] font-black uppercase tracking-widest h-8 transition-all hover:bg-black hover:text-white",
+                                    "border border-border rounded-md text-xs font-semibold h-8 transition-all hover:bg-slate-900 hover:text-white",
                                     ((filter === 'All' && !statusFilter) || statusFilter === filter)
-                                        ? 'bg-black text-white shadow-[2px_2px_0px_0px_rgba(100,100,100,1)]'
-                                        : 'bg-white text-zinc-600 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,0.3)]'
+                                        ? 'bg-slate-900 text-white shadow-sm'
+                                        : 'bg-white text-zinc-600 shadow-sm hover:shadow-sm'
                                 )}
                                 onClick={() => handleStatusFilter(filter === 'All' ? null : filter)}
                             >
@@ -289,12 +289,12 @@ export function WorkCentersClient({ initialMachines, initialSummary }: Props) {
 
                 {/* Error State */}
                 {error && (
-                    <div className="border-2 border-red-500 bg-red-50 p-4 shadow-[4px_4px_0px_0px_rgba(239,68,68,1)] flex items-center justify-between">
-                        <div className="flex items-center gap-3 text-red-700 font-bold uppercase tracking-wide text-xs">
+                    <div className="border border-red-500 bg-red-50 p-4 shadow-sm flex items-center justify-between">
+                        <div className="flex items-center gap-3 text-red-700 font-bold text-xs">
                             <AlertCircle className="h-5 w-5" />
                             <span>{error}</span>
                         </div>
-                        <Button variant="outline" size="sm" onClick={fetchMachines} className="bg-white border-2 border-red-500 text-red-700 hover:bg-red-100 rounded-none font-bold text-xs uppercase">
+                        <Button variant="outline" size="sm" onClick={fetchMachines} className="bg-white border border-red-500 text-red-700 hover:bg-red-100 rounded-md font-bold text-xs ">
                             Retry
                         </Button>
                     </div>
@@ -302,17 +302,17 @@ export function WorkCentersClient({ initialMachines, initialSummary }: Props) {
 
                 {/* Empty State */}
                 {machines.length === 0 && !error && (
-                    <div className="border-2 border-dashed border-zinc-300 min-h-[300px] flex flex-col items-center justify-center text-center bg-zinc-50/50 p-8">
-                        <div className="h-16 w-16 bg-zinc-100 border-2 border-zinc-200 flex items-center justify-center mb-4 rounded-full">
+                    <div className="border border-dashed border-zinc-300 min-h-[300px] flex flex-col items-center justify-center text-center bg-zinc-50/50 p-8">
+                        <div className="h-16 w-16 bg-zinc-100 border border-zinc-200 flex items-center justify-center mb-4 rounded-full">
                             <Factory className="h-8 w-8 text-zinc-300" />
                         </div>
-                        <h3 className="text-lg font-black uppercase tracking-widest text-zinc-400">Tidak ada mesin ditemukan</h3>
+                        <h3 className="text-lg font-semibold text-zinc-400">Tidak ada mesin ditemukan</h3>
                         <p className="text-xs font-bold text-zinc-400 mt-2 max-w-xs">
                             {searchQuery || statusFilter
                                 ? 'Coba sesuaikan kata kunci pencarian atau filter status anda.'
                                 : 'Mulai dengan menambahkan mesin baru ke dalam sistem.'}
                         </p>
-                        <Button className="mt-6 bg-black text-white rounded-none font-black uppercase tracking-wider text-xs px-6 py-5 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all" onClick={handleCreateMachine}>
+                        <Button className="mt-6 bg-slate-900 text-white rounded-md font-semibold text-xs px-6 py-5 border border-border shadow-sm hover:shadow-none transition-all" onClick={handleCreateMachine}>
                             <Plus className="mr-2 h-4 w-4" /> Add Machine
                         </Button>
                     </div>
@@ -328,15 +328,15 @@ export function WorkCentersClient({ initialMachines, initialSummary }: Props) {
                             return (
                                 <Card
                                     key={mc.id}
-                                    className="group relative border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all rounded-none bg-white dark:bg-zinc-900 overflow-hidden flex flex-col"
+                                    className="group relative border border-border shadow-sm hover:shadow-sm transition-all rounded-md bg-white dark:bg-zinc-900 overflow-hidden flex flex-col"
                                 >
                                     {/* Card Header Strip */}
-                                    <div className="flex justify-between items-center p-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800">
+                                    <div className="flex justify-between items-center p-3 border-b border-border bg-zinc-50 dark:bg-zinc-800">
                                         <div className="flex items-center gap-2">
-                                            <div className="h-6 w-6 bg-zinc-900 text-white flex items-center justify-center font-black text-[10px] border border-black">
+                                            <div className="h-6 w-6 bg-zinc-900 text-white flex items-center justify-center font-semibold text-xs border border-border">
                                                 {mc.code.substring(0, 2)}
                                             </div>
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                            <span className="text-xs font-semibold text-zinc-500">
                                                 {mc.code}
                                             </span>
                                         </div>
@@ -346,10 +346,10 @@ export function WorkCentersClient({ initialMachines, initialSummary }: Props) {
                                     {/* Main Content */}
                                     <div className="p-4 flex-1 flex flex-col gap-4">
                                         <div>
-                                            <h3 className="text-sm font-black uppercase tracking-wide leading-tight line-clamp-2 min-h-[2.5em]">
+                                            <h3 className="text-sm font-semibold leading-tight line-clamp-2 min-h-[2.5em]">
                                                 {mc.name}
                                             </h3>
-                                            <div className="flex items-center gap-2 mt-1 text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                                            <div className="flex items-center gap-2 mt-1 text-xs font-bold text-zinc-400  ">
                                                 {mc.brand && <span>{mc.brand}</span>}
                                                 {mc.brand && mc.model && <span>•</span>}
                                                 {mc.model && <span>{mc.model}</span>}
@@ -358,13 +358,13 @@ export function WorkCentersClient({ initialMachines, initialSummary }: Props) {
 
                                         <div className="grid grid-cols-2 gap-2 mt-auto">
                                             <div className="border border-zinc-200 bg-zinc-50/50 p-2">
-                                                <p className="text-[9px] font-black uppercase text-zinc-400 tracking-widest mb-0.5">Capacity</p>
+                                                <p className="text-xs font-semibold text-zinc-400 mb-0.5">Capacity</p>
                                                 <div className="font-bold text-sm text-zinc-900">
-                                                    {mc.capacityPerHour || 0} <span className="text-[9px] text-zinc-400">/hr</span>
+                                                    {mc.capacityPerHour || 0} <span className="text-xs text-zinc-400">/hr</span>
                                                 </div>
                                             </div>
                                             <div className="border border-zinc-200 bg-zinc-50/50 p-2">
-                                                <p className="text-[9px] font-black uppercase text-zinc-400 tracking-widest mb-0.5">Health</p>
+                                                <p className="text-xs font-semibold text-zinc-400 mb-0.5">Health</p>
                                                 <div className="flex items-center gap-2">
                                                     <span className={cn(
                                                         "font-bold text-sm",
@@ -374,7 +374,7 @@ export function WorkCentersClient({ initialMachines, initialSummary }: Props) {
                                                     </span>
                                                     <Progress
                                                         value={mc.healthScore}
-                                                        className="h-1.5 flex-1 border border-black/10 bg-zinc-100 rounded-none"
+                                                        className="h-1.5 flex-1 border border-black/10 bg-zinc-100 rounded-md"
                                                         indicatorClassName={
                                                             mc.healthScore > 80 ? 'bg-emerald-500' :
                                                                 mc.healthScore > 50 ? 'bg-amber-500' : 'bg-red-500'
@@ -386,8 +386,8 @@ export function WorkCentersClient({ initialMachines, initialSummary }: Props) {
                                     </div>
 
                                     {/* Footer / Actions */}
-                                    <div className="border-t-2 border-black p-2 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800">
-                                        <div className="flex items-center gap-1.5 px-2 text-[10px] font-black uppercase text-zinc-500 tracking-wider">
+                                    <div className="border-t border-border p-2 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800">
+                                        <div className="flex items-center gap-1.5 px-2 text-xs font-semibold text-zinc-500">
                                             <Clock className="h-3 w-3" />
                                             <span>Maint: <span className={nextMaint === 'OVERDUE' ? 'text-red-600 underline' : ''}>{nextMaint}</span></span>
                                         </div>
@@ -396,7 +396,7 @@ export function WorkCentersClient({ initialMachines, initialSummary }: Props) {
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className="h-7 w-7 rounded-none hover:bg-black hover:text-white border border-transparent hover:border-black transition-all"
+                                                className="h-7 w-7 rounded-md hover:bg-slate-900 hover:text-white border border-transparent hover:border-border transition-all"
                                                 onClick={() => handleEditMachine(mc)}
                                                 title="Edit Machine"
                                             >
@@ -405,7 +405,7 @@ export function WorkCentersClient({ initialMachines, initialSummary }: Props) {
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className="h-7 w-7 rounded-none text-red-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200 border border-transparent transition-all"
+                                                className="h-7 w-7 rounded-md text-red-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200 border border-transparent transition-all"
                                                 onClick={(e) => handleDeleteMachine(e, mc)}
                                                 disabled={deleting === mc.id}
                                                 title="Delete Machine"
@@ -434,7 +434,7 @@ export function WorkCentersClient({ initialMachines, initialSummary }: Props) {
 function StatusBadge({ status, rawStatus }: { status: string, rawStatus: string }) {
     if (status === 'Running') {
         return (
-            <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-100 border border-emerald-300 text-emerald-800 text-[9px] font-black uppercase tracking-widest shadow-[1px_1px_0px_0px_rgba(16,185,129,0.5)]">
+            <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-semibold shadow-sm">
                 <Activity className="h-3 w-3 animate-pulse" /> RUNNING
             </div>
         );
@@ -443,7 +443,7 @@ function StatusBadge({ status, rawStatus }: { status: string, rawStatus: string 
         const isMaint = rawStatus === 'MAINTENANCE';
         return (
             <div className={cn(
-                "flex items-center gap-1.5 px-2 py-1 border text-[9px] font-black uppercase tracking-widest shadow-[1px_1px_0px_0px_rgba(0,0,0,0.2)]",
+                "flex items-center gap-1.5 px-2 py-1 border text-xs font-semibold shadow-sm",
                 isMaint
                     ? "bg-amber-100 border-amber-300 text-amber-800"
                     : "bg-red-100 border-red-300 text-red-800"
@@ -453,7 +453,7 @@ function StatusBadge({ status, rawStatus }: { status: string, rawStatus: string 
         );
     }
     return (
-        <div className="flex items-center gap-1.5 px-2 py-1 bg-zinc-100 border border-zinc-300 text-zinc-600 text-[9px] font-black uppercase tracking-widest">
+        <div className="flex items-center gap-1.5 px-2 py-1 bg-zinc-100 border border-zinc-300 text-zinc-600 text-xs font-semibold  ">
             <Clock className="h-3 w-3" /> IDLE
         </div>
     );

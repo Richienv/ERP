@@ -57,7 +57,7 @@ export default function PettyCashPage() {
     const [dateTo, setDateTo] = useState("")
     const [typeFilter, setTypeFilter] = useState<"ALL" | "TOPUP" | "DISBURSEMENT">("ALL")
 
-    if (isLoading || !data) return <TablePageSkeleton accentColor="bg-orange-400" />
+    if (isLoading || !data) return <TablePageSkeleton accentColor="bg-blue-400" />
 
     const allTransactions = data.transactions || []
 
@@ -102,14 +102,14 @@ export default function PettyCashPage() {
                 {/* Row 1: Title + Toolbar Actions */}
                 <div className={`px-5 py-3.5 flex items-center justify-between ${NB.pageRowBorder}`}>
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-orange-500 flex items-center justify-center">
+                        <div className="w-9 h-9 bg-blue-500 flex items-center justify-center">
                             <Wallet className="h-4.5 w-4.5 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-base font-black uppercase tracking-wider text-zinc-900 dark:text-white">
+                            <h1 className="text-base font-semibold text-zinc-900 dark:text-white">
                                 Peti Kas
                             </h1>
-                            <p className="text-zinc-400 text-[11px] font-medium">
+                            <p className="text-zinc-400 text-xs font-medium">
                                 Kas kecil untuk pengeluaran operasional harian
                             </p>
                         </div>
@@ -200,7 +200,7 @@ export default function PettyCashPage() {
                                                     animate={{ opacity: 1, x: 0 }}
                                                     exit={{ opacity: 0, x: -8 }}
                                                     transition={{ type: "spring" as const, stiffness: 300, damping: 25 }}
-                                                    className={`text-lg font-black ${
+                                                    className={`text-lg font-semibold ${
                                                         kpi.color === "emerald" ? "text-emerald-600 dark:text-emerald-400" :
                                                         kpi.color === "red" ? "text-red-600 dark:text-red-400" :
                                                         "text-zinc-900 dark:text-white"
@@ -213,7 +213,7 @@ export default function PettyCashPage() {
                                                     key="hidden"
                                                     initial={{ opacity: 0 }}
                                                     animate={{ opacity: 1 }}
-                                                    className="text-lg font-black text-zinc-300 dark:text-zinc-600"
+                                                    className="text-lg font-semibold text-zinc-300 dark:text-zinc-600"
                                                 >
                                                     *** ***
                                                 </motion.span>
@@ -236,27 +236,27 @@ export default function PettyCashPage() {
                 {/* Row 3: Filter Toolbar */}
                 <div className={`px-5 py-2 flex items-center gap-2 bg-zinc-50/80 dark:bg-zinc-800/30 ${NB.pageRowBorder}`}>
                     <div className="flex items-center gap-1.5">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Dari</label>
+                        <label className="text-xs font-bold text-zinc-400">Dari</label>
                         <input
                             type="date"
                             value={dateFrom}
                             onChange={(e) => { setDateFrom(e.target.value); setPage(1) }}
-                            className={`border h-8 px-2 text-xs font-mono rounded-none outline-none transition-colors ${dateFrom ? "border-orange-400 bg-orange-50/50 dark:bg-orange-950/20" : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"}`}
+                            className={`border h-8 px-2 text-xs font-mono rounded-md outline-none transition-colors ${dateFrom ? "border-blue-400 bg-blue-50/50 dark:bg-blue-950/20" : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"}`}
                         />
                     </div>
                     <div className="flex items-center gap-1.5">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">s/d</label>
+                        <label className="text-xs font-bold text-zinc-400">s/d</label>
                         <input
                             type="date"
                             value={dateTo}
                             onChange={(e) => { setDateTo(e.target.value); setPage(1) }}
-                            className={`border h-8 px-2 text-xs font-mono rounded-none outline-none transition-colors ${dateTo ? "border-orange-400 bg-orange-50/50 dark:bg-orange-950/20" : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"}`}
+                            className={`border h-8 px-2 text-xs font-mono rounded-md outline-none transition-colors ${dateTo ? "border-blue-400 bg-blue-50/50 dark:bg-blue-950/20" : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"}`}
                         />
                     </div>
                     <select
                         value={typeFilter}
                         onChange={(e) => { setTypeFilter(e.target.value as "ALL" | "TOPUP" | "DISBURSEMENT"); setPage(1) }}
-                        className={`border h-8 px-2 text-[10px] font-bold uppercase tracking-wider rounded-none outline-none transition-colors ${typeFilter !== "ALL" ? "border-orange-400 bg-orange-50/50 dark:bg-orange-950/20 text-orange-700" : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-600"}`}
+                        className={`border h-8 px-2 text-xs font-bold   rounded-md outline-none transition-colors ${typeFilter !== "ALL" ? "border-blue-400 bg-blue-50/50 dark:bg-blue-950/20 text-blue-700" : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-600"}`}
                     >
                         <option value="ALL">Semua Tipe</option>
                         <option value="TOPUP">Top Up</option>
@@ -265,12 +265,12 @@ export default function PettyCashPage() {
                     {hasActiveFilter && (
                         <button
                             onClick={() => { setDateFrom(""); setDateTo(""); setTypeFilter("ALL"); setPage(1) }}
-                            className="text-[10px] font-bold text-zinc-400 hover:text-zinc-600 transition-colors ml-1"
+                            className="text-xs font-bold text-zinc-400 hover:text-zinc-600 transition-colors ml-1"
                         >
                             Reset
                         </button>
                     )}
-                    <span className="ml-auto text-[10px] font-bold text-zinc-400">
+                    <span className="ml-auto text-xs font-bold text-zinc-400">
                         {transactions.length} transaksi{hasActiveFilter ? ` (dari ${allTransactions.length})` : ""}
                     </span>
                 </div>
@@ -278,13 +278,13 @@ export default function PettyCashPage() {
 
             {/* ─── Transaction Table ─── */}
             <div
-                className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex flex-col"
+                className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden flex flex-col"
                 style={{ minHeight: 480 }}
             >
                 {/* Table Header */}
-                <div className="hidden md:grid grid-cols-[120px_90px_1fr_1.5fr_130px_130px] gap-2 px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black">
+                <div className="hidden md:grid grid-cols-[120px_90px_1fr_1.5fr_130px_130px] gap-2 px-5 py-2.5 bg-slate-900 dark:bg-zinc-950 border-b border-border">
                     {["Tanggal", "Tipe", "Nama", "Keterangan", "Jumlah", "Saldo"].map((h) => (
-                        <span key={h} className="text-xs font-black uppercase tracking-widest text-zinc-400">{h}</span>
+                        <span key={h} className="text-xs font-semibold text-zinc-400">{h}</span>
                     ))}
                 </div>
 
@@ -297,7 +297,7 @@ export default function PettyCashPage() {
                             transition={{ type: "spring" as const, stiffness: 300, damping: 25 }}
                             className="flex-1 flex flex-col items-center justify-center py-16 text-zinc-400"
                         >
-                            <div className="w-16 h-16 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
+                            <div className="w-16 h-16 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
                                 <Wallet className="h-7 w-7 text-zinc-200 dark:text-zinc-700" />
                             </div>
                             <span className="text-sm font-bold">Belum ada transaksi</span>
@@ -311,7 +311,7 @@ export default function PettyCashPage() {
                                 return (
                                     <div
                                         key={tx.id}
-                                        className={`grid grid-cols-1 md:grid-cols-[120px_90px_1fr_1.5fr_130px_130px] gap-2 px-5 py-3 items-center transition-all hover:bg-orange-50/50 dark:hover:bg-orange-950/10 ${idx % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/60 dark:bg-zinc-800/20"}`}
+                                        className={`grid grid-cols-1 md:grid-cols-[120px_90px_1fr_1.5fr_130px_130px] gap-2 px-5 py-3 items-center transition-all hover:bg-blue-50/50 dark:hover:bg-blue-950/10 ${idx % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/60 dark:bg-zinc-800/20"}`}
                                     >
                                         {/* Date */}
                                         <div>
@@ -323,11 +323,11 @@ export default function PettyCashPage() {
                                         {/* Type badge */}
                                         <div>
                                             {isTopUp ? (
-                                                <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-none bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400">
+                                                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 border rounded-md bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400">
                                                     <ArrowUpCircle className="h-3 w-3" /> Masuk
                                                 </span>
                                             ) : (
-                                                <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-none bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-700 text-red-600 dark:text-red-400">
+                                                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 border rounded-md bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-700 text-red-600 dark:text-red-400">
                                                     <ArrowDownCircle className="h-3 w-3" /> Keluar
                                                 </span>
                                             )}
@@ -345,7 +345,7 @@ export default function PettyCashPage() {
 
                                         {/* Amount */}
                                         <div>
-                                            <span className={`font-mono text-sm font-black ${isTopUp ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
+                                            <span className={`font-mono text-sm font-semibold ${isTopUp ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
                                                 {isTopUp ? "+" : "\u2212"}{formatCurrency(tx.amount)}
                                             </span>
                                         </div>
@@ -373,17 +373,17 @@ export default function PettyCashPage() {
                             <Button
                                 variant="outline"
                                 size="icon"
-                                className="h-7 w-7 border border-zinc-300 dark:border-zinc-600 rounded-none"
+                                className="h-7 w-7 border border-zinc-300 dark:border-zinc-600 rounded-md"
                                 disabled={page <= 1}
                                 onClick={() => setPage(p => p - 1)}
                             >
                                 <ChevronLeft className="h-3.5 w-3.5" />
                             </Button>
-                            <span className="text-xs font-black min-w-[50px] text-center">{page}/{totalPages}</span>
+                            <span className="text-xs font-semibold min-w-[50px] text-center">{page}/{totalPages}</span>
                             <Button
                                 variant="outline"
                                 size="icon"
-                                className="h-7 w-7 border border-zinc-300 dark:border-zinc-600 rounded-none"
+                                className="h-7 w-7 border border-zinc-300 dark:border-zinc-600 rounded-md"
                                 disabled={page >= totalPages}
                                 onClick={() => setPage(p => p + 1)}
                             >
@@ -440,7 +440,7 @@ function TopUpDialog({ open, onOpenChange, onSuccess }: { open: boolean; onOpenC
                     onChange={setAmount}
                 />
                 <div>
-                    <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                    <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1 block">
                         Dari Akun Bank
                     </label>
                     <ComboboxWithCreate
@@ -545,7 +545,7 @@ function DisburseDialog({ open, onOpenChange, onSuccess }: { open: boolean; onOp
                     onChange={setAmount}
                 />
                 <div>
-                    <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                    <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1 block">
                         Kategori Beban
                     </label>
                     <ComboboxWithCreate

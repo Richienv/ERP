@@ -26,7 +26,7 @@ export default function ReconciliationPage() {
     const { data, isFetching } = useReconciliation()
 
     if (!data) {
-        return <TablePageSkeleton accentColor="bg-orange-400" />
+        return <TablePageSkeleton accentColor="bg-blue-400" />
     }
 
     return (

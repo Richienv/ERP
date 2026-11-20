@@ -44,7 +44,7 @@ export function AuditLogTimeline({ entityType, entityId }: AuditLogTimelineProps
     return (
       <div className="p-6 text-center">
         <FileText className="h-8 w-8 mx-auto text-zinc-200 mb-2" />
-        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+        <p className="text-xs font-semibold text-zinc-400">
           Belum ada riwayat perubahan
         </p>
       </div>
@@ -73,7 +73,7 @@ export function AuditLogTimeline({ entityType, entityId }: AuditLogTimelineProps
             {entry.changes && Object.keys(entry.changes).length > 0 && (
               <div className="mt-1.5 space-y-0.5">
                 {Object.entries(entry.changes).slice(0, 5).map(([field, change]) => (
-                  <div key={field} className="text-[10px] text-zinc-500 font-mono">
+                  <div key={field} className="text-xs text-zinc-500 font-mono">
                     <span className="font-bold text-zinc-600">{field}:</span>{" "}
                     <span className="line-through text-red-400">{String(change.from)}</span>{" → "}
                     <span className="text-emerald-600">{String(change.to)}</span>
@@ -83,11 +83,11 @@ export function AuditLogTimeline({ entityType, entityId }: AuditLogTimelineProps
             )}
 
             <div className="flex items-center gap-3 mt-1">
-              <span className="text-[9px] text-zinc-400 flex items-center gap-1">
+              <span className="text-xs text-zinc-400 flex items-center gap-1">
                 <User className="h-2.5 w-2.5" />
                 {entry.userName || "Sistem"}
               </span>
-              <span className="text-[9px] text-zinc-400 flex items-center gap-1">
+              <span className="text-xs text-zinc-400 flex items-center gap-1">
                 <Clock className="h-2.5 w-2.5" />
                 {formatDistanceToNow(new Date(entry.createdAt), { addSuffix: true, locale: localeId })}
               </span>

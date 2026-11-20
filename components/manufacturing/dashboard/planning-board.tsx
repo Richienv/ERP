@@ -25,8 +25,8 @@ const machineSchedule = [
 
 export function PlanningBoard() {
     return (
-        <Card className="h-full flex flex-col border border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-xl overflow-hidden">
-            <CardHeader className="pb-3 border-b border-black bg-zinc-50 dark:bg-zinc-900">
+        <Card className="h-full flex flex-col border border-border shadow-sm rounded-xl overflow-hidden">
+            <CardHeader className="pb-3 border-b border-border bg-zinc-50 dark:bg-zinc-900">
                 <div className="flex items-center justify-between">
                     <div>
                         <CardTitle>Papan Perencanaan (Planning Board)</CardTitle>
@@ -41,7 +41,7 @@ export function PlanningBoard() {
             <CardContent className="p-0 flex-1 overflow-hidden flex flex-col">
                 {/* 2.1 Timeline (Gantt-ish) */}
                 <div className="p-4 border-b border-black/10 bg-white">
-                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">Active Work Orders Timeline</h4>
+                    <h4 className="text-xs font-medium text-muted-foreground mb-4">Active Work Orders Timeline</h4>
                     <div className="space-y-4">
                         {activePOs.map((po) => (
                             <div key={po.id} className="grid grid-cols-12 gap-4 items-center">
@@ -55,9 +55,9 @@ export function PlanningBoard() {
                                 <div className="col-span-9 relative h-8 bg-zinc-100 dark:bg-zinc-800 rounded-md flex items-center px-1">
                                     {/* Simple visual representation of progress */}
                                     <div
-                                        className={`h-6 rounded text-[10px] text-white flex items-center justify-center relative group cursor-pointer transition-all
+                                        className={`h-6 rounded text-xs text-white flex items-center justify-center relative group cursor-pointer transition-all
                                     ${po.status === 'Late' ? 'bg-red-500 w-[60%]' :
-                                                po.status === 'Risk' ? 'bg-orange-500 w-[85%]' :
+                                                po.status === 'Risk' ? 'bg-blue-500 w-[85%]' :
                                                     'bg-blue-500 w-[40%]'}
                                 `}
                                     >
@@ -65,7 +65,7 @@ export function PlanningBoard() {
 
                                         {/* Hover Tooltip (Custom for demo) */}
                                         {po.delay && (
-                                            <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-white text-xs p-2 rounded shadow-lg z-50 whitespace-nowrap hidden group-hover:block">
+                                            <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs p-2 rounded shadow-lg z-50 whitespace-nowrap hidden group-hover:block">
                                                 <div className="font-bold flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-yellow-500" /> Issue: {po.delay}</div>
                                                 <div>Est. Finish: Tomorrow 10:00 (Delayed)</div>
                                             </div>
@@ -73,7 +73,7 @@ export function PlanningBoard() {
                                     </div>
 
                                     {/* Remaining track */}
-                                    <div className="flex-1 border-l ml-1 pl-2 text-[10px] text-zinc-400">
+                                    <div className="flex-1 border-l ml-1 pl-2 text-xs text-zinc-400">
                                         Est. Delivery: {po.status === 'Late' ? 'Active Delay' : 'On Schedule'}
                                     </div>
                                 </div>
@@ -84,20 +84,20 @@ export function PlanningBoard() {
 
                 {/* 2.2 Machine Loading Grid */}
                 <div className="p-4 flex-1 overflow-auto bg-zinc-50/50 dark:bg-zinc-900/10">
-                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">Machine Schedule (Today)</h4>
+                    <h4 className="text-xs font-medium text-muted-foreground mb-4">Machine Schedule (Today)</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         {machineSchedule.map((ms, idx) => (
-                            <div key={idx} className="bg-white border border-black rounded-lg p-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                            <div key={idx} className="bg-white border border-border rounded-lg p-3 shadow-sm">
                                 <div className="flex justify-between items-center mb-2">
                                     <div className="font-semibold text-sm">{ms.machine}</div>
-                                    <Badge variant="outline" className="text-[10px]">Auto</Badge>
+                                    <Badge variant="outline" className="text-xs">Auto</Badge>
                                 </div>
                                 <div className="space-y-2">
                                     {ms.shifts.map((shift, sIdx) => (
                                         <div
                                             key={sIdx}
                                             className={`
-                                        p-2 rounded text-xs border border-l-4 cursor-pointer hover:opacity-80 transition-opacity
+                                        p-2 rounded text-xs border border-l cursor-pointer hover:opacity-80 transition-opacity
                                         ${shift.status === 'Running' ? 'bg-blue-50 border-blue-500 border-l-blue-500 text-blue-700' :
                                                     shift.status === 'Late Risk' ? 'bg-red-50 border-red-500 border-l-red-500 text-red-700' :
                                                         shift.status === 'Idle' ? 'bg-zinc-100 border-zinc-300 border-l-zinc-300 text-zinc-500 border-dashed' :

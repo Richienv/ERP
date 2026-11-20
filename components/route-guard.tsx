@@ -147,7 +147,7 @@ export function RouteGuard({ children }: { children: React.ReactNode }) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-white dark:bg-zinc-950">
                 <div className="flex flex-col items-center gap-3">
-                    <div className="h-8 w-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                    <div className="h-8 w-8 border border-border border-t-transparent rounded-full animate-spin" />
                     <p className="text-sm text-zinc-500 font-medium">Memuat...</p>
                 </div>
             </div>

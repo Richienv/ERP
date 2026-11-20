@@ -86,15 +86,15 @@ export function WarehouseStaffDialog({ warehouseId, warehouseName, triggerMode }
     <>
       {triggerMode === "staff" ? (
         <button type="button" className="w-full text-center" onClick={() => setOpen(true)}>
-          <p className="text-xs font-bold uppercase text-muted-foreground mb-1">Active Staff</p>
-          <p className="text-2xl font-black">{data?.activeStaff?.length ?? "View"}</p>
+          <p className="text-xs font-bold text-muted-foreground mb-1">Active Staff</p>
+          <p className="text-2xl font-semibold">{data?.activeStaff?.length ?? "View"}</p>
         </button>
       ) : (
         <Button
           variant="outline"
           size="icon"
           onClick={() => setOpen(true)}
-          className="h-9 w-9 border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[1px] hover:translate-x-[1px] bg-white rounded-none"
+          className="h-9 w-9 border border-border shadow-sm hover:shadow-none bg-white rounded-md"
         >
           <UserCog className="h-4 w-4" />
         </Button>
@@ -109,13 +109,13 @@ export function WarehouseStaffDialog({ warehouseId, warehouseName, triggerMode }
 
         <NBDialogBody>
           {loading ? (
-            <div className="py-10 text-center text-zinc-400 font-bold text-xs uppercase">Loading staffing data...</div>
+            <div className="py-10 text-center text-zinc-400 font-bold text-xs ">Loading staffing data...</div>
           ) : (
             <>
               {/* Current Manager */}
               <NBSection icon={UserCog} title="Current Manager">
                 <div>
-                  <p className="font-black text-base">{data?.currentManager?.name || "Unassigned"}</p>
+                  <p className="font-semibold text-base">{data?.currentManager?.name || "Unassigned"}</p>
                   {data?.currentManager?.position && (
                     <p className="text-xs text-zinc-500 font-bold">{data.currentManager.position}</p>
                   )}
@@ -134,7 +134,7 @@ export function WarehouseStaffDialog({ warehouseId, warehouseName, triggerMode }
                       }))}
                     />
                     <Button
-                      className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none mt-2"
+                      className="bg-slate-900 text-white border border-border hover:bg-zinc-800 font-semibold text-xs px-5 h-8 rounded-md mt-2"
                       onClick={handleAssign}
                       disabled={submitting || !selectedManager}
                     >
@@ -159,7 +159,7 @@ export function WarehouseStaffDialog({ warehouseId, warehouseName, triggerMode }
                             {emp.position} - {emp.department}
                           </p>
                         </div>
-                        <span className="text-[10px] font-black uppercase border border-black px-2 py-0.5">
+                        <span className="text-xs font-semibold border border-border px-2 py-0.5">
                           {emp.status}
                         </span>
                       </div>

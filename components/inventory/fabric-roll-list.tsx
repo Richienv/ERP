@@ -50,17 +50,17 @@ export function FabricRollList({ rolls, products, warehouses }: FabricRollListPr
         <div className="space-y-4">
             {/* Summary Strip */}
             <div className="grid grid-cols-3 gap-4">
-                <div className="border-2 border-black p-3 bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 block">Total Roll</span>
-                    <span className="text-2xl font-black">{totalRolls}</span>
+                <div className="border border-border p-3 bg-white shadow-sm">
+                    <span className="text-xs font-semibold text-zinc-400 block">Total Roll</span>
+                    <span className="text-2xl font-semibold">{totalRolls}</span>
                 </div>
-                <div className="border-2 border-black p-3 bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 block">Tersedia</span>
-                    <span className="text-2xl font-black text-emerald-600">{availableRolls}</span>
+                <div className="border border-border p-3 bg-white shadow-sm">
+                    <span className="text-xs font-semibold text-zinc-400 block">Tersedia</span>
+                    <span className="text-2xl font-semibold text-emerald-600">{availableRolls}</span>
                 </div>
-                <div className="border-2 border-black p-3 bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 block">Total Sisa Meter</span>
-                    <span className="text-2xl font-black">{totalMeters.toLocaleString('id-ID', { maximumFractionDigits: 1 })}m</span>
+                <div className="border border-border p-3 bg-white shadow-sm">
+                    <span className="text-xs font-semibold text-zinc-400 block">Total Sisa Meter</span>
+                    <span className="text-2xl font-semibold">{totalMeters.toLocaleString('id-ID', { maximumFractionDigits: 1 })}m</span>
                 </div>
             </div>
 
@@ -69,7 +69,7 @@ export function FabricRollList({ rolls, products, warehouses }: FabricRollListPr
                 <div className="relative flex-1 max-w-sm">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                     <Input
-                        className="pl-9 border-2 border-black font-bold h-9 rounded-none"
+                        className="pl-9 border border-border font-bold h-9 rounded-md"
                         placeholder="Cari roll, produk, lot..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
@@ -82,8 +82,8 @@ export function FabricRollList({ rolls, products, warehouses }: FabricRollListPr
                             key={f.value}
                             variant="outline"
                             size="sm"
-                            className={`h-9 text-[10px] font-black uppercase tracking-wider border-2 border-black rounded-none ${
-                                statusFilter === f.value ? 'bg-black text-white' : 'bg-white hover:bg-zinc-100'
+                            className={`h-9 text-xs font-semibold   border border-border rounded-md ${
+                                statusFilter === f.value ? 'bg-slate-900 text-white' : 'bg-white hover:bg-zinc-100'
                             }`}
                             onClick={() => setStatusFilter(f.value)}
                         >
@@ -96,7 +96,7 @@ export function FabricRollList({ rolls, products, warehouses }: FabricRollListPr
                     <Button
                         variant="outline"
                         size="sm"
-                        className={`h-9 w-9 p-0 border-2 border-black rounded-none ${viewMode === 'grid' ? 'bg-black text-white' : ''}`}
+                        className={`h-9 w-9 p-0 border border-border rounded-md ${viewMode === 'grid' ? 'bg-slate-900 text-white' : ''}`}
                         onClick={() => setViewMode('grid')}
                     >
                         <LayoutGrid className="h-3.5 w-3.5" />
@@ -104,7 +104,7 @@ export function FabricRollList({ rolls, products, warehouses }: FabricRollListPr
                     <Button
                         variant="outline"
                         size="sm"
-                        className={`h-9 w-9 p-0 border-2 border-black rounded-none ${viewMode === 'table' ? 'bg-black text-white' : ''}`}
+                        className={`h-9 w-9 p-0 border border-border rounded-md ${viewMode === 'table' ? 'bg-slate-900 text-white' : ''}`}
                         onClick={() => setViewMode('table')}
                     >
                         <List className="h-3.5 w-3.5" />
@@ -116,9 +116,9 @@ export function FabricRollList({ rolls, products, warehouses }: FabricRollListPr
 
             {/* Content */}
             {filtered.length === 0 ? (
-                <div className="border-2 border-dashed border-zinc-300 p-12 text-center">
+                <div className="border border-dashed border-zinc-300 p-12 text-center">
                     <Package className="h-10 w-10 mx-auto text-zinc-300 mb-3" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">
+                    <span className="text-xs font-semibold text-zinc-400 block">
                         {search || statusFilter ? 'Tidak ada roll yang cocok' : 'Belum ada fabric roll'}
                     </span>
                 </div>
@@ -129,17 +129,17 @@ export function FabricRollList({ rolls, products, warehouses }: FabricRollListPr
                     ))}
                 </div>
             ) : (
-                <div className="border-2 border-black overflow-hidden">
+                <div className="border border-border overflow-hidden">
                     <table className="w-full">
-                        <thead className="bg-zinc-100 border-b-2 border-black">
+                        <thead className="bg-zinc-100 border-b border-border">
                             <tr>
-                                <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">Roll #</th>
-                                <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">Produk</th>
-                                <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-center">Sisa</th>
-                                <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-center">Dye Lot</th>
-                                <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-center">Grade</th>
-                                <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">Gudang</th>
-                                <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-center">Status</th>
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">Roll #</th>
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">Produk</th>
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-center">Sisa</th>
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-center">Dye Lot</th>
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-center">Grade</th>
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">Gudang</th>
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-center">Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -152,10 +152,10 @@ export function FabricRollList({ rolls, products, warehouses }: FabricRollListPr
                                 }[r.status] ?? ''
                                 return (
                                     <tr key={r.id} className="border-b border-zinc-100 last:border-b-0 hover:bg-zinc-50">
-                                        <td className="px-3 py-2 font-mono font-black text-xs">{r.rollNumber}</td>
+                                        <td className="px-3 py-2 font-mono font-semibold text-xs">{r.rollNumber}</td>
                                         <td className="px-3 py-2">
                                             <div className="text-xs font-bold">{r.productName}</div>
-                                            <div className="text-[10px] text-zinc-400 font-mono">{r.productCode}</div>
+                                            <div className="text-xs text-zinc-400 font-mono">{r.productCode}</div>
                                         </td>
                                         <td className="px-3 py-2 text-center font-mono font-bold text-xs">
                                             {r.remainingMeters}m / {r.lengthMeters}m
@@ -164,7 +164,7 @@ export function FabricRollList({ rolls, products, warehouses }: FabricRollListPr
                                         <td className="px-3 py-2 text-center text-xs font-bold">{r.grade ?? '—'}</td>
                                         <td className="px-3 py-2 text-xs">{r.warehouseName}</td>
                                         <td className="px-3 py-2 text-center">
-                                            <span className={`text-[9px] font-black px-1.5 py-0.5 border ${style}`}>
+                                            <span className={`text-xs font-semibold px-1.5 py-0.5 border ${style}`}>
                                                 {r.status}
                                             </span>
                                         </td>

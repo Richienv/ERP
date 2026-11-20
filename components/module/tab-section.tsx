@@ -28,7 +28,7 @@ export function TabSection({
   return (
     <div className={cn("", className)}>
       {/* Tab header */}
-      <div className="flex bg-black">
+      <div className="flex bg-slate-900">
         {tabs.map((tab) => {
           const isActive = tab.value === activeTab
           return (
@@ -37,9 +37,9 @@ export function TabSection({
               type="button"
               onClick={() => onTabChange(tab.value)}
               className={cn(
-                "px-6 py-3 uppercase text-sm font-bold tracking-wider transition-colors flex items-center gap-2",
+                "px-6 py-3 text-sm font-bold transition-colors flex items-center gap-2",
                 isActive
-                  ? "bg-black text-white"
+                  ? "bg-slate-900 text-white"
                   : "bg-gray-800 text-gray-400 hover:bg-gray-700"
               )}
             >
@@ -63,7 +63,7 @@ export function TabSection({
       </div>
 
       {/* Content area */}
-      <div className="border-2 border-black border-t-0 min-h-[200px] bg-white">
+      <div className="border border-border border-t-0 min-h-[200px] bg-white">
         {children}
       </div>
     </div>

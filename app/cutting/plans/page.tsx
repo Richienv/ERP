@@ -20,49 +20,49 @@ export default function CutPlansPage() {
         <div className="p-6 space-y-6">
             <div className="space-y-4">
                 <CuttingHeader title="Daftar Cut Plan" fabricProducts={fabricProducts}>
-                    <span className="text-[9px] font-black px-2 py-0.5 bg-zinc-100 border-2 border-black">
+                    <span className="text-xs font-semibold px-2 py-0.5 bg-zinc-100 border border-border">
                         {plans.length}
                     </span>
                 </CuttingHeader>
 
                 {plans.length === 0 ? (
-                    <div className="bg-white border-2 border-black p-8 text-center">
+                    <div className="bg-white border border-border p-8 text-center">
                         <Scissors className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Belum ada cut plan</span>
+                        <span className="text-xs font-semibold text-zinc-400">Belum ada cut plan</span>
                     </div>
                 ) : (
-                    <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                    <div className="bg-white border border-border shadow-sm overflow-hidden">
                         <table className="w-full">
-                            <thead className="bg-zinc-100 border-b-2 border-black">
+                            <thead className="bg-zinc-100 border-b border-border">
                                 <tr>
-                                    <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">No.</th>
-                                    <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">Kain</th>
-                                    <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-center">Status</th>
-                                    <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-right">Layer</th>
-                                    <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-right">Kain (m)</th>
-                                    <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-right">Efisiensi</th>
-                                    <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">Tanggal</th>
+                                    <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">No.</th>
+                                    <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">Kain</th>
+                                    <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-center">Status</th>
+                                    <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-right">Layer</th>
+                                    <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-right">Kain (m)</th>
+                                    <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-right">Efisiensi</th>
+                                    <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">Tanggal</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {plans.map((p: any) => (
                                     <tr key={p.id} className="border-b border-zinc-200 last:border-b-0 hover:bg-zinc-50 group">
-                                        <td className="px-3 py-2 text-xs font-black">
+                                        <td className="px-3 py-2 text-xs font-semibold">
                                             <Link href={`/cutting/plans/${p.id}`} className="text-blue-600 hover:underline">{p.number}</Link>
                                         </td>
                                         <td className="px-3 py-2">
                                             <div className="text-xs font-bold">{p.fabricProductName}</div>
-                                            <div className="text-[9px] text-zinc-400 font-mono">{p.fabricProductCode}</div>
+                                            <div className="text-xs text-zinc-400 font-mono">{p.fabricProductCode}</div>
                                         </td>
                                         <td className="px-3 py-2 text-center">
-                                            <span className={`text-[8px] font-black px-1.5 py-0.5 border ${cutPlanStatusColors[p.status as keyof typeof cutPlanStatusColors]}`}>
+                                            <span className={`text-xs font-semibold px-1.5 py-0.5 border ${cutPlanStatusColors[p.status as keyof typeof cutPlanStatusColors]}`}>
                                                 {cutPlanStatusLabels[p.status as keyof typeof cutPlanStatusLabels]}
                                             </span>
                                         </td>
                                         <td className="px-3 py-2 text-xs font-mono text-right">{p.totalLayers ?? '—'}</td>
                                         <td className="px-3 py-2 text-xs font-mono text-right">{p.totalFabricMeters?.toFixed(1) ?? '—'}</td>
                                         <td className="px-3 py-2 text-xs font-mono text-right">{p.markerEfficiency ? `${p.markerEfficiency}%` : '—'}</td>
-                                        <td className="px-3 py-2 text-[10px] text-zinc-500 font-bold">
+                                        <td className="px-3 py-2 text-xs text-zinc-500 font-bold">
                                             {p.plannedDate ? new Date(p.plannedDate).toLocaleDateString('id-ID') : '—'}
                                         </td>
                                     </tr>

@@ -28,7 +28,7 @@ export function CashflowPartialIndicator({ paidAmount, totalAmount, percentage }
                     />
                 </div>
                 <span className={cn(
-                    "text-[10px] font-medium",
+                    "text-xs font-medium",
                     percentage >= 100 ? "text-emerald-600" : "text-amber-600"
                 )}>
                     {percentage}%

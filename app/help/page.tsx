@@ -64,7 +64,7 @@ export default function HelpSupportPage() {
     const getPriorityColor = (priority: string) => {
         switch (priority) {
             case 'URGENT': return 'bg-red-100 text-red-700 border-red-200';
-            case 'HIGH': return 'bg-orange-100 text-orange-700 border-orange-200';
+            case 'HIGH': return 'bg-blue-100 text-blue-700 border-blue-200';
             case 'MEDIUM': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
             case 'LOW': return 'bg-green-100 text-green-700 border-green-200';
             default: return 'bg-gray-100 text-gray-700';
@@ -125,7 +125,7 @@ export default function HelpSupportPage() {
                 <Card className="hover:bg-accent transition-colors cursor-pointer">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Video Tutorial</CardTitle>
-                        <Video className="h-4 w-4 text-orange-600" />
+                        <Video className="h-4 w-4 text-blue-600" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-xs text-muted-foreground">
@@ -361,7 +361,7 @@ export default function HelpSupportPage() {
                                         {channel.icon === 'Mail' && <Mail className="mr-2 h-5 w-5 text-blue-600" />}
                                         {channel.icon === 'Phone' && <Phone className="mr-2 h-5 w-5 text-green-600" />}
                                         {channel.icon === 'MessageSquare' && <MessageSquare className="mr-2 h-5 w-5 text-purple-600" />}
-                                        {channel.icon === 'MessageCircle' && <MessageSquare className="mr-2 h-5 w-5 text-orange-600" />}
+                                        {channel.icon === 'MessageCircle' && <MessageSquare className="mr-2 h-5 w-5 text-blue-600" />}
                                         {channel.name}
                                     </CardTitle>
                                     <CardDescription>{channel.description}</CardDescription>

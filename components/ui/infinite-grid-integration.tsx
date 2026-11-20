@@ -107,7 +107,7 @@ const InfiniteGrid = () => {
 
             {/* Decorative Blur Spheres */}
             <div className="absolute inset-0 pointer-events-none z-0">
-                <div className="absolute right-[-20%] top-[-20%] w-[40%] h-[40%] rounded-full bg-orange-500/40 dark:bg-orange-600/20 blur-[120px]" />
+                <div className="absolute right-[-20%] top-[-20%] w-[40%] h-[40%] rounded-full bg-blue-500/40 dark:bg-blue-600/20 blur-[120px]" />
                 <div className="absolute right-[10%] top-[-10%] w-[20%] h-[20%] rounded-full bg-primary/30 blur-[100px]" />
                 <div className="absolute left-[-10%] bottom-[-20%] w-[40%] h-[40%] rounded-full bg-blue-500/40 dark:bg-blue-600/20 blur-[120px]" />
             </div>
@@ -127,7 +127,7 @@ const InfiniteGrid = () => {
                         onChange={(e) => setGridSize(Number(e.target.value))}
                         className="w-full h-1.5 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
                     />
-                    <div className="flex justify-between text-[10px] text-muted-foreground uppercase tracking-widest font-mono">
+                    <div className="flex justify-between text-xs text-muted-foreground font-mono">
                         <span>Dense</span>
                         <span>Sparse ({gridSize}px)</span>
                     </div>
@@ -159,7 +159,7 @@ const InfiniteGrid = () => {
                         }}
                         whileTap={{ scale: 0.98, y: 0 }}
                         transition={{ type: "spring", stiffness: 400, damping: 15 }}
-                        className="flex items-center gap-2 px-8 py-3 bg-primary text-primary-foreground font-semibold rounded-md shadow-md border-2 border-transparent transition-colors"
+                        className="flex items-center gap-2 px-8 py-3 bg-primary text-primary-foreground font-semibold rounded-md shadow-md border border-transparent transition-colors"
                     >
                         <MousePointerClick className="w-4 h-4" />
                         Interact ({count})
@@ -176,7 +176,7 @@ const InfiniteGrid = () => {
                         }}
                         whileTap={{ scale: 0.98, y: 0 }}
                         transition={{ type: "spring", stiffness: 400, damping: 15 }}
-                        className="flex items-center gap-2 px-8 py-3 bg-secondary text-secondary-foreground font-semibold rounded-md border-2 border-transparent transition-colors"
+                        className="flex items-center gap-2 px-8 py-3 bg-secondary text-secondary-foreground font-semibold rounded-md border border-transparent transition-colors"
                     >
                         <Info className="w-4 h-4" />
                         Learn More

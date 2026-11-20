@@ -18,7 +18,7 @@ export function BankReconciliation() {
             </CardHeader>
             <CardContent className="flex-1 flex flex-col gap-6">
                 <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[9px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 border border-amber-300 px-2 py-0.5">Data Demo</span>
+                    <span className="text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-300 px-2 py-0.5">Data Demo</span>
                 </div>
                 {/* Progress Stats */}
                 <div className="space-y-2">
@@ -29,14 +29,14 @@ export function BankReconciliation() {
                     <Progress value={91} className="h-2" />
                     <div className="flex justify-between text-xs text-muted-foreground pt-1">
                         <span>134 Cocok Otomatis</span>
-                        <span className="text-orange-500 font-medium">13 Perlu Review</span>
+                        <span className="text-blue-500 font-medium">13 Perlu Review</span>
                     </div>
                 </div>
 
                 {/* AI Match Card */}
                 <div className="border rounded-xl overflow-hidden bg-zinc-50 dark:bg-zinc-900/50 flex-1 flex flex-col">
                     <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-900/50 flex items-center gap-2">
-                        <div className="bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">AI MATCH</div>
+                        <div className="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full font-bold">AI MATCH</div>
                         <span className="text-xs text-blue-700 dark:text-blue-300 font-medium">Confidence Score: 95%</span>
                     </div>
 
@@ -55,16 +55,16 @@ export function BankReconciliation() {
                             </div>
                         </div>
 
-                        <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-100 dark:border-orange-900/50 flex items-start gap-2">
-                            <AlertCircle className="h-4 w-4 text-orange-600 dark:text-orange-400 mt-0.5" />
+                        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-900/50 flex items-start gap-2">
+                            <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5" />
                             <div className="text-xs text-zinc-700 dark:text-zinc-300">
-                                <span className="font-semibold text-orange-600 dark:text-orange-400">Selisih +Rp 750.000</span>
+                                <span className="font-semibold text-blue-600 dark:text-blue-400">Selisih +Rp 750.000</span>
                                 <p className="mt-0.5">Kemungkinan biaya admin bank atau pembulatan. AI menyarankan untuk mencatat sebagai 'Bank Charges'.</p>
                             </div>
                         </div>
                     </div>
 
-                    <div className="p-3 border-t bg-white dark:bg-black flex gap-2">
+                    <div className="p-3 border-t bg-white dark:bg-slate-900 flex gap-2">
                         <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white h-9 text-xs" size="sm" onClick={() => toast.info("Fitur belum tersedia")}>
                             <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
                             Terima & Sesuaikan

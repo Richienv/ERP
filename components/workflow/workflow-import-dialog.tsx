@@ -178,7 +178,7 @@ export function WorkflowImportDialog({ open, onOpenChange }: WorkflowImportDialo
                     {/* Loading Overlay */}
                     {isProcessing && (
                         <div className="absolute inset-0 z-10 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center rounded-xl border border-indigo-100">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
+                            <div className="animate-spin rounded-full h-12 w-12 border-b border-indigo-600 mb-4"></div>
                             <p className="text-indigo-600 font-medium animate-pulse">Memproses Blueprint...</p>
                             <p className="text-xs text-zinc-500 mt-1">Menganalisis Alur & Gaps...</p>
                         </div>
@@ -187,7 +187,7 @@ export function WorkflowImportDialog({ open, onOpenChange }: WorkflowImportDialo
                     {/* Dropzone */}
                     {!workflow && !isProcessing && (
                         <div
-                            className={`border-2 border-dashed rounded-xl h-64 flex flex-col items-center justify-center transition-colors
+                            className={`border border-dashed rounded-xl h-64 flex flex-col items-center justify-center transition-colors
                     ${isDragging ? 'border-indigo-500 bg-indigo-50' : 'border-zinc-200 bg-zinc-50'}
                     ${errors.length > 0 ? 'border-red-300 bg-red-50' : ''}
                 `}

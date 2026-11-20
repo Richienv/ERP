@@ -85,13 +85,13 @@ export function ProductionPlanning() {
                                     return (
                                         <div key={stage} className="flex flex-col items-center gap-2 group/step">
                                             <div className={cn(
-                                                "h-3 w-3 rounded-full border-2 transition-all duration-300",
+                                                "h-3 w-3 rounded-full border transition-all duration-300",
                                                 isCompleted ? "bg-indigo-500 border-indigo-500" :
                                                     isCurrent ? "bg-white dark:bg-zinc-950 border-indigo-500 scale-125 shadow-[0_0_10px_rgba(99,102,241,0.5)]" :
                                                         "bg-secondary border-border"
                                             )} />
                                             <span className={cn(
-                                                "text-[10px] font-medium transition-colors hidden sm:block",
+                                                "text-xs font-medium transition-colors hidden sm:block",
                                                 isCurrent ? "text-indigo-500" : "text-muted-foreground"
                                             )}>{stage}</span>
                                         </div>
@@ -109,7 +109,7 @@ export function ProductionPlanning() {
                                 Skor Kualitas: {batch.quality}%
                             </Badge>
                             <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                {batch.status === 'QC' ? <AlertCircle className="h-3 w-3 text-orange-500" /> : <Clock className="h-3 w-3" />}
+                                {batch.status === 'QC' ? <AlertCircle className="h-3 w-3 text-blue-500" /> : <Clock className="h-3 w-3" />}
                                 {batch.status}
                             </span>
                         </div>
@@ -122,7 +122,7 @@ export function ProductionPlanning() {
                 <p>Menampilkan 4 batch produksi aktif</p>
                 <div className="flex gap-4">
                     <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-indigo-500"></div> Selesai</span>
-                    <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-border border-2 border-indigo-500"></div> Saat Ini</span>
+                    <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-border border border-indigo-500"></div> Saat Ini</span>
                 </div>
             </div>
         </div>

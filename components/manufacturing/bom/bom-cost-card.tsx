@@ -162,12 +162,12 @@ function CostCardContent({
   const hasDiff = Math.abs(costDiff) > 0 && currentProductCost > 0
 
   return (
-    <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+    <div className="border border-border bg-white shadow-sm">
       {/* Header */}
-      <div className="flex items-center justify-between border-b-2 border-black bg-emerald-50 px-4 py-2.5">
+      <div className="flex items-center justify-between border-b border-border bg-emerald-50 px-4 py-2.5">
         <div className="flex items-center gap-2">
           <Calculator className="h-4 w-4 text-emerald-700" />
-          <h3 className="text-sm font-black uppercase text-emerald-900">
+          <h3 className="text-sm font-semibold text-emerald-900">
             Kalkulasi HPP / COGS
           </h3>
         </div>
@@ -187,23 +187,23 @@ function CostCardContent({
       {/* Summary KPI Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-0 border-b border-zinc-200">
         <div className="p-3 border-r border-zinc-200">
-          <p className="text-[10px] font-black uppercase text-zinc-400 mb-0.5">
+          <p className="text-xs font-semibold text-zinc-400 mb-0.5">
             Total Biaya Material
           </p>
-          <p className="text-base font-black text-black">
+          <p className="text-base font-semibold text-black">
             {formatCurrency(costResult.totalMaterialCost)}
           </p>
         </div>
         <div className="p-3 border-r border-zinc-200">
-          <p className="text-[10px] font-black uppercase text-zinc-400 mb-0.5">
+          <p className="text-xs font-semibold text-zinc-400 mb-0.5">
             HPP per Unit
           </p>
-          <p className="text-base font-black text-emerald-700">
+          <p className="text-base font-semibold text-emerald-700">
             {formatCurrency(calculatedCost)}
           </p>
         </div>
         <div className="p-3 border-r border-zinc-200">
-          <p className="text-[10px] font-black uppercase text-zinc-400 mb-0.5">
+          <p className="text-xs font-semibold text-zinc-400 mb-0.5">
             Harga Pokok Saat Ini
           </p>
           <p className="text-base font-bold text-zinc-600">
@@ -211,12 +211,12 @@ function CostCardContent({
           </p>
         </div>
         <div className="p-3">
-          <p className="text-[10px] font-black uppercase text-zinc-400 mb-0.5">
+          <p className="text-xs font-semibold text-zinc-400 mb-0.5">
             Selisih
           </p>
           {hasDiff ? (
             <p
-              className={`text-base font-black ${costDiff > 0 ? "text-red-600" : "text-green-600"}`}
+              className={`text-base font-semibold ${costDiff > 0 ? "text-red-600" : "text-green-600"}`}
             >
               {costDiff > 0 ? "+" : ""}
               {formatCurrency(costDiff)}
@@ -233,25 +233,25 @@ function CostCardContent({
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-zinc-200 bg-zinc-50">
-                <th className="text-left px-3 py-2 font-black uppercase text-[10px] text-zinc-500">
+                <th className="text-left px-3 py-2 font-semibold text-xs text-zinc-500">
                   Material
                 </th>
-                <th className="text-right px-3 py-2 font-black uppercase text-[10px] text-zinc-500">
+                <th className="text-right px-3 py-2 font-semibold text-xs text-zinc-500">
                   Qty
                 </th>
-                <th className="text-right px-3 py-2 font-black uppercase text-[10px] text-zinc-500">
+                <th className="text-right px-3 py-2 font-semibold text-xs text-zinc-500">
                   Waste %
                 </th>
-                <th className="text-right px-3 py-2 font-black uppercase text-[10px] text-zinc-500">
+                <th className="text-right px-3 py-2 font-semibold text-xs text-zinc-500">
                   Qty Efektif
                 </th>
-                <th className="text-right px-3 py-2 font-black uppercase text-[10px] text-zinc-500">
+                <th className="text-right px-3 py-2 font-semibold text-xs text-zinc-500">
                   Harga Satuan
                 </th>
-                <th className="text-right px-3 py-2 font-black uppercase text-[10px] text-zinc-500">
+                <th className="text-right px-3 py-2 font-semibold text-xs text-zinc-500">
                   Subtotal
                 </th>
-                <th className="text-right px-3 py-2 font-black uppercase text-[10px] text-zinc-500">
+                <th className="text-right px-3 py-2 font-semibold text-xs text-zinc-500">
                   Porsi
                 </th>
               </tr>
@@ -270,7 +270,7 @@ function CostCardContent({
                           {item.materialName}
                         </p>
                         {item.materialCode && (
-                          <p className="text-[10px] text-zinc-400">
+                          <p className="text-xs text-zinc-400">
                             {item.materialCode}
                           </p>
                         )}
@@ -306,17 +306,17 @@ function CostCardContent({
               ))}
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-black bg-zinc-50">
+              <tr className="border-t border-border bg-zinc-50">
                 <td
                   colSpan={5}
-                  className="px-3 py-2 text-right font-black uppercase text-[10px] text-zinc-600"
+                  className="px-3 py-2 text-right font-semibold text-xs text-zinc-600"
                 >
                   Total Biaya Material
                 </td>
-                <td className="px-3 py-2 text-right font-mono font-black text-emerald-700 text-sm">
+                <td className="px-3 py-2 text-right font-mono font-semibold text-emerald-700 text-sm">
                   {formatCurrency(costResult.totalMaterialCost)}
                 </td>
-                <td className="px-3 py-2 text-right font-black text-zinc-500 text-[10px]">
+                <td className="px-3 py-2 text-right font-semibold text-zinc-500 text-xs">
                   100%
                 </td>
               </tr>
@@ -327,10 +327,10 @@ function CostCardContent({
 
       {/* Update Product Cost Action */}
       {onUpdateCost && (
-        <div className="flex items-center justify-between border-t-2 border-black bg-zinc-50 px-4 py-3">
+        <div className="flex items-center justify-between border-t border-border bg-zinc-50 px-4 py-3">
           <div className="text-xs text-zinc-500">
             <span className="font-bold">Output:</span> 1 {productUnit} ={" "}
-            <span className="font-black text-emerald-700">
+            <span className="font-semibold text-emerald-700">
               {formatCurrency(calculatedCost)}
             </span>
           </div>
@@ -338,7 +338,7 @@ function CostCardContent({
             size="sm"
             onClick={onUpdateCost}
             disabled={isUpdating || calculatedCost <= 0}
-            className="bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] text-xs font-black"
+            className="bg-slate-900 text-white hover:bg-zinc-800 border border-border shadow-sm active:shadow-none text-xs font-semibold"
           >
             {isUpdating ? (
               <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
@@ -355,7 +355,7 @@ function CostCardContent({
 
 function CostCardSkeleton() {
   return (
-    <div className="border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+    <div className="border border-border bg-white p-4 shadow-sm">
       <div className="flex items-center gap-2 text-zinc-400">
         <Loader2 className="h-4 w-4 animate-spin" />
         <span className="text-sm font-bold">Menghitung HPP...</span>
@@ -366,7 +366,7 @@ function CostCardSkeleton() {
 
 function CostCardEmpty() {
   return (
-    <div className="border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+    <div className="border border-border bg-white p-4 shadow-sm">
       <div className="flex items-center gap-2 text-zinc-400">
         <AlertTriangle className="h-4 w-4" />
         <span className="text-sm">Data biaya tidak tersedia</span>
@@ -385,7 +385,7 @@ function CostPortionBar({ portion }: { portion: number }) {
           style={{ width: `${Math.min(portion, 100)}%` }}
         />
       </div>
-      <span className="text-[10px] font-mono font-bold text-zinc-500 w-10 text-right">
+      <span className="text-xs font-mono font-bold text-zinc-500 w-10 text-right">
         {portion.toFixed(1)}%
       </span>
     </div>

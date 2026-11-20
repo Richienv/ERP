@@ -57,7 +57,7 @@ export default function ForgotPasswordPage() {
                         Instruksi reset password telah dikirim ke <strong>{email}</strong>.
                     </p>
                     <Link href="/login">
-                        <Button className="w-full h-12 bg-black hover:bg-zinc-800 text-white font-bold rounded-xl mt-4">
+                        <Button className="w-full h-12 bg-slate-900 hover:bg-zinc-800 text-white font-bold rounded-xl mt-4">
                             Kembali ke Login
                         </Button>
                     </Link>
@@ -98,7 +98,7 @@ export default function ForgotPasswordPage() {
                             id="email"
                             type="email"
                             placeholder="nama@perusahaan.com"
-                            className="h-12 border-2 border-black rounded-xl text-base px-4 focus-visible:ring-0 focus-visible:border-black shadow-none"
+                            className="h-12 border border-border rounded-xl text-base px-4 focus-visible:ring-0 focus-visible:border-border shadow-none"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
@@ -108,7 +108,7 @@ export default function ForgotPasswordPage() {
                     {/* Submit Button */}
                     <Button
                         type="submit"
-                        className="w-full h-12 bg-black hover:bg-zinc-800 text-white font-bold text-lg rounded-xl transition-all shadow-lg active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+                        className="w-full h-12 bg-slate-900 hover:bg-zinc-800 text-white font-bold text-lg rounded-xl transition-all shadow-lg active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
                         disabled={isLoading}
                     >
                         {isLoading ? "Memproses..." : "Kirim Link Reset"}

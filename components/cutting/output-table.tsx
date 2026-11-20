@@ -35,17 +35,17 @@ export function OutputTable({ cutPlanId, outputs, editable }: OutputTableProps) 
         : 0
 
     return (
-        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <div className="px-4 py-2.5 border-b-2 border-black bg-zinc-50 flex items-center justify-between">
+        <div className="bg-white border border-border shadow-sm">
+            <div className="px-4 py-2.5 border-b border-border bg-zinc-50 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <Package className="h-4 w-4 text-zinc-500" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                    <span className="text-xs font-semibold text-zinc-500">
                         Output Pemotongan
                     </span>
                 </div>
                 <div className="flex items-center gap-3">
-                    <span className="text-[9px] font-bold text-zinc-400">
-                        Yield: <span className="font-black">{yieldPct}%</span>
+                    <span className="text-xs font-bold text-zinc-400">
+                        Yield: <span className="font-semibold">{yieldPct}%</span>
                     </span>
                 </div>
             </div>
@@ -53,7 +53,7 @@ export function OutputTable({ cutPlanId, outputs, editable }: OutputTableProps) 
             {outputs.length === 0 ? (
                 <div className="p-6 text-center">
                     <Package className="h-6 w-6 mx-auto text-zinc-200 mb-1" />
-                    <span className="text-[9px] font-bold text-zinc-400">
+                    <span className="text-xs font-bold text-zinc-400">
                         Belum ada output
                     </span>
                 </div>
@@ -80,17 +80,17 @@ export function OutputTable({ cutPlanId, outputs, editable }: OutputTableProps) 
                                 />
                             ))}
                             {/* Totals */}
-                            <tr className="bg-zinc-50 border-t-2 border-black">
-                                <td colSpan={3} className="px-3 py-2 text-[10px] font-black uppercase">
+                            <tr className="bg-zinc-50 border-t border-border">
+                                <td colSpan={3} className="px-3 py-2 text-xs font-semibold ">
                                     Total
                                 </td>
-                                <td className="px-3 py-2 text-right font-mono font-black text-sm">
+                                <td className="px-3 py-2 text-right font-mono font-semibold text-sm">
                                     {totalPlanned.toLocaleString()}
                                 </td>
-                                <td className="px-3 py-2 text-right font-mono font-black text-sm">
+                                <td className="px-3 py-2 text-right font-mono font-semibold text-sm">
                                     {totalActual.toLocaleString()}
                                 </td>
-                                <td className="px-3 py-2 text-right font-mono font-black text-sm text-red-600">
+                                <td className="px-3 py-2 text-right font-mono font-semibold text-sm text-red-600">
                                     {totalDefect.toLocaleString()}
                                 </td>
                             </tr>
@@ -148,7 +148,7 @@ function OutputRowView({
                 {editable ? (
                     <Input
                         type="number"
-                        className="border-2 border-black rounded-none h-7 w-20 text-right font-mono text-xs ml-auto"
+                        className="border border-border rounded-md h-7 w-20 text-right font-mono text-xs ml-auto"
                         value={actualQty}
                         onChange={(e) => {
                             setActualQty(parseInt(e.target.value) || 0)
@@ -164,7 +164,7 @@ function OutputRowView({
                 {editable ? (
                     <Input
                         type="number"
-                        className="border-2 border-black rounded-none h-7 w-20 text-right font-mono text-xs ml-auto"
+                        className="border border-border rounded-md h-7 w-20 text-right font-mono text-xs ml-auto"
                         value={defectQty}
                         onChange={(e) => {
                             setDefectQty(parseInt(e.target.value) || 0)

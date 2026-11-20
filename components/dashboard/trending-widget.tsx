@@ -31,11 +31,11 @@ export function TrendingWidget({ activePOs, lowStockAlerts, pendingLeaves, activ
     const maxValue = Math.max(...stats.map(s => s.value), 1)
 
     return (
-        <div className="h-full flex flex-col bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+        <div className="h-full flex flex-col bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
             {/* Header */}
-            <div className="flex-none flex items-center gap-2 px-4 py-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800">
+            <div className="flex-none flex items-center gap-2 px-4 py-3 border-b border-border bg-zinc-50 dark:bg-zinc-800">
                 <BarChart3 className="h-4 w-4 text-zinc-500" />
-                <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Ringkasan Hari Ini</h3>
+                <h3 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Ringkasan Hari Ini</h3>
             </div>
 
             {/* Stats */}
@@ -48,8 +48,8 @@ export function TrendingWidget({ activePOs, lowStockAlerts, pendingLeaves, activ
                         {/* Label + Bar */}
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between mb-1">
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{stat.label}</span>
-                                <span className="text-sm font-black text-zinc-900 dark:text-white">{stat.value}</span>
+                                <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">{stat.label}</span>
+                                <span className="text-sm font-semibold text-zinc-900 dark:text-white">{stat.value}</span>
                             </div>
                             {/* Bar */}
                             <div className="h-1.5 bg-zinc-100 dark:bg-zinc-800 w-full overflow-hidden">

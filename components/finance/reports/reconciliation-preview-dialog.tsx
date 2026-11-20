@@ -168,11 +168,11 @@ export function ReconciliationPreviewDialog({
             </NBSection>
 
             {/* Warning */}
-            <div className="flex items-start gap-3 border-2 border-amber-400 bg-amber-50 p-3">
+            <div className="flex items-start gap-3 border border-amber-400 bg-amber-50 p-3">
               <IconAlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
               <p className="text-xs font-medium text-amber-800">
                 Tindakan ini akan memperbarui saldo{" "}
-                <span className="font-black">{preview.totalAccounts} akun</span>{" "}
+                <span className="font-semibold">{preview.totalAccounts} akun</span>{" "}
                 berdasarkan jurnal aktual. Perubahan ini akan dicatat di audit log.
               </p>
             </div>

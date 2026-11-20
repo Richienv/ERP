@@ -273,7 +273,7 @@ export function DiscountFormDialog({ open, onOpenChange, editing }: DiscountForm
                         {watchType === "TIERED" && (
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between">
-                                    <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+                                    <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400">
                                         Tier Diskon <span className="text-red-500">*</span>
                                     </label>
                                     <Button
@@ -283,7 +283,7 @@ export function DiscountFormDialog({ open, onOpenChange, editing }: DiscountForm
                                         onClick={() =>
                                             appendTier({ minQty: "", maxQty: "", discount: "" })
                                         }
-                                        className="border border-zinc-300 font-bold text-xs rounded-none h-7"
+                                        className="border border-zinc-300 font-bold text-xs rounded-md h-7"
                                     >
                                         <Plus className="h-3 w-3 mr-1" />
                                         Tambah Tier
@@ -294,9 +294,9 @@ export function DiscountFormDialog({ open, onOpenChange, editing }: DiscountForm
                                     <table className="w-full">
                                         <thead className="bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700">
                                             <tr>
-                                                <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500">Min Qty</th>
-                                                <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500">Max Qty</th>
-                                                <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500">Diskon (%)</th>
+                                                <th className="px-3 py-2 text-xs font-semibold text-zinc-500">Min Qty</th>
+                                                <th className="px-3 py-2 text-xs font-semibold text-zinc-500">Max Qty</th>
+                                                <th className="px-3 py-2 text-xs font-semibold text-zinc-500">Diskon (%)</th>
                                                 <th className="px-3 py-2 w-10"></th>
                                             </tr>
                                         </thead>
@@ -307,7 +307,7 @@ export function DiscountFormDialog({ open, onOpenChange, editing }: DiscountForm
                                                         <Input
                                                             type="number"
                                                             {...form.register(`tiers.${idx}.minQty`)}
-                                                            className="border border-zinc-300 font-mono font-bold h-8 rounded-none text-sm"
+                                                            className="border border-zinc-300 font-mono font-bold h-8 rounded-md text-sm"
                                                             placeholder="1"
                                                         />
                                                     </td>
@@ -315,7 +315,7 @@ export function DiscountFormDialog({ open, onOpenChange, editing }: DiscountForm
                                                         <Input
                                                             type="number"
                                                             {...form.register(`tiers.${idx}.maxQty`)}
-                                                            className="border border-zinc-300 font-mono font-bold h-8 rounded-none text-sm"
+                                                            className="border border-zinc-300 font-mono font-bold h-8 rounded-md text-sm"
                                                             placeholder="Kosong = ~"
                                                         />
                                                     </td>
@@ -324,7 +324,7 @@ export function DiscountFormDialog({ open, onOpenChange, editing }: DiscountForm
                                                             type="number"
                                                             step="0.01"
                                                             {...form.register(`tiers.${idx}.discount`)}
-                                                            className="border border-zinc-300 font-mono font-bold h-8 rounded-none text-sm"
+                                                            className="border border-zinc-300 font-mono font-bold h-8 rounded-md text-sm"
                                                             placeholder="5"
                                                         />
                                                     </td>
@@ -350,14 +350,14 @@ export function DiscountFormDialog({ open, onOpenChange, editing }: DiscountForm
                                 {tierErrors.length > 0 && (
                                     <div className="space-y-1">
                                         {tierErrors.map((e, i) => (
-                                            <p key={i} className="text-[11px] font-bold text-red-500">
+                                            <p key={i} className="text-xs font-bold text-red-500">
                                                 {e}
                                             </p>
                                         ))}
                                     </div>
                                 )}
 
-                                <p className="text-[10px] text-zinc-400 font-bold">
+                                <p className="text-xs text-zinc-400 font-bold">
                                     Contoh tekstil: 1-99m → 0%, 100-499m → 5%, 500-999m → 10%, 1000+ → 15%
                                 </p>
                             </div>
@@ -449,7 +449,7 @@ export function DiscountFormDialog({ open, onOpenChange, editing }: DiscountForm
                     variant="outline"
                     onClick={() => onOpenChange(false)}
                     disabled={isBusy}
-                    className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none disabled:opacity-50"
+                    className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold text-xs px-4 h-8 rounded-md disabled:opacity-50"
                 >
                     Batal
                 </Button>
@@ -457,7 +457,7 @@ export function DiscountFormDialog({ open, onOpenChange, editing }: DiscountForm
                     type="submit"
                     form="discount-form"
                     disabled={isBusy}
-                    className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none gap-1.5 disabled:opacity-50 transition-colors"
+                    className="bg-slate-900 text-white border border-border hover:bg-zinc-800 font-semibold text-xs px-5 h-8 rounded-md gap-1.5 disabled:opacity-50 transition-colors"
                 >
                     {isBusy
                         ? "Menyimpan..."

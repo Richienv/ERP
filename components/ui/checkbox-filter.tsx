@@ -48,7 +48,7 @@ export function CheckboxFilter({ label, options, selected, onChange, hideLabel, 
     // Determine which className to use
     const resolvedClassName = triggerClassName
         ? (hasActive && triggerActiveClassName ? triggerActiveClassName : triggerClassName)
-        : "flex items-center gap-2 border-2 border-black h-10 px-3 bg-white text-xs font-medium min-w-[160px] justify-between hover:bg-zinc-50 transition-colors"
+        : "flex items-center gap-2 border border-border h-10 px-3 bg-white text-xs font-medium min-w-[160px] justify-between hover:bg-zinc-50 transition-colors"
 
     // Build display: "Label: Value" when hideLabel, just "Value" otherwise
     const triggerText = hideLabel
@@ -57,18 +57,18 @@ export function CheckboxFilter({ label, options, selected, onChange, hideLabel, 
 
     return (
         <div>
-            {!hideLabel && <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">{label}</label>}
+            {!hideLabel && <label className="text-xs font-semibold text-zinc-400 mb-1 block">{label}</label>}
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
                     <button className={resolvedClassName}>
                         <span className="truncate">{triggerText}</span>
-                        <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-colors ${hasActive && triggerActiveClassName ? 'text-orange-500' : 'text-zinc-400'}`} />
+                        <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-colors ${hasActive && triggerActiveClassName ? 'text-blue-500' : 'text-zinc-400'}`} />
                     </button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[220px] p-0 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] rounded-none" align="start">
-                    <div className="flex items-center justify-between px-3 py-2 border-b-2 border-zinc-100">
-                        <button onClick={selectAll} className="text-[10px] font-bold text-blue-600 hover:underline">Pilih Semua</button>
-                        <button onClick={clearAll} className="text-[10px] font-bold text-zinc-400 hover:underline">Hapus</button>
+                <PopoverContent className="w-[220px] p-0 border border-border shadow-sm rounded-md" align="start">
+                    <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-100">
+                        <button onClick={selectAll} className="text-xs font-bold text-blue-600 hover:underline">Pilih Semua</button>
+                        <button onClick={clearAll} className="text-xs font-bold text-zinc-400 hover:underline">Hapus</button>
                     </div>
                     <div className="p-2 space-y-1 max-h-[240px] overflow-y-auto">
                         {options.map(opt => (

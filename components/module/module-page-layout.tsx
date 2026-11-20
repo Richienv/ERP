@@ -39,7 +39,7 @@ export function ModulePageLayout({
       {children}
       {bottomTabs}
       {bottomAction && (
-        <div className="border-2 border-dashed border-gray-300 p-4 text-center text-sm text-gray-400">
+        <div className="border border-dashed border-gray-300 p-4 text-center text-sm text-gray-400">
           {bottomAction}
         </div>
       )}

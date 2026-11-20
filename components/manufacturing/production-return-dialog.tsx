@@ -119,7 +119,7 @@ export function ProductionReturnDialog({
         <>
             <Button
                 variant="outline"
-                className="flex-1 border-2 border-red-400 text-red-700 font-black uppercase text-[10px] tracking-wide h-10 hover:bg-red-50 transition-colors rounded-none"
+                className="flex-1 border border-red-400 text-red-700 font-semibold text-xs h-10 hover:bg-red-50 transition-colors rounded-md"
                 disabled={actualQty <= 0}
                 onClick={() => setOpen(true)}
             >
@@ -139,10 +139,10 @@ export function ProductionReturnDialog({
                     <div className="border border-amber-400 bg-amber-50 p-3 flex items-start gap-3">
                         <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
                         <div>
-                            <p className="text-xs font-black text-amber-800 uppercase tracking-wide">
+                            <p className="text-xs font-semibold text-amber-800  ">
                                 Perhatian
                             </p>
-                            <p className="text-[10px] text-amber-700 mt-0.5">
+                            <p className="text-xs text-amber-700 mt-0.5">
                                 Retur produksi akan mengurangi stok barang jadi, mengembalikan
                                 bahan baku, dan membuat jurnal balik. Pastikan qty benar.
                             </p>
@@ -153,7 +153,7 @@ export function ProductionReturnDialog({
                     <NBSection icon={Undo2} title="Info Work Order">
                         <div className="flex items-center justify-between">
                             <div>
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">
+                                <span className="text-xs font-semibold text-zinc-400 block">
                                     Work Order
                                 </span>
                                 <span className="font-mono text-sm font-bold text-zinc-900">
@@ -161,16 +161,16 @@ export function ProductionReturnDialog({
                                 </span>
                             </div>
                             <div className="text-right">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">
+                                <span className="text-xs font-semibold text-zinc-400 block">
                                     Qty Aktual
                                 </span>
-                                <span className="text-sm font-black text-zinc-900">
+                                <span className="text-sm font-semibold text-zinc-900">
                                     {actualQty} {productUnit}
                                 </span>
                             </div>
                         </div>
                         <div className="mt-1">
-                            <span className="text-[10px] text-zinc-500">
+                            <span className="text-xs text-zinc-500">
                                 {productCode} — {productName}
                             </span>
                         </div>

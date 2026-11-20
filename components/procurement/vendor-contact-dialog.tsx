@@ -37,16 +37,16 @@ export function VendorContactDialog({ vendorName, email, phone, trigger }: Vendo
           <Button
             variant="outline"
             size="lg"
-            className="w-full h-16 justify-between border-2 border-black font-bold"
+            className="w-full h-16 justify-between border border-border font-bold"
             onClick={() => phone && window.open(`https://wa.me/${phone.replace(/\D/g, "")}`, "_blank")}
             disabled={!phone}
           >
             <div className="flex items-center gap-3">
-              <div className="bg-green-100 p-2 border-2 border-green-300">
+              <div className="bg-green-100 p-2 border border-green-300">
                 <Phone className="h-5 w-5 text-green-600" />
               </div>
               <div className="text-left">
-                <div className="font-black text-xs uppercase">WhatsApp</div>
+                <div className="font-semibold text-xs ">WhatsApp</div>
                 <div className="text-xs text-zinc-500 font-mono">{phone || "Nomor tidak tersedia"}</div>
               </div>
             </div>
@@ -56,16 +56,16 @@ export function VendorContactDialog({ vendorName, email, phone, trigger }: Vendo
           <Button
             variant="outline"
             size="lg"
-            className="w-full h-16 justify-between border-2 border-black font-bold"
+            className="w-full h-16 justify-between border border-border font-bold"
             onClick={() => email && window.location.assign(`mailto:${email}`)}
             disabled={!email}
           >
             <div className="flex items-center gap-3">
-              <div className="bg-blue-100 p-2 border-2 border-blue-300">
+              <div className="bg-blue-100 p-2 border border-blue-300">
                 <Mail className="h-5 w-5 text-blue-600" />
               </div>
               <div className="text-left">
-                <div className="font-black text-xs uppercase">Email</div>
+                <div className="font-semibold text-xs ">Email</div>
                 <div className="text-xs text-zinc-500">{email || "Email tidak tersedia"}</div>
               </div>
             </div>

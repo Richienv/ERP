@@ -148,7 +148,7 @@ export function POApprovalPopup({ open, onClose, onAllActioned }: POApprovalPopu
                                         size="sm"
                                         disabled={acting === po.id}
                                         onClick={() => handleApprove(po)}
-                                        className="h-7 px-3 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-wider"
+                                        className="h-7 px-3 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold  "
                                     >
                                         {acting === po.id ? (
                                             <Loader2 className="h-3 w-3 animate-spin" />
@@ -162,7 +162,7 @@ export function POApprovalPopup({ open, onClose, onAllActioned }: POApprovalPopu
                                         variant="outline"
                                         disabled={acting === po.id}
                                         onClick={() => handleReject(po)}
-                                        className="h-7 px-3 rounded-none border-red-300 text-red-600 hover:bg-red-50 text-[10px] font-black uppercase tracking-wider"
+                                        className="h-7 px-3 rounded-md border-red-300 text-red-600 hover:bg-red-50 text-xs font-semibold  "
                                     >
                                         <XCircle className="h-3 w-3 mr-1" />
                                         Tolak

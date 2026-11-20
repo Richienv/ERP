@@ -43,11 +43,11 @@ const OPERATION_TYPES = [
     { value: "SUBCONTRACTOR", label: "Subkontraktor" },
 ]
 
-const LABEL_CLASS = "text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block"
-const INPUT_CLASS = "h-8 text-sm rounded-none border border-zinc-300 font-medium"
-const INPUT_MONO = "h-8 text-sm rounded-none border border-zinc-300 font-mono font-bold"
-const SELECT_CLASS = "h-8 text-sm rounded-none border border-zinc-300"
-const TEXTAREA_CLASS = "text-sm rounded-none border border-zinc-300 resize-none"
+const LABEL_CLASS = "text-xs font-bold text-zinc-600 mb-1 block"
+const INPUT_CLASS = "h-8 text-sm rounded-md border border-zinc-300 font-medium"
+const INPUT_MONO = "h-8 text-sm rounded-md border border-zinc-300 font-mono font-bold"
+const SELECT_CLASS = "h-8 text-sm rounded-md border border-zinc-300"
+const TEXTAREA_CLASS = "text-sm rounded-md border border-zinc-300 resize-none"
 
 const stationSchema = z.object({
     code: z.string().min(1, "Kode wajib diisi"),
@@ -449,8 +449,8 @@ export function CreateStationDialog({ open, onOpenChange, onCreated, subcontract
                                     const PreviewIcon = ICON_OPTIONS.find(o => o.name === selectedIcon)?.icon || Cog
                                     return (
                                         <div className="flex items-center gap-2">
-                                            <span className="text-[9px] text-zinc-400 font-bold">Preview:</span>
-                                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 border text-[10px] font-bold ${theme.toolbar}`}>
+                                            <span className="text-xs text-zinc-400 font-bold">Preview:</span>
+                                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 border text-xs font-bold ${theme.toolbar}`}>
                                                 <PreviewIcon className="h-3 w-3" />
                                                 {stationForm.watch("name") || "Nama Proses"}
                                             </span>
@@ -466,9 +466,9 @@ export function CreateStationDialog({ open, onOpenChange, onCreated, subcontract
                                                 key={key}
                                                 type="button"
                                                 onClick={() => stationForm.setValue("colorTheme", key)}
-                                                className={`h-7 w-full border rounded-none transition-all ${theme.toolbar.split(" ").slice(0, 1).join(" ")} ${
+                                                className={`h-7 w-full border rounded-md transition-all ${theme.toolbar.split(" ").slice(0, 1).join(" ")} ${
                                                     selectedColor === key
-                                                        ? "border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                                                        ? "border-border shadow-sm"
                                                         : "border-transparent hover:border-zinc-300"
                                                 }`}
                                                 title={key}
@@ -487,10 +487,10 @@ export function CreateStationDialog({ open, onOpenChange, onCreated, subcontract
                                                     key={opt.name}
                                                     type="button"
                                                     onClick={() => stationForm.setValue("iconName", opt.name)}
-                                                    className={`h-8 w-full flex items-center justify-center border rounded-none transition-all ${
+                                                    className={`h-8 w-full flex items-center justify-center border rounded-md transition-all ${
                                                         selectedIcon === opt.name
-                                                            ? "border-black bg-zinc-100 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-                                                            : "border-zinc-200 hover:border-black"
+                                                            ? "border-border bg-zinc-100 shadow-sm"
+                                                            : "border-zinc-200 hover:border-border"
                                                     }`}
                                                     title={opt.label}
                                                 >

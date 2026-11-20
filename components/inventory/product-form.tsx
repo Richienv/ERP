@@ -156,7 +156,7 @@ export function ProductForm({
                         <Input
                           placeholder="Masukkan kode produk (contoh: ELK001)"
                           {...field}
-                          className="uppercase"
+                          className=""
                           onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                         />
                       </FormControl>

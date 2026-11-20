@@ -111,7 +111,7 @@ export function ClosingJournalDialog({ open, onOpenChange }: ClosingJournalDialo
                         <Button
                             onClick={handlePreview}
                             disabled={loading}
-                            className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none gap-1.5"
+                            className="bg-slate-900 text-white border border-border hover:bg-zinc-800 font-semibold text-xs px-5 h-8 rounded-md gap-1.5"
                         >
                             {loading ? (
                                 <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Memuat...</>
@@ -124,7 +124,7 @@ export function ClosingJournalDialog({ open, onOpenChange }: ClosingJournalDialo
 
                 {/* Error */}
                 {error && (
-                    <div className="flex items-center gap-2 p-3 border-2 border-amber-400 bg-amber-50 text-amber-800 text-sm font-bold">
+                    <div className="flex items-center gap-2 p-3 border border-amber-400 bg-amber-50 text-amber-800 text-sm font-bold">
                         <AlertTriangle className="h-4 w-4 flex-shrink-0" />
                         {error}
                     </div>
@@ -135,27 +135,27 @@ export function ClosingJournalDialog({ open, onOpenChange }: ClosingJournalDialo
                     <>
                         {/* Summary KPIs */}
                         <div className="grid grid-cols-3 gap-3">
-                            <div className="border-2 border-black p-3 bg-emerald-50">
-                                <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">
+                            <div className="border border-border p-3 bg-emerald-50">
+                                <div className="text-xs font-semibold text-zinc-500 mb-1">
                                     Total Pendapatan
                                 </div>
-                                <div className="text-lg font-black text-emerald-700 font-mono">
+                                <div className="text-lg font-semibold text-emerald-700 font-mono">
                                     {formatIDR(preview.revenueTotal)}
                                 </div>
                             </div>
-                            <div className="border-2 border-black p-3 bg-red-50">
-                                <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">
+                            <div className="border border-border p-3 bg-red-50">
+                                <div className="text-xs font-semibold text-zinc-500 mb-1">
                                     Total Beban
                                 </div>
-                                <div className="text-lg font-black text-red-700 font-mono">
+                                <div className="text-lg font-semibold text-red-700 font-mono">
                                     {formatIDR(preview.expenseTotal)}
                                 </div>
                             </div>
-                            <div className={`border-2 border-black p-3 ${preview.netIncome >= 0 ? "bg-blue-50" : "bg-amber-50"}`}>
-                                <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">
+                            <div className={`border border-border p-3 ${preview.netIncome >= 0 ? "bg-blue-50" : "bg-amber-50"}`}>
+                                <div className="text-xs font-semibold text-zinc-500 mb-1">
                                     {preview.netIncome >= 0 ? "Laba Bersih" : "Rugi Bersih"}
                                 </div>
-                                <div className={`text-lg font-black font-mono ${preview.netIncome >= 0 ? "text-blue-700" : "text-amber-700"}`}>
+                                <div className={`text-lg font-semibold font-mono ${preview.netIncome >= 0 ? "text-blue-700" : "text-amber-700"}`}>
                                     {formatIDR(Math.abs(preview.netIncome))}
                                 </div>
                             </div>
@@ -168,7 +168,7 @@ export function ClosingJournalDialog({ open, onOpenChange }: ClosingJournalDialo
                                 Transfer ke: <span className="font-mono font-bold">{preview.retainedEarningsAccount.code}</span> - {preview.retainedEarningsAccount.name}
                             </div>
                         ) : (
-                            <div className="flex items-center gap-2 p-2 border-2 border-red-300 bg-red-50 text-xs font-bold text-red-700">
+                            <div className="flex items-center gap-2 p-2 border border-red-300 bg-red-50 text-xs font-bold text-red-700">
                                 <AlertTriangle className="h-3.5 w-3.5" />
                                 Akun Laba Ditahan tidak ditemukan. Buat akun ekuitas terlebih dahulu.
                             </div>
@@ -178,14 +178,14 @@ export function ClosingJournalDialog({ open, onOpenChange }: ClosingJournalDialo
                         <NBSection icon={Lock} title="Preview Jurnal Penutup">
                             <div className="flex items-center justify-between -mt-1 mb-2">
                                 <div />
-                                <Badge variant="outline" className="text-[10px] font-black">
+                                <Badge variant="outline" className="text-xs font-semibold">
                                     CLOSING-{selectedYear}
                                 </Badge>
                             </div>
                             <div className="max-h-[300px] overflow-y-auto">
                                 <table className="w-full text-xs">
                                     <thead>
-                                        <tr className="bg-zinc-100 border-b-2 border-black text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                        <tr className="bg-zinc-100 border-b border-border text-xs font-semibold text-zinc-500">
                                             <th className="text-left px-3 py-2">Akun</th>
                                             <th className="text-right px-3 py-2">Debit</th>
                                             <th className="text-right px-3 py-2">Kredit</th>
@@ -195,7 +195,7 @@ export function ClosingJournalDialog({ open, onOpenChange }: ClosingJournalDialo
                                         {/* Revenue closing lines */}
                                         {revenueLines.length > 0 && (
                                             <tr className="border-b border-zinc-200 bg-emerald-50/50">
-                                                <td colSpan={3} className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                                                <td colSpan={3} className="px-3 py-1.5 text-xs font-semibold text-emerald-700">
                                                     Penutupan Pendapatan
                                                 </td>
                                             </tr>
@@ -217,7 +217,7 @@ export function ClosingJournalDialog({ open, onOpenChange }: ClosingJournalDialo
                                         {/* Expense closing lines */}
                                         {expenseLines.length > 0 && (
                                             <tr className="border-b border-zinc-200 bg-red-50/50">
-                                                <td colSpan={3} className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-red-700">
+                                                <td colSpan={3} className="px-3 py-1.5 text-xs font-semibold text-red-700">
                                                     Penutupan Beban
                                                 </td>
                                             </tr>
@@ -239,7 +239,7 @@ export function ClosingJournalDialog({ open, onOpenChange }: ClosingJournalDialo
                                         {/* Equity transfer line */}
                                         {equityLines.length > 0 && (
                                             <tr className="border-b border-zinc-200 bg-blue-50/50">
-                                                <td colSpan={3} className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-blue-700">
+                                                <td colSpan={3} className="px-3 py-1.5 text-xs font-semibold text-blue-700">
                                                     Transfer Laba Ditahan
                                                 </td>
                                             </tr>
@@ -259,8 +259,8 @@ export function ClosingJournalDialog({ open, onOpenChange }: ClosingJournalDialo
                                         ))}
 
                                         {/* Totals */}
-                                        <tr className="bg-zinc-100 border-t-2 border-black font-bold">
-                                            <td className="px-3 py-2 font-sans text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                        <tr className="bg-zinc-100 border-t border-border font-bold">
+                                            <td className="px-3 py-2 font-sans text-xs font-semibold text-zinc-500">
                                                 Total
                                             </td>
                                             <td className="px-3 py-2 text-right text-emerald-700">

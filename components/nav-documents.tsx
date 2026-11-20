@@ -41,16 +41,16 @@ export function NavDocuments({
 
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-      <SidebarGroupLabel>Documents</SidebarGroupLabel>
+      <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/65">Dokumen</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => {
           const isActive = pathname === item.url
           return (
             <SidebarMenuItem key={item.name}>
-              <SidebarMenuButton 
-                asChild 
+              <SidebarMenuButton
+                asChild
                 isActive={isActive}
-                className={isActive ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground duration-200 ease-linear" : ""}
+                className="h-10 text-[15px] text-sidebar-foreground/90 data-[active=true]:font-semibold"
               >
                 <Link href={item.url} prefetch>
                   <item.icon />
@@ -64,26 +64,26 @@ export function NavDocuments({
                     className="data-[state=open]:bg-accent rounded-sm"
                   >
                     <IconDots />
-                    <span className="sr-only">More</span>
+                    <span className="sr-only">Pilihan lain</span>
                   </SidebarMenuAction>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
-                  className="w-24 rounded-lg"
+                  className="w-36 rounded-lg"
                   side={isMobile ? "bottom" : "right"}
                   align={isMobile ? "end" : "start"}
                 >
                   <DropdownMenuItem>
                     <IconFolder />
-                    <span>Open</span>
+                    <span>Buka</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem>
                     <IconShare3 />
-                    <span>Share</span>
+                    <span>Bagikan</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem variant="destructive">
                     <IconTrash />
-                    <span>Delete</span>
+                    <span>Hapus</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -91,9 +91,9 @@ export function NavDocuments({
           )
         })}
         <SidebarMenuItem>
-          <SidebarMenuButton className="text-sidebar-foreground/70">
-            <IconDots className="text-sidebar-foreground/70" />
-            <span>More</span>
+          <SidebarMenuButton className="h-10 text-[15px] text-sidebar-foreground/80">
+            <IconDots className="text-sidebar-foreground/80" />
+            <span>Lainnya</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>

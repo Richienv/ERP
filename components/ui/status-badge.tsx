@@ -6,6 +6,17 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 
+/*
+ * Status in words, never colour alone: every badge is a dot + an Indonesian word.
+ * Colour families (Integra Pro):
+ *   green  = done        (approved, completed, paid)
+ *   amber  = attention   (pending)
+ *   red    = late/error  (rejected, overdue)
+ *   blue   = in progress (in_progress, partial)
+ *   slate  = draft/neutral (draft, cancelled, void)
+ * Text uses the 800 step on the 50 step background: WCAG AA at text-xs and up.
+ */
+
 type StatusVariant =
   | "draft"
   | "pending"
@@ -28,84 +39,90 @@ interface StatusConfig {
   hint?: string
 }
 
+const TONE = {
+  green: {
+    dotColor: "bg-emerald-600",
+    bgColor: "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/60 dark:border-emerald-800",
+    textColor: "text-emerald-800 dark:text-emerald-300",
+  },
+  amber: {
+    dotColor: "bg-amber-500",
+    bgColor: "bg-amber-50 border-amber-200 dark:bg-amber-950/60 dark:border-amber-800",
+    textColor: "text-amber-800 dark:text-amber-300",
+  },
+  red: {
+    dotColor: "bg-red-600",
+    bgColor: "bg-red-50 border-red-200 dark:bg-red-950/60 dark:border-red-800",
+    textColor: "text-red-800 dark:text-red-300",
+  },
+  blue: {
+    dotColor: "bg-blue-600",
+    bgColor: "bg-blue-50 border-blue-200 dark:bg-blue-950/60 dark:border-blue-800",
+    textColor: "text-blue-800 dark:text-blue-300",
+  },
+  slate: {
+    dotColor: "bg-slate-400",
+    bgColor: "bg-slate-50 border-slate-200 dark:bg-zinc-800 dark:border-zinc-700",
+    textColor: "text-slate-700 dark:text-zinc-300",
+  },
+} as const
+
 const statusMap: Record<StatusVariant, StatusConfig> = {
   draft: {
-    label: "Draft",
-    dotColor: "bg-zinc-400",
-    bgColor: "bg-zinc-50 dark:bg-zinc-800",
-    textColor: "text-zinc-600 dark:text-zinc-400",
+    label: "Draf",
+    ...TONE.slate,
     hint: "Belum dikirim",
   },
   pending: {
     label: "Menunggu",
-    dotColor: "bg-amber-400",
-    bgColor: "bg-amber-50 dark:bg-amber-950",
-    textColor: "text-amber-700 dark:text-amber-400",
+    ...TONE.amber,
     hint: "Menunggu persetujuan",
   },
   in_progress: {
     label: "Diproses",
-    dotColor: "bg-blue-400",
-    bgColor: "bg-blue-50 dark:bg-blue-950",
-    textColor: "text-blue-700 dark:text-blue-400",
+    ...TONE.blue,
     hint: "Sedang dikerjakan",
   },
   approved: {
     label: "Disetujui",
-    dotColor: "bg-green-500",
-    bgColor: "bg-green-50 dark:bg-green-950",
-    textColor: "text-green-700 dark:text-green-400",
+    ...TONE.green,
     hint: "Telah disetujui",
   },
   completed: {
     label: "Selesai",
-    dotColor: "bg-emerald-500",
-    bgColor: "bg-emerald-50 dark:bg-emerald-950",
-    textColor: "text-emerald-700 dark:text-emerald-400",
+    ...TONE.green,
     hint: "Proses selesai",
   },
   rejected: {
     label: "Ditolak",
-    dotColor: "bg-red-500",
-    bgColor: "bg-red-50 dark:bg-red-950",
-    textColor: "text-red-700 dark:text-red-400",
+    ...TONE.red,
     hint: "Ditolak, perlu revisi",
   },
   cancelled: {
     label: "Dibatalkan",
-    dotColor: "bg-zinc-400",
-    bgColor: "bg-zinc-100 dark:bg-zinc-800",
-    textColor: "text-zinc-500 dark:text-zinc-400",
+    ...TONE.slate,
     hint: "Transaksi dibatalkan",
   },
   overdue: {
     label: "Terlambat",
-    dotColor: "bg-red-500",
-    bgColor: "bg-red-50 dark:bg-red-950",
-    textColor: "text-red-700 dark:text-red-400",
+    ...TONE.red,
     pulse: true,
-    hint: "Sudah melewati tenggat waktu",
+    hint: "Sudah melewati jatuh tempo",
   },
   partial: {
     label: "Sebagian",
-    dotColor: "bg-orange-400",
-    bgColor: "bg-orange-50 dark:bg-orange-950",
-    textColor: "text-orange-700 dark:text-orange-400",
+    ...TONE.blue,
     hint: "Terpenuhi sebagian",
   },
   paid: {
     label: "Lunas",
-    dotColor: "bg-emerald-500",
-    bgColor: "bg-emerald-50 dark:bg-emerald-950",
-    textColor: "text-emerald-700 dark:text-emerald-400",
+    ...TONE.green,
     hint: "Pembayaran lunas",
   },
   void: {
-    label: "Void",
-    dotColor: "bg-zinc-400",
-    bgColor: "bg-zinc-100 dark:bg-zinc-800",
-    textColor: "text-zinc-500 dark:text-zinc-400",
-    hint: "Transaksi dibatalkan (void)",
+    label: "Batal (void)",
+    ...TONE.slate,
+    hint: "Dokumen di-void, tidak berlaku lagi",
   },
 }
 
@@ -139,24 +156,24 @@ export function StatusBadge({
   const badge = (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 font-medium border",
+        "inline-flex w-fit items-center gap-1.5 whitespace-nowrap rounded-full border font-medium leading-none",
         config.bgColor,
         config.textColor,
-        "border-current/10",
         size === "sm"
-          ? "px-1.5 py-0.5 text-[10px]"
-          : "px-2 py-0.5 text-[11px]",
+          ? "px-2 py-1 text-xs"
+          : "px-2.5 py-1 text-[13.5px]",
         className
       )}
       role="status"
       aria-label={`Status: ${displayLabel}`}
     >
       <span
+        aria-hidden
         className={cn(
           "rounded-full shrink-0",
           config.dotColor,
-          size === "sm" ? "w-1.5 h-1.5" : "w-2 h-2",
-          config.pulse && "animate-pulse"
+          size === "sm" ? "size-1.5" : "size-2",
+          config.pulse && "animate-pulse motion-reduce:animate-none"
         )}
       />
       {displayLabel}
@@ -171,10 +188,7 @@ export function StatusBadge({
         <TooltipTrigger asChild>
           {badge}
         </TooltipTrigger>
-        <TooltipContent
-          side="top"
-          className="rounded-none border-2 border-black bg-zinc-900 text-white text-xs px-2 py-1"
-        >
+        <TooltipContent side="top" className="text-sm">
           {displayHint}
         </TooltipContent>
       </Tooltip>

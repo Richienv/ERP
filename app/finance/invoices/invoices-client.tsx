@@ -81,8 +81,8 @@ import {
 const typeChipClass = (type: string, onDark = false) =>
     type === "INV_OUT"
         ? onDark
-            ? "bg-orange-900/50 border-orange-400 text-orange-300"
-            : "bg-orange-50 dark:bg-orange-950/30 border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-400"
+            ? "bg-blue-900/50 border-blue-400 text-blue-300"
+            : "bg-blue-50 dark:bg-blue-950/30 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-400"
         : onDark
             ? "bg-zinc-700/50 border-zinc-500 text-zinc-300"
             : "bg-zinc-100 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-300"
@@ -657,11 +657,11 @@ export function InvoicesPageClient() {
                             >
                                 <div className="flex items-center gap-1.5">
                                     <span className={`w-2 h-2 ${
-                                        kpi.color === 'orange' ? 'bg-orange-500' :
+                                        kpi.color === 'orange' ? 'bg-blue-500' :
                                         kpi.color === 'zinc' ? 'bg-zinc-400' :
                                         kpi.color === 'red' ? 'bg-red-500' : 'bg-emerald-500'
                                     }`} />
-                                    <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{kpi.label}</span>
+                                    <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">{kpi.label}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <motion.span
@@ -669,7 +669,7 @@ export function InvoicesPageClient() {
                                         initial={{ scale: 0.8, opacity: 0 }}
                                         animate={{ scale: 1, opacity: 1 }}
                                         transition={{ type: "spring" as const, stiffness: 400, damping: 20 }}
-                                        className={`text-xl font-black ${
+                                        className={`text-xl font-semibold ${
                                             kpi.color === 'red' && kpi.count > 0
                                                 ? 'text-red-600 dark:text-red-400'
                                                 : 'text-zinc-900 dark:text-white'
@@ -710,11 +710,11 @@ export function InvoicesPageClient() {
                     <div className="px-5 py-2.5 flex items-center justify-between bg-zinc-50/80 dark:bg-zinc-800/30">
                         <div className="flex items-center gap-0">
                             <div className="relative">
-                                <Search className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 z-10 transition-colors ${searchText ? 'text-orange-500' : 'text-zinc-500 dark:text-zinc-400'}`} />
+                                <Search className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 z-10 transition-colors ${searchText ? 'text-blue-500' : 'text-zinc-500 dark:text-zinc-400'}`} />
                                 <input
-                                    className={`border border-r-0 font-medium h-9 w-[320px] text-xs rounded-none pl-9 pr-8 outline-none placeholder:text-zinc-400 transition-all ${
+                                    className={`border border-r-0 font-medium h-9 w-[320px] text-xs rounded-md pl-9 pr-8 outline-none placeholder:text-zinc-400 transition-all ${
                                         searchText
-                                            ? 'border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 text-zinc-900 dark:text-white'
+                                            ? 'border-blue-400 dark:border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 text-zinc-900 dark:text-white'
                                             : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900'
                                     }`}
                                     placeholder="Cari invoice, customer, supplier..."
@@ -734,8 +734,8 @@ export function InvoicesPageClient() {
                             <CheckboxFilter
                                 label="Tipe"
                                 hideLabel
-                                triggerClassName="flex items-center gap-2 border border-zinc-300 dark:border-zinc-700 border-r-0 h-9 px-3 bg-white dark:bg-zinc-900 text-xs font-medium min-w-[120px] justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all rounded-none"
-                                triggerActiveClassName="flex items-center gap-2 border border-orange-400 dark:border-orange-500 border-r-0 h-9 px-3 bg-orange-50/50 dark:bg-orange-950/20 text-xs font-medium min-w-[120px] justify-between transition-all rounded-none"
+                                triggerClassName="flex items-center gap-2 border border-zinc-300 dark:border-zinc-700 border-r-0 h-9 px-3 bg-white dark:bg-zinc-900 text-xs font-medium min-w-[120px] justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all rounded-md"
+                                triggerActiveClassName="flex items-center gap-2 border border-blue-400 dark:border-blue-500 border-r-0 h-9 px-3 bg-blue-50/50 dark:bg-blue-950/20 text-xs font-medium min-w-[120px] justify-between transition-all rounded-md"
                                 options={[
                                     { value: "INV_OUT", label: "Invoice Keluar" },
                                     { value: "INV_IN", label: "Invoice Masuk" },
@@ -746,8 +746,8 @@ export function InvoicesPageClient() {
                             <CheckboxFilter
                                 label="Status"
                                 hideLabel
-                                triggerClassName="flex items-center gap-2 border border-zinc-300 dark:border-zinc-700 border-r-0 h-9 px-3 bg-white dark:bg-zinc-900 text-xs font-medium min-w-[120px] justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all rounded-none"
-                                triggerActiveClassName="flex items-center gap-2 border border-orange-400 dark:border-orange-500 border-r-0 h-9 px-3 bg-orange-50/50 dark:bg-orange-950/20 text-xs font-medium min-w-[120px] justify-between transition-all rounded-none"
+                                triggerClassName="flex items-center gap-2 border border-zinc-300 dark:border-zinc-700 border-r-0 h-9 px-3 bg-white dark:bg-zinc-900 text-xs font-medium min-w-[120px] justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all rounded-md"
+                                triggerActiveClassName="flex items-center gap-2 border border-blue-400 dark:border-blue-500 border-r-0 h-9 px-3 bg-blue-50/50 dark:bg-blue-950/20 text-xs font-medium min-w-[120px] justify-between transition-all rounded-md"
                                 options={[
                                     { value: "DRAFT", label: "Draft" },
                                     { value: "ISSUED", label: "Terkirim" },
@@ -757,16 +757,16 @@ export function InvoicesPageClient() {
                                 selected={selectedStatuses}
                                 onChange={setSelectedStatuses}
                             />
-                            <Button onClick={applyFilters} variant="outline" className="border border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 text-[10px] font-bold uppercase tracking-wider h-9 px-3.5 rounded-none hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors">
+                            <Button onClick={applyFilters} variant="outline" className="border border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 text-xs font-bold h-9 px-3.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors">
                                 <Filter className="h-3.5 w-3.5 mr-1.5" /> Terapkan
                             </Button>
                             {(selectedTypes.length > 0 || selectedStatuses.length > 0 || q) && (
-                                <Button variant="ghost" onClick={resetFilters} className="text-zinc-400 text-[10px] font-bold uppercase h-9 px-3 rounded-none hover:text-zinc-700 dark:hover:text-zinc-200 ml-1.5">
+                                <Button variant="ghost" onClick={resetFilters} className="text-zinc-400 text-xs font-bold h-9 px-3 rounded-md hover:text-zinc-700 dark:hover:text-zinc-200 ml-1.5">
                                     <RotateCcw className="h-3 w-3 mr-1" /> Reset
                                 </Button>
                             )}
                         </div>
-                        <span className="hidden md:inline text-[11px] font-medium text-zinc-400">
+                        <span className="hidden md:inline text-xs font-medium text-zinc-400">
                             <span className="font-mono font-bold text-zinc-600 dark:text-zinc-300">{filteredInvoices.length}</span> invoice
                         </span>
                     </div>
@@ -775,14 +775,14 @@ export function InvoicesPageClient() {
 
             {/* ─── Invoice Table ─── */}
             <div
-                className="relative border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex flex-col"
+                className="relative border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden flex flex-col"
                 style={{ minHeight: 480 }}
             >
                 <InlinePendingBar active={isFetching && hasInvoiceData} />
                 {/* Table Header */}
-                <div className="hidden md:grid grid-cols-[1fr_1.2fr_90px_140px_120px_110px_120px] gap-2 px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black">
+                <div className="hidden md:grid grid-cols-[1fr_1.2fr_90px_140px_120px_110px_120px] gap-2 px-5 py-2.5 bg-slate-900 dark:bg-zinc-950 border-b border-border">
                     {['No. Invoice', 'Pihak', 'Tipe', 'Jumlah', 'Status', 'Jatuh Tempo', 'Aksi'].map((h) => (
-                        <span key={h} className="text-xs font-black uppercase tracking-widest text-zinc-400">{h}</span>
+                        <span key={h} className="text-xs font-semibold text-zinc-400">{h}</span>
                     ))}
                 </div>
 
@@ -807,7 +807,7 @@ export function InvoicesPageClient() {
                         </div>
                     ) : pagedInvoices.length === 0 ? (
                         <div className="flex-1 flex flex-col items-center justify-center py-16 text-zinc-400">
-                            <div className="w-16 h-16 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
+                            <div className="w-16 h-16 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
                                 <Receipt className="h-7 w-7 text-zinc-200 dark:text-zinc-700" />
                             </div>
                             <span className="text-sm font-bold">Tidak ada invoice ditemukan</span>
@@ -822,22 +822,22 @@ export function InvoicesPageClient() {
                                 return (
                                     <div
                                         key={invoice.id}
-                                        className={`grid grid-cols-1 md:grid-cols-[1fr_1.2fr_90px_140px_120px_110px_120px] gap-2 px-5 py-3 items-center hover:bg-orange-50/50 dark:hover:bg-orange-950/10 cursor-pointer ${idx % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-zinc-50/60 dark:bg-zinc-800/20'} ${isOverdue ? 'border-l-4 border-l-red-500' : invoiceDueToday ? 'border-l-4 border-l-orange-400' : ''}`}
+                                        className={`grid grid-cols-1 md:grid-cols-[1fr_1.2fr_90px_140px_120px_110px_120px] gap-2 px-5 py-3 items-center hover:bg-blue-50/50 dark:hover:bg-blue-950/10 cursor-pointer ${idx % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-zinc-50/60 dark:bg-zinc-800/20'} ${isOverdue ? 'border-l border-l-red-500' : invoiceDueToday ? 'border-l border-l-orange-400' : ''}`}
                                         onClick={() => invoice.status === 'DRAFT' ? openEditDialog(invoice) : openViewDialog(invoice)}
                                     >
                                         <div>
-                                            <span className="font-mono text-sm font-black text-zinc-900 dark:text-zinc-100">{invoice.number}</span>
+                                            <span className="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-100">{invoice.number}</span>
                                         </div>
                                         <div className="truncate">
                                             <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{invoice.partyName}</span>
                                         </div>
                                         <div>
-                                            <span className={`text-xs font-black uppercase tracking-wide px-2 py-0.5 border rounded-none ${typeChipClass(invoice.type)}`}>
+                                            <span className={`text-xs font-semibold px-2 py-0.5 border rounded-md ${typeChipClass(invoice.type)}`}>
                                                 {invoice.type === 'INV_OUT' ? 'Invoice' : 'Bill'}
                                             </span>
                                         </div>
                                         <div>
-                                            <span className={`font-mono font-black text-sm ${isOverdue ? 'text-red-600 dark:text-red-400' :
+                                            <span className={`font-mono font-semibold text-sm ${isOverdue ? 'text-red-600 dark:text-red-400' :
                                                 invoice.status === 'PAID' ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-900 dark:text-zinc-100'
                                                 }`}>
                                                 {formatIDR(invoice.amount)}
@@ -853,15 +853,15 @@ export function InvoicesPageClient() {
                                         </div>
                                         <div>
                                             {invoiceDueToday ? (
-                                                <span className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-wide px-2 py-0.5 border rounded-none bg-orange-50 dark:bg-orange-950/30 border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-400">
+                                                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 border rounded-md bg-blue-50 dark:bg-blue-950/30 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-400">
                                                     HARI INI
                                                 </span>
                                             ) : invoice.status === "ISSUED" ? (
-                                                <span className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-wide px-2 py-0.5 border rounded-none bg-zinc-100 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-300">
+                                                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 border rounded-md bg-zinc-100 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-300">
                                                     TERKIRIM
                                                 </span>
                                             ) : invoice.status === "PARTIAL" ? (
-                                                <span className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-wide px-2 py-0.5 border rounded-none bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400">
+                                                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 border rounded-md bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400">
                                                     SEBAGIAN
                                                 </span>
                                             ) : (
@@ -877,7 +877,7 @@ export function InvoicesPageClient() {
                                             )}
                                         </div>
                                         <div>
-                                            <span className={`text-xs font-medium ${isOverdue ? 'text-red-600 dark:text-red-400 font-bold' : invoiceDueToday ? 'text-orange-600 dark:text-orange-400 font-bold' : 'text-zinc-500'}`}>
+                                            <span className={`text-xs font-medium ${isOverdue ? 'text-red-600 dark:text-red-400 font-bold' : invoiceDueToday ? 'text-blue-600 dark:text-blue-400 font-bold' : 'text-zinc-500'}`}>
                                                 {new Date(invoice.dueDate).toLocaleDateString('id-ID')}
                                             </span>
                                         </div>
@@ -889,9 +889,9 @@ export function InvoicesPageClient() {
                                                 whileTap={{ scale: 0.92 }}
                                                 onClick={() => setAttachmentInvoiceId(attachmentInvoiceId === invoice.id ? null : invoice.id)}
                                                 title="Lampiran"
-                                                className={`h-7 w-7 flex items-center justify-center border transition-colors rounded-none ${
+                                                className={`h-7 w-7 flex items-center justify-center border transition-colors rounded-md ${
                                                     attachmentInvoiceId === invoice.id
-                                                        ? "border-orange-500 text-orange-700 bg-orange-50 dark:bg-orange-950/30"
+                                                        ? "border-blue-500 text-blue-700 bg-blue-50 dark:bg-blue-950/30"
                                                         : "border-zinc-200 dark:border-zinc-600 text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:border-zinc-400 hover:text-zinc-600"
                                                 }`}
                                             >
@@ -931,17 +931,17 @@ export function InvoicesPageClient() {
                             <Button
                                 variant="outline"
                                 size="icon"
-                                className="h-7 w-7 border border-zinc-300 dark:border-zinc-600 rounded-none"
+                                className="h-7 w-7 border border-zinc-300 dark:border-zinc-600 rounded-md"
                                 disabled={page <= 1}
                                 onClick={() => setPage(p => p - 1)}
                             >
                                 <ChevronLeft className="h-3.5 w-3.5" />
                             </Button>
-                            <span className="text-xs font-black min-w-[50px] text-center">{page}/{totalPages}</span>
+                            <span className="text-xs font-semibold min-w-[50px] text-center">{page}/{totalPages}</span>
                             <Button
                                 variant="outline"
                                 size="icon"
-                                className="h-7 w-7 border border-zinc-300 dark:border-zinc-600 rounded-none"
+                                className="h-7 w-7 border border-zinc-300 dark:border-zinc-600 rounded-md"
                                 disabled={page >= totalPages}
                                 onClick={() => setPage(p => p + 1)}
                             >
@@ -978,12 +978,12 @@ export function InvoicesPageClient() {
                                     whileHover={{ y: -2 }}
                                     whileTap={{ scale: 0.97 }}
                                     onClick={() => setSendMethod(m.key)}
-                                    className={`p-3 border-2 text-left transition-all ${sendMethod === m.key
+                                    className={`p-3 border text-left transition-all ${sendMethod === m.key
                                         ? `border-${m.color}-500 bg-${m.color}-50 dark:bg-${m.color}-950/30`
                                         : 'border-zinc-200 dark:border-zinc-600 hover:border-zinc-400'
                                     }`}
                                 >
-                                    <span className={`text-[11px] font-black uppercase tracking-wider block ${sendMethod === m.key ? `text-${m.color}-700 dark:text-${m.color}-400` : 'text-zinc-500'}`}>{m.label}</span>
+                                    <span className={`text-xs font-semibold block ${sendMethod === m.key ?`text-${m.color}-700 dark:text-${m.color}-400` : 'text-zinc-500'}`}>{m.label}</span>
                                     <span className="text-xs text-zinc-400 mt-0.5 block">{m.desc}</span>
                                 </motion.button>
                             ))}
@@ -1023,7 +1023,7 @@ export function InvoicesPageClient() {
                             </Label>
                             {sendMethod === 'WHATSAPP' ? (
                                 <div className="flex">
-                                    <span className="flex items-center px-3 border-2 border-r-0 border-zinc-300 dark:border-zinc-600 bg-zinc-100 dark:bg-zinc-800 text-xs font-bold text-zinc-500 rounded-none">+62</span>
+                                    <span className="flex items-center px-3 border border-r-0 border-zinc-300 dark:border-zinc-600 bg-zinc-100 dark:bg-zinc-800 text-xs font-bold text-zinc-500 rounded-md">+62</span>
                                     <Input className={NB.input} placeholder="812xxxxxxxx" value={recipientContact} onChange={(e) => setRecipientContact(e.target.value)} />
                                 </div>
                             ) : (
@@ -1065,8 +1065,8 @@ export function InvoicesPageClient() {
                                 animate={{ opacity: 1, x: 0 }}
                                 className="flex items-center gap-2 mt-2"
                             >
-                                <span className="font-mono text-sm font-black bg-zinc-800 border border-zinc-600 text-white px-3 py-1">{editNumber}</span>
-                                <span className={`text-xs font-black uppercase tracking-wide px-2 py-0.5 border rounded-none ${typeChipClass(editInvoiceType, true)}`}>
+                                <span className="font-mono text-sm font-semibold bg-zinc-800 border border-zinc-600 text-white px-3 py-1">{editNumber}</span>
+                                <span className={`text-xs font-semibold px-2 py-0.5 border rounded-md ${typeChipClass(editInvoiceType, true)}`}>
                                     {editInvoiceType === 'INV_OUT' ? 'Invoice' : 'Bill'}
                                 </span>
                             </motion.div>
@@ -1080,7 +1080,7 @@ export function InvoicesPageClient() {
                                 className="flex items-center justify-center py-12 text-zinc-400"
                             >
                                 <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                                <span className="text-xs font-bold uppercase tracking-widest">Memuat detail invoice...</span>
+                                <span className="text-xs font-bold  ">Memuat detail invoice...</span>
                             </motion.div>
                         ) : (
                             <div className="space-y-5">
@@ -1149,7 +1149,7 @@ export function InvoicesPageClient() {
                                                         <motion.button
                                                             whileHover={{ scale: 1.1 }}
                                                             whileTap={{ scale: 0.9 }}
-                                                            className="h-8 w-8 flex items-center justify-center border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-none transition-colors disabled:opacity-30"
+                                                            className="h-8 w-8 flex items-center justify-center border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-md transition-colors disabled:opacity-30"
                                                             onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}
                                                             disabled={editItems.length <= 1}
                                                         >
@@ -1163,7 +1163,7 @@ export function InvoicesPageClient() {
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="border-dashed border-2 text-[10px] font-bold uppercase w-full hover:bg-orange-50 hover:border-orange-300 rounded-none transition-all"
+                                        className="border-dashed border text-xs font-bold w-full hover:bg-blue-50 hover:border-blue-300 rounded-md transition-all"
                                         onClick={() => setEditItems([...editItems, { description: '', quantity: 1, unitPrice: 0 }])}
                                     >
                                         <Plus className="h-3 w-3 mr-1" /> Tambah Item
@@ -1195,7 +1195,7 @@ export function InvoicesPageClient() {
                                 </div>
 
                                 {/* PPN Toggle */}
-                                <div className="flex items-center justify-between border-2 border-zinc-200 dark:border-zinc-700 px-4 py-2.5">
+                                <div className="flex items-center justify-between border border-zinc-200 dark:border-zinc-700 px-4 py-2.5">
                                     <div>
                                         <span className={NB.label + " !mb-0"}>PPN 11%</span>
                                         <span className={NB.labelHint}>Pajak Pertambahan Nilai</span>
@@ -1221,7 +1221,7 @@ export function InvoicesPageClient() {
                                         const tax = editIncludeTax ? Math.round(afterDiscount * 0.11) : 0
                                         const total = afterDiscount + tax
                                         return (
-                                            <div className="border-2 border-black dark:border-white bg-zinc-900 dark:bg-zinc-100 px-4 py-3 space-y-1.5">
+                                            <div className="border border-border dark:border-white bg-zinc-900 dark:bg-zinc-100 px-4 py-3 space-y-1.5">
                                                 <div className="flex justify-between items-center text-xs text-zinc-400 dark:text-zinc-500">
                                                     <span>Subtotal ({editItems.length} item)</span>
                                                     <span className="font-mono font-bold">{formatIDR(subtotal)}</span>
@@ -1239,13 +1239,13 @@ export function InvoicesPageClient() {
                                                     </div>
                                                 )}
                                                 <div className="flex justify-between items-center border-t border-zinc-700 dark:border-zinc-300 pt-2 mt-1">
-                                                    <span className="text-[11px] font-black uppercase tracking-wider text-white dark:text-zinc-900">Total Tagihan</span>
+                                                    <span className="text-xs font-semibold text-white dark:text-zinc-900">Total Tagihan</span>
                                                     <motion.span
                                                         key={total}
                                                         initial={{ scale: 1.1 }}
                                                         animate={{ scale: 1 }}
                                                         transition={{ type: "spring" as const, stiffness: 300 }}
-                                                        className="font-mono font-black text-xl text-white dark:text-zinc-900"
+                                                        className="font-mono font-semibold text-xl text-white dark:text-zinc-900"
                                                     >
                                                         {formatIDR(total)}
                                                     </motion.span>
@@ -1257,7 +1257,7 @@ export function InvoicesPageClient() {
 
                                 {/* Attachments */}
                                 {activeInvoice && (
-                                    <div className="border-t-2 border-zinc-200 dark:border-zinc-700 pt-4">
+                                    <div className="border-t border-zinc-200 dark:border-zinc-700 pt-4">
                                         <InvoiceAttachmentSection invoiceId={activeInvoice.id} />
                                     </div>
                                 )}
@@ -1303,8 +1303,8 @@ export function InvoicesPageClient() {
                         <p className={NB.subtitle}>Detail lengkap invoice</p>
                         {viewData && (
                             <div className="flex items-center gap-2 mt-2">
-                                <span className="font-mono text-sm font-black bg-zinc-800 border border-zinc-600 text-white px-3 py-1">{viewData.number}</span>
-                                <span className={`text-xs font-black uppercase tracking-wide px-2 py-0.5 border rounded-none ${
+                                <span className="font-mono text-sm font-semibold bg-zinc-800 border border-zinc-600 text-white px-3 py-1">{viewData.number}</span>
+                                <span className={`text-xs font-semibold   px-2 py-0.5 border rounded-md ${
                                     viewData.status === "PAID" ? "bg-emerald-900/50 border-emerald-400 text-emerald-300"
                                     : viewData.status === "ISSUED" ? "bg-zinc-700/50 border-zinc-400 text-zinc-200"
                                     : viewData.status === "PARTIAL" ? "bg-amber-900/50 border-amber-400 text-amber-300"
@@ -1313,7 +1313,7 @@ export function InvoicesPageClient() {
                                 }`}>
                                     {viewData.status === "PAID" ? "Lunas" : viewData.status === "ISSUED" ? "Terkirim" : viewData.status === "PARTIAL" ? "Sebagian" : viewData.status === "OVERDUE" ? "Jatuh Tempo" : viewData.status}
                                 </span>
-                                <span className={`text-xs font-black uppercase tracking-wide px-2 py-0.5 border rounded-none ${typeChipClass(viewData.type, true)}`}>
+                                <span className={`text-xs font-semibold px-2 py-0.5 border rounded-md ${typeChipClass(viewData.type, true)}`}>
                                     {viewData.type === 'INV_OUT' ? 'Invoice' : 'Bill'}
                                 </span>
                             </div>
@@ -1323,43 +1323,43 @@ export function InvoicesPageClient() {
                         {viewLoading ? (
                             <div className="flex items-center justify-center py-12 text-zinc-400">
                                 <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                                <span className="text-xs font-bold uppercase tracking-widest">Memuat detail invoice...</span>
+                                <span className="text-xs font-bold  ">Memuat detail invoice...</span>
                             </div>
                         ) : viewData ? (
                             <div className="space-y-5">
                                 {/* Info */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
-                                        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">{viewData.type === 'INV_OUT' ? 'Pelanggan' : 'Vendor'}</span>
+                                        <span className="text-xs font-bold text-zinc-400">{viewData.type === 'INV_OUT' ? 'Pelanggan' : 'Vendor'}</span>
                                         <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{viewData.customerName}</div>
                                     </div>
                                     <div className="space-y-1">
-                                        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Tanggal Terbit</span>
+                                        <span className="text-xs font-bold text-zinc-400">Tanggal Terbit</span>
                                         <div className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{viewData.issueDate}</div>
                                     </div>
                                     <div className="space-y-1">
-                                        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Jatuh Tempo</span>
+                                        <span className="text-xs font-bold text-zinc-400">Jatuh Tempo</span>
                                         <div className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{viewData.dueDate}</div>
                                     </div>
                                 </div>
 
                                 {/* DN/CN Notice — shown for legacy Debit/Credit Note invoices */}
                                 {viewData.number?.match(/^(DN|CN)-\d/) && (
-                                    <div className="border border-orange-200 dark:border-orange-800 bg-orange-50/60 dark:bg-orange-950/20 px-4 py-3 flex items-start gap-3">
-                                        <FileText className="h-4 w-4 text-orange-500 mt-0.5 shrink-0" />
+                                    <div className="border border-blue-200 dark:border-blue-800 bg-blue-50/60 dark:bg-blue-950/20 px-4 py-3 flex items-start gap-3">
+                                        <FileText className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
                                         <div className="min-w-0">
                                             <div className="flex items-center gap-2 mb-1">
-                                                <span className="text-[9px] font-black uppercase tracking-widest bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300 border border-orange-300 dark:border-orange-700 px-2 py-0.5">
+                                                <span className="text-xs font-semibold bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700 px-2 py-0.5">
                                                     {viewData.number.startsWith("CN") ? "Nota Kredit" : "Nota Debit"}
                                                 </span>
-                                                <span className="text-[9px] font-medium text-zinc-400">Penyesuaian tagihan</span>
+                                                <span className="text-xs font-medium text-zinc-400">Penyesuaian tagihan</span>
                                             </div>
                                             <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300 truncate">
                                                 {(viewData.journalEntries[0]?.description || "")
                                                     .replace(/^\[(CREDIT|DEBIT)_NOTE\]\s*\S+:\s*/, "")
                                                     || "Dokumen penyesuaian tagihan"}
                                             </p>
-                                            <p className="text-[10px] text-zinc-400 mt-0.5 italic">
+                                            <p className="text-xs text-zinc-400 mt-0.5 italic">
                                                 Invoice asal tidak tersimpan pada catatan lama ini.
                                             </p>
                                         </div>
@@ -1368,13 +1368,13 @@ export function InvoicesPageClient() {
 
                                 {/* Items table */}
                                 <div>
-                                    <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 block mb-2">Item</span>
-                                    <div className="border-2 border-black dark:border-white overflow-hidden">
-                                        <div className="grid grid-cols-[1fr_60px_100px_100px] gap-0 bg-zinc-100 dark:bg-zinc-800 border-b-2 border-black dark:border-white">
-                                            <span className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-zinc-500">Deskripsi</span>
-                                            <span className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-zinc-500 text-center">Qty</span>
-                                            <span className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-zinc-500 text-right">Harga</span>
-                                            <span className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-zinc-500 text-right">Jumlah</span>
+                                    <span className="text-xs font-bold text-zinc-400 block mb-2">Item</span>
+                                    <div className="border border-border dark:border-white overflow-hidden">
+                                        <div className="grid grid-cols-[1fr_60px_100px_100px] gap-0 bg-zinc-100 dark:bg-zinc-800 border-b border-border dark:border-white">
+                                            <span className="px-3 py-1.5 text-xs font-semibold text-zinc-500">Deskripsi</span>
+                                            <span className="px-3 py-1.5 text-xs font-semibold text-zinc-500 text-center">Qty</span>
+                                            <span className="px-3 py-1.5 text-xs font-semibold text-zinc-500 text-right">Harga</span>
+                                            <span className="px-3 py-1.5 text-xs font-semibold text-zinc-500 text-right">Jumlah</span>
                                         </div>
                                         {viewData.items.map((item, i) => (
                                             <div key={i} className="grid grid-cols-[1fr_60px_100px_100px] gap-0 border-b border-zinc-200 dark:border-zinc-700 last:border-b-0">
@@ -1388,7 +1388,7 @@ export function InvoicesPageClient() {
                                 </div>
 
                                 {/* Totals */}
-                                <div className="border-2 border-black dark:border-white bg-zinc-900 dark:bg-zinc-100 px-4 py-3 space-y-1.5">
+                                <div className="border border-border dark:border-white bg-zinc-900 dark:bg-zinc-100 px-4 py-3 space-y-1.5">
                                     <div className="flex justify-between items-center text-xs text-zinc-400 dark:text-zinc-500">
                                         <span>Subtotal</span>
                                         <span className="font-mono font-bold">{formatIDR(viewData.subtotal)}</span>
@@ -1406,8 +1406,8 @@ export function InvoicesPageClient() {
                                         </div>
                                     )}
                                     <div className="flex justify-between items-center border-t border-zinc-700 dark:border-zinc-300 pt-2 mt-1">
-                                        <span className="text-[11px] font-black uppercase tracking-wider text-white dark:text-zinc-900">Total</span>
-                                        <span className="font-mono font-black text-xl text-white dark:text-zinc-900">{formatIDR(viewData.totalAmount)}</span>
+                                        <span className="text-xs font-semibold text-white dark:text-zinc-900">Total</span>
+                                        <span className="font-mono font-semibold text-xl text-white dark:text-zinc-900">{formatIDR(viewData.totalAmount)}</span>
                                     </div>
                                     {viewData.status !== "PAID" && viewData.balanceDue > 0 && viewData.balanceDue !== viewData.totalAmount && (
                                         <div className="flex justify-between items-center text-xs text-amber-400">
@@ -1428,29 +1428,29 @@ export function InvoicesPageClient() {
 
                                     return (
                                         <div>
-                                            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 block mb-2">Penyesuaian Nota Debit/Kredit</span>
-                                            <div className="border-2 border-black dark:border-white overflow-hidden">
+                                            <span className="text-xs font-bold text-zinc-400 block mb-2">Penyesuaian Nota Debit/Kredit</span>
+                                            <div className="border border-border dark:border-white overflow-hidden">
                                                 <div className="divide-y divide-zinc-200 dark:divide-zinc-700">
                                                     {viewData.dcNoteSettlements.map((s) => {
                                                         const isCN = s.noteType === "SALES_CN" || s.noteType === "PURCHASE_CN"
                                                         return (
                                                             <div key={s.id} className="flex items-center justify-between px-3 py-2">
                                                                 <div className="flex items-center gap-2 min-w-0">
-                                                                    <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 border rounded-none ${
+                                                                    <span className={`text-xs font-semibold  px-1.5 py-0.5 border rounded-md ${
                                                                         isCN
                                                                             ? "bg-red-50 text-red-600 border-red-300 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800"
-                                                                            : "bg-orange-50 text-orange-600 border-orange-300 dark:bg-orange-950/30 dark:text-orange-400 dark:border-orange-800"
+                                                                            : "bg-blue-50 text-blue-600 border-blue-300 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800"
                                                                     }`}>
                                                                         {isCN ? "CN" : "DN"}
                                                                     </span>
                                                                     <div className="min-w-0">
                                                                         <span className="text-xs font-mono font-bold text-zinc-800 dark:text-zinc-200">{s.noteNumber || "-"}</span>
                                                                         {s.noteDescription && (
-                                                                            <span className="text-[10px] text-zinc-400 ml-2 truncate">{s.noteDescription}</span>
+                                                                            <span className="text-xs text-zinc-400 ml-2 truncate">{s.noteDescription}</span>
                                                                         )}
                                                                     </div>
                                                                 </div>
-                                                                <span className={`font-mono font-bold text-sm shrink-0 ${isCN ? "text-red-600 dark:text-red-400" : "text-orange-600 dark:text-orange-400"}`}>
+                                                                <span className={`font-mono font-bold text-sm shrink-0 ${isCN ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"}`}>
                                                                     {isCN ? "-" : "+"} {formatIDR(s.amount)}
                                                                 </span>
                                                             </div>
@@ -1458,36 +1458,36 @@ export function InvoicesPageClient() {
                                                     })}
                                                 </div>
                                                 {/* Net summary */}
-                                                <div className="bg-zinc-50 dark:bg-zinc-800 border-t-2 border-black dark:border-white px-3 py-2 space-y-1">
-                                                    <div className="flex justify-between items-center text-[11px]">
+                                                <div className="bg-zinc-50 dark:bg-zinc-800 border-t border-border dark:border-white px-3 py-2 space-y-1">
+                                                    <div className="flex justify-between items-center text-xs">
                                                         <span className="text-zinc-500">Total Invoice</span>
                                                         <span className="font-mono font-bold text-zinc-700 dark:text-zinc-300">{formatIDR(viewData.totalAmount)}</span>
                                                     </div>
                                                     {totalCN > 0 && (
-                                                        <div className="flex justify-between items-center text-[11px] text-red-600 dark:text-red-400">
+                                                        <div className="flex justify-between items-center text-xs text-red-600 dark:text-red-400">
                                                             <span>Nota Kredit</span>
                                                             <span className="font-mono font-bold">- {formatIDR(totalCN)}</span>
                                                         </div>
                                                     )}
                                                     {totalDN > 0 && (
-                                                        <div className="flex justify-between items-center text-[11px] text-orange-600 dark:text-orange-400">
+                                                        <div className="flex justify-between items-center text-xs text-blue-600 dark:text-blue-400">
                                                             <span>Nota Debit</span>
                                                             <span className="font-mono font-bold">+ {formatIDR(totalDN)}</span>
                                                         </div>
                                                     )}
-                                                    <div className="flex justify-between items-center text-[11px] border-t border-zinc-200 dark:border-zinc-700 pt-1 mt-1">
-                                                        <span className="font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">Jumlah Bersih</span>
-                                                        <span className="font-mono font-black text-zinc-900 dark:text-white">{formatIDR(netAmount)}</span>
+                                                    <div className="flex justify-between items-center text-xs border-t border-zinc-200 dark:border-zinc-700 pt-1 mt-1">
+                                                        <span className="font-semibold text-zinc-700 dark:text-zinc-300">Jumlah Bersih</span>
+                                                        <span className="font-mono font-semibold text-zinc-900 dark:text-white">{formatIDR(netAmount)}</span>
                                                     </div>
                                                     {totalPaid > 0 && (
-                                                        <div className="flex justify-between items-center text-[11px] text-emerald-600 dark:text-emerald-400">
+                                                        <div className="flex justify-between items-center text-xs text-emerald-600 dark:text-emerald-400">
                                                             <span>Dibayar</span>
                                                             <span className="font-mono font-bold">- {formatIDR(totalPaid)}</span>
                                                         </div>
                                                     )}
-                                                    <div className="flex justify-between items-center text-[11px] border-t border-zinc-300 dark:border-zinc-600 pt-1 mt-1">
-                                                        <span className="font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Sisa Tagihan</span>
-                                                        <span className={`font-mono font-black ${viewData.balanceDue > 0 ? "text-orange-600 dark:text-orange-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                                                    <div className="flex justify-between items-center text-xs border-t border-zinc-300 dark:border-zinc-600 pt-1 mt-1">
+                                                        <span className="font-semibold text-emerald-700 dark:text-emerald-400">Sisa Tagihan</span>
+                                                        <span className={`font-mono font-semibold ${viewData.balanceDue > 0 ? "text-blue-600 dark:text-blue-400" : "text-emerald-600 dark:text-emerald-400"}`}>
                                                             {formatIDR(viewData.balanceDue)}
                                                         </span>
                                                     </div>
@@ -1500,13 +1500,13 @@ export function InvoicesPageClient() {
                                 {/* Payment history */}
                                 {viewData.payments.length > 0 && (
                                     <div>
-                                        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 block mb-2">Riwayat Pembayaran</span>
-                                        <div className="border-2 border-black dark:border-white overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-700">
+                                        <span className="text-xs font-bold text-zinc-400 block mb-2">Riwayat Pembayaran</span>
+                                        <div className="border border-border dark:border-white overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-700">
                                             {viewData.payments.map((p) => (
                                                 <div key={p.id} className="flex items-center justify-between px-3 py-2">
                                                     <div>
                                                         <div className="text-xs font-bold text-zinc-800 dark:text-zinc-200">{p.method}</div>
-                                                        <div className="text-[10px] text-zinc-400">{p.date}</div>
+                                                        <div className="text-xs text-zinc-400">{p.date}</div>
                                                     </div>
                                                     <span className="font-mono font-bold text-sm text-emerald-700 dark:text-emerald-400">{formatIDR(p.amount)}</span>
                                                 </div>
@@ -1518,13 +1518,13 @@ export function InvoicesPageClient() {
                                 {/* Journal Entries */}
                                 {viewData.journalEntries.length > 0 && (
                                     <div>
-                                        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 block mb-2">Jurnal Akuntansi</span>
+                                        <span className="text-xs font-bold text-zinc-400 block mb-2">Jurnal Akuntansi</span>
                                         <div className="space-y-2">
                                             {viewData.journalEntries.map((je) => (
-                                                <div key={je.id} className="border-2 border-black dark:border-white overflow-hidden">
+                                                <div key={je.id} className="border border-border dark:border-white overflow-hidden">
                                                     <div className="px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
-                                                        <span className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400">{je.description}</span>
-                                                        <span className="text-[10px] font-mono text-zinc-400">{je.date}</span>
+                                                        <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400">{je.description}</span>
+                                                        <span className="text-xs font-mono text-zinc-400">{je.date}</span>
                                                     </div>
                                                     <div className="divide-y divide-zinc-100 dark:divide-zinc-700">
                                                         {je.lines.map((line, li) => (
@@ -1595,7 +1595,7 @@ export function InvoicesPageClient() {
                                 </Button>
                                 <Button
                                     variant="outline"
-                                    className="h-9 rounded-none text-[10px] font-bold uppercase tracking-wider border border-red-300 text-red-600 hover:bg-red-50"
+                                    className="h-9 rounded-md text-xs font-bold border border-red-300 text-red-600 hover:bg-red-50"
                                     onClick={() => {
                                         setIsViewDialogOpen(false)
                                         if (activeInvoice) { setDeleteTarget(activeInvoice); setIsDeleteDialogOpen(true) }
@@ -1624,10 +1624,10 @@ export function InvoicesPageClient() {
                             <motion.div
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className="flex items-center justify-between border-2 border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 px-4 py-2.5"
+                                className="flex items-center justify-between border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 px-4 py-2.5"
                             >
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Sisa Tagihan</span>
-                                <span className="font-mono font-black text-lg text-emerald-700 dark:text-emerald-400">{formatIDR(activeInvoice.balanceDue ?? activeInvoice.amount)}</span>
+                                <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">Sisa Tagihan</span>
+                                <span className="font-mono font-semibold text-lg text-emerald-700 dark:text-emerald-400">{formatIDR(activeInvoice.balanceDue ?? activeInvoice.amount)}</span>
                             </motion.div>
                         )}
                         <div className="grid grid-cols-2 gap-4">
@@ -1667,8 +1667,8 @@ export function InvoicesPageClient() {
 
                         {/* PPh Withholding Section — only for AR (INV_OUT) invoices */}
                         {activeInvoice?.type === "INV_OUT" && (
-                            <div className="border-2 border-black p-3 space-y-3">
-                                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest cursor-pointer">
+                            <div className="border border-border p-3 space-y-3">
+                                <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
                                     <input
                                         type="checkbox"
                                         checked={enablePPh}
@@ -1682,9 +1682,9 @@ export function InvoicesPageClient() {
                                     <div className="space-y-3 pl-6">
                                         <div className="grid grid-cols-2 gap-2">
                                             <div className="space-y-1">
-                                                <label className="text-[10px] font-bold uppercase text-zinc-500">Jenis PPh</label>
+                                                <label className="text-xs font-bold text-zinc-500">Jenis PPh</label>
                                                 <Select value={pphType} onValueChange={(v: string) => setPPhType(v as PPhTypeValue)}>
-                                                    <SelectTrigger className="h-8 rounded-none text-xs border-2 border-black">
+                                                    <SelectTrigger className="h-8 rounded-md text-xs border border-border">
                                                         <SelectValue />
                                                     </SelectTrigger>
                                                     <SelectContent>
@@ -1694,13 +1694,13 @@ export function InvoicesPageClient() {
                                                 </Select>
                                             </div>
                                             <div className="space-y-1">
-                                                <label className="text-[10px] font-bold uppercase text-zinc-500">Tarif (%)</label>
+                                                <label className="text-xs font-bold text-zinc-500">Tarif (%)</label>
                                                 <Input
                                                     type="number"
                                                     step="0.01"
                                                     value={pphRate}
                                                     onChange={(e) => setPPhRate(Number(e.target.value))}
-                                                    className="h-8 rounded-none text-xs border-2 border-black font-mono"
+                                                    className="h-8 rounded-md text-xs border border-border font-mono"
                                                 />
                                             </div>
                                         </div>
@@ -1717,16 +1717,16 @@ export function InvoicesPageClient() {
                                         </div>
 
                                         <div className="space-y-1">
-                                            <label className="text-[10px] font-bold uppercase text-zinc-500">No. Bukti Potong</label>
+                                            <label className="text-xs font-bold text-zinc-500">No. Bukti Potong</label>
                                             <Input
                                                 value={buktiPotongNo}
                                                 onChange={(e) => setBuktiPotongNo(e.target.value)}
                                                 placeholder="Opsional..."
-                                                className="h-8 rounded-none text-xs border-2 border-black placeholder:text-zinc-300"
+                                                className="h-8 rounded-md text-xs border border-border placeholder:text-zinc-300"
                                             />
                                         </div>
 
-                                        <div className="bg-zinc-50 border-2 border-zinc-300 p-2 text-xs">
+                                        <div className="bg-zinc-50 border border-zinc-300 p-2 text-xs">
                                             <span className="font-bold">Diterima dari customer:</span>{" "}
                                             <span className="font-mono font-bold text-lg">{formatIDR(pphCalc?.netAmount || pphBaseAmount)}</span>
                                         </div>
@@ -1748,16 +1748,16 @@ export function InvoicesPageClient() {
             <Dialog open={isDeleteDialogOpen} onOpenChange={(open) => { if (!deleting) setIsDeleteDialogOpen(open) }}>
                 <DialogContent className={NB.contentNarrow}>
                     <DialogHeader className="bg-red-600 p-6 text-white">
-                        <DialogTitle className="flex items-center gap-2 text-base font-black uppercase tracking-wider">
+                        <DialogTitle className="flex items-center gap-2 text-base font-semibold  ">
                             <Trash2 className="h-5 w-5" /> Hapus Invoice
                         </DialogTitle>
-                        <p className="text-[11px] text-red-200 mt-1">Tindakan ini tidak dapat dibatalkan</p>
+                        <p className="text-xs text-red-200 mt-1">Tindakan ini tidak dapat dibatalkan</p>
                     </DialogHeader>
                     <div className="p-6 space-y-3">
                         <p className="text-sm text-zinc-700 dark:text-zinc-300">
-                            Anda yakin ingin menghapus invoice <span className="font-black">{deleteTarget?.number}</span>?
+                            Anda yakin ingin menghapus invoice <span className="font-semibold">{deleteTarget?.number}</span>?
                         </p>
-                        <div className="border-2 border-red-200 bg-red-50 dark:bg-red-950/20 px-4 py-3 text-xs text-red-700 dark:text-red-400 font-medium">
+                        <div className="border border-red-200 bg-red-50 dark:bg-red-950/20 px-4 py-3 text-xs text-red-700 dark:text-red-400 font-medium">
                             Invoice dan semua item-nya akan dihapus permanen. Hanya invoice berstatus DRAFT yang dapat dihapus.
                         </div>
                     </div>
@@ -1766,7 +1766,7 @@ export function InvoicesPageClient() {
                         <Button
                             onClick={handleDeleteInvoice}
                             disabled={deleting}
-                            className="h-9 rounded-none text-[10px] font-black uppercase tracking-wider bg-red-600 text-white border-2 border-red-700 hover:bg-red-700"
+                            className="h-9 rounded-md text-xs font-semibold bg-red-600 text-white border border-red-700 hover:bg-red-700"
                         >
                             {deleting ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Menghapus...</> : <><Trash2 className="mr-1.5 h-3.5 w-3.5" /> Hapus Permanen</>}
                         </Button>

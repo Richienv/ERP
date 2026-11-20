@@ -30,20 +30,20 @@ export function PerformanceCharts() {
         <div className="grid gap-6 md:grid-cols-2">
 
             {/* CHART 1: Predictive Stock Burn */}
-            <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-xl flex flex-col">
-                <CardHeader className="border-b-2 border-black bg-zinc-50 pb-4 flex flex-row items-start justify-between">
+            <Card className="bg-white border border-border shadow-sm rounded-xl flex flex-col">
+                <CardHeader className="border-b border-border bg-zinc-50 pb-4 flex flex-row items-start justify-between">
                     <div>
-                        <CardTitle className="text-lg font-black uppercase text-black">Prediksi Habis Stok</CardTitle>
-                        <CardDescription className="font-bold text-xs uppercase text-zinc-500 mt-1">
+                        <CardTitle className="text-lg font-semibold text-black">Prediksi Habis Stok</CardTitle>
+                        <CardDescription className="font-bold text-xs text-zinc-500 mt-1">
                             Aktual vs Model ML (7 Hari ke depan)
                         </CardDescription>
                     </div>
-                    <Badge variant="destructive" className="border-2 border-black font-black animate-pulse">
+                    <Badge variant="destructive" className="border border-border font-semibold animate-pulse">
                         <AlertTriangle className="mr-1 h-3 w-3" /> RISK: MINGGU
                     </Badge>
                 </CardHeader>
                 <CardContent className="pt-6 flex-1">
-                    <div className="h-[250px] w-full bg-white border-2 border-black rounded-lg p-2 shadow-inner bg-zinc-50/50">
+                    <div className="h-[250px] w-full bg-white border border-border rounded-lg p-2 shadow-inner bg-zinc-50/50">
                         <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={dataBurnDown}>
                                 <defs>
@@ -63,7 +63,7 @@ export function PerformanceCharts() {
                             </AreaChart>
                         </ResponsiveContainer>
                     </div>
-                    <div className="mt-4 p-3 bg-yellow-50 border-2 border-black rounded-lg text-xs font-bold text-yellow-900 flex items-start">
+                    <div className="mt-4 p-3 bg-yellow-50 border border-border rounded-lg text-xs font-bold text-yellow-900 flex items-start">
                         <AlertTriangle className="h-4 w-4 mr-2 shrink-0" />
                         Insight: Penurunan stok hari Kamis lebih tajam dari prediksi. Disarankan restock Jumat pagi.
                     </div>
@@ -71,13 +71,13 @@ export function PerformanceCharts() {
             </Card>
 
             {/* CHART 2: Efficiency (Cost per Order) */}
-            <Card className="bg-white border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-xl flex flex-col">
-                <CardHeader className="border-b-2 border-black bg-zinc-50 pb-4">
-                    <CardTitle className="text-lg font-black uppercase text-black">Biaya Operasional / Order</CardTitle>
-                    <CardDescription className="font-bold text-xs uppercase text-zinc-500">Analisis Efisiensi Handling per Shift</CardDescription>
+            <Card className="bg-white border border-border shadow-sm rounded-xl flex flex-col">
+                <CardHeader className="border-b border-border bg-zinc-50 pb-4">
+                    <CardTitle className="text-lg font-semibold text-black">Biaya Operasional / Order</CardTitle>
+                    <CardDescription className="font-bold text-xs text-zinc-500">Analisis Efisiensi Handling per Shift</CardDescription>
                 </CardHeader>
                 <CardContent className="pt-6 flex-1">
-                    <div className="h-[250px] w-full bg-white border-2 border-black rounded-lg p-2 shadow-inner bg-zinc-50/50">
+                    <div className="h-[250px] w-full bg-white border border-border rounded-lg p-2 shadow-inner bg-zinc-50/50">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={dataCost}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e4e4e7" />
@@ -91,7 +91,7 @@ export function PerformanceCharts() {
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
-                    <div className="mt-4 p-3 bg-green-50 border-2 border-black rounded-lg text-xs font-bold text-green-900 flex items-start">
+                    <div className="mt-4 p-3 bg-green-50 border border-border rounded-lg text-xs font-bold text-green-900 flex items-start">
                         <TrendingUp className="h-4 w-4 mr-2 shrink-0" />
                         Efficiency Alert: Shift 14:00 - 16:00 memiliki Cost per Handling terendah (Rp 11k/order). Jadikan benchmark SOP.
                     </div>

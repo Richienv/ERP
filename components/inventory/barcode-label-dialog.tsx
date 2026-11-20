@@ -192,7 +192,7 @@ export function BarcodeLabelDialog({
       <NBDialogBody>
         {/* Preview */}
         <NBSection icon={Eye} title="Pratinjau Label">
-          <div className="border-2 border-black p-4 flex flex-col items-center gap-2 bg-white">
+          <div className="border border-border p-4 flex flex-col items-center gap-2 bg-white">
             <div className="text-sm font-bold text-center leading-tight">
               {product.name}
             </div>
@@ -233,7 +233,7 @@ export function BarcodeLabelDialog({
               type="button"
               variant="outline"
               size="icon"
-              className="border border-zinc-300 rounded-none h-8 w-8"
+              className="border border-zinc-300 rounded-md h-8 w-8"
               onClick={() => setQuantity((q) => Math.max(1, q - 1))}
               disabled={quantity <= 1}
             >
@@ -250,13 +250,13 @@ export function BarcodeLabelDialog({
                   setQuantity(val)
                 }
               }}
-              className="border border-zinc-300 rounded-none h-8 w-24 text-center font-mono font-bold text-sm"
+              className="border border-zinc-300 rounded-md h-8 w-24 text-center font-mono font-bold text-sm"
             />
             <Button
               type="button"
               variant="outline"
               size="icon"
-              className="border border-zinc-300 rounded-none h-8 w-8"
+              className="border border-zinc-300 rounded-md h-8 w-8"
               onClick={() => setQuantity((q) => Math.min(500, q + 1))}
               disabled={quantity >= 500}
             >

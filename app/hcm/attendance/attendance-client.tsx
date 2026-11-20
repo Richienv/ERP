@@ -290,10 +290,10 @@ export function AttendanceClient({
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-black uppercase tracking-wider">
+                    <h1 className="text-2xl font-semibold  ">
                         Pelacakan Absensi
                     </h1>
-                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                    <p className="text-xs font-bold text-zinc-500  ">
                         Monitor kehadiran, jam kerja, lembur & cuti
                     </p>
                 </div>
@@ -301,14 +301,14 @@ export function AttendanceClient({
                     <button
                         onClick={handleRefresh}
                         disabled={isPending}
-                        className="flex items-center gap-1.5 px-4 py-2.5 border-2 border-black text-[10px] font-black uppercase tracking-wider bg-white hover:bg-zinc-50 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all"
+                        className="flex items-center gap-1.5 px-4 py-2.5 border border-border text-xs font-semibold bg-white hover:bg-zinc-50 shadow-sm active:shadow-none transition-all"
                     >
                         <RefreshCw className={`h-3.5 w-3.5 ${isPending ? "animate-spin" : ""}`} />
                         Muat Ulang
                     </button>
                     <button
                         onClick={() => setClockOpen(true)}
-                        className="flex items-center gap-1.5 px-4 py-2.5 border-2 border-black text-[10px] font-black uppercase tracking-wider bg-black text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all"
+                        className="flex items-center gap-1.5 px-4 py-2.5 border border-border text-xs font-semibold bg-slate-900 text-white shadow-sm active:shadow-none transition-all"
                     >
                         <Clock className="h-3.5 w-3.5" />
                         Clock In/Out
@@ -326,17 +326,17 @@ export function AttendanceClient({
                         <button
                             key={tab.key}
                             onClick={() => setActiveTab(tab.key)}
-                            className={`flex items-center gap-1.5 px-4 py-2.5 border-2 border-black text-[10px] font-black uppercase tracking-wider transition-all shrink-0 ${
+                            className={`flex items-center gap-1.5 px-4 py-2.5 border border-border text-xs font-semibold   transition-all shrink-0 ${
                                 isActive
-                                    ? `${tab.color} shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]`
+                                    ? `${tab.color} shadow-sm`
                                     : "bg-white hover:bg-zinc-50"
                             }`}
                         >
                             <Icon className="h-3.5 w-3.5" />
                             {tab.label}
                             {count > 0 && (
-                                <span className={`ml-1 px-1.5 py-0.5 text-[8px] font-black border border-black ${
-                                    isActive ? "bg-white text-black" : "bg-black text-white"
+                                <span className={`ml-1 px-1.5 py-0.5 text-xs font-semibold border border-border ${
+                                    isActive ? "bg-white text-black" : "bg-slate-900 text-white"
                                 }`}>
                                     {count}
                                 </span>
@@ -352,22 +352,22 @@ export function AttendanceClient({
             {activeTab === "today" && (
                 <div className="space-y-6">
                     {/* Filter */}
-                    <div className="border-2 border-black bg-white p-4 flex flex-col md:flex-row gap-3 items-start md:items-end">
+                    <div className="border border-border bg-white p-4 flex flex-col md:flex-row gap-3 items-start md:items-end">
                         <div>
-                            <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Tanggal</label>
+                            <label className="text-xs font-semibold text-zinc-500 mb-1 block">Tanggal</label>
                             <input
                                 type="date"
                                 value={selectedDate}
                                 onChange={(e) => setSelectedDate(e.target.value)}
-                                className="border-2 border-black font-bold h-10 px-3 w-[180px]"
+                                className="border border-border font-bold h-10 px-3 w-[180px]"
                             />
                         </div>
                         <div>
-                            <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Departemen</label>
+                            <label className="text-xs font-semibold text-zinc-500 mb-1 block">Departemen</label>
                             <select
                                 value={selectedDepartment}
                                 onChange={(e) => setSelectedDepartment(e.target.value)}
-                                className="border-2 border-black font-bold h-10 px-3 w-[200px] bg-white"
+                                className="border border-border font-bold h-10 px-3 w-[200px] bg-white"
                             >
                                 <option value="all">Semua Departemen</option>
                                 {departments.map((d) => (
@@ -378,7 +378,7 @@ export function AttendanceClient({
                         <button
                             onClick={handleFilter}
                             disabled={loadingFilter}
-                            className="px-4 h-10 border-2 border-black text-[10px] font-black uppercase tracking-wider bg-black text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all"
+                            className="px-4 h-10 border border-border text-xs font-semibold bg-slate-900 text-white shadow-sm active:shadow-none transition-all"
                         >
                             {loadingFilter ? "Memuat..." : "Terapkan"}
                         </button>
@@ -386,58 +386,58 @@ export function AttendanceClient({
 
                     {/* KPI Cards */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4">
+                        <div className="border border-border bg-white shadow-sm p-4">
                             <div className="flex items-center justify-between mb-2">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Hadir</span>
+                                <span className="text-xs font-semibold text-zinc-500">Hadir</span>
                                 <Users className="h-4 w-4 text-emerald-600" />
                             </div>
-                            <div className="text-3xl font-black text-emerald-600">{stats.presentCount}</div>
-                            <p className="text-[10px] font-bold text-zinc-400 mt-1">dari {stats.totalEmployees} karyawan</p>
+                            <div className="text-3xl font-semibold text-emerald-600">{stats.presentCount}</div>
+                            <p className="text-xs font-bold text-zinc-400 mt-1">dari {stats.totalEmployees} karyawan</p>
                         </div>
-                        <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4">
+                        <div className="border border-border bg-white shadow-sm p-4">
                             <div className="flex items-center justify-between mb-2">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Terlambat</span>
+                                <span className="text-xs font-semibold text-zinc-500">Terlambat</span>
                                 <AlertTriangle className="h-4 w-4 text-amber-600" />
                             </div>
-                            <div className="text-3xl font-black text-amber-600">{stats.lateCount}</div>
-                            <p className="text-[10px] font-bold text-zinc-400 mt-1">telat clock-in</p>
+                            <div className="text-3xl font-semibold text-amber-600">{stats.lateCount}</div>
+                            <p className="text-xs font-bold text-zinc-400 mt-1">telat clock-in</p>
                         </div>
-                        <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4">
+                        <div className="border border-border bg-white shadow-sm p-4">
                             <div className="flex items-center justify-between mb-2">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Tidak Hadir</span>
+                                <span className="text-xs font-semibold text-zinc-500">Tidak Hadir</span>
                                 <UserX className="h-4 w-4 text-red-600" />
                             </div>
-                            <div className="text-3xl font-black text-red-600">{stats.absentCount}</div>
-                            <p className="text-[10px] font-bold text-zinc-400 mt-1">absen tanpa catatan</p>
+                            <div className="text-3xl font-semibold text-red-600">{stats.absentCount}</div>
+                            <p className="text-xs font-bold text-zinc-400 mt-1">absen tanpa catatan</p>
                         </div>
-                        <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4">
+                        <div className="border border-border bg-white shadow-sm p-4">
                             <div className="flex items-center justify-between mb-2">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Kehadiran</span>
+                                <span className="text-xs font-semibold text-zinc-500">Kehadiran</span>
                                 <TrendingUp className="h-4 w-4" />
                             </div>
-                            <div className="text-3xl font-black">{stats.attendanceRate}%</div>
-                            <p className="text-[10px] font-bold text-zinc-400 mt-1">termasuk cuti</p>
+                            <div className="text-3xl font-semibold">{stats.attendanceRate}%</div>
+                            <p className="text-xs font-bold text-zinc-400 mt-1">termasuk cuti</p>
                         </div>
                     </div>
 
                     {/* Attendance Table */}
-                    <div className="border-2 border-black bg-white overflow-hidden">
-                        <div className="bg-black text-white px-4 py-3 flex items-center justify-between">
-                            <span className="text-xs font-black uppercase tracking-widest">
+                    <div className="border border-border bg-white overflow-hidden">
+                        <div className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between">
+                            <span className="text-xs font-semibold  ">
                                 Absensi — {new Date(selectedDate).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
                             </span>
-                            <span className="text-[9px] font-black px-2 py-0.5 bg-white text-black">{rows.length}</span>
+                            <span className="text-xs font-semibold px-2 py-0.5 bg-white text-black">{rows.length}</span>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full">
                                 <thead>
-                                    <tr className="bg-zinc-100 border-b-2 border-black">
-                                        <th className="text-left text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-2.5">Karyawan</th>
-                                        <th className="text-left text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-2.5">Masuk</th>
-                                        <th className="text-left text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-2.5">Keluar</th>
-                                        <th className="text-left text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-2.5">Jam Kerja</th>
-                                        <th className="text-left text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-2.5">Lembur</th>
-                                        <th className="text-left text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-2.5">Status</th>
+                                    <tr className="bg-zinc-100 border-b border-border">
+                                        <th className="text-left text-xs font-semibold text-zinc-500 px-4 py-2.5">Karyawan</th>
+                                        <th className="text-left text-xs font-semibold text-zinc-500 px-4 py-2.5">Masuk</th>
+                                        <th className="text-left text-xs font-semibold text-zinc-500 px-4 py-2.5">Keluar</th>
+                                        <th className="text-left text-xs font-semibold text-zinc-500 px-4 py-2.5">Jam Kerja</th>
+                                        <th className="text-left text-xs font-semibold text-zinc-500 px-4 py-2.5">Lembur</th>
+                                        <th className="text-left text-xs font-semibold text-zinc-500 px-4 py-2.5">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -445,7 +445,7 @@ export function AttendanceClient({
                                         <tr>
                                             <td colSpan={6} className="px-4 py-8 text-center">
                                                 <ClipboardList className="h-8 w-8 mx-auto text-zinc-200 mb-2" />
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                                                <span className="text-xs font-semibold text-zinc-400">
                                                     Tidak ada data absensi
                                                 </span>
                                             </td>
@@ -457,7 +457,7 @@ export function AttendanceClient({
                                                 <tr key={r.id} className="border-b border-zinc-200 hover:bg-zinc-50 transition-colors">
                                                     <td className="px-4 py-3">
                                                         <div className="font-bold text-sm">{r.name}</div>
-                                                        <div className="text-[10px] text-zinc-500 font-medium">{r.employeeCode} · {r.department}</div>
+                                                        <div className="text-xs text-zinc-500 font-medium">{r.employeeCode} · {r.department}</div>
                                                     </td>
                                                     <td className="px-4 py-3 font-mono text-sm font-bold">{r.clockIn || "—"}</td>
                                                     <td className="px-4 py-3 font-mono text-sm font-bold">{r.clockOut || "—"}</td>
@@ -470,7 +470,7 @@ export function AttendanceClient({
                                                         )}
                                                     </td>
                                                     <td className="px-4 py-3">
-                                                        <span className={`inline-block px-2 py-0.5 text-[10px] font-black uppercase border ${STATUS_BADGE[sk] || STATUS_BADGE.ABSENT}`}>
+                                                        <span className={`inline-block px-2 py-0.5 text-xs font-semibold border ${STATUS_BADGE[sk] || STATUS_BADGE.ABSENT}`}>
                                                             {STATUS_LABEL[sk] || "Absen"}
                                                         </span>
                                                     </td>
@@ -491,34 +491,34 @@ export function AttendanceClient({
             {activeTab === "monthly" && (
                 <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-5">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block mb-2">Rata-rata Jam Kerja</span>
-                            <div className="text-3xl font-black">
+                        <div className="border border-border bg-white shadow-sm p-5">
+                            <span className="text-xs font-semibold text-zinc-500 block mb-2">Rata-rata Jam Kerja</span>
+                            <div className="text-3xl font-semibold">
                                 {rows.length > 0
                                     ? (rows.reduce((s, r) => s + r.workingHours, 0) / rows.length).toFixed(1)
                                     : "0.0"}{" "}
                                 <span className="text-sm text-zinc-400">jam</span>
                             </div>
                         </div>
-                        <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-5">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block mb-2">Total Lembur</span>
-                            <div className="text-3xl font-black text-amber-600">
+                        <div className="border border-border bg-white shadow-sm p-5">
+                            <span className="text-xs font-semibold text-zinc-500 block mb-2">Total Lembur</span>
+                            <div className="text-3xl font-semibold text-amber-600">
                                 {rows.reduce((s, r) => s + r.overtimeHours, 0).toFixed(1)}{" "}
                                 <span className="text-sm text-zinc-400">jam</span>
                             </div>
                         </div>
-                        <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-5">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block mb-2">Ketepatan Waktu</span>
-                            <div className="text-3xl font-black text-emerald-600">
+                        <div className="border border-border bg-white shadow-sm p-5">
+                            <span className="text-xs font-semibold text-zinc-500 block mb-2">Ketepatan Waktu</span>
+                            <div className="text-3xl font-semibold text-emerald-600">
                                 {stats.totalEmployees > 0
                                     ? Math.round(((stats.presentCount - stats.lateCount) / stats.totalEmployees) * 100)
                                     : 0}%
                             </div>
                         </div>
                     </div>
-                    <div className="border-2 border-black bg-white p-6 text-center">
+                    <div className="border border-border bg-white p-6 text-center">
                         <BarChart3 className="h-8 w-8 mx-auto text-zinc-200 mb-2" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                        <span className="text-xs font-semibold text-zinc-400">
                             Gunakan filter tanggal di tab "Hari Ini" untuk memilih periode
                         </span>
                     </div>
@@ -529,19 +529,19 @@ export function AttendanceClient({
             {/* Tab: Lembur */}
             {/* ================================================================ */}
             {activeTab === "overtime" && (
-                <div className="border-2 border-black bg-white overflow-hidden">
-                    <div className="bg-black text-white px-4 py-3 flex items-center justify-between">
-                        <span className="text-xs font-black uppercase tracking-widest">Manajemen Lembur</span>
-                        <span className="text-[9px] font-black px-2 py-0.5 bg-amber-400 text-black">{overtimeRows.length}</span>
+                <div className="border border-border bg-white overflow-hidden">
+                    <div className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between">
+                        <span className="text-xs font-semibold  ">Manajemen Lembur</span>
+                        <span className="text-xs font-semibold px-2 py-0.5 bg-amber-400 text-black">{overtimeRows.length}</span>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead>
-                                <tr className="bg-zinc-100 border-b-2 border-black">
-                                    <th className="text-left text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-2.5">Karyawan</th>
-                                    <th className="text-left text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-2.5">Departemen</th>
-                                    <th className="text-left text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-2.5">Jam Kerja</th>
-                                    <th className="text-left text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-2.5">Lembur</th>
+                                <tr className="bg-zinc-100 border-b border-border">
+                                    <th className="text-left text-xs font-semibold text-zinc-500 px-4 py-2.5">Karyawan</th>
+                                    <th className="text-left text-xs font-semibold text-zinc-500 px-4 py-2.5">Departemen</th>
+                                    <th className="text-left text-xs font-semibold text-zinc-500 px-4 py-2.5">Jam Kerja</th>
+                                    <th className="text-left text-xs font-semibold text-zinc-500 px-4 py-2.5">Lembur</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -549,7 +549,7 @@ export function AttendanceClient({
                                     <tr>
                                         <td colSpan={4} className="px-4 py-8 text-center">
                                             <Clock className="h-8 w-8 mx-auto text-zinc-200 mb-2" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                                            <span className="text-xs font-semibold text-zinc-400">
                                                 Belum ada data lembur
                                             </span>
                                         </td>
@@ -559,12 +559,12 @@ export function AttendanceClient({
                                         <tr key={r.id} className="border-b border-zinc-200 hover:bg-zinc-50 transition-colors">
                                             <td className="px-4 py-3">
                                                 <div className="font-bold text-sm">{r.name}</div>
-                                                <div className="text-[10px] text-zinc-500 font-medium">{r.employeeCode}</div>
+                                                <div className="text-xs text-zinc-500 font-medium">{r.employeeCode}</div>
                                             </td>
                                             <td className="px-4 py-3 text-sm font-medium">{r.department}</td>
                                             <td className="px-4 py-3 text-sm font-bold">{r.workingHours.toFixed(1)} jam</td>
                                             <td className="px-4 py-3">
-                                                <span className="inline-block px-2 py-0.5 text-[10px] font-black uppercase bg-amber-100 text-amber-700 border border-amber-300">
+                                                <span className="inline-block px-2 py-0.5 text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-300">
                                                     {r.overtimeHours.toFixed(1)} jam
                                                 </span>
                                             </td>
@@ -583,17 +583,17 @@ export function AttendanceClient({
             {activeTab === "leave" && (
                 <div className="space-y-6">
                     {/* Leave Form */}
-                    <div className="border-2 border-black bg-white overflow-hidden">
-                        <div className="bg-black text-white px-4 py-3">
-                            <span className="text-xs font-black uppercase tracking-widest">Pengajuan Cuti Baru</span>
+                    <div className="border border-border bg-white overflow-hidden">
+                        <div className="bg-slate-900 text-white px-4 py-3">
+                            <span className="text-xs font-semibold  ">Pengajuan Cuti Baru</span>
                         </div>
                         <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Karyawan</label>
+                                <label className="text-xs font-semibold text-zinc-500 mb-1 block">Karyawan</label>
                                 <select
                                     value={leaveForm.employeeId}
                                     onChange={(e) => setLeaveForm((p) => ({ ...p, employeeId: e.target.value }))}
-                                    className="border-2 border-black font-bold h-10 px-3 w-full bg-white"
+                                    className="border border-border font-bold h-10 px-3 w-full bg-white"
                                 >
                                     <option value="">Pilih karyawan</option>
                                     {initialEmployees.map((emp) => (
@@ -602,11 +602,11 @@ export function AttendanceClient({
                                 </select>
                             </div>
                             <div>
-                                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Jenis Cuti</label>
+                                <label className="text-xs font-semibold text-zinc-500 mb-1 block">Jenis Cuti</label>
                                 <select
                                     value={leaveForm.type}
                                     onChange={(e) => setLeaveForm((p) => ({ ...p, type: e.target.value }))}
-                                    className="border-2 border-black font-bold h-10 px-3 w-full bg-white"
+                                    className="border border-border font-bold h-10 px-3 w-full bg-white"
                                 >
                                     <option value="ANNUAL">Tahunan</option>
                                     <option value="SICK">Sakit</option>
@@ -616,37 +616,37 @@ export function AttendanceClient({
                                 </select>
                             </div>
                             <div>
-                                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Tanggal Mulai</label>
+                                <label className="text-xs font-semibold text-zinc-500 mb-1 block">Tanggal Mulai</label>
                                 <input
                                     type="date"
                                     value={leaveForm.startDate}
                                     onChange={(e) => setLeaveForm((p) => ({ ...p, startDate: e.target.value }))}
-                                    className="border-2 border-black font-bold h-10 px-3 w-full"
+                                    className="border border-border font-bold h-10 px-3 w-full"
                                 />
                             </div>
                             <div>
-                                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Tanggal Selesai</label>
+                                <label className="text-xs font-semibold text-zinc-500 mb-1 block">Tanggal Selesai</label>
                                 <input
                                     type="date"
                                     value={leaveForm.endDate}
                                     onChange={(e) => setLeaveForm((p) => ({ ...p, endDate: e.target.value }))}
-                                    className="border-2 border-black font-bold h-10 px-3 w-full"
+                                    className="border border-border font-bold h-10 px-3 w-full"
                                 />
                             </div>
                             <div className="md:col-span-2">
-                                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Alasan</label>
+                                <label className="text-xs font-semibold text-zinc-500 mb-1 block">Alasan</label>
                                 <input
                                     value={leaveForm.reason}
                                     onChange={(e) => setLeaveForm((p) => ({ ...p, reason: e.target.value }))}
                                     placeholder="Alasan pengajuan cuti"
-                                    className="border-2 border-black font-bold h-10 px-3 w-full"
+                                    className="border border-border font-bold h-10 px-3 w-full"
                                 />
                             </div>
                             <div className="md:col-span-2">
                                 <button
                                     onClick={handleSubmitLeave}
                                     disabled={leaveSubmitting}
-                                    className="px-6 h-10 border-2 border-black text-[10px] font-black uppercase tracking-wider bg-black text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all"
+                                    className="px-6 h-10 border border-border text-xs font-semibold bg-slate-900 text-white shadow-sm active:shadow-none transition-all"
                                 >
                                     {leaveSubmitting ? "Mengajukan..." : "Ajukan Cuti"}
                                 </button>
@@ -655,20 +655,20 @@ export function AttendanceClient({
                     </div>
 
                     {/* Pending Approvals */}
-                    <div className="border-2 border-black bg-white overflow-hidden">
-                        <div className="bg-black text-white px-4 py-3 flex items-center justify-between">
-                            <span className="text-xs font-black uppercase tracking-widest">Approval Cuti Pending</span>
-                            <span className="text-[9px] font-black px-2 py-0.5 bg-purple-400 text-black">{pendingLeaves.length}</span>
+                    <div className="border border-border bg-white overflow-hidden">
+                        <div className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between">
+                            <span className="text-xs font-semibold  ">Approval Cuti Pending</span>
+                            <span className="text-xs font-semibold px-2 py-0.5 bg-purple-400 text-black">{pendingLeaves.length}</span>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full">
                                 <thead>
-                                    <tr className="bg-zinc-100 border-b-2 border-black">
-                                        <th className="text-left text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-2.5">Karyawan</th>
-                                        <th className="text-left text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-2.5">Jenis</th>
-                                        <th className="text-left text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-2.5">Periode</th>
-                                        <th className="text-left text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-2.5">Approver</th>
-                                        <th className="text-left text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-2.5">Aksi</th>
+                                    <tr className="bg-zinc-100 border-b border-border">
+                                        <th className="text-left text-xs font-semibold text-zinc-500 px-4 py-2.5">Karyawan</th>
+                                        <th className="text-left text-xs font-semibold text-zinc-500 px-4 py-2.5">Jenis</th>
+                                        <th className="text-left text-xs font-semibold text-zinc-500 px-4 py-2.5">Periode</th>
+                                        <th className="text-left text-xs font-semibold text-zinc-500 px-4 py-2.5">Approver</th>
+                                        <th className="text-left text-xs font-semibold text-zinc-500 px-4 py-2.5">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -676,7 +676,7 @@ export function AttendanceClient({
                                         <tr>
                                             <td colSpan={5} className="px-4 py-8 text-center">
                                                 <CalendarDays className="h-8 w-8 mx-auto text-zinc-200 mb-2" />
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                                                <span className="text-xs font-semibold text-zinc-400">
                                                     Tidak ada pengajuan cuti pending
                                                 </span>
                                             </td>
@@ -686,10 +686,10 @@ export function AttendanceClient({
                                             <tr key={l.id} className="border-b border-zinc-200 hover:bg-zinc-50 transition-colors">
                                                 <td className="px-4 py-3">
                                                     <div className="font-bold text-sm">{l.employeeName}</div>
-                                                    <div className="text-[10px] text-zinc-500 font-medium">{l.department}</div>
+                                                    <div className="text-xs text-zinc-500 font-medium">{l.department}</div>
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    <span className="inline-block px-2 py-0.5 text-[10px] font-black uppercase bg-purple-100 text-purple-700 border border-purple-300">
+                                                    <span className="inline-block px-2 py-0.5 text-xs font-semibold bg-purple-100 text-purple-700 border border-purple-300">
                                                         {LEAVE_TYPE_LABELS[l.type] || l.type}
                                                     </span>
                                                 </td>
@@ -701,13 +701,13 @@ export function AttendanceClient({
                                                     <div className="flex gap-2">
                                                         <button
                                                             onClick={() => handleApprove(l.id)}
-                                                            className="px-3 h-8 text-[10px] font-black uppercase border-2 border-black bg-black text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all"
+                                                            className="px-3 h-8 text-xs font-semibold border border-border bg-slate-900 text-white shadow-sm active:shadow-none transition-all"
                                                         >
                                                             Setujui
                                                         </button>
                                                         <button
                                                             onClick={() => handleReject(l.id)}
-                                                            className="px-3 h-8 text-[10px] font-black uppercase border-2 border-black bg-white text-red-600 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all hover:bg-red-50"
+                                                            className="px-3 h-8 text-xs font-semibold border border-border bg-white text-red-600 shadow-sm active:shadow-none transition-all hover:bg-red-50"
                                                         >
                                                             Tolak
                                                         </button>

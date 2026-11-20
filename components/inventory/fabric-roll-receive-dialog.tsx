@@ -102,7 +102,7 @@ export function FabricRollReceiveDialog({ products, warehouses, trigger }: Fabri
             ) : (
                 <Button
                     onClick={() => setOpen(true)}
-                    className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-4 h-8 rounded-none"
+                    className="bg-slate-900 text-white border border-border hover:bg-zinc-800 font-semibold text-xs px-4 h-8 rounded-md"
                 >
                     <Plus className="mr-2 h-4 w-4" /> Terima Roll Baru
                 </Button>
@@ -135,7 +135,7 @@ export function FabricRollReceiveDialog({ products, warehouses, trigger }: Fabri
                                 placeholder="100.0"
                             />
                             <div>
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                                <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1 block">
                                     Produk Kain <span className="text-red-500">*</span>
                                 </label>
                                 <ComboboxWithCreate

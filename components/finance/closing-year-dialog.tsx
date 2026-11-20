@@ -152,7 +152,7 @@ export function ClosingYearDialog({
               <IconCheck className="h-8 w-8 text-emerald-600" />
             </div>
             <div className="text-center space-y-1">
-              <p className="text-lg font-black">
+              <p className="text-lg font-semibold">
                 Tahun Fiskal {fiscalYear} Berhasil Ditutup
               </p>
               <p className="text-sm text-zinc-500">
@@ -161,7 +161,7 @@ export function ClosingYearDialog({
             </div>
             <Button
               onClick={() => onOpenChange(false)}
-              className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none"
+              className="bg-slate-900 text-white border border-border hover:bg-zinc-800 font-semibold text-xs px-5 h-8 rounded-md"
             >
               Tutup
             </Button>
@@ -170,10 +170,10 @@ export function ClosingYearDialog({
           <>
             {/* Pre-checks */}
             <div className="space-y-1">
-              <p className="text-xs font-black uppercase tracking-wider text-zinc-500 mb-3">
+              <p className="text-xs font-semibold text-zinc-500 mb-3">
                 Pra-Pemeriksaan
               </p>
-              <div className="border-2 border-black divide-y-2 divide-black">
+              <div className="border border-border divide-y-2 divide-border">
                 {/* Check 1: Periods */}
                 <div className="flex items-center gap-3 px-4 py-3">
                   <StatusIcon status={checkPeriods} />
@@ -181,7 +181,7 @@ export function ClosingYearDialog({
                     12 periode fiskal {fiscalYear} sudah ditutup
                   </span>
                   {checkPeriods === "fail" && (
-                    <Badge className="bg-red-100 text-red-700 border-0 text-[10px] font-bold ml-auto">
+                    <Badge className="bg-red-100 text-red-700 border-0 text-xs font-bold ml-auto">
                       Belum lengkap
                     </Badge>
                   )}
@@ -200,7 +200,7 @@ export function ClosingYearDialog({
                     Closing journal belum ada
                   </span>
                   {checkNotClosed === "fail" && (
-                    <Badge className="bg-red-100 text-red-700 border-0 text-[10px] font-bold ml-auto">
+                    <Badge className="bg-red-100 text-red-700 border-0 text-xs font-bold ml-auto">
                       Sudah ditutup
                     </Badge>
                   )}
@@ -211,10 +211,10 @@ export function ClosingYearDialog({
             {/* Closing journal preview -- only if all checks pass */}
             {allPassed && preview && (
               <div className="space-y-3">
-                <p className="text-xs font-black uppercase tracking-wider text-zinc-500">
+                <p className="text-xs font-semibold text-zinc-500">
                   Preview Jurnal Penutup
                 </p>
-                <div className="border-2 border-black">
+                <div className="border border-border">
                   <div className="divide-y divide-zinc-200">
                     <div className="flex items-center justify-between px-4 py-3">
                       <span className="text-sm font-medium">
@@ -232,12 +232,12 @@ export function ClosingYearDialog({
                         {formatIDR(preview.expenseTotal)}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between px-4 py-3 bg-zinc-50 border-t-2 border-black">
-                      <span className="text-sm font-black">
+                    <div className="flex items-center justify-between px-4 py-3 bg-zinc-50 border-t border-border">
+                      <span className="text-sm font-semibold">
                         Laba Bersih
                       </span>
                       <span
-                        className={`font-mono font-black text-sm ${
+                        className={`font-mono font-semibold text-sm ${
                           preview.netIncome >= 0
                             ? "text-emerald-600"
                             : "text-red-600"
@@ -260,7 +260,7 @@ export function ClosingYearDialog({
                 )}
 
                 {/* Warning */}
-                <div className="flex items-start gap-3 border-2 border-amber-400 bg-amber-50 p-3">
+                <div className="flex items-start gap-3 border border-amber-400 bg-amber-50 p-3">
                   <IconAlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
                   <p className="text-xs font-medium text-amber-800">
                     Tindakan ini akan memposting jurnal penutup dan menutup

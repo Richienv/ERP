@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Outfit } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import { GlobalLayout } from "@/components/global-layout";
 import { ThemeProvider } from "next-themes";
 import { WorkflowConfigProvider } from "@/components/workflow/workflow-config-context";
@@ -7,14 +7,13 @@ import { QueryProvider } from "@/lib/query-client";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
-const geistSans = Geist({
+// Integra Pro: one legible typeface for UI, headings and figures (designed for Indonesia).
+// The old CSS variable names are kept so every existing reference keeps working.
+const jakarta = Plus_Jakarta_Sans({
   variable: "--font-geist-sans",
   subsets: ["latin"],
-});
-
-const outfit = Outfit({
-  variable: "--font-outfit",
-  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
 });
 
 export const dynamic = "force-dynamic"
@@ -66,11 +65,11 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://qundyzibdhggwhxgtlus.supabase.co" />
       </head>
       <body
-        className={`${geistSans.variable} ${outfit.variable} antialiased`}
+        className={`${jakarta.variable} antialiased`}
       >
         <ThemeProvider
           attribute="class"
-          defaultTheme="ritchie-minimal"
+          defaultTheme="light"
           enableSystem
           disableTransitionOnChange
           themes={["light", "dark", "claude", "autumn", "earth", "ritchie", "ritchie-minimal"]}

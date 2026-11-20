@@ -114,20 +114,20 @@ export function DCNoteSettlementDialog({ open, onOpenChange, note }: DCNoteSettl
                 <NBSection icon={FileText} title="Ringkasan Nota">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                            <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Tipe</div>
+                            <div className="text-xs font-semibold text-zinc-400 mb-1">Tipe</div>
                             <div className="text-sm font-bold">{TYPE_LABELS[note.type] || note.type}</div>
                         </div>
                         <div>
-                            <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Total Nota</div>
+                            <div className="text-xs font-semibold text-zinc-400 mb-1">Total Nota</div>
                             <div className="text-sm font-mono font-bold">{formatIDR(note.totalAmount)}</div>
                         </div>
                         <div>
-                            <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Sudah Diterapkan</div>
+                            <div className="text-xs font-semibold text-zinc-400 mb-1">Sudah Diterapkan</div>
                             <div className="text-sm font-mono font-bold text-emerald-600">{formatIDR(note.settledAmount)}</div>
                         </div>
                         <div>
-                            <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Sisa</div>
-                            <div className="text-sm font-mono font-black text-blue-600">{formatIDR(remaining)}</div>
+                            <div className="text-xs font-semibold text-zinc-400 mb-1">Sisa</div>
+                            <div className="text-sm font-mono font-semibold text-blue-600">{formatIDR(remaining)}</div>
                         </div>
                     </div>
                 </NBSection>
@@ -137,7 +137,7 @@ export function DCNoteSettlementDialog({ open, onOpenChange, note }: DCNoteSettl
                     {invoices.length === 0 ? (
                         <div className="py-8 text-center">
                             <FileText className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                            <p className="text-xs font-semibold text-zinc-400">
                                 Tidak ada invoice outstanding untuk pihak ini
                             </p>
                         </div>
@@ -175,7 +175,7 @@ export function DCNoteSettlementDialog({ open, onOpenChange, note }: DCNoteSettl
                                                 placeholder="0"
                                                 min={0}
                                                 max={Math.min(inv.balanceDue, remaining)}
-                                                className="border border-zinc-300 h-8 text-sm font-mono text-right rounded-none w-full placeholder:text-zinc-300 placeholder:font-normal"
+                                                className="border border-zinc-300 h-8 text-sm font-mono text-right rounded-md w-full placeholder:text-zinc-300 placeholder:font-normal"
                                             />
                                         </div>
                                     </div>
@@ -187,7 +187,7 @@ export function DCNoteSettlementDialog({ open, onOpenChange, note }: DCNoteSettl
                     {/* Running total */}
                     {invoices.length > 0 && (
                         <div className="mt-4 flex justify-end">
-                            <div className="w-72 space-y-1 border-t-2 border-black pt-3">
+                            <div className="w-72 space-y-1 border-t border-border pt-3">
                                 <div className="flex justify-between text-xs font-bold text-zinc-500">
                                     <span>Total diterapkan</span>
                                     <span className={`font-mono ${totalApplied > remaining + 0.01 ? "text-red-600" : "text-emerald-600"}`}>
@@ -198,7 +198,7 @@ export function DCNoteSettlementDialog({ open, onOpenChange, note }: DCNoteSettl
                                     <span>Sisa nota setelah</span>
                                     <span className="font-mono">{formatIDR(Math.max(0, remainingAfterApply))}</span>
                                 </div>
-                                <div className="flex justify-between text-sm font-black pt-1 border-t border-zinc-200">
+                                <div className="flex justify-between text-sm font-semibold pt-1 border-t border-zinc-200">
                                     <span>Sisa nota</span>
                                     <span className="font-mono">{formatIDR(remaining)} <span className="text-zinc-400 text-xs font-normal">total</span></span>
                                 </div>

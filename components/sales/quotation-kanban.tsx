@@ -123,26 +123,26 @@ export function QuotationKanban({ quotations }: QuotationKanbanProps) {
         return (
             <div
                 onClick={() => router.push(`/sales/quotations/${qt.id}`)}
-                className="bg-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] p-3 mb-3 hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer relative overflow-hidden group"
+                className="bg-white border border-border shadow-sm p-3 mb-3 hover:shadow-sm transition-all cursor-pointer relative overflow-hidden group"
             >
 
                 {/* Stall Alert */}
                 {isStalled && (
-                    <div className="absolute top-0 right-0 px-1.5 py-0.5 bg-red-500 border-l-2 border-b-2 border-black">
+                    <div className="absolute top-0 right-0 px-1.5 py-0.5 bg-red-500 border-l border-b border-border">
                         <Clock className="h-3 w-3 text-white animate-pulse" />
                     </div>
                 )}
 
                 {/* Header: Number + Actions */}
                 <div className="flex justify-between items-start mb-2">
-                    <span className="font-mono text-[10px] text-zinc-400 font-black tracking-wider">{qt.number}</span>
+                    <span className="font-mono text-xs text-zinc-400 font-semibold ">{qt.number}</span>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity rounded-none">
+                            <Button variant="ghost" size="icon" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity rounded-md">
                                 <MoreHorizontal className="h-3.5 w-3.5" />
                             </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] rounded-none" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenuContent align="end" className="border border-border shadow-sm rounded-md" onClick={(e) => e.stopPropagation()}>
                             <DropdownMenuItem className="text-xs font-bold cursor-pointer" onSelect={() => router.push(`/sales/quotations/${qt.id}`)}>
                                 <Eye className="mr-2 h-3.5 w-3.5" /> Lihat Detail
                             </DropdownMenuItem>
@@ -150,7 +150,7 @@ export function QuotationKanban({ quotations }: QuotationKanbanProps) {
                                 <Pencil className="mr-2 h-3.5 w-3.5" /> Edit Penawaran
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Ubah Status</DropdownMenuLabel>
+                            <DropdownMenuLabel className="text-xs font-semibold text-zinc-400">Ubah Status</DropdownMenuLabel>
                             {qt.status === 'DRAFT' && (
                                 <DropdownMenuItem onSelect={() => handleStatusChange(qt.id, 'SENT')} className="text-xs font-bold cursor-pointer">
                                     <Send className="mr-2 h-3.5 w-3.5" /> Tandai Terkirim
@@ -176,16 +176,16 @@ export function QuotationKanban({ quotations }: QuotationKanbanProps) {
                 </div>
 
                 {/* Customer */}
-                <h4 className="font-black text-sm leading-tight mb-2 line-clamp-2 text-zinc-900">{qt.customerName}</h4>
+                <h4 className="font-semibold text-sm leading-tight mb-2 line-clamp-2 text-zinc-900">{qt.customerName}</h4>
 
                 {/* Amount + Win % */}
-                <div className="flex justify-between items-center mt-3 pt-2.5 border-t-2 border-dashed border-zinc-200">
-                    <span className="font-black text-sm tracking-tight">
+                <div className="flex justify-between items-center mt-3 pt-2.5 border-t border-dashed border-zinc-200">
+                    <span className="font-semibold text-sm tracking-tight">
                         {formatCompact(qt.total)}
                     </span>
 
                     {qt.status !== 'ACCEPTED' && qt.status !== 'CONVERTED' && qt.status !== 'EXPIRED' && qt.status !== 'REJECTED' && (
-                        <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 border-2 border-black ${probability > 50 ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
+                        <span className={`text-xs font-semibold   px-1.5 py-0.5 border border-border ${probability > 50 ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
                             {probability}% Win
                         </span>
                     )}
@@ -196,7 +196,7 @@ export function QuotationKanban({ quotations }: QuotationKanbanProps) {
                     <Button
                         onClick={(e) => { e.stopPropagation(); handleConvert() }}
                         disabled={converting}
-                        className="mt-3 w-full h-8 bg-violet-600 text-white hover:bg-violet-700 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[1px] transition-all text-[10px] font-black uppercase tracking-wider rounded-none"
+                        className="mt-3 w-full h-8 bg-violet-600 text-white hover:bg-violet-700 border border-border shadow-sm hover:shadow-none transition-all text-xs font-semibold rounded-md"
                     >
                         {converting ? (
                             <><Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> Mengkonversi...</>
@@ -208,11 +208,11 @@ export function QuotationKanban({ quotations }: QuotationKanbanProps) {
 
                 {/* Footer: Date + Salesperson */}
                 <div className="mt-2 flex items-center justify-between">
-                    <div className="flex items-center gap-1 text-[10px] text-zinc-400 font-bold">
+                    <div className="flex items-center gap-1 text-xs text-zinc-400 font-bold">
                         <Calendar className="h-3 w-3" />
                         {new Date(qt.quotationDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}
                     </div>
-                    <div className="bg-zinc-900 text-white text-[9px] font-black px-1.5 py-0.5 tracking-wider uppercase">
+                    <div className="bg-zinc-900 text-white text-xs font-semibold px-1.5 py-0.5  ">
                         {qt.salesPerson.split(' ').map(n => n[0]).join('')}
                     </div>
                 </div>
@@ -227,22 +227,22 @@ export function QuotationKanban({ quotations }: QuotationKanbanProps) {
                 const colTotal = colItems.reduce((sum, q) => sum + q.total, 0)
 
                 return (
-                    <div key={key} className="min-w-[280px] w-[320px] flex flex-col h-full border-2 border-black bg-white dark:bg-zinc-900 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                    <div key={key} className="min-w-[280px] w-[320px] flex flex-col h-full border border-border bg-white dark:bg-zinc-900 shadow-sm">
 
                         {/* Column Header */}
-                        <div className="border-b-2 border-black">
+                        <div className="border-b border-border">
                             {/* Accent bar */}
                             <div className={`h-1.5 ${col.accent}`} />
                             <div className="px-4 py-3">
                                 <div className="flex justify-between items-center">
-                                    <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-white">{col.label}</h3>
-                                    <span className={`text-[10px] font-black px-2 py-0.5 border-2 border-black ${col.countBg}`}>
+                                    <h3 className="text-xs font-semibold text-zinc-900 dark:text-white">{col.label}</h3>
+                                    <span className={`text-xs font-semibold px-2 py-0.5 border border-border ${col.countBg}`}>
                                         {colItems.length}
                                     </span>
                                 </div>
-                                <div className="mt-1.5 flex items-center justify-between text-[10px]">
-                                    <span className="font-bold text-zinc-400 uppercase tracking-wider">Nilai</span>
-                                    <span className="font-black text-zinc-900 dark:text-white tracking-tight">
+                                <div className="mt-1.5 flex items-center justify-between text-xs">
+                                    <span className="font-bold text-zinc-400  ">Nilai</span>
+                                    <span className="font-semibold text-zinc-900 dark:text-white tracking-tight">
                                         {formatCompact(colTotal)}
                                     </span>
                                 </div>
@@ -256,9 +256,9 @@ export function QuotationKanban({ quotations }: QuotationKanbanProps) {
                             ))}
 
                             {colItems.length === 0 && (
-                                <div className="h-24 flex flex-col items-center justify-center border-2 border-dashed border-zinc-300 m-1">
+                                <div className="h-24 flex flex-col items-center justify-center border border-dashed border-zinc-300 m-1">
                                     <FileText className="h-4 w-4 text-zinc-300 mb-1" />
-                                    <span className="text-[10px] text-zinc-400 font-black uppercase tracking-widest">Kosong</span>
+                                    <span className="text-xs text-zinc-400 font-semibold  ">Kosong</span>
                                 </div>
                             )}
                         </div>

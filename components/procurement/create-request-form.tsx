@@ -114,13 +114,13 @@ export function CreateRequestForm({ products, employees }: Props) {
   const selectedProduct = products.find((p) => p.id === newItem.productId);
 
   return (
-    <div className="border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden bg-white dark:bg-zinc-900">
+    <div className="border border-border shadow-sm rounded-md overflow-hidden bg-white dark:bg-zinc-900">
       {/* Black Header */}
-      <div className="bg-black text-white px-5 py-3">
-        <div className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+      <div className="bg-slate-900 text-white px-5 py-3">
+        <div className="text-sm font-semibold text-white flex items-center gap-2">
           <ClipboardList className="h-4 w-4" /> Buat Permintaan Baru
         </div>
-        <p className="text-zinc-400 text-[11px] font-bold mt-0.5">
+        <p className="text-zinc-400 text-xs font-bold mt-0.5">
           Draft Purchase Request untuk pengadaan barang
         </p>
       </div>
@@ -202,11 +202,11 @@ export function CreateRequestForm({ products, employees }: Props) {
             <div className="border border-zinc-200 dark:border-zinc-700">
               <div className="bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700 flex items-center gap-2">
                 <Package className="h-3.5 w-3.5 text-zinc-400" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                <span className="text-xs font-semibold text-zinc-500">
                   Item Permintaan
                 </span>
                 {items.length > 0 && (
-                  <span className="bg-black text-white text-[10px] font-black px-2 py-0.5 min-w-[20px] text-center">
+                  <span className="bg-slate-900 text-white text-xs font-semibold px-2 py-0.5 min-w-[20px] text-center">
                     {items.length}
                   </span>
                 )}
@@ -229,13 +229,13 @@ export function CreateRequestForm({ products, employees }: Props) {
                   </NBSelect>
 
                   <div>
-                    <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                    <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1 block">
                       Qty
                     </label>
                     <Input
                       type="number"
                       min={1}
-                      className="border font-mono font-bold h-8 text-sm rounded-none text-center transition-colors border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
+                      className="border font-mono font-bold h-8 text-sm rounded-md text-center transition-colors border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
                       value={newItem.quantity}
                       onChange={(e) => setNewItem({ ...newItem, quantity: parseInt(e.target.value) || 0 })}
                     />
@@ -250,7 +250,7 @@ export function CreateRequestForm({ products, employees }: Props) {
                   <Button
                     type="button"
                     onClick={handleAddItem}
-                    className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider h-8 px-4 rounded-none gap-1.5 transition-colors"
+                    className="bg-slate-900 text-white border border-border hover:bg-zinc-800 font-semibold text-xs h-8 px-4 rounded-md gap-1.5 transition-colors"
                   >
                     <Plus className="h-3.5 w-3.5" /> Tambah
                   </Button>
@@ -262,9 +262,9 @@ export function CreateRequestForm({ products, employees }: Props) {
                 <>
                   {/* Table Header */}
                   <div className="grid grid-cols-[32px_1fr_120px_40px] gap-3 px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">#</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Produk</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Jumlah</span>
+                    <span className="text-xs font-semibold text-zinc-500">#</span>
+                    <span className="text-xs font-semibold text-zinc-500">Produk</span>
+                    <span className="text-xs font-semibold text-zinc-500 text-right">Jumlah</span>
                     <span />
                   </div>
                   {items.map((item, index) => {
@@ -274,12 +274,12 @@ export function CreateRequestForm({ products, employees }: Props) {
                         key={index}
                         className={`grid grid-cols-[32px_1fr_120px_40px] gap-3 px-3 py-2.5 items-center border-b border-zinc-200 dark:border-zinc-700 last:border-b-0 ${index % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/50 dark:bg-zinc-800/30"}`}
                       >
-                        <div className="w-6 h-6 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400 flex items-center justify-center text-[10px] font-black">
+                        <div className="w-6 h-6 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400 flex items-center justify-center text-xs font-semibold">
                           {index + 1}
                         </div>
                         <div className="min-w-0">
                           <div className="font-bold text-sm truncate">{p?.name}</div>
-                          <div className="text-[11px] font-mono text-zinc-400">{p?.code}</div>
+                          <div className="text-xs font-mono text-zinc-400">{p?.code}</div>
                         </div>
                         <div className="text-right font-mono font-bold text-sm text-zinc-900 dark:text-white">
                           {Number(item.quantity)} <span className="text-zinc-400 text-xs">{p?.unit}</span>
@@ -288,7 +288,7 @@ export function CreateRequestForm({ products, employees }: Props) {
                           type="button"
                           variant="outline"
                           size="icon"
-                          className="h-7 w-7 border border-red-300 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-none"
+                          className="h-7 w-7 border border-red-300 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-md"
                           onClick={() => handleRemoveItem(index)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -298,7 +298,7 @@ export function CreateRequestForm({ products, employees }: Props) {
                   })}
                 </>
               ) : (
-                <div className="text-center py-10 text-zinc-400 text-[10px] font-black uppercase tracking-widest">
+                <div className="text-center py-10 text-zinc-400 text-xs font-semibold  ">
                   Belum ada item ditambahkan
                 </div>
               )}
@@ -311,14 +311,14 @@ export function CreateRequestForm({ products, employees }: Props) {
               type="button"
               variant="outline"
               onClick={() => router.push("/procurement/requests")}
-              className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none"
+              className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold text-xs px-4 h-8 rounded-md"
             >
               Batal
             </Button>
             <Button
               type="submit"
               disabled={isSubmitting || items.length === 0}
-              className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none gap-1.5 disabled:opacity-50 transition-colors"
+              className="bg-slate-900 text-white border border-border hover:bg-zinc-800 font-semibold text-xs px-5 h-8 rounded-md gap-1.5 disabled:opacity-50 transition-colors"
             >
               {isSubmitting ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />

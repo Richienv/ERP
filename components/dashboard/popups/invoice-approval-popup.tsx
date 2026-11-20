@@ -138,7 +138,7 @@ export function InvoiceApprovalPopup({ open, onClose, onAllActioned }: InvoiceAp
                             <div className="flex items-center justify-between gap-3">
                                 <div className="space-y-0.5 min-w-0 flex-1">
                                     <div className="flex items-center gap-2">
-                                        <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 border ${
+                                        <span className={`text-xs font-semibold   px-1.5 py-0.5 border ${
                                             inv.type === "INV_OUT"
                                                 ? "border-blue-300 bg-blue-50 text-blue-700"
                                                 : "border-amber-300 bg-amber-50 text-amber-700"
@@ -159,7 +159,7 @@ export function InvoiceApprovalPopup({ open, onClose, onAllActioned }: InvoiceAp
                                         size="sm"
                                         disabled={acting === inv.id}
                                         onClick={() => handleApprove(inv)}
-                                        className="h-7 px-3 rounded-none bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-wider"
+                                        className="h-7 px-3 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold  "
                                     >
                                         {acting === inv.id ? (
                                             <Loader2 className="h-3 w-3 animate-spin" />
@@ -173,7 +173,7 @@ export function InvoiceApprovalPopup({ open, onClose, onAllActioned }: InvoiceAp
                                         variant="outline"
                                         disabled={acting === inv.id}
                                         onClick={() => handleReject(inv)}
-                                        className="h-7 px-3 rounded-none border-red-300 text-red-600 hover:bg-red-50 text-[10px] font-black uppercase tracking-wider"
+                                        className="h-7 px-3 rounded-md border-red-300 text-red-600 hover:bg-red-50 text-xs font-semibold  "
                                     >
                                         <XCircle className="h-3 w-3 mr-1" />
                                         Batal

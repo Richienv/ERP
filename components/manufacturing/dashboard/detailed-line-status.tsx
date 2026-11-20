@@ -23,20 +23,20 @@ export function DetailedLineStatus() {
     ]
 
     return (
-        <Card className="h-full flex flex-col border border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-xl overflow-hidden bg-white dark:bg-black">
-            <CardHeader className="p-6 border-b border-black bg-zinc-50 dark:bg-zinc-900 flex flex-row items-center justify-between">
+        <Card className="h-full flex flex-col border border-border shadow-sm rounded-xl overflow-hidden bg-white dark:bg-slate-900">
+            <CardHeader className="p-6 border-b border-border bg-zinc-50 dark:bg-zinc-900 flex flex-row items-center justify-between">
                 <div>
-                    <CardTitle className="text-xl font-black uppercase tracking-wider flex items-center gap-2">
+                    <CardTitle className="text-xl font-semibold flex items-center gap-2">
                         <Factory className="h-5 w-5" />
                         Status Work Center Fisik (Detail)
                     </CardTitle>
                     <p className="text-sm text-muted-foreground mt-1">Live metrics across all 7 production lines.</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] bg-white h-8">
+                    <Button variant="outline" size="sm" className="border-border shadow-sm bg-white h-8">
                         View All
                     </Button>
-                    <Button variant="outline" size="sm" className="border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] bg-white h-8">
+                    <Button variant="outline" size="sm" className="border-border shadow-sm bg-white h-8">
                         Report Issue
                     </Button>
                 </div>
@@ -63,7 +63,7 @@ export function DetailedLineStatus() {
                                     <div className="text-xs text-muted-foreground">{line.supervisor} • {line.operator}</div>
                                 </TableCell>
                                 <TableCell>
-                                    <Badge variant="secondary" className="font-mono font-bold text-[10px] bg-white border border-black/20 text-black shadow-sm mb-1">{line.job}</Badge>
+                                    <Badge variant="secondary" className="font-mono font-bold text-xs bg-white border border-black/20 text-black shadow-sm mb-1">{line.job}</Badge>
                                     <div className="text-xs font-medium">{line.desc}</div>
                                 </TableCell>
                                 <TableCell className="w-[20%]">

@@ -125,7 +125,7 @@ export function FabricInspectionDialog({ products, inspectors, trigger }: Fabric
                 <span onClick={() => setOpen(true)}>{trigger}</span>
             ) : (
                 <Button
-                    className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-4 h-8 rounded-none"
+                    className="bg-slate-900 text-white border border-border hover:bg-zinc-800 font-semibold text-xs px-4 h-8 rounded-md"
                     onClick={() => setOpen(true)}
                 >
                     <Search className="mr-2 h-4 w-4" /> Inspeksi 4-Point
@@ -159,7 +159,7 @@ export function FabricInspectionDialog({ products, inspectors, trigger }: Fabric
                                 placeholder="100"
                             />
                             <div>
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">
+                                <label className="text-xs font-bold text-zinc-600 mb-1 block">
                                     Produk Kain <span className="text-red-500">*</span>
                                 </label>
                                 <ComboboxWithCreate
@@ -172,7 +172,7 @@ export function FabricInspectionDialog({ products, inspectors, trigger }: Fabric
                                 />
                             </div>
                             <div>
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">
+                                <label className="text-xs font-bold text-zinc-600 mb-1 block">
                                     Inspektor <span className="text-red-500">*</span>
                                 </label>
                                 <ComboboxWithCreate
@@ -191,17 +191,17 @@ export function FabricInspectionDialog({ products, inspectors, trigger }: Fabric
                     <NBSection icon={Search} title="Catat Defect" optional>
                         <div className="flex gap-2 items-end">
                             <div className="flex-1">
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Lokasi</label>
-                                <Input className="h-8 text-sm rounded-none border border-zinc-300" value={defLocation} onChange={(e) => setDefLocation(e.target.value)} placeholder="3.5m dari tepi" />
+                                <label className="text-xs font-bold text-zinc-600 mb-1 block">Lokasi</label>
+                                <Input className="h-8 text-sm rounded-md border border-zinc-300" value={defLocation} onChange={(e) => setDefLocation(e.target.value)} placeholder="3.5m dari tepi" />
                             </div>
                             <div className="flex-1">
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Jenis Defect</label>
-                                <Input className="h-8 text-sm rounded-none border border-zinc-300" value={defType} onChange={(e) => setDefType(e.target.value)} placeholder="Lubang, Noda, dll" />
+                                <label className="text-xs font-bold text-zinc-600 mb-1 block">Jenis Defect</label>
+                                <Input className="h-8 text-sm rounded-md border border-zinc-300" value={defType} onChange={(e) => setDefType(e.target.value)} placeholder="Lubang, Noda, dll" />
                             </div>
                             <div className="w-28">
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Poin</label>
+                                <label className="text-xs font-bold text-zinc-600 mb-1 block">Poin</label>
                                 <Select value={String(defPoints)} onValueChange={(v) => setDefPoints(Number(v) as 1 | 2 | 3 | 4)}>
-                                    <SelectTrigger className="h-8 text-sm rounded-none border border-zinc-300">
+                                    <SelectTrigger className="h-8 text-sm rounded-md border border-zinc-300">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -212,7 +212,7 @@ export function FabricInspectionDialog({ products, inspectors, trigger }: Fabric
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <Button onClick={addDefect} className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider h-8 px-3 rounded-none">
+                            <Button onClick={addDefect} className="bg-slate-900 text-white border border-border hover:bg-zinc-800 font-semibold text-xs h-8 px-3 rounded-md">
                                 <Plus className="h-4 w-4" />
                             </Button>
                         </div>
@@ -223,10 +223,10 @@ export function FabricInspectionDialog({ products, inspectors, trigger }: Fabric
                                 <table className="w-full">
                                     <thead className="bg-zinc-800 text-white">
                                         <tr>
-                                            <th className="text-[10px] font-black uppercase tracking-widest p-2 text-left">Lokasi</th>
-                                            <th className="text-[10px] font-black uppercase tracking-widest p-2 text-left">Jenis</th>
-                                            <th className="text-[10px] font-black uppercase tracking-widest p-2 text-center">Poin</th>
-                                            <th className="text-[10px] font-black uppercase tracking-widest p-2 w-10"></th>
+                                            <th className="text-xs font-semibold p-2 text-left">Lokasi</th>
+                                            <th className="text-xs font-semibold p-2 text-left">Jenis</th>
+                                            <th className="text-xs font-semibold p-2 text-center">Poin</th>
+                                            <th className="text-xs font-semibold p-2 w-10"></th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -235,7 +235,7 @@ export function FabricInspectionDialog({ products, inspectors, trigger }: Fabric
                                                 <td className="p-2 text-xs">{d.location}</td>
                                                 <td className="p-2 text-xs">{d.type}</td>
                                                 <td className="p-2 text-center">
-                                                    <span className={`inline-block px-2 py-0.5 text-[10px] font-black border border-zinc-300 ${
+                                                    <span className={`inline-block px-2 py-0.5 text-xs font-semibold border border-zinc-300 ${
                                                         d.points >= 3 ? 'bg-red-100 text-red-700' : d.points >= 2 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
                                                     }`}>
                                                         {d.points}
@@ -260,11 +260,11 @@ export function FabricInspectionDialog({ products, inspectors, trigger }: Fabric
                             <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-2">
                                     {preview.passed ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <XCircle className="h-5 w-5 text-red-600" />}
-                                    <span className="text-sm font-black uppercase tracking-wider">
+                                    <span className="text-sm font-semibold  ">
                                         {preview.passed ? 'LULUS' : 'TIDAK LULUS'}
                                     </span>
                                 </div>
-                                <span className={`text-lg font-black px-3 py-1 border border-zinc-300 ${
+                                <span className={`text-lg font-semibold px-3 py-1 border border-zinc-300 ${
                                     preview.grade === 'A' ? 'bg-emerald-200 text-emerald-800' :
                                     preview.grade === 'B' ? 'bg-blue-200 text-blue-800' :
                                     preview.grade === 'C' ? 'bg-amber-200 text-amber-800' :
@@ -275,16 +275,16 @@ export function FabricInspectionDialog({ products, inspectors, trigger }: Fabric
                             </div>
                             <div className="grid grid-cols-3 gap-4 text-center">
                                 <div>
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block">Total Poin</span>
-                                    <span className="text-xl font-black">{preview.totalPoints}</span>
+                                    <span className="text-xs font-semibold text-zinc-500 block">Total Poin</span>
+                                    <span className="text-xl font-semibold">{preview.totalPoints}</span>
                                 </div>
                                 <div>
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block">Poin/100yd</span>
-                                    <span className="text-xl font-black">{preview.pointsPer100Yards}</span>
+                                    <span className="text-xs font-semibold text-zinc-500 block">Poin/100yd</span>
+                                    <span className="text-xl font-semibold">{preview.pointsPer100Yards}</span>
                                 </div>
                                 <div>
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block">Defect</span>
-                                    <span className="text-xl font-black">{preview.defectCount}</span>
+                                    <span className="text-xs font-semibold text-zinc-500 block">Defect</span>
+                                    <span className="text-xl font-semibold">{preview.defectCount}</span>
                                 </div>
                             </div>
                         </div>

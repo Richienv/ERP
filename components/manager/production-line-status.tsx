@@ -16,17 +16,17 @@ export function ProductionLineStatus({ data }: ProductionLineStatusProps) {
 
     return (
         <Link href="/manufacturing" className="block h-full group/card">
-            <div className="relative bg-white dark:bg-black border border-black rounded-xl min-h-[400px] flex flex-col overflow-hidden shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] h-full transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+            <div className="relative bg-white dark:bg-slate-900 border border-border rounded-xl min-h-[400px] flex flex-col overflow-hidden shadow-sm h-full transition-all hover:shadow-sm">
 
-                <CardHeader className="relative z-10 flex flex-row items-center justify-between p-6 border-b border-black space-y-0 bg-zinc-50 dark:bg-zinc-900 group-hover/card:bg-zinc-100 transition-colors">
+                <CardHeader className="relative z-10 flex flex-row items-center justify-between p-6 border-b border-border space-y-0 bg-zinc-50 dark:bg-zinc-900 group-hover/card:bg-zinc-100 transition-colors">
                     <div>
-                        <CardTitle className="text-lg font-black text-foreground uppercase tracking-wider flex items-center gap-2">
+                        <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
                             Status Work Center Fisik
                             <ArrowRight className="h-4 w-4 opacity-0 group-hover/card:opacity-100 -translate-x-2 group-hover/card:translate-x-0 transition-all text-black" />
                         </CardTitle>
                         <p className="text-xs text-muted-foreground mt-1 font-medium">Pemantauan Line Produksi Real-time</p>
                     </div>
-                    <div className="h-10 w-10 rounded border border-black bg-white flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] group-hover/card:shadow-none group-hover/card:translate-x-[1px] group-hover/card:translate-y-[1px] transition-all">
+                    <div className="h-10 w-10 rounded border border-border bg-white flex items-center justify-center shadow-sm group-hover/card:shadow-none group-hover/card:translate-x-[1px] group-hover/card:translate-y-[1px] transition-all">
                         <Factory className="h-5 w-5 text-black" />
                     </div>
                 </CardHeader>
@@ -45,15 +45,15 @@ export function ProductionLineStatus({ data }: ProductionLineStatusProps) {
                                 {/* Column 1: Line Details */}
                                 <div className="col-span-3">
                                     <div className="font-bold text-foreground text-sm flex items-center gap-2">
-                                        <div className="h-2 w-2 bg-black rounded-full opacity-50 group-hover:opacity-100 transition-opacity" />
+                                        <div className="h-2 w-2 bg-slate-900 rounded-full opacity-50 group-hover:opacity-100 transition-opacity" />
                                         {line.id}
                                     </div>
-                                    <div className="text-[10px] text-muted-foreground font-mono mt-1">{line.name} • {line.supervisor}</div>
+                                    <div className="text-xs text-muted-foreground font-mono mt-1">{line.name} • {line.supervisor}</div>
                                 </div>
 
                                 {/* Column 2: Job Info */}
                                 <div className="col-span-4 pl-2">
-                                    <Badge variant="secondary" className="font-mono font-bold text-[10px] mb-1 bg-white border border-black/20 text-black shadow-sm">{line.job}</Badge>
+                                    <Badge variant="secondary" className="font-mono font-bold text-xs mb-1 bg-white border border-black/20 text-black shadow-sm">{line.job}</Badge>
                                     <div className="text-xs font-bold leading-tight text-foreground">{line.desc}</div>
                                 </div>
 
@@ -62,14 +62,14 @@ export function ProductionLineStatus({ data }: ProductionLineStatusProps) {
                                     <div className="flex justify-between items-center">
                                         <div className="flex items-center gap-1.5">
                                             {line.progress === 0 && <AlertCircle className="h-3 w-3 text-red-600 animate-pulse" />}
-                                            <span className={`text-xs font-black ${line.status.includes("Down") || line.status.includes("Hold") ? "text-red-600" : line.status.includes("Delayed") ? "text-amber-600" : "text-emerald-700"}`}>
+                                            <span className={`text-xs font-semibold ${line.status.includes("Down") || line.status.includes("Hold") ? "text-red-600" : line.status.includes("Delayed") ? "text-amber-600" : "text-emerald-700"}`}>
                                                 {line.status.toUpperCase()}
                                             </span>
                                         </div>
                                         <span className="text-xs font-mono font-bold text-black dark:text-white">{line.progress}%</span>
                                     </div>
                                     <Progress value={line.progress} className={`h-2 border border-black/10 rounded-full ${line.progress === 0 ? "bg-red-100 dark:bg-red-950/30" : "bg-zinc-100"}`} />
-                                    <div className="text-[10px] text-right text-muted-foreground font-medium">{line.eta}</div>
+                                    <div className="text-xs text-right text-muted-foreground font-medium">{line.eta}</div>
                                 </div>
                             </div>
                         ))}

@@ -126,7 +126,7 @@ export function LowStockPopup({ open, onClose, onAllActioned }: LowStockPopupPro
                                 {/* Status + Current Stock */}
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                        <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 border ${
+                                        <span className={`text-xs font-semibold   px-1.5 py-0.5 border ${
                                             product.status === "CRITICAL"
                                                 ? "border-red-300 bg-red-50 text-red-700"
                                                 : "border-amber-300 bg-amber-50 text-amber-700"
@@ -173,7 +173,7 @@ export function LowStockPopup({ open, onClose, onAllActioned }: LowStockPopupPro
                                                 size="sm"
                                                 disabled={saving === product.id}
                                                 onClick={() => handleSaveStock(product)}
-                                                className="flex-1 h-7 px-3 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-wider"
+                                                className="flex-1 h-7 px-3 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold  "
                                             >
                                                 {saving === product.id ? (
                                                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -186,7 +186,7 @@ export function LowStockPopup({ open, onClose, onAllActioned }: LowStockPopupPro
                                                 size="sm"
                                                 variant="outline"
                                                 onClick={() => setEditingId(null)}
-                                                className="h-7 px-3 rounded-none border-zinc-300 text-zinc-600 text-[10px] font-black uppercase tracking-wider"
+                                                className="h-7 px-3 rounded-md border-zinc-300 text-zinc-600 text-xs font-semibold  "
                                             >
                                                 Batal
                                             </Button>
@@ -197,7 +197,7 @@ export function LowStockPopup({ open, onClose, onAllActioned }: LowStockPopupPro
                                         size="sm"
                                         variant="outline"
                                         onClick={() => startEdit(product)}
-                                        className="w-full h-7 px-3 rounded-none border-zinc-300 text-zinc-700 text-[10px] font-black uppercase tracking-wider hover:bg-zinc-50"
+                                        className="w-full h-7 px-3 rounded-md border-zinc-300 text-zinc-700 text-xs font-semibold hover:bg-zinc-50"
                                     >
                                         Edit Min Stok & Reorder Level
                                     </Button>

@@ -56,16 +56,16 @@ export function ModulePageHeader({
         {/* Left: icon + title */}
         <div className="flex items-center gap-3">
           {icon && (
-            <div className="w-9 h-9 bg-orange-500 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 bg-blue-500 flex items-center justify-center shrink-0">
               {icon}
             </div>
           )}
           <div>
-            <h1 className="text-base font-black uppercase tracking-wider text-zinc-900 dark:text-white">
+            <h1 className="text-base font-semibold text-zinc-900 dark:text-white">
               {title}
             </h1>
             {subtitle && (
-              <p className="text-zinc-400 text-[11px] font-medium">{subtitle}</p>
+              <p className="text-zinc-400 text-xs font-medium">{subtitle}</p>
             )}
           </div>
         </div>
@@ -77,11 +77,11 @@ export function ModulePageHeader({
               <button
                 key={tab.value}
                 onClick={() => onTabChange?.(tab.value)}
-                className={`h-9 px-4 text-[10px] font-black uppercase tracking-widest transition-all border rounded-none ${
+                className={`h-9 px-4 text-xs font-semibold   transition-all border rounded-md ${
                   idx < tabs.length - 1 ? "border-r-0" : ""
                 } ${
                   activeTab === tab.value
-                    ? "bg-black dark:bg-white text-white dark:text-black border-black dark:border-white"
+                    ? "bg-slate-900 dark:bg-white text-white dark:text-black border-border dark:border-white"
                     : "bg-white dark:bg-zinc-900 text-zinc-400 border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-600 dark:hover:text-zinc-300"
                 }`}
               >

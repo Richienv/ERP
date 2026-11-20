@@ -39,7 +39,7 @@ export function TableToolbar<T>({ table, exportFilename = "export", children }: 
             <Button
               variant="outline"
               size="sm"
-              className="h-8 rounded-none border-2 border-zinc-300 text-xs font-medium"
+              className="h-8 rounded-md border border-zinc-300 text-xs font-medium"
             >
               <IconLayoutColumns className="w-3.5 h-3.5 mr-1.5" />
               Kolom
@@ -47,7 +47,7 @@ export function TableToolbar<T>({ table, exportFilename = "export", children }: 
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
-            className="w-48 rounded-none border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+            className="w-48 rounded-md border border-border shadow-sm"
           >
             {table
               .getAllColumns()
@@ -70,7 +70,7 @@ export function TableToolbar<T>({ table, exportFilename = "export", children }: 
           variant="outline"
           size="sm"
           onClick={() => exportTableToExcel(table, { filename: exportFilename })}
-          className="h-8 rounded-none border-2 border-zinc-300 text-xs font-medium"
+          className="h-8 rounded-md border border-zinc-300 text-xs font-medium"
         >
           <IconDownload className="w-3.5 h-3.5 mr-1.5" />
           Export

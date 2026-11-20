@@ -34,16 +34,16 @@ export function CostingDashboardClient({ data, products }: Props) {
             {/* Header */}
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h1 className="text-2xl font-black uppercase tracking-wider">
+                    <h1 className="text-2xl font-semibold  ">
                         Kalkulasi Biaya
                     </h1>
-                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">
+                    <p className="text-xs font-bold text-zinc-500 mt-1">
                         Dashboard biaya garmen — analisis margin & komposisi
                     </p>
                 </div>
                 <button
                     onClick={() => setCreateOpen(true)}
-                    className="flex items-center gap-1.5 px-3 py-2 border-2 border-black bg-black text-white font-black uppercase text-[10px] tracking-wider shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+                    className="flex items-center gap-1.5 px-3 py-2 border border-border bg-slate-900 text-white font-semibold text-xs shadow-sm hover:shadow-sm transition-all"
                 >
                     <Plus className="h-3.5 w-3.5" />
                     Buat Cost Sheet
@@ -52,55 +52,55 @@ export function CostingDashboardClient({ data, products }: Props) {
 
             {/* 4 KPI Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-white border-2 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <div className="bg-white border border-border p-4 shadow-sm">
                     <div className="flex items-center gap-2 mb-2">
                         <FileText className="h-4 w-4 text-zinc-400" />
-                        <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                        <span className="text-xs font-semibold text-zinc-400">
                             Total Sheet
                         </span>
                     </div>
-                    <div className="text-3xl font-black">{data.totalSheets}</div>
+                    <div className="text-3xl font-semibold">{data.totalSheets}</div>
                     <div className="flex gap-2 mt-1.5">
-                        <span className="text-[8px] font-bold text-zinc-400">{data.totalDraft} draft</span>
-                        <span className="text-[8px] font-bold text-blue-500">{data.totalFinalized} final</span>
-                        <span className="text-[8px] font-bold text-emerald-500">{data.totalApproved} disetujui</span>
+                        <span className="text-xs font-bold text-zinc-400">{data.totalDraft} draft</span>
+                        <span className="text-xs font-bold text-blue-500">{data.totalFinalized} final</span>
+                        <span className="text-xs font-bold text-emerald-500">{data.totalApproved} disetujui</span>
                     </div>
                 </div>
 
-                <div className={`bg-white border-2 p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${data.avgMargin >= 20 ? "border-emerald-500" : "border-red-500"}`}>
+                <div className={`bg-white border p-4 shadow-sm ${data.avgMargin >= 20 ? "border-emerald-500" : "border-red-500"}`}>
                     <div className="flex items-center gap-2 mb-2">
                         <TrendingUp className="h-4 w-4 text-zinc-400" />
-                        <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                        <span className="text-xs font-semibold text-zinc-400">
                             Rata-rata Margin
                         </span>
                     </div>
-                    <div className={`text-3xl font-black ${data.avgMargin >= 20 ? "text-emerald-600" : "text-red-600"}`}>
+                    <div className={`text-3xl font-semibold ${data.avgMargin >= 20 ? "text-emerald-600" : "text-red-600"}`}>
                         {data.avgMargin}%
                     </div>
-                    <div className="text-[8px] font-bold text-zinc-400 mt-1.5">
+                    <div className="text-xs font-bold text-zinc-400 mt-1.5">
                         Dari {data.totalApproved} sheet disetujui
                     </div>
                 </div>
 
-                <div className="bg-white border-2 border-blue-500 p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <div className="bg-white border border-blue-500 p-4 shadow-sm">
                     <div className="flex items-center gap-2 mb-2">
                         <DollarSign className="h-4 w-4 text-zinc-400" />
-                        <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                        <span className="text-xs font-semibold text-zinc-400">
                             Total Biaya Produksi
                         </span>
                     </div>
-                    <div className="text-xl font-black font-mono">
+                    <div className="text-xl font-semibold font-mono">
                         {formatIDR(data.totalProductionCost)}
                     </div>
-                    <div className="text-[8px] font-bold text-zinc-400 mt-1.5">
+                    <div className="text-xs font-bold text-zinc-400 mt-1.5">
                         Total dari sheet disetujui
                     </div>
                 </div>
 
-                <div className="bg-white border-2 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <div className="bg-white border border-border p-4 shadow-sm">
                     <div className="flex items-center gap-2 mb-2">
                         <Lock className="h-4 w-4 text-zinc-400" />
-                        <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                        <span className="text-xs font-semibold text-zinc-400">
                             Status Pipeline
                         </span>
                     </div>
@@ -112,10 +112,10 @@ export function CostingDashboardClient({ data, products }: Props) {
                         ].map((s) => (
                             <div key={s.label} className="flex flex-col items-center gap-0.5">
                                 <div
-                                    className={`${s.bg} border border-black w-8`}
+                                    className={`${s.bg} border border-border w-8`}
                                     style={{ height: `${Math.max(8, Math.min(40, s.n * 8))}px` }}
                                 />
-                                <span className="text-[8px] font-black">{s.label}</span>
+                                <span className="text-xs font-semibold">{s.label}</span>
                             </div>
                         ))}
                     </div>
@@ -126,10 +126,10 @@ export function CostingDashboardClient({ data, products }: Props) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Margin Alerts */}
                 {data.lowMarginSheets.length > 0 && (
-                    <div className="bg-red-50 border-2 border-red-400 shadow-[4px_4px_0px_0px_rgba(220,38,38,0.4)]">
-                        <div className="px-4 py-2.5 border-b-2 border-red-400 bg-red-100 flex items-center gap-2">
+                    <div className="bg-red-50 border border-red-400 shadow-sm">
+                        <div className="px-4 py-2.5 border-b border-red-400 bg-red-100 flex items-center gap-2">
                             <AlertTriangle className="h-4 w-4 text-red-600" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-red-700">
+                            <span className="text-xs font-semibold text-red-700">
                                 Peringatan Margin Rendah
                             </span>
                         </div>
@@ -142,9 +142,9 @@ export function CostingDashboardClient({ data, products }: Props) {
                                 >
                                     <div>
                                         <span className="text-xs font-bold">{s.productName}</span>
-                                        <span className="text-[9px] text-red-500 font-mono ml-2">({s.number})</span>
+                                        <span className="text-xs text-red-500 font-mono ml-2">({s.number})</span>
                                     </div>
-                                    <span className="text-xs font-black text-red-600">{s.margin}%</span>
+                                    <span className="text-xs font-semibold text-red-600">{s.margin}%</span>
                                 </Link>
                             ))}
                         </div>
@@ -153,9 +153,9 @@ export function CostingDashboardClient({ data, products }: Props) {
 
                 {/* Category Breakdown */}
                 {data.categoryBreakdown.length > 0 && (
-                    <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                        <div className="px-4 py-2.5 border-b-2 border-black bg-zinc-50">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                    <div className="bg-white border border-border shadow-sm">
+                        <div className="px-4 py-2.5 border-b border-border bg-zinc-50">
+                            <span className="text-xs font-semibold text-zinc-500">
                                 Komposisi Biaya Rata-rata
                             </span>
                         </div>
@@ -165,14 +165,14 @@ export function CostingDashboardClient({ data, products }: Props) {
                                     <div className="flex items-center justify-between mb-1">
                                         <div className="flex items-center gap-2">
                                             <div
-                                                className="w-2.5 h-2.5 border border-black"
+                                                className="w-2.5 h-2.5 border border-border"
                                                 style={{ backgroundColor: COST_CATEGORY_COLORS[cat.category as CostCategoryType] || '#6b7280' }}
                                             />
-                                            <span className="text-[10px] font-black">
+                                            <span className="text-xs font-semibold">
                                                 {COST_CATEGORY_LABELS[cat.category as CostCategoryType] || cat.category}
                                             </span>
                                         </div>
-                                        <span className="text-[9px] font-black px-1.5 py-0.5 bg-zinc-100 border border-zinc-300">
+                                        <span className="text-xs font-semibold px-1.5 py-0.5 bg-zinc-100 border border-zinc-300">
                                             {cat.pct}%
                                         </span>
                                     </div>
@@ -193,9 +193,9 @@ export function CostingDashboardClient({ data, products }: Props) {
 
                 {/* If no alerts, just show category full width */}
                 {data.lowMarginSheets.length === 0 && data.categoryBreakdown.length === 0 && (
-                    <div className="bg-white border-2 border-black p-8 text-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] md:col-span-2">
+                    <div className="bg-white border border-border p-8 text-center shadow-sm md:col-span-2">
                         <DollarSign className="h-8 w-8 mx-auto text-zinc-200 mb-2" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                        <span className="text-xs font-semibold text-zinc-400">
                             Belum ada cost sheet yang disetujui untuk analisis
                         </span>
                     </div>
@@ -203,14 +203,14 @@ export function CostingDashboardClient({ data, products }: Props) {
             </div>
 
             {/* Recent Sheets */}
-            <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                <div className="px-4 py-2.5 border-b-2 border-black bg-zinc-50 flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+            <div className="bg-white border border-border shadow-sm">
+                <div className="px-4 py-2.5 border-b border-border bg-zinc-50 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-zinc-500">
                         Cost Sheet Terbaru
                     </span>
                     <Link
                         href="/costing/sheets"
-                        className="text-[9px] font-black uppercase tracking-wider text-blue-600 hover:underline"
+                        className="text-xs font-semibold text-blue-600 hover:underline"
                     >
                         Lihat Semua
                     </Link>
@@ -219,7 +219,7 @@ export function CostingDashboardClient({ data, products }: Props) {
                 {data.recentSheets.length === 0 ? (
                     <div className="p-8 text-center">
                         <DollarSign className="h-8 w-8 mx-auto text-zinc-200 mb-2" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                        <span className="text-xs font-semibold text-zinc-400">
                             Belum ada cost sheet
                         </span>
                     </div>
@@ -237,13 +237,13 @@ export function CostingDashboardClient({ data, products }: Props) {
                                 >
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2">
-                                            <span className="text-xs font-black">{sheet.number}</span>
-                                            <span className="text-[8px] font-bold text-zinc-400">v{sheet.version}</span>
-                                            <span className={`text-[8px] font-black px-1.5 py-0.5 border ${costSheetStatusColors[sheet.status as CostSheetStatusType]}`}>
+                                            <span className="text-xs font-semibold">{sheet.number}</span>
+                                            <span className="text-xs font-bold text-zinc-400">v{sheet.version}</span>
+                                            <span className={`text-xs font-semibold px-1.5 py-0.5 border ${costSheetStatusColors[sheet.status as CostSheetStatusType]}`}>
                                                 {costSheetStatusLabels[sheet.status as CostSheetStatusType]}
                                             </span>
                                         </div>
-                                        <div className="text-[10px] text-zinc-500 font-bold">
+                                        <div className="text-xs text-zinc-500 font-bold">
                                             [{sheet.productCode}] {sheet.productName}
                                         </div>
                                     </div>
@@ -252,7 +252,7 @@ export function CostingDashboardClient({ data, products }: Props) {
                                             {formatIDR(sheet.totalCost)}
                                         </div>
                                         {margin !== null && (
-                                            <div className={`text-[9px] font-black ${margin >= 20 ? "text-emerald-600" : "text-red-600"}`}>
+                                            <div className={`text-xs font-semibold ${margin >= 20 ? "text-emerald-600" : "text-red-600"}`}>
                                                 Margin {margin}%
                                             </div>
                                         )}

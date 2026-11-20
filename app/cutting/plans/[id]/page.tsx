@@ -28,7 +28,7 @@ export default function CutPlanDetailPage() {
             <div className="flex items-center gap-3">
                 <Link
                     href="/cutting/plans"
-                    className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-zinc-500 hover:text-black transition-colors"
+                    className="flex items-center gap-1 text-xs font-semibold text-zinc-500 hover:text-black transition-colors"
                 >
                     <ArrowLeft className="h-3.5 w-3.5" />
                     Kembali
@@ -36,19 +36,19 @@ export default function CutPlanDetailPage() {
                 <div className="w-px h-4 bg-zinc-300" />
                 <div className="flex items-center gap-2">
                     <Scissors className="h-5 w-5" />
-                    <h1 className="text-sm font-black uppercase tracking-widest">Detail Cut Plan</h1>
+                    <h1 className="text-sm font-semibold  ">Detail Cut Plan</h1>
                 </div>
             </div>
 
             <div className="space-y-6">
                 {/* Header */}
-                <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                    <div className="px-4 py-3 border-b-2 border-black bg-zinc-50 flex items-center justify-between">
+                <div className="bg-white border border-border shadow-sm">
+                    <div className="px-4 py-3 border-b border-border bg-zinc-50 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <Scissors className="h-4 w-4" />
-                            <span className="text-sm font-black">{plan.number}</span>
+                            <span className="text-sm font-semibold">{plan.number}</span>
                             <span
-                                className={`text-[8px] font-black px-1.5 py-0.5 border ${
+                                className={`text-xs font-semibold px-1.5 py-0.5 border ${
                                     cutPlanStatusColors[plan.status]
                                 }`}
                             >
@@ -65,12 +65,12 @@ export default function CutPlanDetailPage() {
                     </div>
                     <div className="px-4 py-3 grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                            <div className="text-[9px] font-bold text-zinc-400 uppercase">Produk Kain</div>
-                            <div className="text-xs font-black">{plan.fabricProductName}</div>
-                            <div className="text-[9px] font-mono text-zinc-500">{plan.fabricProductCode}</div>
+                            <div className="text-xs font-bold text-zinc-400 ">Produk Kain</div>
+                            <div className="text-xs font-semibold">{plan.fabricProductName}</div>
+                            <div className="text-xs font-mono text-zinc-500">{plan.fabricProductCode}</div>
                         </div>
                         <div>
-                            <div className="text-[9px] font-bold text-zinc-400 uppercase flex items-center gap-1">
+                            <div className="text-xs font-bold text-zinc-400 flex items-center gap-1">
                                 <Ruler className="h-3 w-3" /> Panjang Marker
                             </div>
                             <div className="text-xs font-mono font-bold">
@@ -78,7 +78,7 @@ export default function CutPlanDetailPage() {
                             </div>
                         </div>
                         <div>
-                            <div className="text-[9px] font-bold text-zinc-400 uppercase flex items-center gap-1">
+                            <div className="text-xs font-bold text-zinc-400 flex items-center gap-1">
                                 <Layers className="h-3 w-3" /> Layer / Kain
                             </div>
                             <div className="text-xs font-mono font-bold">
@@ -87,7 +87,7 @@ export default function CutPlanDetailPage() {
                             </div>
                         </div>
                         <div>
-                            <div className="text-[9px] font-bold text-zinc-400 uppercase flex items-center gap-1">
+                            <div className="text-xs font-bold text-zinc-400 flex items-center gap-1">
                                 <Calendar className="h-3 w-3" /> Efisiensi / Tanggal
                             </div>
                             <div className="text-xs font-bold">
@@ -106,15 +106,15 @@ export default function CutPlanDetailPage() {
 
                 {/* Layers */}
                 {plan.layers.length > 0 && (
-                    <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                        <div className="px-4 py-2.5 border-b-2 border-black bg-zinc-50 flex items-center justify-between">
+                    <div className="bg-white border border-border shadow-sm">
+                        <div className="px-4 py-2.5 border-b border-border bg-zinc-50 flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <Layers className="h-4 w-4 text-zinc-500" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                <span className="text-xs font-semibold text-zinc-500">
                                     Layer Kain
                                 </span>
                             </div>
-                            <span className="text-[9px] font-bold text-zinc-400">
+                            <span className="text-xs font-bold text-zinc-400">
                                 {plan.layers.length} layer •{" "}
                                 {plan.layers.reduce((s, l) => s + l.metersUsed, 0).toFixed(2)} m
                             </span>
@@ -122,9 +122,9 @@ export default function CutPlanDetailPage() {
                         <table className="w-full">
                             <thead className="bg-zinc-50 border-b border-zinc-200">
                                 <tr>
-                                    <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left w-16">#</th>
-                                    <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">Roll</th>
-                                    <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-right">Meter</th>
+                                    <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left w-16">#</th>
+                                    <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">Roll</th>
+                                    <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-right">Meter</th>
                                 </tr>
                             </thead>
                             <tbody>

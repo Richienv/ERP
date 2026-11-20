@@ -75,36 +75,36 @@ interface ReceivingItem {
 
 // ── NB Stepper Button ──
 const STEPPER_BTN =
-    "w-8 h-8 border-2 border-black flex items-center justify-center font-bold text-sm " +
-    "shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] " +
-    "hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] " +
-    "active:translate-x-[2px] active:translate-y-[2px] active:shadow-none " +
+    "w-8 h-8 border border-border flex items-center justify-center font-bold text-sm " +
+    "shadow-sm " +
+    "hover:shadow-none   " +
+    "  active:shadow-none " +
     "transition-all bg-white"
 
 // ── Emerald quantity input (active when value > 0) ──
 const QTY_INPUT_ACTIVE =
-    "w-16 text-center font-mono font-bold h-8 border-2 rounded-none outline-none transition-colors " +
+    "w-16 text-center font-mono font-bold h-8 border rounded-md outline-none transition-colors " +
     "border-emerald-400 bg-emerald-50/50 text-emerald-700 " +
     "focus:ring-2 focus:ring-emerald-400/50 focus:border-emerald-500"
 const QTY_INPUT_EMPTY =
-    "w-16 text-center font-mono font-bold h-8 border-2 rounded-none outline-none transition-colors " +
+    "w-16 text-center font-mono font-bold h-8 border rounded-md outline-none transition-colors " +
     "border-zinc-300 bg-white text-zinc-900"
 
 // ── ACC (emerald) / REJ (red) inputs ──
 const ACC_INPUT =
-    "w-14 text-center font-mono h-7 text-xs font-bold border-2 rounded-none outline-none transition-colors " +
+    "w-14 text-center font-mono h-7 text-xs font-bold border rounded-md outline-none transition-colors " +
     "border-emerald-500 bg-emerald-50/50 text-emerald-700 " +
     "focus:ring-2 focus:ring-emerald-400/50"
 const REJ_DISPLAY =
-    "w-14 h-7 flex items-center justify-center bg-red-50 border-2 border-red-400 " +
-    "font-mono text-xs text-red-600 font-bold rounded-none"
+    "w-14 h-7 flex items-center justify-center bg-red-50 border border-red-400 " +
+    "font-mono text-xs text-red-600 font-bold rounded-md"
 
 // ── Item notes input (orange glow when has value) ──
 const NOTES_INPUT_ACTIVE =
-    "h-8 text-xs border-2 rounded-none outline-none transition-colors font-medium " +
-    "border-orange-400 bg-orange-50/50 placeholder:text-zinc-400"
+    "h-8 text-xs border rounded-md outline-none transition-colors font-medium " +
+    "border-blue-400 bg-blue-50/50 placeholder:text-zinc-400"
 const NOTES_INPUT_EMPTY =
-    "h-8 text-xs border-2 rounded-none outline-none transition-colors font-medium " +
+    "h-8 text-xs border rounded-md outline-none transition-colors font-medium " +
     "border-zinc-300 bg-white placeholder:text-zinc-400"
 
 export function CreateGRNDialog({ purchaseOrder, warehouses, employees: _employees }: Props) {
@@ -259,14 +259,14 @@ export function CreateGRNDialog({ purchaseOrder, warehouses, employees: _employe
                                             {/* Product info */}
                                             <td className={NB.tableCell}>
                                                 <div className="font-bold">{item.productName}</div>
-                                                <div className="text-[10px] text-zinc-400 font-mono">
+                                                <div className="text-xs text-zinc-400 font-mono">
                                                     {item.productCode} &bull; {item.unit}
                                                 </div>
                                             </td>
 
                                             {/* Sisa (remaining) */}
                                             <td className={NB.tableCell + " text-center"}>
-                                                <span className="font-mono font-black">{item.remainingQty}</span>
+                                                <span className="font-mono font-semibold">{item.remainingQty}</span>
                                             </td>
 
                                             {/* Diterima — NB stepper with emerald glow */}
@@ -309,13 +309,13 @@ export function CreateGRNDialog({ purchaseOrder, warehouses, employees: _employe
                                                             onChange={(e) => updateItem(index, 'acceptedQty', Math.min(item.receivingQty, parseInt(e.target.value) || 0))}
                                                             className={ACC_INPUT}
                                                         />
-                                                        <div className="text-[9px] text-emerald-600 font-black uppercase mt-0.5">Acc</div>
+                                                        <div className="text-xs text-emerald-600 font-semibold mt-0.5">Acc</div>
                                                     </div>
                                                     <div className="text-center">
                                                         <div className={REJ_DISPLAY}>
                                                             {item.rejectedQty}
                                                         </div>
-                                                        <div className="text-[9px] text-red-600 font-black uppercase mt-0.5">Rej</div>
+                                                        <div className="text-xs text-red-600 font-semibold mt-0.5">Rej</div>
                                                     </div>
                                                 </div>
                                             </td>
@@ -347,7 +347,7 @@ export function CreateGRNDialog({ purchaseOrder, warehouses, employees: _employe
                 </NBDialogBody>
 
                 {/* ── NB Footer with shadow/press animation buttons ── */}
-                <div className="border-t-2 border-black bg-zinc-50 dark:bg-zinc-800/50 px-5 py-3 flex items-center justify-end gap-3">
+                <div className="border-t border-border bg-zinc-50 dark:bg-zinc-800/50 px-5 py-3 flex items-center justify-end gap-3">
                     <button
                         type="button"
                         onClick={() => setOpen(false)}

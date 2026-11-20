@@ -39,7 +39,7 @@ function ModuleBadge({ module }: { module: CmdKAction["module"] }) {
   return (
     <span
       className={cn(
-        "shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wider",
+        "shrink-0 rounded px-1.5 py-0.5 text-xs font-bold leading-none",
         meta.color
       )}
     >
@@ -57,7 +57,7 @@ function ShortcutHint({ shortcut }: { shortcut: string }) {
       {parts.map((part, i) => (
         <kbd
           key={i}
-          className="rounded border border-border/50 bg-muted/40 px-1 py-0.5 font-mono text-[10px] leading-none text-muted-foreground/50"
+          className="rounded border border-border/50 bg-muted/40 px-1 py-0.5 font-mono text-xs leading-none text-muted-foreground/50"
         >
           {part}
         </kbd>
@@ -314,7 +314,7 @@ export function CommandPalette() {
                     "placeholder:text-muted-foreground/40"
                   )}
                 />
-                <kbd className="pointer-events-none hidden shrink-0 select-none items-center gap-0.5 rounded-md border border-border/60 bg-muted/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/60 sm:flex">
+                <kbd className="pointer-events-none hidden shrink-0 select-none items-center gap-0.5 rounded-md border border-border/60 bg-muted/50 px-1.5 py-0.5 text-xs font-medium text-muted-foreground/60 sm:flex">
                   <IconCommand className="size-3" />K
                 </kbd>
               </div>
@@ -382,7 +382,7 @@ export function CommandPalette() {
                             iconColor="bg-amber-50 text-amber-500"
                             label={page.label}
                             suffix={
-                              <span className="tabular-nums text-[10px] font-medium text-muted-foreground/40">
+                              <span className="tabular-nums text-xs font-medium text-muted-foreground/40">
                                 {page.count}x
                               </span>
                             }
@@ -432,21 +432,21 @@ export function CommandPalette() {
 
               {/* ─── Footer ─── */}
               <div className="flex items-center justify-between border-t border-border/40 px-4 py-2">
-                <div className="flex items-center gap-3 text-[11px] text-muted-foreground/50">
+                <div className="flex items-center gap-3 text-xs text-muted-foreground/50">
                   <span className="flex items-center gap-1">
-                    <kbd className="rounded border border-border/50 bg-muted/30 px-1 py-0.5 font-mono text-[10px]">↑↓</kbd>
+                    <kbd className="rounded border border-border/50 bg-muted/30 px-1 py-0.5 font-mono text-xs">↑↓</kbd>
                     navigasi
                   </span>
                   <span className="flex items-center gap-1">
-                    <kbd className="rounded border border-border/50 bg-muted/30 px-1 py-0.5 font-mono text-[10px]">↵</kbd>
+                    <kbd className="rounded border border-border/50 bg-muted/30 px-1 py-0.5 font-mono text-xs">↵</kbd>
                     buka
                   </span>
                   <span className="flex items-center gap-1">
-                    <kbd className="rounded border border-border/50 bg-muted/30 px-1 py-0.5 font-mono text-[10px]">esc</kbd>
+                    <kbd className="rounded border border-border/50 bg-muted/30 px-1 py-0.5 font-mono text-xs">esc</kbd>
                     tutup
                   </span>
                 </div>
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground/40">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground/40">
                   <span className="flex items-center gap-1">
                     <IconBolt className="size-3 text-amber-400/60" />
                     aksi

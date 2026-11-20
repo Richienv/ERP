@@ -162,12 +162,12 @@ export default function SalespersonsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black tracking-tight">Salesperson & Komisi</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Salesperson & Komisi</h1>
           <p className="text-sm text-zinc-500 mt-0.5">Kelola tim sales dan perhitungan komisi</p>
         </div>
         <Button
           onClick={openCreate}
-          className="bg-amber-500 text-white hover:bg-amber-600 border-2 border-amber-600 font-black uppercase text-xs tracking-wide h-10 px-5 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] transition-all"
+          className="bg-amber-500 text-white hover:bg-amber-600 border border-amber-600 font-semibold text-xs h-10 px-5 shadow-sm hover:shadow-sm transition-all"
         >
           <IconPlus className="h-4 w-4 mr-1.5" /> Tambah Salesperson
         </Button>
@@ -183,21 +183,21 @@ export default function SalespersonsPage() {
         ].map((kpi) => (
           <div
             key={kpi.label}
-            className={`border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] p-4 ${kpi.color.split(" ")[0]}`}
+            className={`border border-border shadow-sm p-4 ${kpi.color.split(" ")[0]}`}
           >
             <div className="flex items-center gap-2 mb-1">
               <kpi.icon className="h-4 w-4" />
-              <span className="text-[10px] font-black uppercase tracking-widest">{kpi.label}</span>
+              <span className="text-xs font-semibold  ">{kpi.label}</span>
             </div>
-            <p className="text-lg font-black font-mono">{kpi.value}</p>
+            <p className="text-lg font-semibold font-mono">{kpi.value}</p>
           </div>
         ))}
       </div>
 
       <Tabs defaultValue="master" className="space-y-4">
-        <TabsList className="border-2 border-black">
-          <TabsTrigger value="master" className="font-bold text-xs uppercase">Data Salesperson</TabsTrigger>
-          <TabsTrigger value="commission" className="font-bold text-xs uppercase">Laporan Komisi</TabsTrigger>
+        <TabsList className="border border-border">
+          <TabsTrigger value="master" className="font-bold text-xs ">Data Salesperson</TabsTrigger>
+          <TabsTrigger value="commission" className="font-bold text-xs ">Laporan Komisi</TabsTrigger>
         </TabsList>
 
         {/* ===== TAB: Master ===== */}
@@ -207,25 +207,25 @@ export default function SalespersonsPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Cari salesperson..."
-              className="border-2 border-black h-10 font-medium flex-1 max-w-lg placeholder:text-zinc-300"
+              className="border border-border h-10 font-medium flex-1 max-w-lg placeholder:text-zinc-300"
             />
           </div>
 
-          <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+          <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-zinc-100 dark:bg-zinc-800 border-b-2 border-black">
-                    <TableHead className="text-[10px] font-black uppercase tracking-widest">Kode</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-widest">Nama</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-widest">Telepon</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-widest">Email</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-center">Komisi %</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-center">SO</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Total Sales</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Komisi</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-center">Status</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-center">Aksi</TableHead>
+                  <TableRow className="bg-zinc-100 dark:bg-zinc-800 border-b border-border">
+                    <TableHead className="text-xs font-semibold  ">Kode</TableHead>
+                    <TableHead className="text-xs font-semibold  ">Nama</TableHead>
+                    <TableHead className="text-xs font-semibold  ">Telepon</TableHead>
+                    <TableHead className="text-xs font-semibold  ">Email</TableHead>
+                    <TableHead className="text-xs font-semibold text-center">Komisi %</TableHead>
+                    <TableHead className="text-xs font-semibold text-center">SO</TableHead>
+                    <TableHead className="text-xs font-semibold text-right">Total Sales</TableHead>
+                    <TableHead className="text-xs font-semibold text-right">Komisi</TableHead>
+                    <TableHead className="text-xs font-semibold text-center">Status</TableHead>
+                    <TableHead className="text-xs font-semibold text-center">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -273,21 +273,21 @@ export default function SalespersonsPage() {
         <TabsContent value="commission" className="space-y-3">
           <div className="flex items-center gap-3 flex-wrap">
             <div className="space-y-1">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Dari</Label>
+              <Label className="text-xs font-semibold text-zinc-500">Dari</Label>
               <Input
                 type="date"
                 value={reportStart}
                 onChange={(e) => setReportStart(e.target.value)}
-                className="border-2 border-black h-10 font-medium w-44"
+                className="border border-border h-10 font-medium w-44"
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Sampai</Label>
+              <Label className="text-xs font-semibold text-zinc-500">Sampai</Label>
               <Input
                 type="date"
                 value={reportEnd}
                 onChange={(e) => setReportEnd(e.target.value)}
-                className="border-2 border-black h-10 font-medium w-44"
+                className="border border-border h-10 font-medium w-44"
               />
             </div>
           </div>
@@ -300,30 +300,30 @@ export default function SalespersonsPage() {
             <>
               {/* Commission KPIs */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-amber-50 p-4">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-600">Total Penjualan Periode</span>
-                  <p className="text-xl font-black font-mono text-amber-800 mt-1">{formatCurrency(reportData.summary.grandTotalSales)}</p>
+                <div className="border border-border shadow-sm bg-amber-50 p-4">
+                  <span className="text-xs font-semibold text-amber-600">Total Penjualan Periode</span>
+                  <p className="text-xl font-semibold font-mono text-amber-800 mt-1">{formatCurrency(reportData.summary.grandTotalSales)}</p>
                 </div>
-                <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-purple-50 p-4">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-purple-600">Total Komisi Periode</span>
-                  <p className="text-xl font-black font-mono text-purple-800 mt-1">{formatCurrency(reportData.summary.grandTotalCommission)}</p>
+                <div className="border border-border shadow-sm bg-purple-50 p-4">
+                  <span className="text-xs font-semibold text-purple-600">Total Komisi Periode</span>
+                  <p className="text-xl font-semibold font-mono text-purple-800 mt-1">{formatCurrency(reportData.summary.grandTotalCommission)}</p>
                 </div>
-                <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-blue-50 p-4">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-blue-600">Salesperson Aktif</span>
-                  <p className="text-xl font-black font-mono text-blue-800 mt-1">{reportData.summary.salespersonCount}</p>
+                <div className="border border-border shadow-sm bg-blue-50 p-4">
+                  <span className="text-xs font-semibold text-blue-600">Salesperson Aktif</span>
+                  <p className="text-xl font-semibold font-mono text-blue-800 mt-1">{reportData.summary.salespersonCount}</p>
                 </div>
               </div>
 
-              <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+              <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-zinc-100 dark:bg-zinc-800 border-b-2 border-black">
-                        <TableHead className="text-[10px] font-black uppercase tracking-widest">Salesperson</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-center">Komisi %</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-center">Jumlah SO</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Total Penjualan</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Total Komisi</TableHead>
+                      <TableRow className="bg-zinc-100 dark:bg-zinc-800 border-b border-border">
+                        <TableHead className="text-xs font-semibold  ">Salesperson</TableHead>
+                        <TableHead className="text-xs font-semibold text-center">Komisi %</TableHead>
+                        <TableHead className="text-xs font-semibold text-center">Jumlah SO</TableHead>
+                        <TableHead className="text-xs font-semibold text-right">Total Penjualan</TableHead>
+                        <TableHead className="text-xs font-semibold text-right">Total Komisi</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -374,7 +374,7 @@ export default function SalespersonsPage() {
                   disabled={!!form.id}
                 />
                 {!form.id && (
-                  <p className="text-[10px] text-zinc-400 mt-1">Kosongkan untuk auto-generate</p>
+                  <p className="text-xs text-zinc-400 mt-1">Kosongkan untuk auto-generate</p>
                 )}
               </div>
               <NBInput
@@ -411,7 +411,7 @@ export default function SalespersonsPage() {
                 placeholder="2.5"
               />
               <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1 block">
                   Status
                 </label>
                 <div className="flex items-center gap-2 h-8">

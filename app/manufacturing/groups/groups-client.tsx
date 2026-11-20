@@ -188,12 +188,12 @@ export function GroupsClient({ initialGroups }: Props) {
         <div className="mf-page">
 
             {/* ── Page Header ─────────────────────────────────────────── */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+            <div className="border border-border shadow-sm overflow-hidden bg-white dark:bg-zinc-900">
                 <div className="px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-3 border-l-[6px] border-l-blue-400">
                     <div className="flex items-center gap-3">
                         <FolderKanban className="h-5 w-5 text-blue-500" />
                         <div>
-                            <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
+                            <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-white">
                                 Grup Pusat Kerja
                             </h1>
                             <p className="text-zinc-400 text-xs font-medium mt-0.5">
@@ -203,7 +203,7 @@ export function GroupsClient({ initialGroups }: Props) {
                     </div>
                     <div className="flex gap-2">
                         <Link href="/manufacturing">
-                            <Button variant="outline" className="border-2 border-zinc-300 dark:border-zinc-600 font-bold uppercase text-[10px] tracking-wide h-10 px-4 hover:border-zinc-500 transition-colors">
+                            <Button variant="outline" className="border border-zinc-300 dark:border-zinc-600 font-bold text-xs h-10 px-4 hover:border-zinc-500 transition-colors">
                                 <Settings className="mr-1.5 h-3.5 w-3.5" /> Dashboard
                             </Button>
                         </Link>
@@ -211,12 +211,12 @@ export function GroupsClient({ initialGroups }: Props) {
                             variant="outline"
                             onClick={fetchGroups}
                             disabled={refreshing}
-                            className="border-2 border-zinc-300 dark:border-zinc-600 font-bold uppercase text-[10px] tracking-wide h-10 px-4 hover:border-zinc-500 transition-colors"
+                            className="border border-zinc-300 dark:border-zinc-600 font-bold text-xs h-10 px-4 hover:border-zinc-500 transition-colors"
                         >
                             <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
                         </Button>
                         <Button
-                            className="bg-blue-500 text-white hover:bg-blue-600 border-2 border-blue-600 font-black uppercase text-[10px] tracking-wide h-10 px-5 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
+                            className="bg-blue-500 text-white hover:bg-blue-600 border border-blue-600 font-semibold text-xs h-10 px-5 shadow-sm active:shadow-none transition-all"
                             onClick={handleCreateGroup}
                         >
                             <Plus className="h-3.5 w-3.5 mr-1.5" /> Buat Grup
@@ -227,52 +227,52 @@ export function GroupsClient({ initialGroups }: Props) {
 
             {/* ── KPI Cards ───────────────────────────────────────────── */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
                     <div className="p-4">
                         <div className="flex items-center justify-between mb-2">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Total Grup</span>
+                            <span className="text-xs font-semibold text-zinc-400">Total Grup</span>
                             <FolderKanban className="h-4 w-4 text-blue-500" />
                         </div>
-                        <div className="text-xl font-black text-zinc-900 dark:text-white">{groups.length}</div>
-                        <span className="text-[10px] text-zinc-400 font-medium mt-1 block">
+                        <div className="text-xl font-semibold text-zinc-900 dark:text-white">{groups.length}</div>
+                        <span className="text-xs text-zinc-400 font-medium mt-1 block">
                             {activeGroups} aktif
                         </span>
                     </div>
                 </div>
-                <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
                     <div className="p-4">
                         <div className="flex items-center justify-between mb-2">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Total Mesin</span>
+                            <span className="text-xs font-semibold text-zinc-400">Total Mesin</span>
                             <Settings className="h-4 w-4 text-zinc-400" />
                         </div>
-                        <div className="text-xl font-black text-zinc-900 dark:text-white">{totalMachines}</div>
-                        <span className="text-[10px] text-zinc-400 font-medium mt-1 block">
+                        <div className="text-xl font-semibold text-zinc-900 dark:text-white">{totalMachines}</div>
+                        <span className="text-xs text-zinc-400 font-medium mt-1 block">
                             Di semua grup
                         </span>
                     </div>
                 </div>
-                <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
                     <div className="p-4">
                         <div className="flex items-center justify-between mb-2">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Running</span>
+                            <span className="text-xs font-semibold text-zinc-400">Running</span>
                             <Activity className="h-4 w-4 text-emerald-500" />
                         </div>
-                        <div className="text-xl font-black text-emerald-600">{totalRunning}</div>
-                        <span className="text-[10px] text-zinc-400 font-medium mt-1 block">
+                        <div className="text-xl font-semibold text-emerald-600">{totalRunning}</div>
+                        <span className="text-xs text-zinc-400 font-medium mt-1 block">
                             Mesin berjalan
                         </span>
                     </div>
                 </div>
-                <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
                     <div className="p-4">
                         <div className="flex items-center justify-between mb-2">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Avg Health</span>
+                            <span className="text-xs font-semibold text-zinc-400">Avg Health</span>
                             <Activity className="h-4 w-4 text-blue-500" />
                         </div>
-                        <div className={`text-xl font-black ${avgHealth >= 80 ? 'text-emerald-600' : avgHealth >= 60 ? 'text-amber-600' : 'text-red-600'}`}>
+                        <div className={`text-xl font-semibold ${avgHealth >= 80 ? 'text-emerald-600' : avgHealth >= 60 ? 'text-amber-600' : 'text-red-600'}`}>
                             {avgHealth}%
                         </div>
-                        <span className="text-[10px] text-zinc-400 font-medium mt-1 block">
+                        <span className="text-xs text-zinc-400 font-medium mt-1 block">
                             Rata-rata kesehatan
                         </span>
                     </div>
@@ -280,7 +280,7 @@ export function GroupsClient({ initialGroups }: Props) {
             </div>
 
             {/* ── Search Bar ─────────────────────────────────────────── */}
-            <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+            <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
                 <div className="px-4 py-3 flex items-center gap-3">
                     <Search className="h-4 w-4 text-zinc-400 shrink-0" />
                     <Input
@@ -294,14 +294,14 @@ export function GroupsClient({ initialGroups }: Props) {
 
             {/* ── Error State ─────────────────────────────────────────── */}
             {error && (
-                <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-red-50 dark:bg-red-950/20 border-l-[5px] border-l-red-500">
+                <div className="border border-border shadow-sm overflow-hidden bg-red-50 dark:bg-red-950/20 border-l-[5px] border-l-red-500">
                     <div className="px-5 py-3 flex items-center gap-3">
                         <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
                         <span className="text-xs font-bold text-red-700 flex-1">{error}</span>
                         <Button
                             variant="outline"
                             onClick={fetchGroups}
-                            className="border-2 border-zinc-300 font-bold uppercase text-[10px] tracking-wide h-8 px-3"
+                            className="border border-zinc-300 font-bold text-xs h-8 px-3"
                         >
                             Retry
                         </Button>
@@ -311,18 +311,18 @@ export function GroupsClient({ initialGroups }: Props) {
 
             {/* ── Empty State ─────────────────────────────────────────── */}
             {groups.length === 0 && !error && (
-                <div className="border-2 border-black border-dashed bg-white dark:bg-zinc-900 overflow-hidden">
+                <div className="border border-border border-dashed bg-white dark:bg-zinc-900 overflow-hidden">
                     <div className="py-16 flex flex-col items-center justify-center text-center px-4">
                         <FolderKanban className="h-10 w-10 text-zinc-300 mb-4" />
-                        <h3 className="text-sm font-black uppercase tracking-wide text-zinc-600 dark:text-zinc-300">
+                        <h3 className="text-sm font-semibold text-zinc-600 dark:text-zinc-300">
                             {searchQuery ? 'Tidak ada grup ditemukan' : 'Belum ada grup pusat kerja'}
                         </h3>
-                        <p className="text-[11px] text-zinc-400 mt-1">
+                        <p className="text-xs text-zinc-400 mt-1">
                             {searchQuery ? 'Coba ubah kata pencarian.' : 'Buat grup pertama untuk mengorganisir mesin.'}
                         </p>
                         {!searchQuery && (
                             <Button
-                                className="mt-4 bg-blue-500 text-white hover:bg-blue-600 border-2 border-blue-600 font-black uppercase text-[10px] tracking-wide h-10 px-5 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
+                                className="mt-4 bg-blue-500 text-white hover:bg-blue-600 border border-blue-600 font-semibold text-xs h-10 px-5 shadow-sm active:shadow-none transition-all"
                                 onClick={handleCreateGroup}
                             >
                                 <Plus className="h-3.5 w-3.5 mr-1.5" /> Buat Grup
@@ -338,21 +338,21 @@ export function GroupsClient({ initialGroups }: Props) {
                     {groups.map((group) => (
                         <div
                             key={group.id}
-                            className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all cursor-pointer"
+                            className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden hover:shadow-none transition-all cursor-pointer"
                             onClick={() => handleGroupClick(group)}
                         >
                             {/* Card Header */}
-                            <div className="px-4 py-3 border-b-2 border-black flex items-start justify-between gap-2 border-l-[5px] border-l-blue-400">
+                            <div className="px-4 py-3 border-b border-border flex items-start justify-between gap-2 border-l-[5px] border-l-blue-400">
                                 <div className="min-w-0">
                                     <div className="flex items-center gap-2">
                                         <FolderKanban className="h-4 w-4 text-blue-600 shrink-0" />
-                                        <h3 className="text-sm font-black uppercase tracking-wide text-zinc-900 dark:text-white truncate">
+                                        <h3 className="text-sm font-semibold text-zinc-900 dark:text-white truncate">
                                             {group.name}
                                         </h3>
                                     </div>
-                                    <span className="text-[10px] font-mono text-zinc-400 ml-6">{group.code}</span>
+                                    <span className="text-xs font-mono text-zinc-400 ml-6">{group.code}</span>
                                 </div>
-                                <span className={`inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 border whitespace-nowrap shrink-0 ${
+                                <span className={`inline-flex items-center gap-1 text-xs font-semibold   px-2 py-0.5 border whitespace-nowrap shrink-0 ${
                                     group.isActive
                                         ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
                                         : 'bg-zinc-100 border-zinc-300 text-zinc-500'
@@ -365,26 +365,26 @@ export function GroupsClient({ initialGroups }: Props) {
                             {/* Description */}
                             {group.description && (
                                 <div className="px-4 pt-3">
-                                    <p className="text-[11px] text-zinc-500 line-clamp-2">{group.description}</p>
+                                    <p className="text-xs text-zinc-500 line-clamp-2">{group.description}</p>
                                 </div>
                             )}
 
                             {/* Stats */}
                             <div className="p-4">
                                 <div className="grid grid-cols-3 gap-2 text-center">
-                                    <div className="p-2 border-2 border-zinc-200 bg-zinc-50 dark:bg-zinc-800/50">
-                                        <p className="text-xl font-black text-zinc-900 dark:text-white">{group.machineCount}</p>
-                                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wide">Total</p>
+                                    <div className="p-2 border border-zinc-200 bg-zinc-50 dark:bg-zinc-800/50">
+                                        <p className="text-xl font-semibold text-zinc-900 dark:text-white">{group.machineCount}</p>
+                                        <p className="text-xs font-semibold text-zinc-500  ">Total</p>
                                     </div>
-                                    <div className="p-2 border-2 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20">
-                                        <p className="text-xl font-black text-emerald-600">{group.activeMachines}</p>
-                                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wide">Running</p>
+                                    <div className="p-2 border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20">
+                                        <p className="text-xl font-semibold text-emerald-600">{group.activeMachines}</p>
+                                        <p className="text-xs font-semibold text-zinc-500  ">Running</p>
                                     </div>
-                                    <div className="p-2 border-2 border-zinc-200 bg-zinc-50 dark:bg-zinc-800/50">
-                                        <p className={`text-xl font-black ${group.avgHealth >= 80 ? 'text-emerald-600' : group.avgHealth >= 60 ? 'text-amber-600' : 'text-red-600'}`}>
+                                    <div className="p-2 border border-zinc-200 bg-zinc-50 dark:bg-zinc-800/50">
+                                        <p className={`text-xl font-semibold ${group.avgHealth >= 80 ? 'text-emerald-600' : group.avgHealth >= 60 ? 'text-amber-600' : 'text-red-600'}`}>
                                             {group.avgHealth}%
                                         </p>
-                                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wide">Health</p>
+                                        <p className="text-xs font-semibold text-zinc-500  ">Health</p>
                                     </div>
                                 </div>
                             </div>
@@ -400,7 +400,7 @@ export function GroupsClient({ initialGroups }: Props) {
                                         />
                                     ))}
                                     {group.machines.length > 8 && (
-                                        <span className="text-[10px] font-bold text-zinc-400 ml-1">
+                                        <span className="text-xs font-bold text-zinc-400 ml-1">
                                             +{group.machines.length - 8}
                                         </span>
                                     )}
@@ -414,17 +414,17 @@ export function GroupsClient({ initialGroups }: Props) {
 
             {/* ── Detail Sheet ─────────────────────────────────────────── */}
             <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-                <SheetContent className="sm:max-w-lg overflow-y-auto border-l-2 border-black rounded-none p-0">
+                <SheetContent className="sm:max-w-lg overflow-y-auto border-l border-border rounded-md p-0">
                     {selectedGroup && (
                         <>
                             {/* Sheet Header */}
-                            <div className="px-6 py-4 border-b-2 border-black border-l-[5px] border-l-blue-400 bg-blue-50 dark:bg-blue-950/20">
+                            <div className="px-6 py-4 border-b border-border border-l-[5px] border-l-blue-400 bg-blue-50 dark:bg-blue-950/20">
                                 <SheetHeader className="space-y-0">
-                                    <SheetTitle className="flex items-center gap-2 text-sm font-black uppercase tracking-wide">
+                                    <SheetTitle className="flex items-center gap-2 text-sm font-semibold  ">
                                         <FolderKanban className="h-4 w-4 text-blue-600" />
                                         {selectedGroup.name}
                                     </SheetTitle>
-                                    <SheetDescription className="font-mono text-[10px] text-zinc-400 ml-6">
+                                    <SheetDescription className="font-mono text-xs text-zinc-400 ml-6">
                                         {selectedGroup.code}
                                     </SheetDescription>
                                 </SheetHeader>
@@ -433,26 +433,26 @@ export function GroupsClient({ initialGroups }: Props) {
                             <div className="p-6 space-y-5">
                                 {/* Stats */}
                                 <div className="grid grid-cols-3 gap-3">
-                                    <div className="text-center p-3 border-2 border-zinc-200 bg-zinc-50 dark:bg-zinc-800/50">
-                                        <p className="text-2xl font-black text-zinc-900 dark:text-white">{selectedGroup.machineCount}</p>
-                                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wide">Mesin</p>
+                                    <div className="text-center p-3 border border-zinc-200 bg-zinc-50 dark:bg-zinc-800/50">
+                                        <p className="text-2xl font-semibold text-zinc-900 dark:text-white">{selectedGroup.machineCount}</p>
+                                        <p className="text-xs font-semibold text-zinc-500  ">Mesin</p>
                                     </div>
-                                    <div className="text-center p-3 border-2 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20">
-                                        <p className="text-2xl font-black text-emerald-600">{selectedGroup.activeMachines}</p>
-                                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wide">Running</p>
+                                    <div className="text-center p-3 border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20">
+                                        <p className="text-2xl font-semibold text-emerald-600">{selectedGroup.activeMachines}</p>
+                                        <p className="text-xs font-semibold text-zinc-500  ">Running</p>
                                     </div>
-                                    <div className="text-center p-3 border-2 border-zinc-200 bg-zinc-50 dark:bg-zinc-800/50">
-                                        <p className={`text-2xl font-black ${selectedGroup.avgHealth >= 80 ? 'text-emerald-600' : selectedGroup.avgHealth >= 60 ? 'text-amber-600' : 'text-red-600'}`}>
+                                    <div className="text-center p-3 border border-zinc-200 bg-zinc-50 dark:bg-zinc-800/50">
+                                        <p className={`text-2xl font-semibold ${selectedGroup.avgHealth >= 80 ? 'text-emerald-600' : selectedGroup.avgHealth >= 60 ? 'text-amber-600' : 'text-red-600'}`}>
                                             {selectedGroup.avgHealth}%
                                         </p>
-                                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wide">Health</p>
+                                        <p className="text-xs font-semibold text-zinc-500  ">Health</p>
                                     </div>
                                 </div>
 
                                 {/* Description */}
                                 {selectedGroup.description && (
-                                    <div className="border-2 border-black/10 bg-zinc-50 dark:bg-zinc-800/30 px-4 py-3">
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block mb-1">Deskripsi</span>
+                                    <div className="border border-black/10 bg-zinc-50 dark:bg-zinc-800/30 px-4 py-3">
+                                        <span className="text-xs font-semibold text-zinc-400 block mb-1">Deskripsi</span>
                                         <p className="text-xs text-zinc-600 dark:text-zinc-300">{selectedGroup.description}</p>
                                     </div>
                                 )}
@@ -460,16 +460,16 @@ export function GroupsClient({ initialGroups }: Props) {
                                 {/* Machine List */}
                                 <div>
                                     <div className="flex items-center justify-between mb-3">
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                                        <span className="text-xs font-semibold text-zinc-400">
                                             Mesin ({selectedGroup.machines.length})
                                         </span>
                                     </div>
                                     {selectedGroup.machines.length === 0 ? (
-                                        <div className="text-center py-8 text-zinc-400 text-xs font-bold uppercase tracking-widest border-2 border-dashed border-zinc-200">
+                                        <div className="text-center py-8 text-zinc-400 text-xs font-bold border border-dashed border-zinc-200">
                                             Tidak ada mesin di grup ini
                                         </div>
                                     ) : (
-                                        <div className="border-2 border-black overflow-hidden">
+                                        <div className="border border-border overflow-hidden">
                                             <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
                                                 {selectedGroup.machines.map((machine, idx) => {
                                                     const cfg = getStatusBadge(machine.status);
@@ -482,15 +482,15 @@ export function GroupsClient({ initialGroups }: Props) {
                                                                 <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${getStatusColor(machine.status)}`} />
                                                                 <div className="min-w-0">
                                                                     <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 block">{machine.name}</span>
-                                                                    <span className="text-[10px] font-mono text-zinc-400">{machine.code}</span>
+                                                                    <span className="text-xs font-mono text-zinc-400">{machine.code}</span>
                                                                 </div>
                                                             </div>
                                                             <div className="flex items-center gap-2 shrink-0">
-                                                                <span className="text-[10px] font-bold text-zinc-500 flex items-center gap-1">
+                                                                <span className="text-xs font-bold text-zinc-500 flex items-center gap-1">
                                                                     <Activity className="h-3 w-3" />
                                                                     {machine.healthScore}%
                                                                 </span>
-                                                                <span className={`inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 border whitespace-nowrap ${cfg.bg} ${cfg.text}`}>
+                                                                <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 border whitespace-nowrap ${cfg.bg} ${cfg.text}`}>
                                                                     <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
                                                                     {cfg.label}
                                                                 </span>
@@ -504,23 +504,23 @@ export function GroupsClient({ initialGroups }: Props) {
                                 </div>
 
                                 {/* Actions */}
-                                <div className="pt-4 border-t-2 border-black/10 flex gap-2">
+                                <div className="pt-4 border-t border-black/10 flex gap-2">
                                     <Button
-                                        className="flex-1 bg-blue-500 text-white hover:bg-blue-600 border-2 border-blue-600 font-black uppercase text-[10px] tracking-wide h-10 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
+                                        className="flex-1 bg-blue-500 text-white hover:bg-blue-600 border border-blue-600 font-semibold text-xs h-10 shadow-sm active:shadow-none transition-all"
                                         onClick={handleEditGroup}
                                     >
                                         Edit Grup
                                     </Button>
                                     <Button
                                         variant="outline"
-                                        className="border-2 border-zinc-300 font-bold uppercase text-[10px] tracking-wide h-10 px-4 hover:border-zinc-500 transition-colors"
+                                        className="border border-zinc-300 font-bold text-xs h-10 px-4 hover:border-zinc-500 transition-colors"
                                         onClick={() => setAssignMachineOpen(true)}
                                     >
                                         Tambah Mesin
                                     </Button>
                                     <Button
                                         variant="outline"
-                                        className="border-2 border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 h-10 px-3 transition-colors"
+                                        className="border border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 h-10 px-3 transition-colors"
                                         onClick={handleDeleteGroup}
                                         disabled={deleting}
                                     >

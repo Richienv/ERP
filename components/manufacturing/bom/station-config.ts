@@ -17,7 +17,7 @@ export const COLOR_THEMES: Record<string, {
     pink:   { toolbar: "bg-pink-50 text-pink-600 border-pink-200 hover:bg-pink-100",    hex: { bg: "#fdf2f8", border: "#f9a8d4", text: "#be185d", accent: "#f472b6" } },
     green:  { toolbar: "bg-green-50 text-green-600 border-green-200 hover:bg-green-100", hex: { bg: "#f0fdf4", border: "#86efac", text: "#15803d", accent: "#4ade80" } },
     amber:  { toolbar: "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100", hex: { bg: "#fffbeb", border: "#fcd34d", text: "#b45309", accent: "#fbbf24" } },
-    orange: { toolbar: "bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100", hex: { bg: "#fff7ed", border: "#fdba74", text: "#c2410c", accent: "#fb923c" } },
+    orange: { toolbar: "bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100", hex: { bg: "#fff7ed", border: "#fdba74", text: "#c2410c", accent: "#fb923c" } },
     teal:   { toolbar: "bg-teal-50 text-teal-600 border-teal-200 hover:bg-teal-100",    hex: { bg: "#f0fdfa", border: "#5eead4", text: "#0f766e", accent: "#2dd4bf" } },
     indigo: { toolbar: "bg-indigo-50 text-indigo-600 border-indigo-200 hover:bg-indigo-100", hex: { bg: "#eef2ff", border: "#a5b4fc", text: "#4338ca", accent: "#818cf8" } },
     rose:   { toolbar: "bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100",    hex: { bg: "#fff1f2", border: "#fda4af", text: "#be123c", accent: "#fb7185" } },

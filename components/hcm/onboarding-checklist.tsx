@@ -47,18 +47,18 @@ export function OnboardingChecklist({ data, onToggleTask }: OnboardingChecklistP
     const departments = [...new Set(data.tasks.map((t) => t.department))].sort()
 
     return (
-        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <div className="bg-white border border-border shadow-sm">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b-2 border-black bg-zinc-50">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-zinc-50">
                 <div className="flex items-center gap-2">
                     <ClipboardCheck className="h-4 w-4 text-zinc-500" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                    <span className="text-xs font-semibold text-zinc-500">
                         {data.templateName}
                     </span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-zinc-400">{data.employeeName}</span>
-                    <span className={`text-[9px] font-black px-2 py-0.5 border-2 border-black ${
+                    <span className="text-xs font-bold text-zinc-400">{data.employeeName}</span>
+                    <span className={`text-xs font-semibold px-2 py-0.5 border border-border ${
                         data.progressPct >= 100
                             ? 'bg-emerald-100 text-emerald-700'
                             : 'bg-zinc-100 text-zinc-600'
@@ -70,8 +70,8 @@ export function OnboardingChecklist({ data, onToggleTask }: OnboardingChecklistP
 
             {/* Progress bar */}
             <div className="px-4 py-2 border-b border-zinc-200">
-                <div className="flex items-center justify-between text-[9px] font-bold mb-1">
-                    <span className="text-zinc-400 uppercase tracking-widest">Progress</span>
+                <div className="flex items-center justify-between text-xs font-bold mb-1">
+                    <span className="text-zinc-400  ">Progress</span>
                     <span>{data.completedCount} / {data.totalCount}</span>
                 </div>
                 <div className="h-2 bg-zinc-100 border border-zinc-200 overflow-hidden">
@@ -87,7 +87,7 @@ export function OnboardingChecklist({ data, onToggleTask }: OnboardingChecklistP
                 {departments.map((dept) => (
                     <div key={dept}>
                         <div className="px-4 py-1.5 bg-zinc-50 border-b border-zinc-200">
-                            <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400">
+                            <span className="text-xs font-semibold text-zinc-400">
                                 {dept}
                             </span>
                         </div>
@@ -104,15 +104,15 @@ export function OnboardingChecklist({ data, onToggleTask }: OnboardingChecklistP
                                         checked={task.completed}
                                         disabled={loading === task.key}
                                         onCheckedChange={() => handleToggle(task.key, task.completed)}
-                                        className="mt-0.5 border-2 border-black rounded-none"
+                                        className="mt-0.5 border border-border rounded-md"
                                     />
                                     <div className="flex-1 min-w-0">
                                         <div className={`text-xs font-bold ${task.completed ? 'line-through text-zinc-400' : ''}`}>
                                             {task.title}
                                         </div>
-                                        <div className="text-[10px] text-zinc-400">{task.description}</div>
+                                        <div className="text-xs text-zinc-400">{task.description}</div>
                                         {task.completedAt && (
-                                            <div className="flex items-center gap-1 mt-0.5 text-[9px] text-emerald-600 font-bold">
+                                            <div className="flex items-center gap-1 mt-0.5 text-xs text-emerald-600 font-bold">
                                                 <Check className="h-2.5 w-2.5" />
                                                 Selesai {new Date(task.completedAt).toLocaleDateString('id-ID')}
                                             </div>

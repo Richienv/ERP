@@ -69,10 +69,10 @@ export function RevisionHistoryTimeline({ revisions, className = "" }: RevisionH
 
     if (!revisions || revisions.length === 0) {
         return (
-            <div className={`border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white p-4 ${className}`}>
+            <div className={`border border-border shadow-sm bg-white p-4 ${className}`}>
                 <div className="flex items-center gap-2 mb-2">
                     <Clock className="h-4 w-4 text-zinc-400" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                    <span className="text-xs font-semibold text-zinc-500">
                         Riwayat Perubahan
                     </span>
                 </div>
@@ -85,18 +85,18 @@ export function RevisionHistoryTimeline({ revisions, className = "" }: RevisionH
     const sorted = [...revisions].sort((a, b) => (b.revision ?? 0) - (a.revision ?? 0))
 
     return (
-        <div className={`border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white overflow-hidden ${className}`}>
+        <div className={`border border-border shadow-sm bg-white overflow-hidden ${className}`}>
             {/* Header */}
             <button
                 type="button"
                 onClick={() => setExpanded(!expanded)}
-                className="w-full px-6 py-3 border-b-2 border-black bg-zinc-50 flex items-center gap-2 hover:bg-zinc-100 transition-colors cursor-pointer"
+                className="w-full px-6 py-3 border-b border-border bg-zinc-50 flex items-center gap-2 hover:bg-zinc-100 transition-colors cursor-pointer"
             >
                 <Clock className="h-4 w-4 text-zinc-500" />
-                <span className="text-xs font-black uppercase tracking-widest text-zinc-500">
+                <span className="text-xs font-semibold text-zinc-500">
                     Riwayat Perubahan
                 </span>
-                <span className="text-[10px] font-black uppercase text-zinc-400 ml-auto mr-2">
+                <span className="text-xs font-semibold text-zinc-400 ml-auto mr-2">
                     {sorted.length} revisi
                 </span>
                 {expanded ? (
@@ -140,7 +140,7 @@ function RevisionItem({ revision, isLatest }: { revision: RevisionEntry; isLates
         <div className="relative flex gap-3">
             {/* Timeline dot */}
             <div
-                className={`relative z-10 mt-0.5 flex-shrink-0 h-6 w-6 rounded-full border-2 border-black flex items-center justify-center text-[8px] font-black ${
+                className={`relative z-10 mt-0.5 flex-shrink-0 h-6 w-6 rounded-full border border-border flex items-center justify-center text-xs font-semibold ${
                     isLatest ? "bg-blue-500 text-white" : "bg-white text-zinc-600"
                 }`}
             >
@@ -151,18 +151,18 @@ function RevisionItem({ revision, isLatest }: { revision: RevisionEntry; isLates
             <div className="flex-1 min-w-0">
                 {/* Header row */}
                 <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-black uppercase">
+                    <span className="text-xs font-semibold ">
                         Revisi #{revision.revision ?? "?"}
                     </span>
                     {isLatest && (
-                        <span className="text-[9px] font-black uppercase px-1.5 py-0.5 bg-blue-100 text-blue-700 border border-blue-300">
+                        <span className="text-xs font-semibold px-1.5 py-0.5 bg-blue-100 text-blue-700 border border-blue-300">
                             Terbaru
                         </span>
                     )}
                 </div>
 
                 {/* Meta info */}
-                <div className="flex flex-wrap items-center gap-3 mt-1 text-[11px] text-zinc-500">
+                <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-zinc-500">
                     <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
                         {formatDate(revision.changedAt)}
@@ -189,7 +189,7 @@ function RevisionItem({ revision, isLatest }: { revision: RevisionEntry; isLates
                             type="button"
                             variant="ghost"
                             size="sm"
-                            className="h-6 text-[10px] font-bold uppercase text-zinc-500 hover:text-zinc-700 px-1"
+                            className="h-6 text-xs font-bold text-zinc-500 hover:text-zinc-700 px-1"
                             onClick={() => setShowDetails(!showDetails)}
                         >
                             {showDetails ? "Sembunyikan" : "Lihat"} {revision.changes.length} perubahan

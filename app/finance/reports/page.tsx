@@ -140,7 +140,7 @@ function DrillDownPanel({ rows, loading, formatIDR: fmt, accountFilter, startDat
         <div className="bg-zinc-50/50 dark:bg-zinc-800/20 border-t border-zinc-200 dark:border-zinc-700">
             <table className="w-full">
                 <thead>
-                    <tr className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                    <tr className="text-xs font-semibold text-zinc-400">
                         <th className="px-3 py-1.5 text-left pl-10">Tanggal</th>
                         <th className="px-3 py-1.5 text-left">Tipe</th>
                         <th className="px-3 py-1.5 text-left">Referensi</th>
@@ -158,16 +158,16 @@ function DrillDownPanel({ rows, loading, formatIDR: fmt, accountFilter, startDat
                         return (
                             <tr
                                 key={row.id}
-                                className="border-t border-zinc-100 dark:border-zinc-800 hover:bg-orange-50/40 dark:hover:bg-orange-950/10 group transition-colors text-xs"
+                                className="border-t border-zinc-100 dark:border-zinc-800 hover:bg-blue-50/40 dark:hover:bg-blue-950/10 group transition-colors text-xs"
                             >
                                 <td className="px-3 py-1.5 pl-10 font-mono text-zinc-500 whitespace-nowrap">{row.date}</td>
                                 <td className="px-3 py-1.5">
-                                    <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 whitespace-nowrap ${badge.cls}`}>{badge.label}</span>
+                                    <span className={`text-xs font-semibold px-1.5 py-0.5 whitespace-nowrap ${badge.cls}`}>{badge.label}</span>
                                 </td>
                                 <td className="px-3 py-1.5 font-bold text-zinc-700 dark:text-zinc-300">{row.reference || '\u2014'}</td>
                                 <td className="px-3 py-1.5 text-zinc-500 max-w-[200px] truncate">{row.description}</td>
                                 <td className="px-3 py-1.5 font-medium text-zinc-600 dark:text-zinc-400">{row.counterparty || '\u2014'}</td>
-                                <td className="px-3 py-1.5 font-mono text-[10px] text-zinc-400">{row.accountCode}</td>
+                                <td className="px-3 py-1.5 font-mono text-xs text-zinc-400">{row.accountCode}</td>
                                 <td className="px-3 py-1.5 text-right font-mono text-emerald-600 tabular-nums">
                                     {row.debit > 0 ? fmt(row.debit) : ''}
                                 </td>
@@ -177,7 +177,7 @@ function DrillDownPanel({ rows, loading, formatIDR: fmt, accountFilter, startDat
                                 <td className="px-3 py-1.5">
                                     <Link
                                         href={row.sourceUrl}
-                                        className="opacity-0 group-hover:opacity-100 text-orange-500 hover:text-orange-700 transition-all"
+                                        className="opacity-0 group-hover:opacity-100 text-blue-500 hover:text-blue-700 transition-all"
                                         title="Lihat sumber"
                                     >
                                         <ArrowRight className="h-3.5 w-3.5" />
@@ -192,7 +192,7 @@ function DrillDownPanel({ rows, loading, formatIDR: fmt, accountFilter, startDat
                 <div className="px-10 py-2 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/40">
                     <Link
                         href={txLink}
-                        className="text-xs text-orange-600 hover:text-orange-800 hover:underline font-bold"
+                        className="text-xs text-blue-600 hover:text-blue-800 hover:underline font-bold"
                     >
                         Lihat semua transaksi &rarr;
                     </Link>
@@ -694,14 +694,14 @@ export default function FinancialReportsPage() {
         { label: "Piutang (AR)", value: kpiLoading ? null : formatIDR(kpi?.arOutstanding || 0), color: "orange" },
         { label: "Hutang (AP)", value: kpiLoading ? null : formatIDR(kpi?.apOutstanding || 0), color: "red" },
     ]
-    const dotColors: Record<string, string> = { zinc: "bg-zinc-400", emerald: "bg-emerald-500", orange: "bg-orange-500", red: "bg-red-500" }
-    const textColors: Record<string, string> = { zinc: "text-zinc-900 dark:text-white", emerald: "text-emerald-600 dark:text-emerald-400", orange: "text-orange-600 dark:text-orange-400", red: "text-red-600 dark:text-red-400" }
+    const dotColors: Record<string, string> = { zinc: "bg-zinc-400", emerald: "bg-emerald-500", orange: "bg-blue-500", red: "bg-red-500" }
+    const textColors: Record<string, string> = { zinc: "text-zinc-900 dark:text-white", emerald: "text-emerald-600 dark:text-emerald-400", orange: "text-blue-600 dark:text-blue-400", red: "text-red-600 dark:text-red-400" }
 
     return (
         <div className="mf-page">
 
             {/* ─── Unified Page Header ─── */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+            <div className="border border-border shadow-sm overflow-hidden bg-white dark:bg-zinc-900">
                 {/* Blue gradient accent bar */}
                 <div className="h-1 bg-gradient-to-r from-blue-500 via-indigo-400 to-blue-500" />
 
@@ -712,10 +712,10 @@ export default function FinancialReportsPage() {
                             <BarChart3 className="h-4.5 w-4.5 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-base font-black uppercase tracking-wider text-zinc-900 dark:text-white">
+                            <h1 className="text-base font-semibold text-zinc-900 dark:text-white">
                                 Laporan Keuangan
                             </h1>
-                            <p className="text-zinc-400 text-[11px] font-medium">
+                            <p className="text-zinc-400 text-xs font-medium">
                                 {startDate.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })} — {endDate.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
                             </p>
                         </div>
@@ -723,7 +723,7 @@ export default function FinancialReportsPage() {
                     <div className="flex items-center gap-0">
                         <Dialog open={dateDialogOpen} onOpenChange={setDateDialogOpen}>
                             <DialogTrigger asChild>
-                                <Button variant="outline" className="border border-zinc-300 dark:border-zinc-700 border-r-0 text-zinc-500 dark:text-zinc-400 text-[10px] font-bold uppercase tracking-wider h-9 px-3.5 rounded-none hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors">
+                                <Button variant="outline" className="border border-zinc-300 dark:border-zinc-700 border-r-0 text-zinc-500 dark:text-zinc-400 text-xs font-bold h-9 px-3.5 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors">
                                     <CalendarIcon className="h-3.5 w-3.5 mr-1.5" /> Periode
                                 </Button>
                             </DialogTrigger>
@@ -755,7 +755,7 @@ export default function FinancialReportsPage() {
                         </Dialog>
                         <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
                             <DialogTrigger asChild>
-                                <Button className="bg-blue-500 text-white border border-blue-600 hover:bg-blue-600 font-bold uppercase text-[10px] tracking-wider px-4 h-9 rounded-none transition-colors ml-2">
+                                <Button className="bg-blue-500 text-white border border-blue-600 hover:bg-blue-600 font-bold text-xs px-4 h-9 rounded-md transition-colors ml-2">
                                     <Download className="h-3.5 w-3.5 mr-1.5" /> Export
                                 </Button>
                             </DialogTrigger>
@@ -770,17 +770,17 @@ export default function FinancialReportsPage() {
                                     <div>
                                         <label className={NB.label}>Format</label>
                                         <div className="grid grid-cols-2 gap-3 mt-1">
-                                            <button type="button" onClick={() => setExportFormat("CSV")} className={`p-3 border-2 text-center transition-all ${
-                                                exportFormat === "CSV" ? "border-black bg-zinc-900 text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+                                            <button type="button" onClick={() => setExportFormat("CSV")} className={`p-3 border text-center transition-all ${
+                                                exportFormat === "CSV" ? "border-border bg-zinc-900 text-white shadow-sm"
                                                     : "border-zinc-200 bg-white hover:border-zinc-400 hover:bg-zinc-50"
                                             }`}>
-                                                <span className="text-[9px] font-black uppercase tracking-widest">CSV</span>
+                                                <span className="text-xs font-semibold  ">CSV</span>
                                             </button>
-                                            <button type="button" onClick={() => setExportFormat("XLS")} className={`p-3 border-2 text-center transition-all ${
-                                                exportFormat === "XLS" ? "border-black bg-zinc-900 text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+                                            <button type="button" onClick={() => setExportFormat("XLS")} className={`p-3 border text-center transition-all ${
+                                                exportFormat === "XLS" ? "border-border bg-zinc-900 text-white shadow-sm"
                                                     : "border-zinc-200 bg-white hover:border-zinc-400 hover:bg-zinc-50"
                                             }`}>
-                                                <span className="text-[9px] font-black uppercase tracking-widest">XLS</span>
+                                                <span className="text-xs font-semibold  ">XLS</span>
                                             </button>
                                         </div>
                                     </div>
@@ -800,7 +800,7 @@ export default function FinancialReportsPage() {
                         <div key={kpi_item.label} className="flex-1 px-4 py-3 flex items-center justify-between gap-3 cursor-default">
                             <div className="flex items-center gap-1.5">
                                 <span className={`w-2 h-2 ${dotColors[kpi_item.color] || "bg-zinc-400"}`} />
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{kpi_item.label}</span>
+                                <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">{kpi_item.label}</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 {kpi_item.value === null ? (
@@ -813,7 +813,7 @@ export default function FinancialReportsPage() {
                                                 initial={{ opacity: 0, scale: 0.8 }}
                                                 animate={{ opacity: 1, scale: 1 }}
                                                 transition={{ type: "spring" as const, stiffness: 400, damping: 20 }}
-                                                className={`text-lg font-black ${textColors[kpi_item.color] || "text-zinc-900 dark:text-white"}`}
+                                                className={`text-lg font-semibold ${textColors[kpi_item.color] || "text-zinc-900 dark:text-white"}`}
                                             >
                                                 {kpi_item.value}
                                             </motion.span>
@@ -821,7 +821,7 @@ export default function FinancialReportsPage() {
                                             <motion.span
                                                 initial={{ opacity: 0 }}
                                                 animate={{ opacity: 1 }}
-                                                className="text-lg font-black text-zinc-300 dark:text-zinc-600"
+                                                className="text-lg font-semibold text-zinc-300 dark:text-zinc-600"
                                             >
                                                 ••••
                                             </motion.span>
@@ -845,21 +845,21 @@ export default function FinancialReportsPage() {
             <div className="flex gap-4">
                 {/* Sidebar Navigation */}
                 <div className="hidden md:block w-[220px] shrink-0">
-                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden sticky top-24">
+                    <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden sticky top-24">
                         <div className="px-3 py-2.5 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-800/30">
-                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Pilih Laporan</span>
+                            <span className="text-xs font-semibold text-zinc-500">Pilih Laporan</span>
                         </div>
                         <div className="py-1">
                             {sidebarGroups.map((group) => (
                                 <div key={group.label}>
                                     <div className="px-3 pt-3 pb-1">
-                                        <span className="text-[8px] font-black uppercase tracking-[0.15em] text-zinc-400">{group.label}</span>
+                                        <span className="text-xs font-semibold text-zinc-400">{group.label}</span>
                                     </div>
                                     {group.items.map((item) => (
                                         <button
                                             key={item.key}
                                             onClick={() => setReportType(item.key)}
-                                            className={`w-full text-left px-3 py-2 flex items-center gap-2 text-[11px] font-bold transition-all ${
+                                            className={`w-full text-left px-3 py-2 flex items-center gap-2 text-xs font-bold transition-all ${
                                                 reportType === item.key
                                                     ? "bg-blue-500 text-white"
                                                     : "text-zinc-600 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:bg-zinc-800"
@@ -878,14 +878,14 @@ export default function FinancialReportsPage() {
 
                 {/* Mobile Report Selector */}
                 <div className="md:hidden w-full">
-                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden mb-4">
+                    <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden mb-4">
                         <div className="px-4 py-3 flex items-center gap-3 overflow-x-auto">
                             <div className="flex border border-zinc-300 dark:border-zinc-700 flex-wrap">
                                 {sidebarGroups.flatMap(g => g.items).map((t) => (
                                     <button
                                         key={t.key}
                                         onClick={() => setReportType(t.key)}
-                                        className={`px-3 py-2 text-[9px] font-bold uppercase tracking-widest transition-all border-r border-zinc-300 dark:border-zinc-700 last:border-r-0 flex items-center gap-1.5 whitespace-nowrap ${
+                                        className={`px-3 py-2 text-xs font-bold   transition-all border-r border-zinc-300 dark:border-zinc-700 last:border-r-0 flex items-center gap-1.5 whitespace-nowrap ${
                                             reportType === t.key ? "bg-blue-500 text-white" : "bg-white dark:bg-zinc-900 text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                                         }`}
                                     >
@@ -901,10 +901,10 @@ export default function FinancialReportsPage() {
                 {/* Main Content Area */}
                 <div className="flex-1 min-w-0">
                     {reportLoading ? (
-                        <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                            <div className="px-4 py-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800 flex items-center gap-2">
+                        <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
+                            <div className="px-4 py-3 border-b border-border bg-zinc-50 dark:bg-zinc-800 flex items-center gap-2">
                                 <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                <span className="text-xs font-semibold text-zinc-500">
                                     Memuat {reportLabel}
                                 </span>
                             </div>
@@ -912,8 +912,8 @@ export default function FinancialReportsPage() {
                                 {/* Progress message */}
                                 <div className="flex items-center justify-center gap-3 py-4">
                                     <div className="relative">
-                                        <div className="h-10 w-10 rounded-full border-[3px] border-zinc-200 dark:border-zinc-700" />
-                                        <div className="absolute inset-0 h-10 w-10 rounded-full border-[3px] border-blue-500 border-t-transparent animate-spin" />
+                                        <div className="h-10 w-10 rounded-full border border-zinc-200 dark:border-zinc-700" />
+                                        <div className="absolute inset-0 h-10 w-10 rounded-full border border-blue-500 border-t-transparent animate-spin" />
                                     </div>
                                     <div>
                                         <p className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Mengambil data dari database...</p>
@@ -932,9 +932,9 @@ export default function FinancialReportsPage() {
                             </div>
                         </div>
                     ) : isError ? (
-                        <div className="bg-white dark:bg-zinc-900 border-2 border-red-500 shadow-[3px_3px_0px_0px_rgba(239,68,68,1)] p-12 text-center space-y-3">
+                        <div className="bg-white dark:bg-zinc-900 border border-red-500 shadow-sm p-12 text-center space-y-3">
                             <AlertTriangle className="h-8 w-8 text-red-500 mx-auto" />
-                            <p className="text-[10px] font-black uppercase tracking-widest text-red-500">Gagal memuat laporan</p>
+                            <p className="text-xs font-semibold text-red-500">Gagal memuat laporan</p>
                             <p className="text-xs text-zinc-500">{error instanceof Error ? error.message : 'Terjadi kesalahan saat memuat data. Silakan coba lagi.'}</p>
                             <Button variant="outline" size="sm" onClick={() => window.location.reload()}>Coba Lagi</Button>
                         </div>
@@ -946,15 +946,15 @@ export default function FinancialReportsPage() {
                             )}
                             {/* P&L */}
                             {reportType === "pnl" && pnlData && (
-                                <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                                    <div className="px-4 py-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800 flex items-center gap-2">
+                                <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
+                                    <div className="px-4 py-3 border-b border-border bg-zinc-50 dark:bg-zinc-800 flex items-center gap-2">
                                         <FileText className="h-4 w-4 text-zinc-500" />
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Laporan Laba Rugi</span>
+                                        <span className="text-xs font-semibold text-zinc-500">Laporan Laba Rugi</span>
                                     </div>
                                     <Table>
                                         <TableBody>
                                             <TableRow
-                                                className="font-black bg-zinc-50 dark:bg-zinc-800 cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                className="font-semibold bg-zinc-50 dark:bg-zinc-800 cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/10 transition-colors"
                                                 onClick={() => toggleDrillDown('pnl-revenue', 'REVENUE')}
                                             >
                                                 <TableCell className="w-[60%]">
@@ -973,7 +973,7 @@ export default function FinancialReportsPage() {
                                                 </TableCell></TableRow>
                                             )}
                                             <TableRow
-                                                className="cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                className="cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/10 transition-colors"
                                                 onClick={() => toggleDrillDown('pnl-cogs', '5000')}
                                             >
                                                 <TableCell className="pl-8">
@@ -995,21 +995,21 @@ export default function FinancialReportsPage() {
                                                 <TableCell>Laba Kotor</TableCell>
                                                 <TableCell className="text-right font-mono text-blue-600">{formatIDR(pnlData.grossProfit)}</TableCell>
                                             </TableRow>
-                                            <TableRow className="font-black bg-zinc-50 dark:bg-zinc-800">
+                                            <TableRow className="font-semibold bg-zinc-50 dark:bg-zinc-800">
                                                 <TableCell>Beban Operasional</TableCell>
                                                 <TableCell className="text-right font-mono text-red-600">({formatIDR(pnlData.totalOperatingExpenses)})</TableCell>
                                             </TableRow>
                                             {pnlData.operatingExpenses?.map((exp: any, idx: number) => (
                                                 <React.Fragment key={idx}>
                                                     <TableRow
-                                                        className="cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                        className="cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/10 transition-colors"
                                                         onClick={() => toggleDrillDown(`pnl-opex-${idx}`, exp.code || 'EXPENSE')}
                                                     >
                                                         <TableCell className="pl-12 text-sm text-zinc-500">
                                                             <span className="flex items-center gap-2">
                                                                 <ChevronRight className={`h-3 w-3 text-zinc-400 transition-transform ${expandedAccounts.has(`pnl-opex-${idx}`) ? 'rotate-90' : ''}`} />
                                                                 {exp.category}
-                                                                {exp.code && <span className="font-mono text-[10px] text-zinc-300">{exp.code}</span>}
+                                                                {exp.code && <span className="font-mono text-xs text-zinc-300">{exp.code}</span>}
                                                             </span>
                                                         </TableCell>
                                                         <TableCell className="text-right font-mono text-sm text-red-600">({formatIDR(exp.amount)})</TableCell>
@@ -1030,7 +1030,7 @@ export default function FinancialReportsPage() {
                                             {(pnlData.otherIncome > 0) && (
                                                 <>
                                                 <TableRow
-                                                    className="cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                    className="cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/10 transition-colors"
                                                     onClick={() => toggleDrillDown('pnl-other-income', '7000-8999')}
                                                 >
                                                     <TableCell className="pl-8">
@@ -1053,7 +1053,7 @@ export default function FinancialReportsPage() {
                                             {(pnlData.otherExpenses > 0) && (
                                                 <>
                                                 <TableRow
-                                                    className="cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                    className="cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/10 transition-colors"
                                                     onClick={() => toggleDrillDown('pnl-other-expense', '8000-9999')}
                                                 >
                                                     <TableCell className="pl-8">
@@ -1083,7 +1083,7 @@ export default function FinancialReportsPage() {
                                                 <TableCell className="pl-8">Pajak Penghasilan (PPh 22%)</TableCell>
                                                 <TableCell className="text-right font-mono text-red-600">({formatIDR(pnlData.taxExpense)})</TableCell>
                                             </TableRow>
-                                            <TableRow className="font-black bg-emerald-50 dark:bg-emerald-900/20 border-t-2 border-black">
+                                            <TableRow className="font-semibold bg-emerald-50 dark:bg-emerald-900/20 border-t border-border">
                                                 <TableCell className="text-lg">LABA BERSIH</TableCell>
                                                 <TableCell className={`text-right font-mono text-lg ${pnlData.netIncome >= 0 ? "text-emerald-600" : "text-red-600"}`}>
                                                     {formatIDR(pnlData.netIncome)}
@@ -1110,28 +1110,28 @@ export default function FinancialReportsPage() {
                                     const diff = Math.abs((balanceSheetData.assets?.totalAssets || 0) - (balanceSheetData.totalLiabilitiesAndEquity || 0))
                                     const isBalanced = diff < 1
                                     return (
-                                        <div className={`border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] px-4 py-3 flex items-center justify-between ${isBalanced ? "bg-emerald-50 dark:bg-emerald-900/20" : "bg-red-50 dark:bg-red-900/20"}`}>
+                                        <div className={`border border-border shadow-sm px-4 py-3 flex items-center justify-between ${isBalanced ? "bg-emerald-50 dark:bg-emerald-900/20" : "bg-red-50 dark:bg-red-900/20"}`}>
                                             <div className="flex items-center gap-2">
                                                 {isBalanced ? (
                                                     <Check className="h-4 w-4 text-emerald-600" />
                                                 ) : (
                                                     <AlertTriangle className="h-4 w-4 text-red-600" />
                                                 )}
-                                                <span className={`text-[10px] font-black uppercase tracking-widest ${isBalanced ? "text-emerald-700" : "text-red-700"}`}>
+                                                <span className={`text-xs font-semibold   ${isBalanced ? "text-emerald-700" : "text-red-700"}`}>
                                                     {isBalanced ? "Neraca Seimbang" : `Neraca Tidak Seimbang (Selisih: ${formatIDR(diff)})`}
                                                 </span>
                                             </div>
-                                            <span className="text-[10px] font-black text-zinc-400">
+                                            <span className="text-xs font-semibold text-zinc-400">
                                                 Per {new Date(balanceSheetData.asOfDate).toLocaleDateString("id-ID")}
                                             </span>
                                         </div>
                                     )
                                 })()}
                                 <div className="grid md:grid-cols-2 gap-4">
-                                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                                        <div className="px-4 py-3 border-b-2 border-black bg-emerald-50 dark:bg-emerald-900/20 flex items-center gap-2">
+                                    <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
+                                        <div className="px-4 py-3 border-b border-border bg-emerald-50 dark:bg-emerald-900/20 flex items-center gap-2">
                                             <TrendingUp className="h-4 w-4 text-emerald-600" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Aset</span>
+                                            <span className="text-xs font-semibold text-emerald-700">Aset</span>
                                         </div>
                                         <Table>
                                             <TableBody>
@@ -1143,7 +1143,7 @@ export default function FinancialReportsPage() {
                                                         {bsExpanded.currentAssets ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                                                         Aset Lancar
                                                         {currentAssets.length > PREVIEW_COUNT && (
-                                                            <span className="text-[9px] font-medium text-zinc-400 ml-1">({currentAssets.length} akun)</span>
+                                                            <span className="text-xs font-medium text-zinc-400 ml-1">({currentAssets.length} akun)</span>
                                                         )}
                                                     </TableCell>
                                                     <TableCell className="text-right font-mono">{formatIDR(balanceSheetData.assets?.totalCurrentAssets)}</TableCell>
@@ -1151,13 +1151,13 @@ export default function FinancialReportsPage() {
                                                 {(bsExpanded.currentAssets ? currentAssets : currentAssets.slice(0, PREVIEW_COUNT)).map((asset: any, idx: number) => (
                                                     <React.Fragment key={asset.code || idx}>
                                                         <TableRow
-                                                            className="cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                            className="cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/10 transition-colors"
                                                             onClick={() => toggleDrillDown(`bs-${asset.code}`, asset.code, true)}
                                                         >
                                                             <TableCell className="pl-10 text-sm">
                                                                 <span className="flex items-center gap-2">
                                                                     <ChevronRight className={`h-3 w-3 text-zinc-400 transition-transform ${expandedAccounts.has(`bs-${asset.code}`) ? 'rotate-90' : ''}`} />
-                                                                    <span className="font-mono text-[10px] text-zinc-400">{asset.code}</span>
+                                                                    <span className="font-mono text-xs text-zinc-400">{asset.code}</span>
                                                                     <span className="text-zinc-500">{asset.name}</span>
                                                                 </span>
                                                             </TableCell>
@@ -1176,7 +1176,7 @@ export default function FinancialReportsPage() {
                                                     <TableRow>
                                                         <TableCell
                                                             colSpan={2}
-                                                            className="text-center text-[10px] font-bold text-emerald-600 cursor-pointer hover:bg-emerald-50 py-1.5"
+                                                            className="text-center text-xs font-bold text-emerald-600 cursor-pointer hover:bg-emerald-50 py-1.5"
                                                             onClick={() => setBsExpanded(prev => ({ ...prev, currentAssets: true }))}
                                                         >
                                                             + {currentAssets.length - PREVIEW_COUNT} akun lainnya
@@ -1192,7 +1192,7 @@ export default function FinancialReportsPage() {
                                                         {bsExpanded.fixedAssets ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                                                         Aset Tetap
                                                         {fixedAssets.length > 0 && (
-                                                            <span className="text-[9px] font-medium text-zinc-400 ml-1">({fixedAssets.length} akun)</span>
+                                                            <span className="text-xs font-medium text-zinc-400 ml-1">({fixedAssets.length} akun)</span>
                                                         )}
                                                     </TableCell>
                                                     <TableCell className="text-right font-mono">{formatIDR(balanceSheetData.assets?.totalFixedAssets)}</TableCell>
@@ -1200,13 +1200,13 @@ export default function FinancialReportsPage() {
                                                 {bsExpanded.fixedAssets && fixedAssets.map((asset: any, idx: number) => (
                                                     <React.Fragment key={asset.code || idx}>
                                                         <TableRow
-                                                            className="cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                            className="cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/10 transition-colors"
                                                             onClick={() => toggleDrillDown(`bs-${asset.code}`, asset.code, true)}
                                                         >
                                                             <TableCell className="pl-10 text-sm">
                                                                 <span className="flex items-center gap-2">
                                                                     <ChevronRight className={`h-3 w-3 text-zinc-400 transition-transform ${expandedAccounts.has(`bs-${asset.code}`) ? 'rotate-90' : ''}`} />
-                                                                    <span className="font-mono text-[10px] text-zinc-400">{asset.code}</span>
+                                                                    <span className="font-mono text-xs text-zinc-400">{asset.code}</span>
                                                                     <span className="text-zinc-500">{asset.name}</span>
                                                                 </span>
                                                             </TableCell>
@@ -1231,13 +1231,13 @@ export default function FinancialReportsPage() {
                                                         {otherAssets.map((asset: any, idx: number) => (
                                                             <React.Fragment key={asset.code || idx}>
                                                                 <TableRow
-                                                                    className="cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                                    className="cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/10 transition-colors"
                                                                     onClick={() => toggleDrillDown(`bs-${asset.code}`, asset.code, true)}
                                                                 >
                                                                     <TableCell className="pl-10 text-sm">
                                                                         <span className="flex items-center gap-2">
                                                                             <ChevronRight className={`h-3 w-3 text-zinc-400 transition-transform ${expandedAccounts.has(`bs-${asset.code}`) ? 'rotate-90' : ''}`} />
-                                                                            <span className="font-mono text-[10px] text-zinc-400">{asset.code}</span>
+                                                                            <span className="font-mono text-xs text-zinc-400">{asset.code}</span>
                                                                             <span className="text-zinc-500">{asset.name}</span>
                                                                         </span>
                                                                     </TableCell>
@@ -1254,7 +1254,7 @@ export default function FinancialReportsPage() {
                                                         ))}
                                                     </>
                                                 )}
-                                                <TableRow className="font-black bg-emerald-100 dark:bg-emerald-900/30 border-t-2 border-black">
+                                                <TableRow className="font-semibold bg-emerald-100 dark:bg-emerald-900/30 border-t border-border">
                                                     <TableCell>TOTAL ASET</TableCell>
                                                     <TableCell className="text-right font-mono text-emerald-700">{formatIDR(balanceSheetData.assets?.totalAssets)}</TableCell>
                                                 </TableRow>
@@ -1263,10 +1263,10 @@ export default function FinancialReportsPage() {
                                     </div>
 
                                     <div className="space-y-4">
-                                        <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                                            <div className="px-4 py-3 border-b-2 border-black bg-red-50 dark:bg-red-900/20 flex items-center gap-2">
+                                        <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
+                                            <div className="px-4 py-3 border-b border-border bg-red-50 dark:bg-red-900/20 flex items-center gap-2">
                                                 <TrendingDown className="h-4 w-4 text-red-600" />
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-red-700">Kewajiban</span>
+                                                <span className="text-xs font-semibold text-red-700">Kewajiban</span>
                                             </div>
                                             <Table>
                                                 <TableBody>
@@ -1278,7 +1278,7 @@ export default function FinancialReportsPage() {
                                                             {bsExpanded.currentLiabilities ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                                                             Kewajiban Lancar
                                                             {currentLiabilities.length > PREVIEW_COUNT && (
-                                                                <span className="text-[9px] font-medium text-zinc-400 ml-1">({currentLiabilities.length} akun)</span>
+                                                                <span className="text-xs font-medium text-zinc-400 ml-1">({currentLiabilities.length} akun)</span>
                                                             )}
                                                         </TableCell>
                                                         <TableCell className="text-right font-mono">{formatIDR(balanceSheetData.liabilities?.totalCurrentLiabilities)}</TableCell>
@@ -1286,13 +1286,13 @@ export default function FinancialReportsPage() {
                                                     {(bsExpanded.currentLiabilities ? currentLiabilities : currentLiabilities.slice(0, PREVIEW_COUNT)).map((liab: any, idx: number) => (
                                                         <React.Fragment key={liab.code || idx}>
                                                             <TableRow
-                                                                className="cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                                className="cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/10 transition-colors"
                                                                 onClick={() => toggleDrillDown(`bs-${liab.code}`, liab.code, true)}
                                                             >
                                                                 <TableCell className="pl-10 text-sm">
                                                                     <span className="flex items-center gap-2">
                                                                         <ChevronRight className={`h-3 w-3 text-zinc-400 transition-transform ${expandedAccounts.has(`bs-${liab.code}`) ? 'rotate-90' : ''}`} />
-                                                                        <span className="font-mono text-[10px] text-zinc-400">{liab.code}</span>
+                                                                        <span className="font-mono text-xs text-zinc-400">{liab.code}</span>
                                                                         <span className="text-zinc-500">{liab.name}</span>
                                                                     </span>
                                                                 </TableCell>
@@ -1311,7 +1311,7 @@ export default function FinancialReportsPage() {
                                                         <TableRow>
                                                             <TableCell
                                                                 colSpan={2}
-                                                                className="text-center text-[10px] font-bold text-red-600 cursor-pointer hover:bg-red-50 py-1.5"
+                                                                className="text-center text-xs font-bold text-red-600 cursor-pointer hover:bg-red-50 py-1.5"
                                                                 onClick={() => setBsExpanded(prev => ({ ...prev, currentLiabilities: true }))}
                                                             >
                                                                 + {currentLiabilities.length - PREVIEW_COUNT} akun lainnya
@@ -1328,20 +1328,20 @@ export default function FinancialReportsPage() {
                                                                 <TableCell className="flex items-center gap-1">
                                                                     {bsExpanded.longTermLiabilities ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                                                                     Kewajiban Jangka Panjang
-                                                                    <span className="text-[9px] font-medium text-zinc-400 ml-1">({longTermLiabilities.length} akun)</span>
+                                                                    <span className="text-xs font-medium text-zinc-400 ml-1">({longTermLiabilities.length} akun)</span>
                                                                 </TableCell>
                                                                 <TableCell className="text-right font-mono">{formatIDR(balanceSheetData.liabilities?.totalLongTermLiabilities)}</TableCell>
                                                             </TableRow>
                                                             {bsExpanded.longTermLiabilities && longTermLiabilities.map((liab: any, idx: number) => (
                                                                 <React.Fragment key={liab.code || idx}>
                                                                     <TableRow
-                                                                        className="cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                                        className="cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/10 transition-colors"
                                                                         onClick={() => toggleDrillDown(`bs-${liab.code}`, liab.code, true)}
                                                                     >
                                                                         <TableCell className="pl-10 text-sm">
                                                                             <span className="flex items-center gap-2">
                                                                                 <ChevronRight className={`h-3 w-3 text-zinc-400 transition-transform ${expandedAccounts.has(`bs-${liab.code}`) ? 'rotate-90' : ''}`} />
-                                                                                <span className="font-mono text-[10px] text-zinc-400">{liab.code}</span>
+                                                                                <span className="font-mono text-xs text-zinc-400">{liab.code}</span>
                                                                                 <span className="text-zinc-500">{liab.name}</span>
                                                                             </span>
                                                                         </TableCell>
@@ -1358,7 +1358,7 @@ export default function FinancialReportsPage() {
                                                             ))}
                                                         </>
                                                     )}
-                                                    <TableRow className="font-black bg-red-100 dark:bg-red-900/30 border-t-2 border-black">
+                                                    <TableRow className="font-semibold bg-red-100 dark:bg-red-900/30 border-t border-border">
                                                         <TableCell>TOTAL KEWAJIBAN</TableCell>
                                                         <TableCell className="text-right font-mono text-red-700">{formatIDR(balanceSheetData.liabilities?.totalLiabilities)}</TableCell>
                                                     </TableRow>
@@ -1366,23 +1366,23 @@ export default function FinancialReportsPage() {
                                             </Table>
                                         </div>
 
-                                        <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                                            <div className="px-4 py-3 border-b-2 border-black bg-blue-50 dark:bg-blue-900/20 flex items-center gap-2">
+                                        <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
+                                            <div className="px-4 py-3 border-b border-border bg-blue-50 dark:bg-blue-900/20 flex items-center gap-2">
                                                 <Building className="h-4 w-4 text-blue-600" />
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-blue-700">Ekuitas</span>
+                                                <span className="text-xs font-semibold text-blue-700">Ekuitas</span>
                                             </div>
                                             <Table>
                                                 <TableBody>
                                                     {(bsExpanded.capital ? capitalItems : capitalItems.slice(0, PREVIEW_COUNT)).map((cap: any, idx: number) => (
                                                         <React.Fragment key={cap.code || idx}>
                                                             <TableRow
-                                                                className="cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                                className="cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/10 transition-colors"
                                                                 onClick={() => toggleDrillDown(`bs-${cap.code}`, cap.code, true)}
                                                             >
                                                                 <TableCell className="text-sm">
                                                                     <span className="flex items-center gap-2">
                                                                         <ChevronRight className={`h-3 w-3 text-zinc-400 transition-transform ${expandedAccounts.has(`bs-${cap.code}`) ? 'rotate-90' : ''}`} />
-                                                                        <span className="font-mono text-[10px] text-zinc-400">{cap.code}</span>
+                                                                        <span className="font-mono text-xs text-zinc-400">{cap.code}</span>
                                                                         <span className="text-zinc-500">{cap.name}</span>
                                                                     </span>
                                                                 </TableCell>
@@ -1401,7 +1401,7 @@ export default function FinancialReportsPage() {
                                                         <TableRow>
                                                             <TableCell
                                                                 colSpan={2}
-                                                                className="text-center text-[10px] font-bold text-blue-600 cursor-pointer hover:bg-blue-50 py-1.5"
+                                                                className="text-center text-xs font-bold text-blue-600 cursor-pointer hover:bg-blue-50 py-1.5"
                                                                 onClick={() => setBsExpanded(prev => ({ ...prev, capital: true }))}
                                                             >
                                                                 + {capitalItems.length - PREVIEW_COUNT} akun lainnya
@@ -1416,7 +1416,7 @@ export default function FinancialReportsPage() {
                                                         <TableCell className="text-sm text-blue-600">Laba Tahun Berjalan</TableCell>
                                                         <TableCell className="text-right font-mono text-sm text-blue-600">{formatIDR(balanceSheetData.equity?.currentYearNetIncome || 0)}</TableCell>
                                                     </TableRow>
-                                                    <TableRow className="font-black bg-blue-100 dark:bg-blue-900/30 border-t-2 border-black">
+                                                    <TableRow className="font-semibold bg-blue-100 dark:bg-blue-900/30 border-t border-border">
                                                         <TableCell>TOTAL EKUITAS</TableCell>
                                                         <TableCell className="text-right font-mono text-blue-700">{formatIDR(balanceSheetData.equity?.totalEquity)}</TableCell>
                                                     </TableRow>
@@ -1425,9 +1425,9 @@ export default function FinancialReportsPage() {
                                         </div>
 
                                         {/* Total Kewajiban + Ekuitas — for easy balance check */}
-                                        <div className="border-2 border-black bg-zinc-900 dark:bg-zinc-100 px-4 py-3 flex items-center justify-between">
-                                            <span className="font-black text-sm text-white dark:text-black uppercase tracking-wide">Total Kewajiban + Ekuitas</span>
-                                            <span className={`font-mono font-black text-lg ${
+                                        <div className="border border-border bg-zinc-900 dark:bg-zinc-100 px-4 py-3 flex items-center justify-between">
+                                            <span className="font-semibold text-sm text-white dark:text-black  ">Total Kewajiban + Ekuitas</span>
+                                            <span className={`font-mono font-semibold text-lg ${
                                                 Math.abs((balanceSheetData.assets?.totalAssets || 0) - (balanceSheetData.totalLiabilitiesAndEquity || 0)) < 1
                                                     ? "text-emerald-400 dark:text-emerald-600"
                                                     : "text-red-400 dark:text-red-600"
@@ -1438,9 +1438,9 @@ export default function FinancialReportsPage() {
 
                                         {/* Balance check diagnostic */}
                                         {balanceSheetData?.balanceCheck && !balanceSheetData.balanceCheck.isBalanced && (
-                                            <div className="border-2 border-red-300 bg-red-50 p-3 flex items-center gap-2">
+                                            <div className="border border-red-300 bg-red-50 p-3 flex items-center gap-2">
                                                 <AlertTriangle className="h-4 w-4 text-red-500" />
-                                                <span className="text-xs font-bold text-red-700 uppercase tracking-wide">
+                                                <span className="text-xs font-bold text-red-700  ">
                                                     Neraca tidak seimbang — selisih {formatIDR(Math.abs(balanceSheetData.balanceCheck.difference))}
                                                 </span>
                                             </div>
@@ -1459,7 +1459,7 @@ export default function FinancialReportsPage() {
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            className="border-2 border-black text-xs"
+                                            className="border border-border text-xs"
                                             onClick={loadTrialBalance}
                                             disabled={tbLoading}
                                         >
@@ -1505,8 +1505,8 @@ export default function FinancialReportsPage() {
 
                                 function SectionHeader({ label, color }: { label: string; color: string }) {
                                     return (
-                                        <TableRow className={`${color} font-black border-t-2 border-black`}>
-                                            <TableCell colSpan={2} className="text-[10px] uppercase tracking-widest py-2">
+                                        <TableRow className={`${color} font-semibold border-t border-border`}>
+                                            <TableCell colSpan={2} className="text-xs py-2">
                                                 {label}
                                             </TableCell>
                                         </TableRow>
@@ -1516,7 +1516,7 @@ export default function FinancialReportsPage() {
                                 function SubHeader({ label }: { label: string }) {
                                     return (
                                         <TableRow className="bg-zinc-50/80 dark:bg-zinc-800/50">
-                                            <TableCell colSpan={2} className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 pl-6 py-1.5">
+                                            <TableCell colSpan={2} className="text-xs font-bold text-zinc-500 pl-6 py-1.5">
                                                 {label}
                                             </TableCell>
                                         </TableRow>
@@ -1537,7 +1537,7 @@ export default function FinancialReportsPage() {
                                     const { text, cls } = formatCFSAmount(amount, 'AS_IS')
                                     return (
                                         <TableRow className="bg-zinc-100 dark:bg-zinc-800 border-t border-zinc-300">
-                                            <TableCell className="font-bold text-[11px] uppercase tracking-wide pl-6">{label}</TableCell>
+                                            <TableCell className="font-bold text-xs pl-6">{label}</TableCell>
                                             <TableCell className={`text-right font-mono font-bold ${cls}`}>{text}</TableCell>
                                         </TableRow>
                                     )
@@ -1550,22 +1550,22 @@ export default function FinancialReportsPage() {
                                 const proof = cf.proof
 
                                 return (
-                                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                                    <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                                         {/* Header */}
-                                        <div className="px-4 py-3 border-b-2 border-black bg-teal-50 dark:bg-teal-900/20 flex items-center justify-between">
+                                        <div className="px-4 py-3 border-b border-border bg-teal-50 dark:bg-teal-900/20 flex items-center justify-between">
                                             <div className="flex items-center gap-2">
                                                 <Wallet className="h-4 w-4 text-teal-600" />
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-teal-700">
+                                                <span className="text-xs font-semibold text-teal-700">
                                                     Laporan Arus Kas — Metode Tidak Langsung
                                                 </span>
                                             </div>
                                             {proof && (
                                                 proof.isBalanced ? (
-                                                    <span className="flex items-center gap-1 text-[10px] font-black uppercase text-emerald-600">
+                                                    <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600">
                                                         <Check className="h-3.5 w-3.5" /> Seimbang
                                                     </span>
                                                 ) : (
-                                                    <span className="flex items-center gap-1 text-[10px] font-black uppercase text-amber-600">
+                                                    <span className="flex items-center gap-1 text-xs font-semibold text-amber-600">
                                                         <AlertTriangle className="h-3.5 w-3.5" /> Selisih {formatIDR(proof.difference)}
                                                     </span>
                                                 )
@@ -1630,7 +1630,7 @@ export default function FinancialReportsPage() {
                                                 <SubtotalRow label="Arus Kas Bersih — Investasi" amount={inv.netCashFromInvesting} />
 
                                                 {/* ── SECTION III: FINANCING ─────────────────────── */}
-                                                <SectionHeader label="III. Arus Kas dari Aktivitas Pendanaan" color="bg-orange-50/60 dark:bg-orange-900/10" />
+                                                <SectionHeader label="III. Arus Kas dari Aktivitas Pendanaan" color="bg-blue-50/60 dark:bg-blue-900/10" />
 
                                                 {fin.items && fin.items.length > 0 ? (
                                                     fin.items.map((item: any, idx: number) => (
@@ -1647,11 +1647,11 @@ export default function FinancialReportsPage() {
                                                 <SubtotalRow label="Arus Kas Bersih — Pendanaan" amount={fin.netCashFromFinancing} />
 
                                                 {/* ── SUMMARY ────────────────────────────────────── */}
-                                                <TableRow className="font-black bg-teal-50 dark:bg-teal-900/20 border-t-2 border-black">
-                                                    <TableCell className="text-[13px] uppercase tracking-wide">
+                                                <TableRow className="font-semibold bg-teal-50 dark:bg-teal-900/20 border-t border-border">
+                                                    <TableCell className="text-[13px]  ">
                                                         Kenaikan/(Penurunan) Bersih Kas
                                                     </TableCell>
-                                                    <TableCell className={`text-right font-mono text-[13px] font-black ${cf.netIncreaseInCash >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                    <TableCell className={`text-right font-mono text-[13px] font-semibold ${cf.netIncreaseInCash >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                                                         {cf.netIncreaseInCash >= 0 ? formatIDR(cf.netIncreaseInCash) : `(${formatIDR(Math.abs(cf.netIncreaseInCash))})`}
                                                     </TableCell>
                                                 </TableRow>
@@ -1659,11 +1659,11 @@ export default function FinancialReportsPage() {
                                                     <TableCell className="text-sm text-zinc-500 pl-8">Saldo Kas Awal Periode</TableCell>
                                                     <TableCell className="text-right font-mono text-sm text-zinc-600">{formatIDR(cf.beginningCash)}</TableCell>
                                                 </TableRow>
-                                                <TableRow className="bg-teal-100/60 dark:bg-teal-900/30 border-t-2 border-teal-400">
-                                                    <TableCell className="font-black text-teal-800 dark:text-teal-200 uppercase tracking-wide">
+                                                <TableRow className="bg-teal-100/60 dark:bg-teal-900/30 border-t border-teal-400">
+                                                    <TableCell className="font-semibold text-teal-800 dark:text-teal-200  ">
                                                         Saldo Kas Akhir Periode
                                                     </TableCell>
-                                                    <TableCell className="text-right font-mono font-black text-teal-700 dark:text-teal-300 text-base">
+                                                    <TableCell className="text-right font-mono font-semibold text-teal-700 dark:text-teal-300 text-base">
                                                         {formatIDR(cf.endingCash)}
                                                     </TableCell>
                                                 </TableRow>
@@ -1673,10 +1673,10 @@ export default function FinancialReportsPage() {
 
                                         {/* Proof warning — shown only when imbalanced */}
                                         {proof && !proof.isBalanced && (
-                                            <div className="border-t-2 border-amber-400 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 flex items-start gap-3">
+                                            <div className="border-t border-amber-400 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 flex items-start gap-3">
                                                 <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
                                                 <div>
-                                                    <p className="text-[11px] font-black uppercase tracking-wide text-amber-800">
+                                                    <p className="text-xs font-semibold text-amber-800">
                                                         Laporan Arus Kas Tidak Seimbang
                                                     </p>
                                                     <p className="text-xs text-amber-700 mt-0.5">
@@ -1693,19 +1693,19 @@ export default function FinancialReportsPage() {
 
                             {/* Trial Balance */}
                             {reportType === "tb" && trialBalanceData && (
-                                <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                                    <div className="px-4 py-3 border-b-2 border-black bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-between">
+                                <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
+                                    <div className="px-4 py-3 border-b border-border bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-between">
                                         <div className="flex items-center gap-2">
                                             <Scale className="h-4 w-4 text-indigo-600" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-700">Neraca Saldo</span>
+                                            <span className="text-xs font-semibold text-indigo-700">Neraca Saldo</span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             {trialBalanceData.totals.isBalanced ? (
-                                                <span className="flex items-center gap-1 text-[10px] font-black uppercase text-emerald-600">
+                                                <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600">
                                                     <Check className="h-3.5 w-3.5" /> Seimbang
                                                 </span>
                                             ) : (
-                                                <span className="flex items-center gap-1 text-[10px] font-black uppercase text-red-600">
+                                                <span className="flex items-center gap-1 text-xs font-semibold text-red-600">
                                                     <AlertTriangle className="h-3.5 w-3.5" /> Tidak Balance ({formatIDR(trialBalanceData.totals.difference)})
                                                 </span>
                                             )}
@@ -1714,17 +1714,17 @@ export default function FinancialReportsPage() {
                                     <Table>
                                         <TableHeader>
                                             <TableRow className="bg-zinc-50 dark:bg-zinc-800">
-                                                <TableHead className="text-[10px] font-black uppercase tracking-widest w-[100px]">Kode</TableHead>
-                                                <TableHead className="text-[10px] font-black uppercase tracking-widest">Nama Akun</TableHead>
-                                                <TableHead className="text-[10px] font-black uppercase tracking-widest w-[80px]">Tipe</TableHead>
-                                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Debit</TableHead>
-                                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Kredit</TableHead>
+                                                <TableHead className="text-xs font-semibold w-[100px]">Kode</TableHead>
+                                                <TableHead className="text-xs font-semibold  ">Nama Akun</TableHead>
+                                                <TableHead className="text-xs font-semibold w-[80px]">Tipe</TableHead>
+                                                <TableHead className="text-xs font-semibold text-right">Debit</TableHead>
+                                                <TableHead className="text-xs font-semibold text-right">Kredit</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
                                             {trialBalanceData.rows.length === 0 ? (
                                                 <TableRow>
-                                                    <TableCell colSpan={5} className="text-center py-8 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                                                    <TableCell colSpan={5} className="text-center py-8 text-zinc-400 text-xs font-bold  ">
                                                         Tidak ada transaksi dalam periode ini
                                                     </TableCell>
                                                 </TableRow>
@@ -1755,8 +1755,8 @@ export default function FinancialReportsPage() {
                                                         return (
                                                             <React.Fragment key={idx}>
                                                                 {showHeader && (
-                                                                    <TableRow className={`${typeColors[row.accountType] || "bg-zinc-100"} border-t-2 border-black`}>
-                                                                        <TableCell colSpan={5} className="text-[10px] font-black uppercase tracking-widest py-2">
+                                                                    <TableRow className={`${typeColors[row.accountType] || "bg-zinc-100"} border-t border-border`}>
+                                                                        <TableCell colSpan={5} className="text-xs font-semibold py-2">
                                                                             {typeLabels[row.accountType] || row.accountType}
                                                                         </TableCell>
                                                                     </TableRow>
@@ -1765,7 +1765,7 @@ export default function FinancialReportsPage() {
                                                                     <TableCell className="font-mono font-bold text-sm pl-6">{row.accountCode}</TableCell>
                                                                     <TableCell className="text-sm">{row.accountName}</TableCell>
                                                                     <TableCell>
-                                                                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 border rounded-sm ${badgeColors[row.accountType] || "bg-zinc-50 border-zinc-200 text-zinc-600"}`}>{row.accountType}</span>
+                                                                        <span className={`text-xs font-semibold  px-1.5 py-0.5 border rounded-sm ${badgeColors[row.accountType] || "bg-zinc-50 border-zinc-200 text-zinc-600"}`}>{row.accountType}</span>
                                                                     </TableCell>
                                                                     <TableCell className="text-right font-mono text-sm">
                                                                         {row.debit > 0 ? formatIDR(row.debit) : "-"}
@@ -1779,7 +1779,7 @@ export default function FinancialReportsPage() {
                                                     })
                                                 })()
                                             )}
-                                            <TableRow className="font-black bg-indigo-50 dark:bg-indigo-900/20 border-t-2 border-black">
+                                            <TableRow className="font-semibold bg-indigo-50 dark:bg-indigo-900/20 border-t border-border">
                                                 <TableCell colSpan={3} className="text-sm">TOTAL</TableCell>
                                                 <TableCell className="text-right font-mono text-sm">{formatIDR(trialBalanceData.totals.totalDebits)}</TableCell>
                                                 <TableCell className="text-right font-mono text-sm">{formatIDR(trialBalanceData.totals.totalCredits)}</TableCell>
@@ -1791,14 +1791,14 @@ export default function FinancialReportsPage() {
 
                             {/* Equity Changes */}
                             {reportType === "equity_changes" && (
-                                <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                                    <div className="px-4 py-3 border-b-2 border-black bg-violet-50 dark:bg-violet-900/20 flex items-center justify-between">
+                                <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
+                                    <div className="px-4 py-3 border-b border-border bg-violet-50 dark:bg-violet-900/20 flex items-center justify-between">
                                         <div className="flex items-center gap-2">
                                             <TrendingDown className="h-4 w-4 text-violet-600" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-violet-700">Laporan Perubahan Ekuitas</span>
+                                            <span className="text-xs font-semibold text-violet-700">Laporan Perubahan Ekuitas</span>
                                         </div>
                                         {equityData && (
-                                            <span className="text-[10px] font-black text-zinc-400">
+                                            <span className="text-xs font-semibold text-zinc-400">
                                                 {equityData.accounts?.length ?? 0} akun
                                             </span>
                                         )}
@@ -1806,24 +1806,24 @@ export default function FinancialReportsPage() {
                                     {!equityData ? (
                                         <div className="p-12 text-center">
                                             <BarChart3 className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Data tidak tersedia</p>
+                                            <p className="text-xs font-semibold text-zinc-400">Data tidak tersedia</p>
                                         </div>
                                     ) : (
                                         <>
                                             <Table>
                                                 <TableHeader>
                                                     <TableRow className="bg-zinc-50 dark:bg-zinc-800">
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest">Akun</TableHead>
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Saldo Awal</TableHead>
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Penambahan</TableHead>
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Pengurangan</TableHead>
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Saldo Akhir</TableHead>
+                                                        <TableHead className="text-xs font-semibold  ">Akun</TableHead>
+                                                        <TableHead className="text-xs font-semibold text-right">Saldo Awal</TableHead>
+                                                        <TableHead className="text-xs font-semibold text-right">Penambahan</TableHead>
+                                                        <TableHead className="text-xs font-semibold text-right">Pengurangan</TableHead>
+                                                        <TableHead className="text-xs font-semibold text-right">Saldo Akhir</TableHead>
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
                                                     {equityData.accounts.length === 0 ? (
                                                         <TableRow>
-                                                            <TableCell colSpan={5} className="text-center py-8 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                                                            <TableCell colSpan={5} className="text-center py-8 text-zinc-400 text-xs font-bold  ">
                                                                 Tidak ada akun ekuitas
                                                             </TableCell>
                                                         </TableRow>
@@ -1831,7 +1831,7 @@ export default function FinancialReportsPage() {
                                                         equityData.accounts.map((acc: any, idx: number) => (
                                                             <React.Fragment key={idx}>
                                                                 <TableRow
-                                                                    className="cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                                    className="cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/10 transition-colors"
                                                                     onClick={() => toggleDrillDown(`eq-${acc.accountCode}`, acc.accountCode)}
                                                                 >
                                                                     <TableCell className="text-sm font-bold">
@@ -1873,7 +1873,7 @@ export default function FinancialReportsPage() {
                                                         </TableCell>
                                                     </TableRow>
                                                     {/* Total row */}
-                                                    <TableRow className="font-black bg-violet-100 dark:bg-violet-900/30 border-t-2 border-black">
+                                                    <TableRow className="font-semibold bg-violet-100 dark:bg-violet-900/30 border-t border-border">
                                                         <TableCell className="text-sm">TOTAL EKUITAS</TableCell>
                                                         <TableCell className="text-right font-mono text-sm">{formatIDR(equityData.totalOpeningEquity)}</TableCell>
                                                         <TableCell className="text-right font-mono text-sm" colSpan={2}>
@@ -1891,11 +1891,11 @@ export default function FinancialReportsPage() {
                             {/* AR Aging */}
                             {reportType === "ar_aging" && arAgingData && (
                                 <div className="space-y-4">
-                                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                                        <div className="px-4 py-3 border-b-2 border-black bg-orange-50 dark:bg-orange-900/20 flex items-center gap-2">
-                                            <Users className="h-4 w-4 text-orange-600" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-orange-700">Aging Piutang (AR) — Ringkasan</span>
-                                            <span className="ml-auto bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-sm">
+                                    <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
+                                        <div className="px-4 py-3 border-b border-border bg-blue-50 dark:bg-blue-900/20 flex items-center gap-2">
+                                            <Users className="h-4 w-4 text-blue-600" />
+                                            <span className="text-xs font-semibold text-blue-700">Aging Piutang (AR) — Ringkasan</span>
+                                            <span className="ml-auto bg-blue-500 text-white text-xs font-semibold px-2 py-0.5 rounded-sm">
                                                 {arAgingData.summary.invoiceCount} Invoice
                                             </span>
                                         </div>
@@ -1910,8 +1910,8 @@ export default function FinancialReportsPage() {
                                                 { label: "Total", value: arAgingData.summary.totalOutstanding, color: "zinc" },
                                             ].map((b, i) => (
                                                 <div key={i} className="p-4 text-center">
-                                                    <div className={`text-[10px] font-black uppercase tracking-widest text-${b.color}-600 mb-1`}>{b.label}</div>
-                                                    <div className={`text-lg font-black font-mono tracking-tighter ${b.value > 0 ? `text-${b.color}-700` : "text-zinc-300"}`}>
+                                                    <div className={`text-xs font-semibold text-${b.color}-600 mb-1`}>{b.label}</div>
+                                                    <div className={`text-lg font-semibold font-mono tracking-tighter ${b.value > 0 ? `text-${b.color}-700` : "text-zinc-300"}`}>
                                                         {b.value > 0 ? formatIDR(b.value) : "Rp 0"}
                                                     </div>
                                                 </div>
@@ -1919,29 +1919,29 @@ export default function FinancialReportsPage() {
                                         </div>
                                     </div>
 
-                                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                                        <div className="px-4 py-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800 flex items-center gap-2">
+                                    <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
+                                        <div className="px-4 py-3 border-b border-border bg-zinc-50 dark:bg-zinc-800 flex items-center gap-2">
                                             <FileText className="h-4 w-4 text-zinc-500" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Per Pelanggan</span>
+                                            <span className="text-xs font-semibold text-zinc-500">Per Pelanggan</span>
                                         </div>
                                         <Table>
                                             <TableHeader>
                                                 <TableRow className="bg-zinc-50 dark:bg-zinc-800">
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest">Pelanggan</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Belum Jatuh Tempo</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Hari Ini</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">1-30 Hari</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">31-60 Hari</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">61-90 Hari</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">90+ Hari</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Total</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-center w-[60px]">Aksi</TableHead>
+                                                    <TableHead className="text-xs font-semibold  ">Pelanggan</TableHead>
+                                                    <TableHead className="text-xs font-semibold text-right">Belum Jatuh Tempo</TableHead>
+                                                    <TableHead className="text-xs font-semibold text-right">Hari Ini</TableHead>
+                                                    <TableHead className="text-xs font-semibold text-right">1-30 Hari</TableHead>
+                                                    <TableHead className="text-xs font-semibold text-right">31-60 Hari</TableHead>
+                                                    <TableHead className="text-xs font-semibold text-right">61-90 Hari</TableHead>
+                                                    <TableHead className="text-xs font-semibold text-right">90+ Hari</TableHead>
+                                                    <TableHead className="text-xs font-semibold text-right">Total</TableHead>
+                                                    <TableHead className="text-xs font-semibold text-center w-[60px]">Aksi</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
                                                 {arAgingData.byCustomer.length === 0 ? (
                                                     <TableRow>
-                                                        <TableCell colSpan={9} className="text-center py-8 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                                                        <TableCell colSpan={9} className="text-center py-8 text-zinc-400 text-xs font-bold  ">
                                                             Tidak ada piutang terbuka
                                                         </TableCell>
                                                     </TableRow>
@@ -1951,30 +1951,30 @@ export default function FinancialReportsPage() {
                                                         return (
                                                             <React.Fragment key={idx}>
                                                                 <TableRow
-                                                                    className="cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                                    className="cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/10 transition-colors"
                                                                     onClick={() => router.push(`/finance/transactions?account=1200&search=${encodeURIComponent(cust.customerName)}`)}
                                                                 >
                                                                     <TableCell className="font-bold text-sm">
                                                                         <button
                                                                             onClick={(e) => { e.stopPropagation(); toggleAR(cust.customerId) }}
-                                                                            className="flex items-center gap-1.5 hover:text-orange-600 transition-colors"
+                                                                            className="flex items-center gap-1.5 hover:text-blue-600 transition-colors"
                                                                         >
                                                                             {isExpanded
-                                                                                ? <ChevronDown className="h-3.5 w-3.5 text-orange-500" />
+                                                                                ? <ChevronDown className="h-3.5 w-3.5 text-blue-500" />
                                                                                 : <ChevronRight className="h-3.5 w-3.5 text-zinc-400" />}
                                                                             {cust.customerName}
-                                                                            <span className="text-[9px] font-mono text-zinc-400 ml-1">({cust.invoiceCount})</span>
+                                                                            <span className="text-xs font-mono text-zinc-400 ml-1">({cust.invoiceCount})</span>
                                                                         </button>
                                                                     </TableCell>
                                                                     <TableCell className="text-right font-mono text-sm">{cust.current > 0 ? formatIDR(cust.current) : "-"}</TableCell>
-                                                                    <TableCell className="text-right font-mono text-sm text-orange-600">{(cust.hari_ini || 0) > 0 ? formatIDR(cust.hari_ini) : "-"}</TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm text-blue-600">{(cust.hari_ini || 0) > 0 ? formatIDR(cust.hari_ini) : "-"}</TableCell>
                                                                     <TableCell className="text-right font-mono text-sm">{cust.d1_30 > 0 ? formatIDR(cust.d1_30) : "-"}</TableCell>
                                                                     <TableCell className="text-right font-mono text-sm">{cust.d31_60 > 0 ? formatIDR(cust.d31_60) : "-"}</TableCell>
                                                                     <TableCell className="text-right font-mono text-sm">{cust.d61_90 > 0 ? formatIDR(cust.d61_90) : "-"}</TableCell>
                                                                     <TableCell className="text-right font-mono text-sm text-red-600">{cust.d90_plus > 0 ? formatIDR(cust.d90_plus) : "-"}</TableCell>
-                                                                    <TableCell className="text-right font-mono text-sm font-black">{formatIDR(cust.total)}</TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm font-semibold">{formatIDR(cust.total)}</TableCell>
                                                                     <TableCell className="text-center">
-                                                                        <span className="inline-flex items-center justify-center h-6 w-6 text-orange-500 hover:text-orange-700 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors rounded-none" title="Lihat transaksi piutang">
+                                                                        <span className="inline-flex items-center justify-center h-6 w-6 text-blue-500 hover:text-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors rounded-md" title="Lihat transaksi piutang">
                                                                             <ArrowRight className="h-3.5 w-3.5" />
                                                                         </span>
                                                                     </TableCell>
@@ -1985,27 +1985,27 @@ export default function FinancialReportsPage() {
                                                                     const issueLbl = new Date(inv.issueDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })
                                                                     const dueLbl = new Date(inv.dueDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })
                                                                     return (
-                                                                    <TableRow key={`inv-${j}`} className="bg-orange-50/50 dark:bg-orange-900/10">
+                                                                    <TableRow key={`inv-${j}`} className="bg-blue-50/50 dark:bg-blue-900/10">
                                                                         <TableCell className="pl-8 text-xs">
                                                                             <Link
                                                                                 href={`/finance/invoices?highlight=${inv.id}`}
-                                                                                className="text-orange-600 hover:underline font-mono font-bold"
+                                                                                className="text-blue-600 hover:underline font-mono font-bold"
                                                                             >
                                                                                 {inv.invoiceNumber}
                                                                             </Link>
-                                                                            <span className="block text-[9px] text-zinc-400 mt-0.5">{issueLbl} — jt. {dueLbl}</span>
+                                                                            <span className="block text-xs text-zinc-400 mt-0.5">{issueLbl} — jt. {dueLbl}</span>
                                                                         </TableCell>
-                                                                        <TableCell className="text-right text-[10px] font-mono">{b === 'current' ? formatIDR(bal) : "-"}</TableCell>
-                                                                        <TableCell className="text-right text-[10px] font-mono text-orange-600">{b === 'hari_ini' ? formatIDR(bal) : "-"}</TableCell>
-                                                                        <TableCell className="text-right text-[10px] font-mono">{b === '1-30' ? formatIDR(bal) : "-"}</TableCell>
-                                                                        <TableCell className="text-right text-[10px] font-mono">{b === '31-60' ? formatIDR(bal) : "-"}</TableCell>
-                                                                        <TableCell className="text-right text-[10px] font-mono">{b === '61-90' ? formatIDR(bal) : "-"}</TableCell>
-                                                                        <TableCell className="text-right text-[10px] font-mono text-red-600">{b === '90+' ? formatIDR(bal) : "-"}</TableCell>
-                                                                        <TableCell className="text-right text-[10px] font-mono font-bold">{formatIDR(bal)}</TableCell>
+                                                                        <TableCell className="text-right text-xs font-mono">{b === 'current' ? formatIDR(bal) : "-"}</TableCell>
+                                                                        <TableCell className="text-right text-xs font-mono text-blue-600">{b === 'hari_ini' ? formatIDR(bal) : "-"}</TableCell>
+                                                                        <TableCell className="text-right text-xs font-mono">{b === '1-30' ? formatIDR(bal) : "-"}</TableCell>
+                                                                        <TableCell className="text-right text-xs font-mono">{b === '31-60' ? formatIDR(bal) : "-"}</TableCell>
+                                                                        <TableCell className="text-right text-xs font-mono">{b === '61-90' ? formatIDR(bal) : "-"}</TableCell>
+                                                                        <TableCell className="text-right text-xs font-mono text-red-600">{b === '90+' ? formatIDR(bal) : "-"}</TableCell>
+                                                                        <TableCell className="text-right text-xs font-mono font-bold">{formatIDR(bal)}</TableCell>
                                                                         <TableCell className="text-center">
-                                                                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-sm ${
+                                                                            <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-sm ${
                                                                                 inv.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
-                                                                                b === 'hari_ini' ? 'bg-orange-100 text-orange-700' :
+                                                                                b === 'hari_ini' ? 'bg-blue-100 text-blue-700' :
                                                                                 inv.status === 'PARTIAL' ? 'bg-amber-100 text-amber-700' :
                                                                                 'bg-blue-100 text-blue-700'
                                                                             }`}>{b === 'hari_ini' ? 'HARI INI' : inv.status}</span>
@@ -2026,11 +2026,11 @@ export default function FinancialReportsPage() {
                             {/* AP Aging */}
                             {reportType === "ap_aging" && apAgingData && (
                                 <div className="space-y-4">
-                                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                                        <div className="px-4 py-3 border-b-2 border-black bg-red-50 dark:bg-red-900/20 flex items-center gap-2">
+                                    <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
+                                        <div className="px-4 py-3 border-b border-border bg-red-50 dark:bg-red-900/20 flex items-center gap-2">
                                             <Truck className="h-4 w-4 text-red-600" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-red-700">Aging Hutang (AP) — Ringkasan</span>
-                                            <span className="ml-auto bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-sm">
+                                            <span className="text-xs font-semibold text-red-700">Aging Hutang (AP) — Ringkasan</span>
+                                            <span className="ml-auto bg-red-500 text-white text-xs font-semibold px-2 py-0.5 rounded-sm">
                                                 {apAgingData.summary.billCount} Bill
                                             </span>
                                         </div>
@@ -2045,8 +2045,8 @@ export default function FinancialReportsPage() {
                                                 { label: "Total", value: apAgingData.summary.totalOutstanding, color: "zinc" },
                                             ].map((b, i) => (
                                                 <div key={i} className="p-4 text-center">
-                                                    <div className={`text-[10px] font-black uppercase tracking-widest text-${b.color}-600 mb-1`}>{b.label}</div>
-                                                    <div className={`text-lg font-black font-mono tracking-tighter ${b.value > 0 ? `text-${b.color}-700` : "text-zinc-300"}`}>
+                                                    <div className={`text-xs font-semibold text-${b.color}-600 mb-1`}>{b.label}</div>
+                                                    <div className={`text-lg font-semibold font-mono tracking-tighter ${b.value > 0 ? `text-${b.color}-700` : "text-zinc-300"}`}>
                                                         {b.value > 0 ? formatIDR(b.value) : "Rp 0"}
                                                     </div>
                                                 </div>
@@ -2054,29 +2054,29 @@ export default function FinancialReportsPage() {
                                         </div>
                                     </div>
 
-                                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                                        <div className="px-4 py-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800 flex items-center gap-2">
+                                    <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
+                                        <div className="px-4 py-3 border-b border-border bg-zinc-50 dark:bg-zinc-800 flex items-center gap-2">
                                             <FileText className="h-4 w-4 text-zinc-500" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Per Pemasok</span>
+                                            <span className="text-xs font-semibold text-zinc-500">Per Pemasok</span>
                                         </div>
                                         <Table>
                                             <TableHeader>
                                                 <TableRow className="bg-zinc-50 dark:bg-zinc-800">
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest">Pemasok</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Belum Jatuh Tempo</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Hari Ini</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">1-30 Hari</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">31-60 Hari</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">61-90 Hari</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">90+ Hari</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Total</TableHead>
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-center w-[60px]">Aksi</TableHead>
+                                                    <TableHead className="text-xs font-semibold  ">Pemasok</TableHead>
+                                                    <TableHead className="text-xs font-semibold text-right">Belum Jatuh Tempo</TableHead>
+                                                    <TableHead className="text-xs font-semibold text-right">Hari Ini</TableHead>
+                                                    <TableHead className="text-xs font-semibold text-right">1-30 Hari</TableHead>
+                                                    <TableHead className="text-xs font-semibold text-right">31-60 Hari</TableHead>
+                                                    <TableHead className="text-xs font-semibold text-right">61-90 Hari</TableHead>
+                                                    <TableHead className="text-xs font-semibold text-right">90+ Hari</TableHead>
+                                                    <TableHead className="text-xs font-semibold text-right">Total</TableHead>
+                                                    <TableHead className="text-xs font-semibold text-center w-[60px]">Aksi</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
                                                 {apAgingData.bySupplier.length === 0 ? (
                                                     <TableRow>
-                                                        <TableCell colSpan={9} className="text-center py-8 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                                                        <TableCell colSpan={9} className="text-center py-8 text-zinc-400 text-xs font-bold  ">
                                                             Tidak ada hutang terbuka
                                                         </TableCell>
                                                     </TableRow>
@@ -2086,7 +2086,7 @@ export default function FinancialReportsPage() {
                                                         return (
                                                             <React.Fragment key={idx}>
                                                                 <TableRow
-                                                                    className="cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                                    className="cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/10 transition-colors"
                                                                     onClick={() => router.push(`/finance/transactions?account=2000&search=${encodeURIComponent(supp.supplierName)}`)}
                                                                 >
                                                                     <TableCell className="font-bold text-sm">
@@ -2098,18 +2098,18 @@ export default function FinancialReportsPage() {
                                                                                 ? <ChevronDown className="h-3.5 w-3.5 text-red-500" />
                                                                                 : <ChevronRight className="h-3.5 w-3.5 text-zinc-400" />}
                                                                             {supp.supplierName}
-                                                                            <span className="text-[9px] font-mono text-zinc-400 ml-1">({supp.billCount})</span>
+                                                                            <span className="text-xs font-mono text-zinc-400 ml-1">({supp.billCount})</span>
                                                                         </button>
                                                                     </TableCell>
                                                                     <TableCell className="text-right font-mono text-sm">{supp.current > 0 ? formatIDR(supp.current) : "-"}</TableCell>
-                                                                    <TableCell className="text-right font-mono text-sm text-orange-600">{(supp.hari_ini || 0) > 0 ? formatIDR(supp.hari_ini) : "-"}</TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm text-blue-600">{(supp.hari_ini || 0) > 0 ? formatIDR(supp.hari_ini) : "-"}</TableCell>
                                                                     <TableCell className="text-right font-mono text-sm">{supp.d1_30 > 0 ? formatIDR(supp.d1_30) : "-"}</TableCell>
                                                                     <TableCell className="text-right font-mono text-sm">{supp.d31_60 > 0 ? formatIDR(supp.d31_60) : "-"}</TableCell>
                                                                     <TableCell className="text-right font-mono text-sm">{supp.d61_90 > 0 ? formatIDR(supp.d61_90) : "-"}</TableCell>
                                                                     <TableCell className="text-right font-mono text-sm text-red-600">{supp.d90_plus > 0 ? formatIDR(supp.d90_plus) : "-"}</TableCell>
-                                                                    <TableCell className="text-right font-mono text-sm font-black">{formatIDR(supp.total)}</TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm font-semibold">{formatIDR(supp.total)}</TableCell>
                                                                     <TableCell className="text-center">
-                                                                        <span className="inline-flex items-center justify-center h-6 w-6 text-orange-500 hover:text-orange-700 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors rounded-none" title="Lihat transaksi hutang">
+                                                                        <span className="inline-flex items-center justify-center h-6 w-6 text-blue-500 hover:text-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors rounded-md" title="Lihat transaksi hutang">
                                                                             <ArrowRight className="h-3.5 w-3.5" />
                                                                         </span>
                                                                     </TableCell>
@@ -2128,19 +2128,19 @@ export default function FinancialReportsPage() {
                                                                             >
                                                                                 {bill.billNumber}
                                                                             </Link>
-                                                                            <span className="block text-[9px] text-zinc-400 mt-0.5">{issueLbl} — jt. {dueLbl}</span>
+                                                                            <span className="block text-xs text-zinc-400 mt-0.5">{issueLbl} — jt. {dueLbl}</span>
                                                                         </TableCell>
-                                                                        <TableCell className="text-right text-[10px] font-mono">{b === 'current' ? formatIDR(bal) : "-"}</TableCell>
-                                                                        <TableCell className="text-right text-[10px] font-mono text-orange-600">{b === 'hari_ini' ? formatIDR(bal) : "-"}</TableCell>
-                                                                        <TableCell className="text-right text-[10px] font-mono">{b === '1-30' ? formatIDR(bal) : "-"}</TableCell>
-                                                                        <TableCell className="text-right text-[10px] font-mono">{b === '31-60' ? formatIDR(bal) : "-"}</TableCell>
-                                                                        <TableCell className="text-right text-[10px] font-mono">{b === '61-90' ? formatIDR(bal) : "-"}</TableCell>
-                                                                        <TableCell className="text-right text-[10px] font-mono text-red-600">{b === '90+' ? formatIDR(bal) : "-"}</TableCell>
-                                                                        <TableCell className="text-right text-[10px] font-mono font-bold">{formatIDR(bal)}</TableCell>
+                                                                        <TableCell className="text-right text-xs font-mono">{b === 'current' ? formatIDR(bal) : "-"}</TableCell>
+                                                                        <TableCell className="text-right text-xs font-mono text-blue-600">{b === 'hari_ini' ? formatIDR(bal) : "-"}</TableCell>
+                                                                        <TableCell className="text-right text-xs font-mono">{b === '1-30' ? formatIDR(bal) : "-"}</TableCell>
+                                                                        <TableCell className="text-right text-xs font-mono">{b === '31-60' ? formatIDR(bal) : "-"}</TableCell>
+                                                                        <TableCell className="text-right text-xs font-mono">{b === '61-90' ? formatIDR(bal) : "-"}</TableCell>
+                                                                        <TableCell className="text-right text-xs font-mono text-red-600">{b === '90+' ? formatIDR(bal) : "-"}</TableCell>
+                                                                        <TableCell className="text-right text-xs font-mono font-bold">{formatIDR(bal)}</TableCell>
                                                                         <TableCell className="text-center">
-                                                                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-sm ${
+                                                                            <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-sm ${
                                                                                 bill.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
-                                                                                b === 'hari_ini' ? 'bg-orange-100 text-orange-700' :
+                                                                                b === 'hari_ini' ? 'bg-blue-100 text-blue-700' :
                                                                                 bill.status === 'PARTIAL' ? 'bg-amber-100 text-amber-700' :
                                                                                 'bg-blue-100 text-blue-700'
                                                                             }`}>{b === 'hari_ini' ? 'HARI INI' : bill.status}</span>
@@ -2160,19 +2160,19 @@ export default function FinancialReportsPage() {
 
                             {/* Inventory Turnover */}
                             {reportType === "inventory_turnover" && (
-                                <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                                    <div className="px-4 py-3 border-b-2 border-black bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-between">
+                                <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
+                                    <div className="px-4 py-3 border-b border-border bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-between">
                                         <div className="flex items-center gap-2">
                                             <Package className="h-4 w-4 text-emerald-600" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Perputaran Persediaan</span>
+                                            <span className="text-xs font-semibold text-emerald-700">Perputaran Persediaan</span>
                                         </div>
                                         {inventoryTurnoverData && (
                                             <div className="flex items-center gap-3">
-                                                <span className="text-[10px] font-black text-zinc-400">
+                                                <span className="text-xs font-semibold text-zinc-400">
                                                     {inventoryTurnoverData.summary.totalProducts} produk
                                                 </span>
                                                 {inventoryTurnoverData.summary.slowMovingCount > 0 && (
-                                                    <span className="text-[10px] font-black text-red-600 flex items-center gap-1">
+                                                    <span className="text-xs font-semibold text-red-600 flex items-center gap-1">
                                                         <AlertTriangle className="h-3 w-3" />
                                                         {inventoryTurnoverData.summary.slowMovingCount} slow-moving
                                                     </span>
@@ -2183,28 +2183,28 @@ export default function FinancialReportsPage() {
                                     {!inventoryTurnoverData ? (
                                         <div className="p-12 text-center">
                                             <BarChart3 className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Data tidak tersedia</p>
+                                            <p className="text-xs font-semibold text-zinc-400">Data tidak tersedia</p>
                                         </div>
                                     ) : (
                                         <div className="overflow-x-auto">
                                             <Table>
                                                 <TableHeader>
                                                     <TableRow className="bg-zinc-50 dark:bg-zinc-800">
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest w-[80px]">Kode</TableHead>
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest">Produk</TableHead>
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Stok Awal</TableHead>
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Masuk</TableHead>
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Keluar</TableHead>
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Stok Akhir</TableHead>
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Rasio Turnover</TableHead>
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Hari di Gudang</TableHead>
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Nilai</TableHead>
+                                                        <TableHead className="text-xs font-semibold w-[80px]">Kode</TableHead>
+                                                        <TableHead className="text-xs font-semibold  ">Produk</TableHead>
+                                                        <TableHead className="text-xs font-semibold text-right">Stok Awal</TableHead>
+                                                        <TableHead className="text-xs font-semibold text-right">Masuk</TableHead>
+                                                        <TableHead className="text-xs font-semibold text-right">Keluar</TableHead>
+                                                        <TableHead className="text-xs font-semibold text-right">Stok Akhir</TableHead>
+                                                        <TableHead className="text-xs font-semibold text-right">Rasio Turnover</TableHead>
+                                                        <TableHead className="text-xs font-semibold text-right">Hari di Gudang</TableHead>
+                                                        <TableHead className="text-xs font-semibold text-right">Nilai</TableHead>
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
                                                     {inventoryTurnoverData.items.length === 0 ? (
                                                         <TableRow>
-                                                            <TableCell colSpan={9} className="text-center py-8 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                                                            <TableCell colSpan={9} className="text-center py-8 text-zinc-400 text-xs font-bold  ">
                                                                 Tidak ada data persediaan
                                                             </TableCell>
                                                         </TableRow>
@@ -2215,7 +2215,7 @@ export default function FinancialReportsPage() {
                                                                 <TableCell className="text-sm">
                                                                     {item.productName}
                                                                     {item.isSlowMoving && (
-                                                                        <span className="ml-2 text-[8px] font-black uppercase bg-red-100 text-red-600 px-1.5 py-0.5 border border-red-200 rounded-sm">
+                                                                        <span className="ml-2 text-xs font-semibold bg-red-100 text-red-600 px-1.5 py-0.5 border border-red-200 rounded-sm">
                                                                             Slow
                                                                         </span>
                                                                     )}
@@ -2234,7 +2234,7 @@ export default function FinancialReportsPage() {
                                                             </TableRow>
                                                         ))
                                                     )}
-                                                    <TableRow className="font-black bg-zinc-100 dark:bg-zinc-800 border-t-2 border-black">
+                                                    <TableRow className="font-semibold bg-zinc-100 dark:bg-zinc-800 border-t border-border">
                                                         <TableCell colSpan={6} className="text-sm">TOTAL</TableCell>
                                                         <TableCell className="text-right font-mono text-sm">
                                                             Avg: {inventoryTurnoverData.summary.averageTurnoverRatio}x
@@ -2242,7 +2242,7 @@ export default function FinancialReportsPage() {
                                                         <TableCell className="text-right font-mono text-sm">
                                                             {inventoryTurnoverData.summary.slowMovingCount} slow
                                                         </TableCell>
-                                                        <TableCell className="text-right font-mono text-sm font-black">
+                                                        <TableCell className="text-right font-mono text-sm font-semibold">
                                                             {formatIDR(inventoryTurnoverData.summary.totalInventoryValue)}
                                                         </TableCell>
                                                     </TableRow>
@@ -2257,20 +2257,20 @@ export default function FinancialReportsPage() {
                             {reportType === "tax_report" && (
                                 <div className="space-y-4">
                                     {!taxData ? (
-                                        <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] p-12 text-center">
+                                        <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm p-12 text-center">
                                             <BarChart3 className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Data tidak tersedia</p>
+                                            <p className="text-xs font-semibold text-zinc-400">Data tidak tersedia</p>
                                         </div>
                                     ) : (
                                         <>
                                             {/* PPN Keluaran */}
-                                            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                                                <div className="px-4 py-3 border-b-2 border-black bg-blue-50 dark:bg-blue-900/20 flex items-center justify-between">
+                                            <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
+                                                <div className="px-4 py-3 border-b border-border bg-blue-50 dark:bg-blue-900/20 flex items-center justify-between">
                                                     <div className="flex items-center gap-2">
                                                         <Receipt className="h-4 w-4 text-blue-600" />
-                                                        <span className="text-[10px] font-black uppercase tracking-widest text-blue-700">PPN Keluaran (Penjualan)</span>
+                                                        <span className="text-xs font-semibold text-blue-700">PPN Keluaran (Penjualan)</span>
                                                     </div>
-                                                    <span className="text-[10px] font-black text-blue-600">
+                                                    <span className="text-xs font-semibold text-blue-600">
                                                         {taxData.ppnKeluaran?.invoiceCount ?? 0} Faktur &bull; {formatIDR(taxData.ppnKeluaran?.total ?? 0)}
                                                     </span>
                                                 </div>
@@ -2278,27 +2278,27 @@ export default function FinancialReportsPage() {
                                                     <Table>
                                                         <TableHeader>
                                                             <TableRow className="bg-zinc-50 dark:bg-zinc-800">
-                                                                <TableHead className="text-[10px] font-black uppercase tracking-widest">No. Faktur</TableHead>
-                                                                <TableHead className="text-[10px] font-black uppercase tracking-widest">Tanggal</TableHead>
-                                                                <TableHead className="text-[10px] font-black uppercase tracking-widest">Nama</TableHead>
-                                                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">DPP</TableHead>
-                                                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">PPN</TableHead>
-                                                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Total</TableHead>
+                                                                <TableHead className="text-xs font-semibold  ">No. Faktur</TableHead>
+                                                                <TableHead className="text-xs font-semibold  ">Tanggal</TableHead>
+                                                                <TableHead className="text-xs font-semibold  ">Nama</TableHead>
+                                                                <TableHead className="text-xs font-semibold text-right">DPP</TableHead>
+                                                                <TableHead className="text-xs font-semibold text-right">PPN</TableHead>
+                                                                <TableHead className="text-xs font-semibold text-right">Total</TableHead>
                                                             </TableRow>
                                                         </TableHeader>
                                                         <TableBody>
                                                             {(!taxData.ppnKeluaran?.items || taxData.ppnKeluaran.items.length === 0) ? (
                                                                 <TableRow>
-                                                                    <TableCell colSpan={6} className="text-center py-6 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                                                                    <TableCell colSpan={6} className="text-center py-6 text-zinc-400 text-xs font-bold  ">
                                                                         Tidak ada faktur keluaran
                                                                     </TableCell>
                                                                 </TableRow>
                                                             ) : (
                                                                 taxData.ppnKeluaran.items.map((item: any, idx: number) => (
-                                                                    <TableRow key={idx} className="hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors">
+                                                                    <TableRow key={idx} className="hover:bg-blue-50/50 dark:hover:bg-blue-950/10 transition-colors">
                                                                         <TableCell className="font-mono text-sm">
                                                                             {item.id ? (
-                                                                                <Link href={`/finance/invoices?highlight=${item.id}`} className="text-orange-500 hover:text-orange-700 hover:underline font-bold">
+                                                                                <Link href={`/finance/invoices?highlight=${item.id}`} className="text-blue-500 hover:text-blue-700 hover:underline font-bold">
                                                                                     {item.number}
                                                                                 </Link>
                                                                             ) : item.number}
@@ -2311,7 +2311,7 @@ export default function FinancialReportsPage() {
                                                                     </TableRow>
                                                                 ))
                                                             )}
-                                                            <TableRow className="font-black bg-blue-50 dark:bg-blue-900/20 border-t-2 border-black">
+                                                            <TableRow className="font-semibold bg-blue-50 dark:bg-blue-900/20 border-t border-border">
                                                                 <TableCell colSpan={4} className="text-sm">TOTAL PPN KELUARAN</TableCell>
                                                                 <TableCell className="text-right font-mono text-sm text-blue-700">{formatIDR(taxData.ppnKeluaran?.total ?? 0)}</TableCell>
                                                                 <TableCell />
@@ -2322,13 +2322,13 @@ export default function FinancialReportsPage() {
                                             </div>
 
                                             {/* PPN Masukan */}
-                                            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                                                <div className="px-4 py-3 border-b-2 border-black bg-amber-50 dark:bg-amber-900/20 flex items-center justify-between">
+                                            <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
+                                                <div className="px-4 py-3 border-b border-border bg-amber-50 dark:bg-amber-900/20 flex items-center justify-between">
                                                     <div className="flex items-center gap-2">
                                                         <Receipt className="h-4 w-4 text-amber-600" />
-                                                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-700">PPN Masukan (Pembelian)</span>
+                                                        <span className="text-xs font-semibold text-amber-700">PPN Masukan (Pembelian)</span>
                                                     </div>
-                                                    <span className="text-[10px] font-black text-amber-600">
+                                                    <span className="text-xs font-semibold text-amber-600">
                                                         {taxData.ppnMasukan?.invoiceCount ?? 0} Faktur &bull; {formatIDR(taxData.ppnMasukan?.total ?? 0)}
                                                     </span>
                                                 </div>
@@ -2336,27 +2336,27 @@ export default function FinancialReportsPage() {
                                                     <Table>
                                                         <TableHeader>
                                                             <TableRow className="bg-zinc-50 dark:bg-zinc-800">
-                                                                <TableHead className="text-[10px] font-black uppercase tracking-widest">No. Faktur</TableHead>
-                                                                <TableHead className="text-[10px] font-black uppercase tracking-widest">Tanggal</TableHead>
-                                                                <TableHead className="text-[10px] font-black uppercase tracking-widest">Nama</TableHead>
-                                                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">DPP</TableHead>
-                                                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">PPN</TableHead>
-                                                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Total</TableHead>
+                                                                <TableHead className="text-xs font-semibold  ">No. Faktur</TableHead>
+                                                                <TableHead className="text-xs font-semibold  ">Tanggal</TableHead>
+                                                                <TableHead className="text-xs font-semibold  ">Nama</TableHead>
+                                                                <TableHead className="text-xs font-semibold text-right">DPP</TableHead>
+                                                                <TableHead className="text-xs font-semibold text-right">PPN</TableHead>
+                                                                <TableHead className="text-xs font-semibold text-right">Total</TableHead>
                                                             </TableRow>
                                                         </TableHeader>
                                                         <TableBody>
                                                             {(!taxData.ppnMasukan?.items || taxData.ppnMasukan.items.length === 0) ? (
                                                                 <TableRow>
-                                                                    <TableCell colSpan={6} className="text-center py-6 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                                                                    <TableCell colSpan={6} className="text-center py-6 text-zinc-400 text-xs font-bold  ">
                                                                         Tidak ada faktur masukan
                                                                     </TableCell>
                                                                 </TableRow>
                                                             ) : (
                                                                 taxData.ppnMasukan.items.map((item: any, idx: number) => (
-                                                                    <TableRow key={idx} className="hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors">
+                                                                    <TableRow key={idx} className="hover:bg-blue-50/50 dark:hover:bg-blue-950/10 transition-colors">
                                                                         <TableCell className="font-mono text-sm">
                                                                             {item.id ? (
-                                                                                <Link href={`/finance/bills?highlight=${item.id}`} className="text-orange-500 hover:text-orange-700 hover:underline font-bold">
+                                                                                <Link href={`/finance/bills?highlight=${item.id}`} className="text-blue-500 hover:text-blue-700 hover:underline font-bold">
                                                                                     {item.number}
                                                                                 </Link>
                                                                             ) : item.number}
@@ -2369,7 +2369,7 @@ export default function FinancialReportsPage() {
                                                                     </TableRow>
                                                                 ))
                                                             )}
-                                                            <TableRow className="font-black bg-amber-50 dark:bg-amber-900/20 border-t-2 border-black">
+                                                            <TableRow className="font-semibold bg-amber-50 dark:bg-amber-900/20 border-t border-border">
                                                                 <TableCell colSpan={4} className="text-sm">TOTAL PPN MASUKAN</TableCell>
                                                                 <TableCell className="text-right font-mono text-sm text-amber-700">{formatIDR(taxData.ppnMasukan?.total ?? 0)}</TableCell>
                                                                 <TableCell />
@@ -2380,10 +2380,10 @@ export default function FinancialReportsPage() {
                                             </div>
 
                                             {/* PPN Summary */}
-                                            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                                                <div className="px-4 py-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800 flex items-center gap-2">
+                                            <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
+                                                <div className="px-4 py-3 border-b border-border bg-zinc-50 dark:bg-zinc-800 flex items-center gap-2">
                                                     <Receipt className="h-4 w-4 text-zinc-500" />
-                                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Ringkasan PPN</span>
+                                                    <span className="text-xs font-semibold text-zinc-500">Ringkasan PPN</span>
                                                 </div>
                                                 <Table>
                                                     <TableBody>
@@ -2395,7 +2395,7 @@ export default function FinancialReportsPage() {
                                                             <TableCell className="font-bold">PPN Masukan</TableCell>
                                                             <TableCell className="text-right font-mono font-bold text-amber-600">({formatIDR(taxData.ppnMasukan?.total ?? 0)})</TableCell>
                                                         </TableRow>
-                                                        <TableRow className={`font-black border-t-2 border-black ${taxData.status === 'KURANG_BAYAR' ? "bg-red-50 dark:bg-red-900/20" : "bg-emerald-50 dark:bg-emerald-900/20"}`}>
+                                                        <TableRow className={`font-semibold border-t border-border ${taxData.status === 'KURANG_BAYAR' ? "bg-red-50 dark:bg-red-900/20" : "bg-emerald-50 dark:bg-emerald-900/20"}`}>
                                                             <TableCell className="text-lg">
                                                                 {taxData.status === 'KURANG_BAYAR' ? 'PPN KURANG BAYAR' : 'PPN LEBIH BAYAR'}
                                                             </TableCell>
@@ -2415,14 +2415,14 @@ export default function FinancialReportsPage() {
                             {reportType === "pph_report" && (
                                 <div className="space-y-4">
                                     {/* KPI Strip */}
-                                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                                    <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                                         <div className="h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500" />
                                         <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
                                             <div className="flex items-center gap-2">
                                                 <FileText className="h-4 w-4 text-emerald-600" />
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Laporan PPh (Potong / Pungut)</span>
+                                                <span className="text-xs font-semibold text-zinc-500">Laporan PPh (Potong / Pungut)</span>
                                             </div>
-                                            <span className="text-[10px] font-bold text-zinc-400">
+                                            <span className="text-xs font-bold text-zinc-400">
                                                 {currentMonth.toLocaleDateString("id-ID", { month: "long", year: "numeric" })}
                                             </span>
                                         </div>
@@ -2436,12 +2436,12 @@ export default function FinancialReportsPage() {
                                                 <div key={kpiItem.label} className="flex-1 px-4 py-3 flex items-center justify-between gap-2">
                                                     <div className="flex items-center gap-1.5">
                                                         <span className={`w-2 h-2 ${kpiItem.color === "blue" ? "bg-blue-500" : kpiItem.color === "indigo" ? "bg-indigo-500" : kpiItem.color === "amber" ? "bg-amber-500" : "bg-emerald-500"}`} />
-                                                        <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{kpiItem.label}</span>
+                                                        <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">{kpiItem.label}</span>
                                                     </div>
                                                     {pphSummaryLoading ? (
                                                         <span className="inline-block h-5 w-20 bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
                                                     ) : (
-                                                        <span className={`text-lg font-black ${kpiItem.color === "amber" && kpiItem.value > 0 ? "text-amber-600" : "text-zinc-900 dark:text-white"}`}>
+                                                        <span className={`text-lg font-semibold ${kpiItem.color === "amber" && kpiItem.value > 0 ? "text-amber-600" : "text-zinc-900 dark:text-white"}`}>
                                                             {formatIDR(kpiItem.value)}
                                                         </span>
                                                     )}
@@ -2451,12 +2451,12 @@ export default function FinancialReportsPage() {
                                     </div>
 
                                     {/* Deadline Info */}
-                                    <div className="bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-300 dark:border-amber-700 px-4 py-2.5 flex items-center justify-between">
+                                    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 px-4 py-2.5 flex items-center justify-between">
                                         <div className="flex items-center gap-2">
                                             <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-amber-700">Batas Waktu</span>
+                                            <span className="text-xs font-semibold text-amber-700">Batas Waktu</span>
                                         </div>
-                                        <div className="flex items-center gap-4 text-[11px] font-bold text-amber-700">
+                                        <div className="flex items-center gap-4 text-xs font-bold text-amber-700">
                                             <span>Batas setor: {pphDeadlines.deposit.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</span>
                                             <span className="text-amber-400">|</span>
                                             <span>Batas lapor: {pphDeadlines.filing.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</span>
@@ -2465,13 +2465,13 @@ export default function FinancialReportsPage() {
 
                                     {/* Action bar + Deposit dialog */}
                                     {pphSelectedIds.size > 0 && (
-                                        <div className="bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-300 dark:border-emerald-700 px-4 py-2.5 flex items-center justify-between">
-                                            <span className="text-[11px] font-bold text-emerald-700">
+                                        <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-300 dark:border-emerald-700 px-4 py-2.5 flex items-center justify-between">
+                                            <span className="text-xs font-bold text-emerald-700">
                                                 {pphSelectedIds.size} PPh dipilih
                                             </span>
                                             <Dialog open={pphDepositDialogOpen} onOpenChange={setPphDepositDialogOpen}>
                                                 <DialogTrigger asChild>
-                                                    <Button className="bg-emerald-500 text-white border border-emerald-600 hover:bg-emerald-600 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none transition-colors">
+                                                    <Button className="bg-emerald-500 text-white border border-emerald-600 hover:bg-emerald-600 font-bold text-xs px-4 h-8 rounded-md transition-colors">
                                                         <Check className="h-3.5 w-3.5 mr-1.5" /> Tandai Sudah Disetor
                                                     </Button>
                                                 </DialogTrigger>
@@ -2504,13 +2504,13 @@ export default function FinancialReportsPage() {
                                     )}
 
                                     {/* PPh Records Table */}
-                                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                                        <div className="px-4 py-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800 flex items-center justify-between">
+                                    <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
+                                        <div className="px-4 py-3 border-b border-border bg-zinc-50 dark:bg-zinc-800 flex items-center justify-between">
                                             <div className="flex items-center gap-2">
                                                 <FileText className="h-4 w-4 text-zinc-500" />
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Daftar Pemotongan PPh</span>
+                                                <span className="text-xs font-semibold text-zinc-500">Daftar Pemotongan PPh</span>
                                             </div>
-                                            <span className="text-[10px] font-black text-zinc-400">
+                                            <span className="text-xs font-semibold text-zinc-400">
                                                 {(pphRecords || []).length} Record
                                             </span>
                                         </div>
@@ -2526,17 +2526,17 @@ export default function FinancialReportsPage() {
                                                                     pphSelectedIds.size === (pphRecords || []).filter((r: any) => !r.deposited).length
                                                                 }
                                                                 onChange={togglePphSelectAll}
-                                                                className="h-4 w-4 rounded-none border-2 border-zinc-300 accent-emerald-500"
+                                                                className="h-4 w-4 rounded-md border border-zinc-300 accent-emerald-500"
                                                             />
                                                         </TableHead>
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest">Tanggal</TableHead>
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest">Jenis</TableHead>
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest">Vendor / Customer</TableHead>
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">DPP</TableHead>
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Tarif</TableHead>
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Jumlah PPh</TableHead>
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest">Bukti Potong</TableHead>
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead>
+                                                        <TableHead className="text-xs font-semibold  ">Tanggal</TableHead>
+                                                        <TableHead className="text-xs font-semibold  ">Jenis</TableHead>
+                                                        <TableHead className="text-xs font-semibold  ">Vendor / Customer</TableHead>
+                                                        <TableHead className="text-xs font-semibold text-right">DPP</TableHead>
+                                                        <TableHead className="text-xs font-semibold text-right">Tarif</TableHead>
+                                                        <TableHead className="text-xs font-semibold text-right">Jumlah PPh</TableHead>
+                                                        <TableHead className="text-xs font-semibold  ">Bukti Potong</TableHead>
+                                                        <TableHead className="text-xs font-semibold  ">Status</TableHead>
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
@@ -2545,13 +2545,13 @@ export default function FinancialReportsPage() {
                                                             <TableCell colSpan={9} className="text-center py-8">
                                                                 <div className="flex items-center justify-center gap-2 text-zinc-400">
                                                                     <Loader2 className="h-4 w-4 animate-spin" />
-                                                                    <span className="text-xs font-bold uppercase tracking-widest">Memuat data PPh...</span>
+                                                                    <span className="text-xs font-bold  ">Memuat data PPh...</span>
                                                                 </div>
                                                             </TableCell>
                                                         </TableRow>
                                                     ) : !pphRecords || pphRecords.length === 0 ? (
                                                         <TableRow>
-                                                            <TableCell colSpan={9} className="text-center py-8 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                                                            <TableCell colSpan={9} className="text-center py-8 text-zinc-400 text-xs font-bold  ">
                                                                 Tidak ada data pemotongan PPh
                                                             </TableCell>
                                                         </TableRow>
@@ -2562,20 +2562,20 @@ export default function FinancialReportsPage() {
                                                             const typeBg = record.type === "PPH_23" ? "bg-blue-100 text-blue-700" : record.type === "PPH_4_2" ? "bg-indigo-100 text-indigo-700" : "bg-purple-100 text-purple-700"
                                                             const txDate = record.payment?.date ? new Date(record.payment.date) : new Date(record.createdAt)
                                                             return (
-                                                                <TableRow key={record.id} className="hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors">
+                                                                <TableRow key={record.id} className="hover:bg-blue-50/50 dark:hover:bg-blue-950/10 transition-colors">
                                                                     <TableCell>
                                                                         {!record.deposited && (
                                                                             <input
                                                                                 type="checkbox"
                                                                                 checked={pphSelectedIds.has(record.id)}
                                                                                 onChange={() => togglePphSelect(record.id)}
-                                                                                className="h-4 w-4 rounded-none border-2 border-zinc-300 accent-emerald-500"
+                                                                                className="h-4 w-4 rounded-md border border-zinc-300 accent-emerald-500"
                                                                             />
                                                                         )}
                                                                     </TableCell>
                                                                     <TableCell className="font-mono text-sm">{txDate.toLocaleDateString("id-ID")}</TableCell>
                                                                     <TableCell>
-                                                                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 ${typeBg}`}>{typeLabel}</span>
+                                                                        <span className={`text-xs font-semibold px-1.5 py-0.5 ${typeBg}`}>{typeLabel}</span>
                                                                     </TableCell>
                                                                     <TableCell className="text-sm">{partyName}</TableCell>
                                                                     <TableCell className="text-right font-mono text-sm">{formatIDR(Number(record.baseAmount))}</TableCell>
@@ -2584,9 +2584,9 @@ export default function FinancialReportsPage() {
                                                                     <TableCell className="font-mono text-sm">{record.buktiPotongNo || "\u2014"}</TableCell>
                                                                     <TableCell>
                                                                         {record.deposited ? (
-                                                                            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 bg-emerald-100 text-emerald-700">Sudah Disetor</span>
+                                                                            <span className="text-xs font-semibold px-1.5 py-0.5 bg-emerald-100 text-emerald-700">Sudah Disetor</span>
                                                                         ) : (
-                                                                            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 bg-amber-100 text-amber-700">Belum Disetor</span>
+                                                                            <span className="text-xs font-semibold px-1.5 py-0.5 bg-amber-100 text-amber-700">Belum Disetor</span>
                                                                         )}
                                                                     </TableCell>
                                                                 </TableRow>
@@ -2594,7 +2594,7 @@ export default function FinancialReportsPage() {
                                                         })
                                                     )}
                                                     {pphRecords && pphRecords.length > 0 && (
-                                                        <TableRow className="font-black bg-zinc-100 dark:bg-zinc-800 border-t-2 border-black">
+                                                        <TableRow className="font-semibold bg-zinc-100 dark:bg-zinc-800 border-t border-border">
                                                             <TableCell colSpan={6} className="text-sm">TOTAL</TableCell>
                                                             <TableCell className="text-right font-mono text-sm">
                                                                 {formatIDR((pphRecords as any[]).reduce((sum: number, r: any) => sum + Number(r.amount), 0))}
@@ -2611,14 +2611,14 @@ export default function FinancialReportsPage() {
 
                             {/* Budget vs Actual */}
                             {reportType === "budget_vs_actual" && (
-                                <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                                    <div className="px-4 py-3 border-b-2 border-black bg-violet-50 dark:bg-violet-900/20 flex items-center justify-between">
+                                <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
+                                    <div className="px-4 py-3 border-b border-border bg-violet-50 dark:bg-violet-900/20 flex items-center justify-between">
                                         <div className="flex items-center gap-2">
                                             <PiggyBank className="h-4 w-4 text-violet-600" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-violet-700">Anggaran vs Realisasi</span>
+                                            <span className="text-xs font-semibold text-violet-700">Anggaran vs Realisasi</span>
                                         </div>
                                         {budgetVsActualData && (
-                                            <span className="text-[10px] font-black text-zinc-400">
+                                            <span className="text-xs font-semibold text-zinc-400">
                                                 {budgetVsActualData.budgetName} ({budgetVsActualData.budgetYear})
                                             </span>
                                         )}
@@ -2626,7 +2626,7 @@ export default function FinancialReportsPage() {
                                     {!budgetVsActualData ? (
                                         <div className="p-12 text-center">
                                             <PiggyBank className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Belum ada anggaran aktif</p>
+                                            <p className="text-xs font-semibold text-zinc-400">Belum ada anggaran aktif</p>
                                             <p className="text-xs text-zinc-400 mt-1">Buat anggaran terlebih dahulu untuk melihat perbandingan</p>
                                         </div>
                                     ) : (
@@ -2634,18 +2634,18 @@ export default function FinancialReportsPage() {
                                             <Table>
                                                 <TableHeader>
                                                     <TableRow className="bg-zinc-50 dark:bg-zinc-800">
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest w-[80px]">Kode Akun</TableHead>
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest">Nama Akun</TableHead>
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Anggaran</TableHead>
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Realisasi</TableHead>
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Selisih</TableHead>
-                                                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">% Selisih</TableHead>
+                                                        <TableHead className="text-xs font-semibold w-[80px]">Kode Akun</TableHead>
+                                                        <TableHead className="text-xs font-semibold  ">Nama Akun</TableHead>
+                                                        <TableHead className="text-xs font-semibold text-right">Anggaran</TableHead>
+                                                        <TableHead className="text-xs font-semibold text-right">Realisasi</TableHead>
+                                                        <TableHead className="text-xs font-semibold text-right">Selisih</TableHead>
+                                                        <TableHead className="text-xs font-semibold text-right">% Selisih</TableHead>
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
                                                     {budgetVsActualData.items.length === 0 ? (
                                                         <TableRow>
-                                                            <TableCell colSpan={6} className="text-center py-8 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                                                            <TableCell colSpan={6} className="text-center py-8 text-zinc-400 text-xs font-bold  ">
                                                                 Tidak ada data anggaran
                                                             </TableCell>
                                                         </TableRow>
@@ -2656,7 +2656,7 @@ export default function FinancialReportsPage() {
                                                             return (
                                                                 <React.Fragment key={idx}>
                                                                     <TableRow
-                                                                        className={`cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors ${isNegativeVariance ? "bg-red-50/50 dark:bg-red-900/10" : ""}`}
+                                                                        className={`cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/10 transition-colors ${isNegativeVariance ? "bg-red-50/50 dark:bg-red-900/10" : ""}`}
                                                                         onClick={() => toggleDrillDown(bKey, item.accountCode)}
                                                                     >
                                                                         <TableCell className="font-mono font-bold text-sm">
@@ -2686,7 +2686,7 @@ export default function FinancialReportsPage() {
                                                             )
                                                         })
                                                     )}
-                                                    <TableRow className="font-black bg-zinc-100 dark:bg-zinc-800 border-t-2 border-black">
+                                                    <TableRow className="font-semibold bg-zinc-100 dark:bg-zinc-800 border-t border-border">
                                                         <TableCell colSpan={2} className="text-sm">TOTAL</TableCell>
                                                         <TableCell className="text-right font-mono text-sm">{formatIDR(budgetVsActualData.summary.totalBudget)}</TableCell>
                                                         <TableCell className="text-right font-mono text-sm">{formatIDR(budgetVsActualData.summary.totalActual)}</TableCell>
@@ -2709,9 +2709,9 @@ export default function FinancialReportsPage() {
 
                             {/* Fallback: no data for active report (skip pph_report — it uses its own query) */}
                             {data && reportType !== "pph_report" && !(data.reports as any)?.[reportType] && (
-                                <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] p-12 text-center">
+                                <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm p-12 text-center">
                                     <BarChart3 className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Data laporan tidak tersedia</p>
+                                    <p className="text-xs font-semibold text-zinc-400">Data laporan tidak tersedia</p>
                                 </div>
                             )}
                         </>

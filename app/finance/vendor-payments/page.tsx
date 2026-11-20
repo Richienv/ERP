@@ -315,7 +315,7 @@ export default function APCheckbookPage() {
     }
 
     if (!data) {
-        return <TablePageSkeleton accentColor="bg-orange-400" />
+        return <TablePageSkeleton accentColor="bg-blue-400" />
     }
 
     const cashCount = payments.filter(p => p.method === "CASH").length
@@ -330,7 +330,7 @@ export default function APCheckbookPage() {
 
                 {/* Row 1: Toolbar */}
                 <div className={`px-5 py-2.5 flex items-center justify-between ${NB.pageRowBorder}`}>
-                    <p className="text-[11px] font-bold text-zinc-400">
+                    <p className="text-xs font-bold text-zinc-400">
                         Transfer & cek pembayaran vendor dengan otorisasi
                     </p>
                     <div className="flex items-center gap-0">
@@ -372,7 +372,7 @@ export default function APCheckbookPage() {
                                     <Landmark className="h-3.5 w-3.5 mr-1" /> Download Transfer <ChevronDown className="ml-1 h-3 w-3" />
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="border border-zinc-300 shadow-md rounded-none">
+                            <DropdownMenuContent align="end" className="border border-zinc-300 shadow-md rounded-md">
                                 {BANK_FORMATS.map((fmt) => (
                                     <DropdownMenuItem
                                         key={fmt.name}
@@ -404,7 +404,7 @@ export default function APCheckbookPage() {
                 {/* Row 2: KPI Strip */}
                 <div className={`${NB.kpiStrip} ${NB.pageRowBorder}`}>
                     {[
-                        { label: "Total Bayar", count: totalPayments, amount: formatIDR(totalPaid), dot: "bg-orange-500" },
+                        { label: "Total Bayar", count: totalPayments, amount: formatIDR(totalPaid), dot: "bg-blue-500" },
                         { label: "Transfer", count: transferCount, amount: null, dot: "bg-zinc-500" },
                         { label: "Cek/Giro", count: checkCount, amount: null, dot: "bg-amber-500" },
                         { label: "Kas", count: cashCount, amount: null, dot: "bg-zinc-400" },
@@ -427,7 +427,7 @@ export default function APCheckbookPage() {
             {showForm && (
                 <div className={NB.section}>
                     <div className={NB.sectionHead}>
-                        <PenLine className="h-3.5 w-3.5 text-orange-500" />
+                        <PenLine className="h-3.5 w-3.5 text-blue-500" />
                         <span className={NB.sectionTitle}>Form Pembayaran Baru</span>
                     </div>
                     <div className={NB.sectionBody}>
@@ -441,7 +441,7 @@ export default function APCheckbookPage() {
                                     <SelectContent>
                                         {loading && vendors.length === 0 ? (
                                             <div className="flex items-center justify-center gap-2 py-4 px-3">
-                                                <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+                                                <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
                                                 <span className="text-xs font-bold text-zinc-400">Memuat data vendor...</span>
                                             </div>
                                         ) : vendors.length === 0 ? (
@@ -490,7 +490,7 @@ export default function APCheckbookPage() {
                                 <SelectContent>
                                     {loading && openBills.length === 0 ? (
                                         <div className="flex items-center justify-center gap-2 py-4 px-3">
-                                            <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+                                            <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
                                             <span className="text-xs font-bold text-zinc-400">Memuat tagihan...</span>
                                         </div>
                                     ) : (() => {
@@ -510,7 +510,7 @@ export default function APCheckbookPage() {
                                                     <span>{b.vendor?.name ?? "?"}</span>
                                                     <span className="text-zinc-400">—</span>
                                                     <span className="font-mono font-bold">Sisa: {formatIDR(b.balanceDue)}</span>
-                                                    {b.isOverdue && <span className="text-[9px] font-black text-red-600 bg-red-50 px-1.5 py-0.5 border border-red-200">JATUH TEMPO</span>}
+                                                    {b.isOverdue && <span className="text-xs font-semibold text-red-600 bg-red-50 px-1.5 py-0.5 border border-red-200">JATUH TEMPO</span>}
                                                 </span>
                                             </SelectItem>
                                         ))
@@ -528,19 +528,19 @@ export default function APCheckbookPage() {
                                 <Label className={NB.label}>Otorisasi</Label>
                                 <div className="flex items-center gap-2">
                                     {isSigned ? (
-                                        <div className="flex items-center gap-3 border-2 border-black px-3 py-1.5 bg-emerald-50 flex-1">
+                                        <div className="flex items-center gap-3 border border-border px-3 py-1.5 bg-emerald-50 flex-1">
                                             <Image src={signatureDataUrl} alt="signature" width={80} height={24} className="h-6 w-auto object-contain" />
-                                            <span className="text-[10px] font-black uppercase text-emerald-700">Signed: {signedBy}</span>
+                                            <span className="text-xs font-semibold text-emerald-700">Signed: {signedBy}</span>
                                         </div>
                                     ) : (
-                                        <div className="flex-1 border-2 border-dashed border-zinc-300 px-3 py-2 text-center">
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Belum ditandatangani</span>
+                                        <div className="flex-1 border border-dashed border-zinc-300 px-3 py-2 text-center">
+                                            <span className="text-xs font-semibold text-zinc-400">Belum ditandatangani</span>
                                         </div>
                                     )}
                                     <Button
                                         variant="outline"
                                         onClick={handleSign}
-                                        className="border-2 border-black text-[10px] font-black uppercase tracking-widest h-10 rounded-none"
+                                        className="border border-border text-xs font-semibold h-10 rounded-md"
                                     >
                                         <PenLine className="mr-2 h-3.5 w-3.5" /> {isSigned ? "Ulang" : "Tanda Tangan"}
                                     </Button>
@@ -554,7 +554,7 @@ export default function APCheckbookPage() {
                                 <DialogTrigger asChild>
                                     <Button
                                         disabled={!isSigned || submitting || !amount || !selectedVendorId || !bankAccountCode}
-                                        className="bg-emerald-600 text-white hover:bg-emerald-700 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all text-[10px] font-black uppercase tracking-widest h-10 px-8 disabled:opacity-40"
+                                        className="bg-emerald-600 text-white hover:bg-emerald-700 border border-border shadow-sm active:shadow-none transition-all text-xs font-semibold h-10 px-8 disabled:opacity-40"
                                     >
                                         {submitting ? "Processing..." : "Eksekusi Pembayaran"}
                                     </Button>
@@ -577,7 +577,7 @@ export default function APCheckbookPage() {
                                             <div className="flex items-center justify-between">
                                                 <label className={NB.label}>Jumlah</label>
                                                 <div className="relative">
-                                                    <span className="font-mono font-black text-lg text-emerald-700">{formatIDR(Number(amount || 0))}</span>
+                                                    <span className="font-mono font-semibold text-lg text-emerald-700">{formatIDR(Number(amount || 0))}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -617,7 +617,7 @@ export default function APCheckbookPage() {
                                 ref={canvasRef}
                                 width={520}
                                 height={160}
-                                className="w-full h-40 border-2 border-black bg-white touch-none rounded-none"
+                                className="w-full h-40 border border-border bg-white touch-none rounded-md"
                                 onPointerDown={handlePointerDown}
                                 onPointerMove={handlePointerMove}
                                 onPointerUp={handlePointerUp}
@@ -646,7 +646,7 @@ export default function APCheckbookPage() {
                 <div className={NB.pageAccent} />
 
                 {/* Table header row */}
-                <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-zinc-50/80 dark:bg-zinc-800/30 border-b border-zinc-200 dark:border-zinc-700 text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-zinc-50/80 dark:bg-zinc-800/30 border-b border-zinc-200 dark:border-zinc-700 text-xs font-semibold text-zinc-400">
                     <div className="col-span-2">No.</div>
                     <div className="col-span-3">Vendor</div>
                     <div className="col-span-1 text-center">Metode</div>
@@ -658,32 +658,32 @@ export default function APCheckbookPage() {
                 {payments.length === 0 ? (
                     <div className="py-12 text-center">
                         <History className="h-6 w-6 mx-auto text-zinc-200 dark:text-zinc-700 mb-2" />
-                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Belum ada riwayat pembayaran</p>
+                        <p className="text-xs font-semibold text-zinc-400">Belum ada riwayat pembayaran</p>
                     </div>
                 ) : (
                     payments.map((p, idx) => {
                         const meta = parsePaymentMeta(p.notes)
                         return (
-                            <div key={p.id} data-vendor-payment-id={p.id} className={`grid grid-cols-12 gap-2 px-4 py-2.5 border-b border-zinc-100 dark:border-zinc-800 hover:bg-orange-50/30 dark:hover:bg-orange-950/10 transition-colors items-center ${
-                                highlightPaymentId === p.id ? "bg-emerald-50 dark:bg-emerald-950/30 border-l-4 border-l-emerald-500" : idx % 2 !== 0 ? "bg-zinc-50/40 dark:bg-zinc-800/10" : ""
+                            <div key={p.id} data-vendor-payment-id={p.id} className={`grid grid-cols-12 gap-2 px-4 py-2.5 border-b border-zinc-100 dark:border-zinc-800 hover:bg-blue-50/30 dark:hover:bg-blue-950/10 transition-colors items-center ${
+                                highlightPaymentId === p.id ? "bg-emerald-50 dark:bg-emerald-950/30 border-l border-l-emerald-500" : idx % 2 !== 0 ? "bg-zinc-50/40 dark:bg-zinc-800/10" : ""
                             }`}>
                                 <div className="col-span-2">
-                                    <span className="font-mono text-[11px] font-bold text-zinc-600 dark:text-zinc-300">{p.number}</span>
-                                    <p className="text-[10px] text-zinc-400">{new Date(p.date).toLocaleDateString("id-ID")}</p>
+                                    <span className="font-mono text-xs font-bold text-zinc-600 dark:text-zinc-300">{p.number}</span>
+                                    <p className="text-xs text-zinc-400">{new Date(p.date).toLocaleDateString("id-ID")}</p>
                                 </div>
                                 <div className="col-span-3">
                                     <p className="font-bold text-sm truncate text-zinc-900 dark:text-zinc-100">{p.vendor?.name}</p>
                                 </div>
                                 <div className="col-span-1 text-center">
-                                    <span className="inline-flex items-center px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800">
+                                    <span className="inline-flex items-center px-1.5 py-0.5 text-xs font-semibold border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800">
                                         {p.method}
                                     </span>
                                 </div>
                                 <div className="col-span-2">
-                                    <span className="font-mono text-[11px] text-zinc-500">{p.reference || meta.checkNumber || "-"}</span>
+                                    <span className="font-mono text-xs text-zinc-500">{p.reference || meta.checkNumber || "-"}</span>
                                 </div>
                                 <div className="col-span-2">
-                                    {meta.signedBy && <span className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400">{meta.signedBy}</span>}
+                                    {meta.signedBy && <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400">{meta.signedBy}</span>}
                                 </div>
                                 <div className="col-span-2 text-right">
                                     <span className="font-mono font-bold text-sm text-red-600 dark:text-red-400 tabular-nums">{formatIDR(p.amount)}</span>
@@ -696,8 +696,8 @@ export default function APCheckbookPage() {
                 {/* Table footer */}
                 {payments.length > 0 && (
                     <div className="px-4 py-2 bg-zinc-50/80 dark:bg-zinc-800/30 border-t border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-zinc-400">{payments.length} pembayaran</span>
-                        <span className="font-mono font-black text-sm text-red-600 dark:text-red-400 tabular-nums">Total: {formatIDR(totalPaid)}</span>
+                        <span className="text-xs font-bold text-zinc-400">{payments.length} pembayaran</span>
+                        <span className="font-mono font-semibold text-sm text-red-600 dark:text-red-400 tabular-nums">Total: {formatIDR(totalPaid)}</span>
                     </div>
                 )}
             </div>

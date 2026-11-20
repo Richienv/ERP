@@ -182,8 +182,8 @@ export function ReceivingView({ pendingPOs, grns, warehouses, employees }: Recei
                                             <StatusBadge status={po.status} />
                                         </td>
                                         <td className={ShellTableStyles.td + " text-center"}>
-                                            <span className="font-black">{po.items.filter(i => i.remainingQty > 0).length}</span>
-                                            <span className="text-zinc-400 text-[10px]"> / {po.items.length}</span>
+                                            <span className="font-semibold">{po.items.filter(i => i.remainingQty > 0).length}</span>
+                                            <span className="text-zinc-400 text-xs"> / {po.items.length}</span>
                                         </td>
                                         <td className={ShellTableStyles.td + " text-right font-mono font-bold"}>{formatIDR(po.totalAmount)}</td>
                                         <td className={ShellTableStyles.td + " text-right"}>
@@ -254,9 +254,9 @@ export function ReceivingView({ pendingPOs, grns, warehouses, employees }: Recei
                                                 />
                                             </td>
                                             <td className={ShellTableStyles.td + " text-center"}>
-                                                <span className="font-black text-emerald-600">{grn.totalAccepted}</span>
+                                                <span className="font-semibold text-emerald-600">{grn.totalAccepted}</span>
                                                 {grn.totalRejected > 0 && (
-                                                    <span className="text-red-500 text-[10px] ml-1">(-{grn.totalRejected})</span>
+                                                    <span className="text-red-500 text-xs ml-1">(-{grn.totalRejected})</span>
                                                 )}
                                             </td>
                                             <td className={ShellTableStyles.td + " text-right"} onClick={(e) => e.stopPropagation()}>

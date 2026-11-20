@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 
 export function MetricCardSkeleton() {
     return (
-        <Card className="border-2 border-black/5 dark:border-white/10 shadow-sm h-full">
+        <Card className="border border-black/5 dark:border-white/10 shadow-sm h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <Skeleton className="h-4 w-[100px]" />
                 <Skeleton className="h-4 w-4 rounded-full" />
@@ -22,8 +22,8 @@ export function MetricCardSkeleton() {
 
 export function KPICardSkeleton() {
     return (
-        <Card className="border-2 border-dashed border-zinc-200 shadow-none h-full bg-zinc-50/50">
-            <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200/50">
+        <Card className="border border-dashed border-zinc-200 shadow-none h-full bg-zinc-50/50">
+            <CardHeader className="pb-2 border-b border-dashed border-zinc-200/50">
                 <div className="flex items-center justify-between">
                     <Skeleton className="h-4 w-24" />
                     <Skeleton className="h-5 w-16 rounded" />

@@ -210,12 +210,12 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                 key={opt.key}
                                 onClick={() => { setSourceType(opt.key); setSelectedOrderId("") }}
                                 className={`p-2.5 border text-left transition-all ${sourceType === opt.key
-                                    ? 'border-orange-400 bg-orange-50/50 dark:border-orange-500 dark:bg-orange-950/20'
+                                    ? 'border-blue-400 bg-blue-50/50 dark:border-blue-500 dark:bg-blue-950/20'
                                     : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-zinc-300 dark:hover:border-zinc-600'
                                 }`}
                             >
-                                <span className={`text-xs font-black uppercase tracking-wider block ${sourceType === opt.key ? 'text-orange-700 dark:text-orange-400' : 'text-zinc-500'}`}>{opt.title}</span>
-                                <span className={`text-xs mt-0.5 block ${sourceType === opt.key ? 'text-orange-500/70 dark:text-orange-400/60' : 'text-zinc-400'}`}>{opt.desc}</span>
+                                <span className={`text-xs font-semibold   block ${sourceType === opt.key ? 'text-blue-700 dark:text-blue-400' : 'text-zinc-500'}`}>{opt.title}</span>
+                                <span className={`text-xs mt-0.5 block ${sourceType === opt.key ? 'text-blue-500/70 dark:text-blue-400/60' : 'text-zinc-400'}`}>{opt.desc}</span>
                             </button>
                         ))}
                     </div>
@@ -253,7 +253,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                             <div className="border border-zinc-200 dark:border-zinc-700 mt-2">
                                                 <div className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700">
                                                     <Package className="h-3 w-3 text-zinc-400" />
-                                                    <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                                                    <span className="text-xs font-bold text-zinc-500">
                                                         Preview Item ({selectedOrder.items.length})
                                                     </span>
                                                 </div>
@@ -265,7 +265,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                                                     {item.productName}
                                                                 </span>
                                                                 {item.sku && (
-                                                                    <span className="text-[10px] text-zinc-400 font-mono">{item.sku}</span>
+                                                                    <span className="text-xs text-zinc-400 font-mono">{item.sku}</span>
                                                                 )}
                                                             </div>
                                                             <div className="text-right ml-3 shrink-0">
@@ -277,7 +277,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                                     ))}
                                                 </div>
                                                 <div className="border-t border-zinc-200 dark:border-zinc-700 px-3 py-2 flex justify-between items-center bg-zinc-50/50 dark:bg-zinc-800/30">
-                                                    <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">Subtotal</span>
+                                                    <span className="text-xs font-bold text-zinc-500">Subtotal</span>
                                                     <span className="font-mono font-bold text-sm text-zinc-700 dark:text-zinc-300">{formatIDR(selectedOrder.amount)}</span>
                                                 </div>
                                             </div>
@@ -302,12 +302,12 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                                 key={opt.key}
                                                 onClick={() => setManualType(opt.key)}
                                                 className={`p-2.5 border text-left transition-all ${manualType === opt.key
-                                                    ? 'border-orange-400 bg-orange-50/50 dark:border-orange-500 dark:bg-orange-950/20'
+                                                    ? 'border-blue-400 bg-blue-50/50 dark:border-blue-500 dark:bg-blue-950/20'
                                                     : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-zinc-300 dark:hover:border-zinc-600'
                                                 }`}
                                             >
-                                                <span className={`text-[10px] font-black uppercase tracking-wider block ${manualType === opt.key ? 'text-orange-700 dark:text-orange-400' : 'text-zinc-500'}`}>{opt.label}</span>
-                                                <span className="text-[9px] text-zinc-400 mt-0.5 block">{opt.desc}</span>
+                                                <span className={`text-xs font-semibold   block ${manualType === opt.key ? 'text-blue-700 dark:text-blue-400' : 'text-zinc-500'}`}>{opt.label}</span>
+                                                <span className="text-xs text-zinc-400 mt-0.5 block">{opt.desc}</span>
                                             </button>
                                         ))}
                                     </div>
@@ -332,8 +332,8 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                     ))}
                                 </NBSelect>
                                 {manualType === 'CUSTOMER' && !dataLoading && parties.filter(c => c.type === 'CUSTOMER').length === 0 && (
-                                    <div className="border border-orange-300 bg-orange-50/50 dark:border-orange-600 dark:bg-orange-950/20 p-3 space-y-2">
-                                        <p className="text-[10px] font-black uppercase tracking-wider text-orange-700 dark:text-orange-400">
+                                    <div className="border border-blue-300 bg-blue-50/50 dark:border-blue-600 dark:bg-blue-950/20 p-3 space-y-2">
+                                        <p className="text-xs font-semibold text-blue-700 dark:text-blue-400">
                                             Belum ada pelanggan
                                         </p>
                                         <NBInput
@@ -389,7 +389,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                 {/* PPN Toggle */}
                                 <div className="flex items-center justify-between border border-zinc-200 dark:border-zinc-700 px-3 py-2">
                                     <div>
-                                        <span className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">PPN 11%</span>
+                                        <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400">PPN 11%</span>
                                         <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500 mt-0.5 block">Pajak Pertambahan Nilai</span>
                                     </div>
                                     <button
@@ -429,9 +429,9 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                         </div>
                                     )}
                                     <div className="flex justify-between items-center border-t border-zinc-200 dark:border-zinc-700 pt-2 mt-1">
-                                        <span className="text-xs font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">Total</span>
+                                        <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Total</span>
                                         <span
-                                            className={`font-mono font-black text-lg ${total > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'}`}
+                                            className={`font-mono font-semibold text-lg ${total > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'}`}
                                         >
                                             {formatIDR(total)}
                                         </span>

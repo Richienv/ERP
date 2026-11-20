@@ -120,7 +120,7 @@ export function RouteProgress() {
         >
             <div
                 ref={barRef}
-                className="h-full w-full origin-left bg-orange-500"
+                className="h-full w-full origin-left bg-blue-500"
                 style={{
                     transform: "scaleX(0)",
                     opacity: 0,

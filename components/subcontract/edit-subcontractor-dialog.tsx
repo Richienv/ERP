@@ -124,8 +124,8 @@ export function EditSubcontractorDialog({
                 <ScrollArea className={NB.scroll}>
                     <div className="p-6 space-y-6">
                         {/* Active toggle */}
-                        <div className="flex items-center justify-between px-4 py-3 border-2 border-black bg-zinc-50">
-                            <span className="text-[10px] font-black uppercase tracking-widest">
+                        <div className="flex items-center justify-between px-4 py-3 border border-border bg-zinc-50">
+                            <span className="text-xs font-semibold  ">
                                 Status Mitra
                             </span>
                             <button
@@ -133,7 +133,7 @@ export function EditSubcontractorDialog({
                                 onClick={() =>
                                     setForm((f) => ({ ...f, isActive: !f.isActive }))
                                 }
-                                className={`px-3 py-1 border-2 border-black text-[9px] font-black uppercase tracking-wider transition-all ${
+                                className={`px-3 py-1 border border-border text-xs font-semibold   transition-all ${
                                     form.isActive
                                         ? "bg-emerald-500 text-white"
                                         : "bg-red-100 text-red-700"
@@ -198,9 +198,9 @@ export function EditSubcontractorDialog({
                                                 key={cap.value}
                                                 type="button"
                                                 onClick={() => toggleCapability(cap.value)}
-                                                className={`px-3 py-1.5 border-2 border-black text-xs font-black uppercase tracking-wider transition-all ${
+                                                className={`px-3 py-1.5 border border-border text-xs font-semibold   transition-all ${
                                                     selected
-                                                        ? "bg-black text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                                                        ? "bg-slate-900 text-white shadow-sm"
                                                         : "bg-white text-black hover:bg-zinc-100"
                                                 }`}
                                             >

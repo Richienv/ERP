@@ -15,7 +15,7 @@ const readSearchParam = (params: Record<string, SearchParamsValue>, key: string)
 function FormSkeleton() {
   return (
     <div className="animate-pulse space-y-3">
-      <div className="border-2 border-black bg-white p-6">
+      <div className="border border-border bg-white p-6">
         <div className="h-6 w-48 bg-zinc-200 rounded mb-4" />
         <div className="grid grid-cols-2 gap-4">
           {[...Array(4)].map((_, i) => (
@@ -26,7 +26,7 @@ function FormSkeleton() {
           ))}
         </div>
       </div>
-      <div className="border-2 border-black bg-white p-6">
+      <div className="border border-border bg-white p-6">
         <div className="h-6 w-32 bg-zinc-200 rounded mb-4" />
         <div className="h-40 bg-zinc-50 rounded" />
       </div>
@@ -52,18 +52,18 @@ export default async function NewQuotationPage({
       {/* Back Button */}
       <Link
         href="/sales/quotations"
-        className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors mb-5"
+        className="inline-flex items-center gap-2 text-xs font-semibold text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors mb-5"
       >
         <ArrowLeft className="h-4 w-4" />
         Kembali ke Quotation
       </Link>
 
       {/* Page Header */}
-      <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mb-6 overflow-hidden bg-white dark:bg-zinc-900">
+      <div className="border border-border shadow-sm mb-6 overflow-hidden bg-white dark:bg-zinc-900">
         <div className="px-6 py-4 flex items-center gap-3 border-l-[6px] border-l-blue-400">
           <FileText className="h-5 w-5 text-blue-500" />
           <div>
-            <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
+            <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-white">
               Buat Quotation Baru
             </h1>
             <p className="text-zinc-400 text-xs font-medium mt-0.5">

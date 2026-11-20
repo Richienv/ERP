@@ -33,23 +33,23 @@ export function CashflowAktualBoard({ data, month, year, forecast }: AktualBoard
     )
 
     return (
-        <div className="border-2 border-black rounded-xl overflow-hidden bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <div className="border border-border rounded-xl overflow-hidden bg-white shadow-sm">
             {/* KPI Strip */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 border-b-2 border-black">
+            <div className="grid grid-cols-2 lg:grid-cols-4 border-b border-border">
                 {/* Posisi Kas */}
                 <div className="p-4 border-r border-zinc-200">
                     <div className="flex items-center gap-1.5 text-xs text-zinc-500 mb-1">
                         <IconWallet size={14} /> Posisi Kas
                     </div>
-                    <div className="text-lg font-black">{formatCompact(data.startingBalance)}</div>
-                    <div className="text-[10px] text-zinc-400">Saldo awal bulan</div>
+                    <div className="text-lg font-semibold">{formatCompact(data.startingBalance)}</div>
+                    <div className="text-xs text-zinc-400">Saldo awal bulan</div>
                 </div>
                 {/* Cash Runway */}
                 <div className="p-4 border-r border-zinc-200">
                     <div className="flex items-center gap-1.5 text-xs text-zinc-500 mb-1">
                         <IconGauge size={14} /> Cash Runway
                     </div>
-                    <div className={cn("text-lg font-black", runway.color)}>{runway.label}</div>
+                    <div className={cn("text-lg font-semibold", runway.color)}>{runway.label}</div>
                     <div className="mt-1 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
                         <div className={cn("h-full rounded-full", runway.barColor)} style={{ width: `${runway.barPct}%` }} />
                     </div>
@@ -59,10 +59,10 @@ export function CashflowAktualBoard({ data, month, year, forecast }: AktualBoard
                     <div className="flex items-center gap-1.5 text-xs text-zinc-500 mb-1">
                         <IconBuildingBank size={14} /> Saldo Akhir
                     </div>
-                    <div className={cn("text-lg font-black", data.summary.endBalance >= 0 ? "text-emerald-700" : "text-red-600")}>
+                    <div className={cn("text-lg font-semibold", data.summary.endBalance >= 0 ? "text-emerald-700" : "text-red-600")}>
                         {formatCompact(data.summary.endBalance)}
                     </div>
-                    <div className="text-[10px] text-zinc-400">
+                    <div className="text-xs text-zinc-400">
                         Net {data.summary.net >= 0 ? "+" : ""}{formatCompact(data.summary.net)}
                     </div>
                 </div>
@@ -76,7 +76,7 @@ export function CashflowAktualBoard({ data, month, year, forecast }: AktualBoard
                             <div className="text-sm font-bold">
                                 {data.lastMonthRef.count} transaksi
                             </div>
-                            <div className="text-[10px] text-zinc-400">
+                            <div className="text-xs text-zinc-400">
                                 Net {formatCompact(data.lastMonthRef.net)}
                             </div>
                         </>
@@ -95,7 +95,7 @@ export function CashflowAktualBoard({ data, month, year, forecast }: AktualBoard
 
                     return (
                         <div key={week.shortLabel} className={cn(
-                            "border-2 border-black rounded-lg overflow-hidden",
+                            "border border-border rounded-lg overflow-hidden",
                             week.isCurrent && "ring-2 ring-emerald-400 ring-offset-1"
                         )}>
                             {/* Week Header */}
@@ -104,7 +104,7 @@ export function CashflowAktualBoard({ data, month, year, forecast }: AktualBoard
                                     <IconCalendarWeek size={14} />
                                     <span className="text-xs font-bold">{week.label}</span>
                                     {week.isCurrent && (
-                                        <Badge className="bg-emerald-400 text-black text-[10px] h-4">Minggu ini</Badge>
+                                        <Badge className="bg-emerald-400 text-black text-xs h-4">Minggu ini</Badge>
                                     )}
                                 </div>
                                 <div className="flex items-center gap-3 text-xs">
@@ -142,7 +142,7 @@ export function CashflowAktualBoard({ data, month, year, forecast }: AktualBoard
             </div>
 
             {/* Summary Bar */}
-            <div className="border-t-2 border-black bg-zinc-50 px-4 py-3">
+            <div className="border-t border-border bg-zinc-50 px-4 py-3">
                 <div className="grid grid-cols-5 gap-4 text-center text-xs">
                     <div>
                         <div className="text-zinc-500">Saldo Awal</div>
@@ -173,11 +173,11 @@ export function CashflowAktualBoard({ data, month, year, forecast }: AktualBoard
 
             {/* Proyeksi 6 Bulan Strip */}
             {forecast && forecast.months.length > 0 && (
-                <div className="border-t-2 border-black bg-white px-4 py-3">
+                <div className="border-t border-border bg-white px-4 py-3">
                     <div className="text-xs font-bold text-zinc-500 mb-2">PROYEKSI 6 BULAN</div>
                     <div className="grid grid-cols-6 gap-2">
                         {forecast.months.slice(0, 6).map((m) => (
-                            <div key={`${m.month}-${m.year}`} className="text-center text-[10px]">
+                            <div key={`${m.month}-${m.year}`} className="text-center text-xs">
                                 <div className="text-zinc-400">{m.label}</div>
                                 <div className={cn("font-bold", m.runningBalance >= 0 ? "text-emerald-600" : "text-red-600")}>
                                     {formatCompact(m.runningBalance)}

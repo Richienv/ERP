@@ -21,10 +21,10 @@ export function MasterDataHealth() {
                             Skor kesehatan data real-time. Sistem memantau duplikasi, kelengkapan atribut, dan konsistensi data di seluruh modul ERP.
                         </p>
                     </div>
-                    <div className="flex items-center gap-4 bg-white dark:bg-black p-4 rounded-xl shadow-sm border">
+                    <div className="flex items-center gap-4 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border">
                         <div className="text-center">
                             <div className="text-3xl font-bold text-emerald-600">94%</div>
-                            <div className="text-xs font-semibold uppercase text-muted-foreground">Overall Health</div>
+                            <div className="text-xs font-semibold text-muted-foreground">Overall Health</div>
                         </div>
                         <div className="h-12 w-px bg-zinc-200 dark:bg-zinc-800" />
                         <div className="space-y-1">
@@ -40,7 +40,7 @@ export function MasterDataHealth() {
             {/* Detail Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Category & Unit */}
-                <Card className="border-l-4 border-l-emerald-500 shadow-sm">
+                <Card className="border-l border-l-emerald-500 shadow-sm">
                     <CardHeader className="pb-2">
                         <div className="flex justify-between items-start">
                             <CardTitle className="text-base font-bold flex items-center gap-2">
@@ -74,7 +74,7 @@ export function MasterDataHealth() {
                 </Card>
 
                 {/* Location & Warehouse */}
-                <Card className="border-l-4 border-l-yellow-500 shadow-sm">
+                <Card className="border-l border-l-yellow-500 shadow-sm">
                     <CardHeader className="pb-2">
                         <div className="flex justify-between items-start">
                             <CardTitle className="text-base font-bold flex items-center gap-2">
@@ -101,9 +101,9 @@ export function MasterDataHealth() {
                             </div>
                             <div className="flex items-center justify-between text-sm py-1 border-b">
                                 <span className="text-muted-foreground flex items-center gap-2">
-                                    <AlertCircle className="h-3 w-3 text-orange-500" /> 5 Locations
+                                    <AlertCircle className="h-3 w-3 text-blue-500" /> 5 Locations
                                 </span>
-                                <span className="text-xs font-medium bg-orange-100 text-orange-700 px-2 py-0.5 rounded">Not Synced</span>
+                                <span className="text-xs font-medium bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Not Synced</span>
                             </div>
                         </div>
                         <div className="text-center pt-2">
@@ -113,7 +113,7 @@ export function MasterDataHealth() {
                 </Card>
 
                 {/* Currency & Tax */}
-                <Card className="border-l-4 border-l-blue-500 shadow-sm">
+                <Card className="border-l border-l-blue-500 shadow-sm">
                     <CardHeader className="pb-2">
                         <div className="flex justify-between items-start">
                             <CardTitle className="text-base font-bold flex items-center gap-2">

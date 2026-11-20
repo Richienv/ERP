@@ -143,13 +143,13 @@ export function ShipmentTracking({
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                     <Truck className="h-4 w-4 text-zinc-500" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                    <span className="text-xs font-semibold text-zinc-500">
                         Riwayat Pengiriman
                     </span>
                 </div>
                 <button
                     onClick={openDialog}
-                    className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-2.5 py-1 border-2 border-black bg-white hover:bg-zinc-100 rounded-none"
+                    className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 border border-border bg-white hover:bg-zinc-100 rounded-md"
                 >
                     <Plus className="h-3 w-3" />
                     Catat
@@ -159,7 +159,7 @@ export function ShipmentTracking({
             {shipments.length === 0 ? (
                 <div className="text-center py-4">
                     <Truck className="h-6 w-6 mx-auto text-zinc-200 mb-1" />
-                    <span className="text-[9px] font-bold text-zinc-400">
+                    <span className="text-xs font-bold text-zinc-400">
                         Belum ada pengiriman
                     </span>
                 </div>
@@ -168,7 +168,7 @@ export function ShipmentTracking({
                     {shipments.map((s) => (
                         <div
                             key={s.id}
-                            className={`flex items-center gap-3 px-3 py-2 border-2 ${
+                            className={`flex items-center gap-3 px-3 py-2 border ${
                                 s.direction === "OUTBOUND"
                                     ? "border-blue-300 bg-blue-50"
                                     : "border-emerald-300 bg-emerald-50"
@@ -180,12 +180,12 @@ export function ShipmentTracking({
                                 <ArrowDownLeft className="h-4 w-4 text-emerald-600 shrink-0" />
                             )}
                             <div className="flex-1 min-w-0">
-                                <div className="text-[10px] font-black">
+                                <div className="text-xs font-semibold">
                                     {s.direction === "OUTBOUND"
                                         ? "Kirim ke CMT"
                                         : "Terima dari CMT"}
                                 </div>
-                                <div className="text-[9px] text-zinc-500 font-bold">
+                                <div className="text-xs text-zinc-500 font-bold">
                                     {new Date(s.date).toLocaleDateString("id-ID", {
                                         day: "numeric",
                                         month: "short",
@@ -232,7 +232,7 @@ export function ShipmentTracking({
                                                 }))
                                             )
                                         }}
-                                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 border-2 border-black text-xs font-black uppercase tracking-wider ${
+                                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-border text-xs font-semibold   ${
                                             direction === "OUTBOUND"
                                                 ? "bg-blue-500 text-white"
                                                 : "bg-white"
@@ -263,7 +263,7 @@ export function ShipmentTracking({
                                                 })
                                             )
                                         }}
-                                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 border-2 border-black text-xs font-black uppercase tracking-wider ${
+                                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-border text-xs font-semibold   ${
                                             direction === "INBOUND"
                                                 ? "bg-emerald-500 text-white"
                                                 : "bg-white"
@@ -352,7 +352,7 @@ export function ShipmentTracking({
                                                                 type="number"
                                                                 min={0}
                                                                 max={item.maxQty}
-                                                                className="border-2 border-black rounded-none h-7 w-20 text-right font-mono text-xs ml-auto"
+                                                                className="border border-border rounded-md h-7 w-20 text-right font-mono text-xs ml-auto"
                                                                 value={item.quantity || ""}
                                                                 onChange={(e) =>
                                                                     updateItem(
@@ -369,7 +369,7 @@ export function ShipmentTracking({
                                                                     <Input
                                                                         type="number"
                                                                         min={0}
-                                                                        className="border-2 border-black rounded-none h-7 w-20 text-right font-mono text-xs ml-auto"
+                                                                        className="border border-border rounded-md h-7 w-20 text-right font-mono text-xs ml-auto"
                                                                         value={item.defectQty || ""}
                                                                         onChange={(e) =>
                                                                             updateItem(
@@ -384,7 +384,7 @@ export function ShipmentTracking({
                                                                     <Input
                                                                         type="number"
                                                                         min={0}
-                                                                        className="border-2 border-black rounded-none h-7 w-20 text-right font-mono text-xs ml-auto"
+                                                                        className="border border-border rounded-md h-7 w-20 text-right font-mono text-xs ml-auto"
                                                                         value={item.wastageQty || ""}
                                                                         onChange={(e) =>
                                                                             updateItem(

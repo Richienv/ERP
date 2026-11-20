@@ -66,16 +66,16 @@ export function SubcontractOrdersClient({
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <ClipboardList className="h-5 w-5" />
-                    <h2 className="text-sm font-black uppercase tracking-widest">
+                    <h2 className="text-sm font-semibold  ">
                         Daftar Order Subkontrak
                     </h2>
-                    <span className="text-[9px] font-black px-2 py-0.5 bg-zinc-100 border-2 border-black">
+                    <span className="text-xs font-semibold px-2 py-0.5 bg-zinc-100 border border-border">
                         {filtered.length}
                     </span>
                 </div>
                 <button
                     onClick={() => setShowCreate(true)}
-                    className="flex items-center gap-1.5 bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-[10px] tracking-wider px-4 h-8 rounded-none"
+                    className="flex items-center gap-1.5 bg-slate-900 text-white border border-border shadow-sm hover:shadow-sm transition-all font-semibold text-xs px-4 h-8 rounded-md"
                 >
                     <Plus className="h-3.5 w-3.5" />
                     Buat Order
@@ -87,14 +87,14 @@ export function SubcontractOrdersClient({
                 <div className="relative flex-1 max-w-xs">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
                     <Input
-                        className="border-2 border-black rounded-none h-8 pl-8 text-xs font-bold"
+                        className="border border-border rounded-md h-8 pl-8 text-xs font-bold"
                         placeholder="Cari no. order / subkontraktor..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
                 </div>
                 <select
-                    className="border-2 border-black rounded-none h-8 px-2 text-[10px] font-black uppercase tracking-wider bg-white"
+                    className="border border-border rounded-md h-8 px-2 text-xs font-semibold bg-white"
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
                 >
@@ -106,7 +106,7 @@ export function SubcontractOrdersClient({
                     ))}
                 </select>
                 <select
-                    className="border-2 border-black rounded-none h-8 px-2 text-[10px] font-black uppercase tracking-wider bg-white"
+                    className="border border-border rounded-md h-8 px-2 text-xs font-semibold bg-white"
                     value={subFilter}
                     onChange={(e) => setSubFilter(e.target.value)}
                 >
@@ -123,38 +123,38 @@ export function SubcontractOrdersClient({
 
             {/* Table */}
             {filtered.length === 0 ? (
-                <div className="bg-white border-2 border-black p-8 text-center">
+                <div className="bg-white border border-border p-8 text-center">
                     <ClipboardList className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                    <span className="text-xs font-semibold text-zinc-400">
                         {orders.length === 0
                             ? "Belum ada order subkontrak"
                             : "Tidak ada hasil yang cocok"}
                     </span>
                 </div>
             ) : (
-                <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                <div className="bg-white border border-border shadow-sm overflow-hidden">
                     <table className="w-full">
-                        <thead className="bg-zinc-100 border-b-2 border-black">
+                        <thead className="bg-zinc-100 border-b border-border">
                             <tr>
-                                <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">
                                     No. Order
                                 </th>
-                                <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">
                                     Subkontraktor
                                 </th>
-                                <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">
                                     Operasi
                                 </th>
-                                <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-center">
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-center">
                                     Status
                                 </th>
-                                <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-right">
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-right">
                                     Kirim
                                 </th>
-                                <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-right">
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-right">
                                     Kembali
                                 </th>
-                                <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">
                                     Tanggal
                                 </th>
                             </tr>
@@ -168,7 +168,7 @@ export function SubcontractOrdersClient({
                                         router.push(`/subcontract/orders/${o.id}`)
                                     }
                                 >
-                                    <td className="px-3 py-2 text-xs font-black">
+                                    <td className="px-3 py-2 text-xs font-semibold">
                                         {o.number}
                                     </td>
                                     <td className="px-3 py-2 text-xs font-bold">
@@ -179,7 +179,7 @@ export function SubcontractOrdersClient({
                                     </td>
                                     <td className="px-3 py-2 text-center">
                                         <span
-                                            className={`text-[8px] font-black px-1.5 py-0.5 border ${subcontractStatusColors[o.status]}`}
+                                            className={`text-xs font-semibold px-1.5 py-0.5 border ${subcontractStatusColors[o.status]}`}
                                         >
                                             {subcontractStatusLabels[o.status]}
                                         </span>
@@ -190,7 +190,7 @@ export function SubcontractOrdersClient({
                                     <td className="px-3 py-2 text-xs font-mono text-right">
                                         {o.totalReturnedQty.toLocaleString()}
                                     </td>
-                                    <td className="px-3 py-2 text-[10px] text-zinc-500 font-bold">
+                                    <td className="px-3 py-2 text-xs text-zinc-500 font-bold">
                                         {new Date(o.issuedDate).toLocaleDateString(
                                             "id-ID"
                                         )}

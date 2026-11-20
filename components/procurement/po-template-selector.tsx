@@ -70,7 +70,7 @@ export function POTemplateSelector({
                 {mode === 'select' ? (
                     <Button
                         variant="outline"
-                        className="h-8 px-3 text-[9px] font-black uppercase border-2 border-black rounded-none gap-1"
+                        className="h-8 px-3 text-xs font-semibold border border-border rounded-md gap-1"
                     >
                         <BookTemplate className="h-3.5 w-3.5" />
                         Dari Template
@@ -78,7 +78,7 @@ export function POTemplateSelector({
                 ) : (
                     <Button
                         variant="outline"
-                        className="h-8 px-3 text-[9px] font-black uppercase border-2 border-black rounded-none gap-1"
+                        className="h-8 px-3 text-xs font-semibold border border-border rounded-md gap-1"
                     >
                         <Save className="h-3.5 w-3.5" />
                         Simpan Template
@@ -138,7 +138,7 @@ export function POTemplateSelector({
                             {templates.length === 0 ? (
                                 <div className="p-8 text-center">
                                     <BookTemplate className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                                    <span className="text-xs font-semibold text-zinc-400">
                                         Belum ada template tersimpan
                                     </span>
                                 </div>
@@ -146,7 +146,7 @@ export function POTemplateSelector({
                                 templates.map((t) => (
                                     <button
                                         key={t.templateName}
-                                        className="w-full text-left bg-white border-2 border-black p-4 hover:bg-zinc-50 transition-colors"
+                                        className="w-full text-left bg-white border border-border p-4 hover:bg-zinc-50 transition-colors"
                                         disabled={loading}
                                         onClick={() => handleSelect(t.templateName)}
                                     >
@@ -154,20 +154,20 @@ export function POTemplateSelector({
                                             <div>
                                                 <div className="flex items-center gap-2">
                                                     <FileText className="h-4 w-4 text-zinc-500" />
-                                                    <span className="text-sm font-black">{t.templateName}</span>
+                                                    <span className="text-sm font-semibold">{t.templateName}</span>
                                                 </div>
-                                                <span className="text-[10px] text-zinc-400 font-bold">
+                                                <span className="text-xs text-zinc-400 font-bold">
                                                     {t.supplierName} ({t.supplierCode})
                                                 </span>
                                             </div>
-                                            <span className="text-[9px] font-black px-2 py-0.5 bg-zinc-100 border-2 border-black">
+                                            <span className="text-xs font-semibold px-2 py-0.5 bg-zinc-100 border border-border">
                                                 {t.itemCount} item
                                             </span>
                                         </div>
 
                                         <div className="space-y-1">
                                             {t.items.slice(0, 3).map((item, idx) => (
-                                                <div key={idx} className="flex items-center justify-between text-[10px]">
+                                                <div key={idx} className="flex items-center justify-between text-xs">
                                                     <span className="flex items-center gap-1 text-zinc-600">
                                                         <Package className="h-2.5 w-2.5" />
                                                         {item.productName}
@@ -179,7 +179,7 @@ export function POTemplateSelector({
                                                 </div>
                                             ))}
                                             {t.items.length > 3 && (
-                                                <span className="text-[9px] text-zinc-400 font-bold">
+                                                <span className="text-xs text-zinc-400 font-bold">
                                                     +{t.items.length - 3} item lainnya
                                                 </span>
                                             )}

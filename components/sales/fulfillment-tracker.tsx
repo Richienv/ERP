@@ -42,18 +42,18 @@ export function FulfillmentTracker({ fulfillment, onRecordShipment }: Fulfillmen
         : 'bg-zinc-300'
 
     return (
-        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <div className="bg-white border border-border shadow-sm">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b-2 border-black bg-zinc-50">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-zinc-50">
                 <div className="flex items-center gap-2">
                     <Truck className="h-4 w-4 text-zinc-500" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                    <span className="text-xs font-semibold text-zinc-500">
                         Fulfillment Tracker
                     </span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-zinc-400">{fulfillment.orderNumber}</span>
-                    <span className={`text-[10px] font-black px-2 py-0.5 border-2 border-black ${
+                    <span className="text-xs font-bold text-zinc-400">{fulfillment.orderNumber}</span>
+                    <span className={`text-xs font-semibold px-2 py-0.5 border border-border ${
                         fulfillment.overallFulfillmentPct >= 100
                             ? 'bg-emerald-100 text-emerald-700'
                             : fulfillment.overallFulfillmentPct > 0
@@ -67,11 +67,11 @@ export function FulfillmentTracker({ fulfillment, onRecordShipment }: Fulfillmen
 
             {/* Overall progress */}
             <div className="px-4 py-3 border-b border-zinc-200">
-                <div className="flex items-center justify-between text-[9px] font-bold mb-1.5">
-                    <span className="text-zinc-500 uppercase tracking-widest">Progress Keseluruhan</span>
-                    <span className="font-black">{fulfillment.overallFulfillmentPct}%</span>
+                <div className="flex items-center justify-between text-xs font-bold mb-1.5">
+                    <span className="text-zinc-500  ">Progress Keseluruhan</span>
+                    <span className="font-semibold">{fulfillment.overallFulfillmentPct}%</span>
                 </div>
-                <div className="h-3 bg-zinc-100 border-2 border-black overflow-hidden">
+                <div className="h-3 bg-zinc-100 border border-border overflow-hidden">
                     <div
                         className={`h-full ${statusColor} transition-all`}
                         style={{ width: `${Math.min(100, fulfillment.overallFulfillmentPct)}%` }}
@@ -94,20 +94,20 @@ export function FulfillmentTracker({ fulfillment, onRecordShipment }: Fulfillmen
                                         <Package className="h-3.5 w-3.5 text-zinc-400" />
                                         <span className="text-xs font-bold">{item.productName}</span>
                                         {item.color && (
-                                            <span className="text-[9px] px-1 py-0.5 bg-zinc-100 border font-bold">{item.color}</span>
+                                            <span className="text-xs px-1 py-0.5 bg-zinc-100 border font-bold">{item.color}</span>
                                         )}
                                         {item.size && (
-                                            <span className="text-[9px] px-1 py-0.5 bg-zinc-100 border font-bold">{item.size}</span>
+                                            <span className="text-xs px-1 py-0.5 bg-zinc-100 border font-bold">{item.size}</span>
                                         )}
                                     </div>
-                                    <span className="text-[10px] text-zinc-400 font-mono">{item.productCode}</span>
+                                    <span className="text-xs text-zinc-400 font-mono">{item.productCode}</span>
                                 </div>
                                 {isComplete ? (
-                                    <span className="text-[9px] font-black px-1.5 py-0.5 bg-emerald-100 text-emerald-700 border border-emerald-300 flex items-center gap-1">
+                                    <span className="text-xs font-semibold px-1.5 py-0.5 bg-emerald-100 text-emerald-700 border border-emerald-300 flex items-center gap-1">
                                         <Check className="h-3 w-3" /> Lengkap
                                     </span>
                                 ) : (
-                                    <span className="text-[9px] font-bold text-zinc-400">
+                                    <span className="text-xs font-bold text-zinc-400">
                                         Sisa: {remaining}
                                     </span>
                                 )}
@@ -116,7 +116,7 @@ export function FulfillmentTracker({ fulfillment, onRecordShipment }: Fulfillmen
                             {/* Progress bars */}
                             <div className="grid grid-cols-2 gap-3 mb-2">
                                 <div>
-                                    <div className="flex items-center justify-between text-[8px] font-bold mb-0.5">
+                                    <div className="flex items-center justify-between text-xs font-bold mb-0.5">
                                         <span className="text-zinc-400 flex items-center gap-1">
                                             <Truck className="h-2.5 w-2.5" /> Dikirim
                                         </span>
@@ -130,7 +130,7 @@ export function FulfillmentTracker({ fulfillment, onRecordShipment }: Fulfillmen
                                     </div>
                                 </div>
                                 <div>
-                                    <div className="flex items-center justify-between text-[8px] font-bold mb-0.5">
+                                    <div className="flex items-center justify-between text-xs font-bold mb-0.5">
                                         <span className="text-zinc-400 flex items-center gap-1">
                                             <FileText className="h-2.5 w-2.5" /> Diinvoice
                                         </span>
@@ -149,7 +149,7 @@ export function FulfillmentTracker({ fulfillment, onRecordShipment }: Fulfillmen
                             {!isComplete && (
                                 <div className="flex items-center gap-2 mt-2">
                                     <Input
-                                        className="border-2 border-black font-mono font-bold h-7 rounded-none text-xs w-20"
+                                        className="border border-border font-mono font-bold h-7 rounded-md text-xs w-20"
                                         type="number"
                                         min={1}
                                         max={remaining}
@@ -160,7 +160,7 @@ export function FulfillmentTracker({ fulfillment, onRecordShipment }: Fulfillmen
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="h-7 px-2 text-[9px] font-black uppercase border-2 border-black rounded-none"
+                                        className="h-7 px-2 text-xs font-semibold border border-border rounded-md"
                                         disabled={loading === item.id}
                                         onClick={() => handleShip(item.id)}
                                     >

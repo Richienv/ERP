@@ -30,7 +30,7 @@ const PRIORITY_LABELS: Record<string, string> = {
 }
 const PRIORITY_COLORS: Record<string, string> = {
     LOW: "bg-zinc-100 text-zinc-600 border-zinc-300",
-    MEDIUM: "bg-orange-100 text-orange-700 border-orange-300",
+    MEDIUM: "bg-blue-100 text-blue-700 border-blue-300",
     HIGH: "bg-red-100 text-red-700 border-red-300",
     URGENT: "bg-red-500 text-white border-red-600 animate-pulse",
 }
@@ -76,12 +76,12 @@ export function ManagerTaskBoard({ tasks, employees, orders }: ManagerTaskBoardP
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <h2 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
+                <h2 className="text-sm font-semibold flex items-center gap-2">
                     Pusat Manajemen Tugas
                 </h2>
                 <div className="flex gap-2">
                     <select
-                        className="border-2 border-black text-[10px] font-black uppercase tracking-wider px-3 h-8 bg-white"
+                        className="border border-border text-xs font-semibold px-3 h-8 bg-white"
                         value={filterEmployee}
                         onChange={(e) => setFilterEmployee(e.target.value)}
                     >
@@ -92,7 +92,7 @@ export function ManagerTaskBoard({ tasks, employees, orders }: ManagerTaskBoardP
                     </select>
                     <button
                         onClick={() => setIsNewTaskOpen(true)}
-                        className="flex items-center gap-1.5 bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-[10px] tracking-wider px-4 h-8"
+                        className="flex items-center gap-1.5 bg-slate-900 text-white border border-border shadow-sm hover:shadow-sm transition-all font-semibold text-xs px-4 h-8"
                     >
                         <Plus className="h-3.5 w-3.5" />
                         Tugas Baru
@@ -108,23 +108,23 @@ export function ManagerTaskBoard({ tasks, employees, orders }: ManagerTaskBoardP
                     return (
                         <div
                             key={col.key}
-                            className={`bg-zinc-50 border-2 border-black border-t-4 ${col.color} p-3 flex flex-col gap-3 min-h-[300px]`}
+                            className={`bg-zinc-50 border border-border border-t ${col.color} p-3 flex flex-col gap-3 min-h-[300px]`}
                         >
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-1.5">
                                     <Icon className="h-3.5 w-3.5" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">
+                                    <span className="text-xs font-semibold  ">
                                         {col.label}
                                     </span>
                                 </div>
-                                <span className="text-[9px] font-black px-1.5 py-0.5 bg-white border-2 border-black">
+                                <span className="text-xs font-semibold px-1.5 py-0.5 bg-white border border-border">
                                     {colTasks.length}
                                 </span>
                             </div>
 
                             {colTasks.length === 0 ? (
                                 <div className="flex-1 flex items-center justify-center">
-                                    <span className="text-[9px] font-bold text-zinc-400">Kosong</span>
+                                    <span className="text-xs font-bold text-zinc-400">Kosong</span>
                                 </div>
                             ) : (
                                 <div className="flex flex-col gap-2 flex-1 overflow-y-auto max-h-[500px]">
@@ -177,34 +177,34 @@ function KanbanCard({ task, onClick }: { task: ManagerTaskDTO; onClick: () => vo
     return (
         <div
             onClick={onClick}
-            className="bg-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer p-3 space-y-2"
+            className="bg-white border border-border shadow-sm hover:shadow-sm transition-all cursor-pointer p-3 space-y-2"
         >
             <div className="flex justify-between items-start gap-2">
-                <span className={`text-[8px] font-black px-1.5 py-0.5 border ${PRIORITY_COLORS[task.priority] || PRIORITY_COLORS.MEDIUM}`}>
+                <span className={`text-xs font-semibold px-1.5 py-0.5 border ${PRIORITY_COLORS[task.priority] || PRIORITY_COLORS.MEDIUM}`}>
                     {PRIORITY_LABELS[task.priority] || task.priority}
                 </span>
                 {task.deadline && (
-                    <span className="text-[9px] font-mono font-bold text-zinc-400">
+                    <span className="text-xs font-mono font-bold text-zinc-400">
                         {new Date(task.deadline).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
                     </span>
                 )}
             </div>
-            <h3 className="text-xs font-black leading-tight">{task.title}</h3>
+            <h3 className="text-xs font-semibold leading-tight">{task.title}</h3>
             {linkedLabel && (
-                <div className="text-[8px] font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 border border-blue-200 w-fit">
+                <div className="text-xs font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 border border-blue-200 w-fit">
                     {linkedLabel}
                 </div>
             )}
             <div className="flex items-center justify-between pt-1 border-t border-zinc-200">
                 <div className="flex items-center gap-1.5">
-                    <div className="w-5 h-5 bg-zinc-200 border border-black flex items-center justify-center">
-                        <span className="text-[8px] font-black">
+                    <div className="w-5 h-5 bg-zinc-200 border border-border flex items-center justify-center">
+                        <span className="text-xs font-semibold">
                             {task.employeeName.split(" ").map((n) => n[0]).join("").slice(0, 2)}
                         </span>
                     </div>
-                    <span className="text-[9px] font-bold text-zinc-500">{task.employeeName}</span>
+                    <span className="text-xs font-bold text-zinc-500">{task.employeeName}</span>
                 </div>
-                <span className="text-[8px] font-bold text-zinc-400">
+                <span className="text-xs font-bold text-zinc-400">
                     {TYPE_LABELS[task.type] || task.type}
                 </span>
             </div>
@@ -442,10 +442,10 @@ function TaskDetailDialog({ task, onClose }: { task: ManagerTaskDTO; onClose: ()
             <DialogContent className={NB.content}>
                 <DialogHeader className={NB.header}>
                     <div className="flex items-center gap-2 mb-2">
-                        <span className={`text-[8px] font-black px-1.5 py-0.5 border ${PRIORITY_COLORS[task.priority] || ""}`}>
+                        <span className={`text-xs font-semibold px-1.5 py-0.5 border ${PRIORITY_COLORS[task.priority] || ""}`}>
                             {PRIORITY_LABELS[task.priority] || task.priority}
                         </span>
-                        <span className="text-[10px] font-bold text-zinc-400">
+                        <span className="text-xs font-bold text-zinc-400">
                             {TYPE_LABELS[task.type] || task.type}
                         </span>
                     </div>
@@ -459,8 +459,8 @@ function TaskDetailDialog({ task, onClose }: { task: ManagerTaskDTO; onClose: ()
                     {/* Status + Dates */}
                     <div className="grid grid-cols-3 gap-4">
                         <div>
-                            <span className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Status</span>
-                            <span className={`text-[10px] font-black px-2 py-1 border inline-block ${
+                            <span className="text-xs font-semibold text-zinc-400 block mb-1">Status</span>
+                            <span className={`text-xs font-semibold px-2 py-1 border inline-block ${
                                 task.status === "COMPLETED" ? "bg-emerald-100 text-emerald-700 border-emerald-300"
                                 : task.status === "IN_PROGRESS" ? "bg-blue-100 text-blue-700 border-blue-300"
                                 : task.status === "BLOCKED" ? "bg-red-100 text-red-700 border-red-300"
@@ -474,13 +474,13 @@ function TaskDetailDialog({ task, onClose }: { task: ManagerTaskDTO; onClose: ()
                             </span>
                         </div>
                         <div>
-                            <span className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Dibuat</span>
+                            <span className="text-xs font-semibold text-zinc-400 block mb-1">Dibuat</span>
                             <span className="text-xs font-bold">
                                 {new Date(task.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                             </span>
                         </div>
                         <div>
-                            <span className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Tenggat</span>
+                            <span className="text-xs font-semibold text-zinc-400 block mb-1">Tenggat</span>
                             <span className="text-xs font-bold">
                                 {task.deadline
                                     ? new Date(task.deadline).toLocaleDateString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
@@ -491,14 +491,14 @@ function TaskDetailDialog({ task, onClose }: { task: ManagerTaskDTO; onClose: ()
 
                     {/* Linked Order */}
                     {linkedOrder && (
-                        <div className="bg-blue-50 border-2 border-blue-300 p-3 flex items-center justify-between">
+                        <div className="bg-blue-50 border border-blue-300 p-3 flex items-center justify-between">
                             <div>
-                                <span className="text-[9px] font-black uppercase text-blue-500">Dokumen Terkait</span>
-                                <div className="text-sm font-black text-blue-800">{linkedOrder.label}</div>
+                                <span className="text-xs font-semibold text-blue-500">Dokumen Terkait</span>
+                                <div className="text-sm font-semibold text-blue-800">{linkedOrder.label}</div>
                             </div>
                             <Link
                                 href={linkedOrder.href}
-                                className="text-[9px] font-black uppercase tracking-wider px-3 py-1.5 border-2 border-black bg-white hover:bg-zinc-50 flex items-center gap-1"
+                                className="text-xs font-semibold px-3 py-1.5 border border-border bg-white hover:bg-zinc-50 flex items-center gap-1"
                             >
                                 Buka <ArrowRight className="h-3 w-3" />
                             </Link>
@@ -507,10 +507,10 @@ function TaskDetailDialog({ task, onClose }: { task: ManagerTaskDTO; onClose: ()
 
                     {/* Issue Alert */}
                     {issueInfo && task.status === "BLOCKED" && (
-                        <div className="bg-red-50 border-2 border-red-400 p-3">
+                        <div className="bg-red-50 border border-red-400 p-3">
                             <div className="flex items-center gap-2 mb-1">
                                 <AlertTriangle className="h-4 w-4 text-red-600" />
-                                <span className="text-[10px] font-black uppercase text-red-700">Laporan Kendala</span>
+                                <span className="text-xs font-semibold text-red-700">Laporan Kendala</span>
                             </div>
                             {issueInfo.category && (
                                 <div className="text-xs font-bold text-red-800 mb-1">Kategori: {issueInfo.category}</div>
@@ -519,7 +519,7 @@ function TaskDetailDialog({ task, onClose }: { task: ManagerTaskDTO; onClose: ()
                                 <div className="text-xs text-red-700">{issueInfo.description}</div>
                             )}
                             {issueInfo.reportedAt && (
-                                <div className="text-[9px] text-red-400 font-bold mt-1">
+                                <div className="text-xs text-red-400 font-bold mt-1">
                                     Dilaporkan: {new Date(issueInfo.reportedAt).toLocaleString("id-ID")}
                                 </div>
                             )}
@@ -529,15 +529,15 @@ function TaskDetailDialog({ task, onClose }: { task: ManagerTaskDTO; onClose: ()
                     {/* Notes */}
                     {task.notes && !task.notes.startsWith("ISSUE::") && (
                         <div>
-                            <span className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Catatan</span>
-                            <div className="p-3 border-2 border-black bg-zinc-50 text-sm font-medium text-zinc-700 whitespace-pre-line">
+                            <span className="text-xs font-semibold text-zinc-400 block mb-1">Catatan</span>
+                            <div className="p-3 border border-border bg-zinc-50 text-sm font-medium text-zinc-700 whitespace-pre-line">
                                 {task.notes.split("\nISSUE::")[0]}
                             </div>
                         </div>
                     )}
                 </div>
 
-                <div className="p-4 border-t-2 border-black bg-zinc-50 flex justify-end">
+                <div className="p-4 border-t border-border bg-zinc-50 flex justify-end">
                     <button onClick={onClose} className={NB.cancelBtn}>Tutup</button>
                 </div>
             </DialogContent>

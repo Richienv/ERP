@@ -61,13 +61,13 @@ function AssetRegisterTab() {
     }
 
     return (
-        <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white">
+        <div className="border border-border shadow-sm bg-white">
             <div className="overflow-x-auto">
                 <table className="w-full">
                     <thead>
-                        <tr className="border-b-2 border-black bg-zinc-50">
+                        <tr className="border-b border-border bg-zinc-50">
                             {["Kode", "Nama", "Kategori", "Supplier", "Tgl Pembelian", "Harga Perolehan", "Akum. Penyusutan", "Nilai Buku", "Status"].map(h => (
-                                <th key={h} className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-3 text-left">{h}</th>
+                                <th key={h} className="text-xs font-semibold text-zinc-500 px-4 py-3 text-left">{h}</th>
                             ))}
                         </tr>
                     </thead>
@@ -91,8 +91,8 @@ function AssetRegisterTab() {
                                         {/* Category header */}
                                         <tr className="bg-purple-50 border-b border-purple-200">
                                             <td colSpan={9} className="px-4 py-2">
-                                                <span className="text-xs font-black uppercase tracking-wider text-purple-700">{catName}</span>
-                                                <span className="ml-2 text-[10px] font-bold text-purple-400">({group.items.length} aset)</span>
+                                                <span className="text-xs font-semibold text-purple-700">{catName}</span>
+                                                <span className="ml-2 text-xs font-bold text-purple-400">({group.items.length} aset)</span>
                                             </td>
                                         </tr>
                                         {group.items.map((asset: any) => {
@@ -108,7 +108,7 @@ function AssetRegisterTab() {
                                                     <td className="px-4 py-3 font-mono font-bold text-sm text-amber-600">{formatCurrency(Number(asset.accumulatedDepreciation))}</td>
                                                     <td className="px-4 py-3 font-mono font-bold text-sm text-indigo-700">{formatCurrency(Number(asset.netBookValue))}</td>
                                                     <td className="px-4 py-3">
-                                                        <Badge variant="outline" className={`text-[10px] font-black uppercase border-2 ${status.color}`}>
+                                                        <Badge variant="outline" className={`text-xs font-semibold border ${status.color}`}>
                                                             {status.label}
                                                         </Badge>
                                                     </td>
@@ -116,11 +116,11 @@ function AssetRegisterTab() {
                                             )
                                         })}
                                         {/* Category subtotal */}
-                                        <tr className="bg-zinc-50 border-b-2 border-zinc-200">
-                                            <td colSpan={5} className="px-4 py-2 text-right text-[10px] font-black uppercase tracking-widest text-zinc-500">Subtotal {catName}</td>
-                                            <td className="px-4 py-2 font-mono font-black text-sm">{formatCurrency(subtotalCost)}</td>
-                                            <td className="px-4 py-2 font-mono font-black text-sm text-amber-600">{formatCurrency(subtotalAccDep)}</td>
-                                            <td className="px-4 py-2 font-mono font-black text-sm text-indigo-700">{formatCurrency(subtotalNBV)}</td>
+                                        <tr className="bg-zinc-50 border-b border-zinc-200">
+                                            <td colSpan={5} className="px-4 py-2 text-right text-xs font-semibold text-zinc-500">Subtotal {catName}</td>
+                                            <td className="px-4 py-2 font-mono font-semibold text-sm">{formatCurrency(subtotalCost)}</td>
+                                            <td className="px-4 py-2 font-mono font-semibold text-sm text-amber-600">{formatCurrency(subtotalAccDep)}</td>
+                                            <td className="px-4 py-2 font-mono font-semibold text-sm text-indigo-700">{formatCurrency(subtotalNBV)}</td>
                                             <td />
                                         </tr>
                                     </Fragment>
@@ -156,13 +156,13 @@ function DepreciationScheduleTab() {
     return (
         <div className="space-y-4">
             {/* Filter */}
-            <div className="bg-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] p-4">
+            <div className="bg-white border border-border shadow-sm p-4">
                 <div className="flex items-center gap-3">
-                    <label className="text-xs font-black uppercase tracking-wider text-zinc-600">Filter Aset:</label>
+                    <label className="text-xs font-semibold text-zinc-600">Filter Aset:</label>
                     <select
                         value={assetFilter}
                         onChange={(e) => setAssetFilter(e.target.value)}
-                        className="border-2 border-black h-9 px-3 text-sm font-bold bg-white min-w-[280px]"
+                        className="border border-border h-9 px-3 text-sm font-bold bg-white min-w-[280px]"
                     >
                         <option value="">Semua Aset</option>
                         {Object.entries(uniqueAssets).map(([id, a]) => (
@@ -173,13 +173,13 @@ function DepreciationScheduleTab() {
             </div>
 
             {/* Table */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white">
+            <div className="border border-border shadow-sm bg-white">
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead>
-                            <tr className="border-b-2 border-black bg-zinc-50">
+                            <tr className="border-b border-border bg-zinc-50">
                                 {["Kode Aset", "Nama", "Periode", "Tgl Dijadwalkan", "Penyusutan", "Akumulasi", "Nilai Buku", "Status"].map(h => (
-                                    <th key={h} className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-3 text-left">{h}</th>
+                                    <th key={h} className="text-xs font-semibold text-zinc-500 px-4 py-3 text-left">{h}</th>
                                 ))}
                             </tr>
                         </thead>
@@ -206,12 +206,12 @@ function DepreciationScheduleTab() {
                                             {s.isPosted ? (
                                                 <span className="inline-flex items-center gap-1 text-emerald-600">
                                                     <CheckCircle className="h-4 w-4" />
-                                                    <span className="text-[10px] font-black uppercase tracking-wider">Posted</span>
+                                                    <span className="text-xs font-semibold  ">Posted</span>
                                                 </span>
                                             ) : (
                                                 <span className="inline-flex items-center gap-1 text-zinc-400">
                                                     <Circle className="h-4 w-4" />
-                                                    <span className="text-[10px] font-black uppercase tracking-wider">Belum</span>
+                                                    <span className="text-xs font-semibold  ">Belum</span>
                                                 </span>
                                             )}
                                         </td>
@@ -241,27 +241,27 @@ function AssetMovementTab() {
     return (
         <div className="space-y-4">
             {/* Date range filter */}
-            <div className="bg-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] p-4">
+            <div className="bg-white border border-border shadow-sm p-4">
                 <div className="flex items-center gap-3">
-                    <label className="text-xs font-black uppercase tracking-wider text-zinc-600">Dari:</label>
+                    <label className="text-xs font-semibold text-zinc-600">Dari:</label>
                     <Input
                         type="date"
                         value={startDate}
                         onChange={(e) => setStartDate(e.target.value)}
-                        className="border-2 border-black h-9 font-medium w-48"
+                        className="border border-border h-9 font-medium w-48"
                     />
-                    <label className="text-xs font-black uppercase tracking-wider text-zinc-600">Sampai:</label>
+                    <label className="text-xs font-semibold text-zinc-600">Sampai:</label>
                     <Input
                         type="date"
                         value={endDate}
                         onChange={(e) => setEndDate(e.target.value)}
-                        className="border-2 border-black h-9 font-medium w-48"
+                        className="border border-border h-9 font-medium w-48"
                     />
                     {(startDate || endDate) && (
                         <Button
                             variant="outline"
                             onClick={() => { setStartDate(""); setEndDate("") }}
-                            className="h-9 border-2 border-black font-bold uppercase text-[10px] tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all bg-white"
+                            className="h-9 border border-border font-bold text-xs shadow-sm hover:shadow-none transition-all bg-white"
                         >
                             Reset
                         </Button>
@@ -270,13 +270,13 @@ function AssetMovementTab() {
             </div>
 
             {/* Table */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white">
+            <div className="border border-border shadow-sm bg-white">
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead>
-                            <tr className="border-b-2 border-black bg-zinc-50">
+                            <tr className="border-b border-border bg-zinc-50">
                                 {["Tanggal", "Kode Aset", "Nama", "Tipe", "Hasil", "Laba/Rugi", "Catatan"].map(h => (
-                                    <th key={h} className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-4 py-3 text-left">{h}</th>
+                                    <th key={h} className="text-xs font-semibold text-zinc-500 px-4 py-3 text-left">{h}</th>
                                 ))}
                             </tr>
                         </thead>
@@ -298,7 +298,7 @@ function AssetMovementTab() {
                                             <td className="px-4 py-3 font-mono font-bold text-sm text-purple-700">{m.asset?.assetCode}</td>
                                             <td className="px-4 py-3 font-bold text-sm">{m.asset?.name}</td>
                                             <td className="px-4 py-3">
-                                                <Badge variant="outline" className="text-[10px] font-black uppercase border-2 border-zinc-300 bg-zinc-100 text-zinc-700">
+                                                <Badge variant="outline" className="text-xs font-semibold border border-zinc-300 bg-zinc-100 text-zinc-700">
                                                     {movementTypeLabels[m.type] || m.type}
                                                 </Badge>
                                             </td>
@@ -344,7 +344,7 @@ function NetBookValueTab() {
         <div className="space-y-4">
             {/* Summary cards */}
             {summary.length === 0 ? (
-                <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white p-20 text-center">
+                <div className="border border-border shadow-sm bg-white p-20 text-center">
                     <Building className="h-12 w-12 mx-auto mb-4 text-zinc-200" />
                     <p className="font-bold text-lg text-zinc-500">Belum ada data aset aktif</p>
                     <p className="text-sm mt-1 text-zinc-400">Data akan muncul setelah aset diaktifkan</p>
@@ -353,26 +353,26 @@ function NetBookValueTab() {
                 <>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {summary.map((cat: any, i: number) => (
-                            <div key={i} className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white overflow-hidden">
-                                <div className="border-b-2 border-black bg-purple-50 px-4 py-3">
-                                    <h3 className="text-sm font-black uppercase tracking-wider text-purple-800">{cat.name}</h3>
+                            <div key={i} className="border border-border shadow-sm bg-white overflow-hidden">
+                                <div className="border-b border-border bg-purple-50 px-4 py-3">
+                                    <h3 className="text-sm font-semibold text-purple-800">{cat.name}</h3>
                                 </div>
                                 <div className="p-4 space-y-3">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Jumlah Aset</span>
-                                        <span className="font-black text-lg text-zinc-900">{cat.count}</span>
+                                        <span className="text-xs font-semibold text-zinc-500">Jumlah Aset</span>
+                                        <span className="font-semibold text-lg text-zinc-900">{cat.count}</span>
                                     </div>
                                     <div className="flex items-center justify-between">
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Harga Perolehan</span>
+                                        <span className="text-xs font-semibold text-zinc-500">Total Harga Perolehan</span>
                                         <span className="font-mono font-bold text-sm text-zinc-900">{formatCurrency(cat.totalCost)}</span>
                                     </div>
                                     <div className="flex items-center justify-between">
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Akum. Penyusutan</span>
+                                        <span className="text-xs font-semibold text-zinc-500">Total Akum. Penyusutan</span>
                                         <span className="font-mono font-bold text-sm text-amber-600">{formatCurrency(cat.totalAccDep)}</span>
                                     </div>
-                                    <div className="border-t-2 border-black pt-3 flex items-center justify-between">
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Nilai Buku</span>
-                                        <span className="font-mono font-black text-lg text-indigo-700">{formatCurrency(cat.totalNBV)}</span>
+                                    <div className="border-t border-border pt-3 flex items-center justify-between">
+                                        <span className="text-xs font-semibold text-zinc-500">Total Nilai Buku</span>
+                                        <span className="font-mono font-semibold text-lg text-indigo-700">{formatCurrency(cat.totalNBV)}</span>
                                     </div>
                                 </div>
                             </div>
@@ -380,27 +380,27 @@ function NetBookValueTab() {
                     </div>
 
                     {/* Grand total */}
-                    <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white overflow-hidden">
-                        <div className="border-b-2 border-black bg-zinc-900 px-4 py-3">
-                            <h3 className="text-sm font-black uppercase tracking-wider text-white">Grand Total</h3>
+                    <div className="border border-border shadow-sm bg-white overflow-hidden">
+                        <div className="border-b border-border bg-zinc-900 px-4 py-3">
+                            <h3 className="text-sm font-semibold text-white">Grand Total</h3>
                         </div>
                         <div className="p-4">
                             <div className="grid grid-cols-4 gap-4">
                                 <div>
-                                    <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Jumlah Aset</div>
-                                    <div className="font-black text-xl text-zinc-900">{grandTotalCount}</div>
+                                    <div className="text-xs font-semibold text-zinc-500 mb-1">Jumlah Aset</div>
+                                    <div className="font-semibold text-xl text-zinc-900">{grandTotalCount}</div>
                                 </div>
                                 <div>
-                                    <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Total Harga Perolehan</div>
-                                    <div className="font-mono font-black text-xl text-zinc-900">{formatCurrency(grandTotalCost)}</div>
+                                    <div className="text-xs font-semibold text-zinc-500 mb-1">Total Harga Perolehan</div>
+                                    <div className="font-mono font-semibold text-xl text-zinc-900">{formatCurrency(grandTotalCost)}</div>
                                 </div>
                                 <div>
-                                    <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Total Akum. Penyusutan</div>
-                                    <div className="font-mono font-black text-xl text-amber-600">{formatCurrency(grandTotalAccDep)}</div>
+                                    <div className="text-xs font-semibold text-zinc-500 mb-1">Total Akum. Penyusutan</div>
+                                    <div className="font-mono font-semibold text-xl text-amber-600">{formatCurrency(grandTotalAccDep)}</div>
                                 </div>
                                 <div>
-                                    <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Total Nilai Buku</div>
-                                    <div className="font-mono font-black text-xl text-indigo-700">{formatCurrency(grandTotalNBV)}</div>
+                                    <div className="text-xs font-semibold text-zinc-500 mb-1">Total Nilai Buku</div>
+                                    <div className="font-mono font-semibold text-xl text-indigo-700">{formatCurrency(grandTotalNBV)}</div>
                                 </div>
                             </div>
                         </div>
@@ -420,17 +420,17 @@ export default function FixedAssetReportsPage() {
     return (
         <div className="mf-page min-h-screen space-y-4">
             {/* HEADER */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white">
+            <div className="border border-border shadow-sm overflow-hidden bg-white">
                 <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-purple-500">
                     <div className="flex items-center gap-3">
                         <FileBarChart className="h-6 w-6 text-purple-500" />
                         <div>
-                            <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900">Laporan Aset Tetap</h1>
+                            <h1 className="text-xl font-semibold tracking-tight text-zinc-900">Laporan Aset Tetap</h1>
                             <p className="text-zinc-600 text-xs font-bold mt-0.5">Laporan register, penyusutan, pergerakan, dan nilai buku aset</p>
                         </div>
                     </div>
                     <Link href="/finance/fixed-assets">
-                        <Button variant="outline" className="h-9 border-2 border-black font-bold uppercase text-[10px] tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all bg-white">
+                        <Button variant="outline" className="h-9 border border-border font-bold text-xs shadow-sm hover:shadow-none transition-all bg-white">
                             <ArrowLeft className="mr-2 h-3.5 w-3.5" /> Kembali
                         </Button>
                     </Link>
@@ -443,10 +443,10 @@ export default function FixedAssetReportsPage() {
                     <button
                         key={tab.key}
                         onClick={() => setActiveTab(tab.key)}
-                        className={`px-4 py-2 border-2 border-black text-xs font-black uppercase tracking-wider transition-all ${
+                        className={`px-4 py-2 border border-border text-xs font-semibold   transition-all ${
                             activeTab === tab.key
-                                ? "bg-black text-white shadow-none"
-                                : "bg-white text-zinc-700 hover:bg-zinc-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none"
+                                ? "bg-slate-900 text-white shadow-none"
+                                : "bg-white text-zinc-700 hover:bg-zinc-50 shadow-sm hover:shadow-none"
                         }`}
                     >
                         {tab.label}

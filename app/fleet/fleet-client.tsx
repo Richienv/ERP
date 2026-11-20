@@ -117,11 +117,11 @@ export function FleetClient({ initialVehicles, initialStats }: FleetClientProps)
                 {/* Row 1: Title + actions */}
                 <div className="flex items-center justify-between p-4 border-b border-zinc-200">
                     <div className="flex items-center gap-3">
-                        <div className="bg-orange-500 p-2">
+                        <div className="bg-blue-500 p-2">
                             <IconTruck className="w-5 h-5 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-base font-black uppercase tracking-tight">Armada</h1>
+                            <h1 className="text-base font-semibold tracking-tight">Armada</h1>
                             <p className="text-xs text-zinc-500">Master data kendaraan, alat berat, dan armada rental</p>
                         </div>
                     </div>
@@ -160,7 +160,7 @@ export function FleetClient({ initialVehicles, initialStats }: FleetClientProps)
                         amount=""
                     />
                     <KpiCell
-                        dotColor={warRoom.overdueVehicleCount > 0 ? "bg-red-500" : warRoom.dueSoonVehicleCount > 0 ? "bg-orange-500" : "bg-zinc-400"}
+                        dotColor={warRoom.overdueVehicleCount > 0 ? "bg-red-500" : warRoom.dueSoonVehicleCount > 0 ? "bg-blue-500" : "bg-zinc-400"}
                         label="Dokumen Perlu Tindakan"
                         count={warRoom.actionVehicleCount}
                         amount={
@@ -180,7 +180,7 @@ export function FleetClient({ initialVehicles, initialStats }: FleetClientProps)
                             placeholder="Cari plat, merk, atau model..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className={`h-9 pl-8 pr-8 text-xs rounded-none border-r-0 ${search ? NB.inputActive : NB.inputEmpty}`}
+                            className={`h-9 pl-8 pr-8 text-xs rounded-md border-r-0 ${search ? NB.inputActive : NB.inputEmpty}`}
                         />
                         {search && (
                             <button
@@ -192,7 +192,7 @@ export function FleetClient({ initialVehicles, initialStats }: FleetClientProps)
                         )}
                     </div>
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className={`h-9 w-[160px] text-xs uppercase tracking-wider font-bold rounded-none border-r-0 ${statusFilter !== "ALL" ? NB.inputActive : NB.inputEmpty}`}>
+                        <SelectTrigger className={`h-9 w-[160px] text-xs   font-bold rounded-md border-r-0 ${statusFilter !== "ALL" ? NB.inputActive : NB.inputEmpty}`}>
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -203,7 +203,7 @@ export function FleetClient({ initialVehicles, initialStats }: FleetClientProps)
                         </SelectContent>
                     </Select>
                     <Select value={typeFilter} onValueChange={setTypeFilter}>
-                        <SelectTrigger className={`h-9 w-[160px] text-xs uppercase tracking-wider font-bold rounded-none ${typeFilter !== "ALL" ? NB.inputActive : NB.inputEmpty}`}>
+                        <SelectTrigger className={`h-9 w-[160px] text-xs   font-bold rounded-md ${typeFilter !== "ALL" ? NB.inputActive : NB.inputEmpty}`}>
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -225,7 +225,7 @@ export function FleetClient({ initialVehicles, initialStats }: FleetClientProps)
                     ) : (
                         <table className="w-full">
                             <thead className="bg-zinc-50 border-b border-zinc-200">
-                                <tr className="text-xs uppercase tracking-wider font-bold text-zinc-600">
+                                <tr className="text-xs font-bold text-zinc-600">
                                     <th className="text-left p-3">Plat / Identifikasi</th>
                                     <th className="text-left p-3">Merk / Model</th>
                                     <th className="text-center p-3">Tipe</th>
@@ -256,10 +256,10 @@ function KpiCell({ dotColor, label, count, amount, urgent }: {
         <div className={NB.kpiCell}>
             <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${dotColor}`} />
-                <span className="text-xs uppercase tracking-wider font-bold text-zinc-600">{label}</span>
+                <span className="text-xs font-bold text-zinc-600">{label}</span>
             </div>
             <div className="flex items-center justify-between mt-1">
-                <span className={`text-xl font-black ${urgent ? "text-red-600" : "text-zinc-900"}`}>{count}</span>
+                <span className={`text-xl font-semibold ${urgent ? "text-red-600" : "text-zinc-900"}`}>{count}</span>
                 {amount && <span className="text-xs font-mono font-bold text-zinc-500">{amount}</span>}
             </div>
         </div>
@@ -281,7 +281,7 @@ function VehicleRow({ vehicle: v }: { vehicle: Vehicle }) {
             </td>
             <td className="p-3">
                 <div className="font-semibold text-sm">{v.brand} {v.model}</div>
-                <div className="text-[11px] text-zinc-500">{v.variant ?? ""} {v.year} {v.color ? `· ${v.color}` : ""}</div>
+                <div className="text-xs text-zinc-500">{v.variant ?? ""} {v.year} {v.color ? `· ${v.color}` : ""}</div>
             </td>
             <td className="p-3 text-center">
                 <div className="inline-flex items-center gap-1.5">
@@ -290,7 +290,7 @@ function VehicleRow({ vehicle: v }: { vehicle: Vehicle }) {
                 </div>
             </td>
             <td className="p-3 text-center">
-                <Badge className={`${STATUS_COLOR[v.status] || "bg-zinc-100 text-zinc-700 border-zinc-300"} font-bold uppercase text-xs tracking-wider`}>
+                <Badge className={`${STATUS_COLOR[v.status] || "bg-zinc-100 text-zinc-700 border-zinc-300"} font-bold  text-xs `}>
                     {STATUS_LABEL[v.status] || v.status}
                 </Badge>
             </td>
@@ -324,11 +324,11 @@ function VehicleRow({ vehicle: v }: { vehicle: Vehicle }) {
             </td>
             <td className="p-3">
                 {v.ownerCustomerId ? (
-                    <span className="text-xs font-bold uppercase text-zinc-400">Milik customer</span>
+                    <span className="text-xs font-bold text-zinc-400">Milik customer</span>
                 ) : v.fixedAsset ? (
-                    <span className="text-xs font-black uppercase text-emerald-700">{v.fixedAsset.assetCode}</span>
+                    <span className="text-xs font-semibold text-emerald-700">{v.fixedAsset.assetCode}</span>
                 ) : (
-                    <span className="text-xs font-black uppercase text-orange-600">Belum aset</span>
+                    <span className="text-xs font-semibold text-blue-600">Belum aset</span>
                 )}
             </td>
         </tr>

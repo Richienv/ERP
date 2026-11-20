@@ -59,9 +59,9 @@ export function ColorSizeMatrix({ productName, variants, lowStockThreshold = 5 }
 
     if (variants.length === 0) {
         return (
-            <div className="border-2 border-dashed border-zinc-300 p-8 text-center">
+            <div className="border border-dashed border-zinc-300 p-8 text-center">
                 <Grid3X3 className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                <span className="text-xs font-semibold text-zinc-400">
                     Belum ada style variant
                 </span>
             </div>
@@ -69,32 +69,32 @@ export function ColorSizeMatrix({ productName, variants, lowStockThreshold = 5 }
     }
 
     return (
-        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <div className="bg-white border border-border shadow-sm">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b-2 border-black bg-zinc-50">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-zinc-50">
                 <div className="flex items-center gap-2">
                     <Grid3X3 className="h-4 w-4 text-zinc-500" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                    <span className="text-xs font-semibold text-zinc-500">
                         Matrix Warna × Ukuran
                     </span>
                 </div>
-                <span className="text-[10px] font-bold text-zinc-400">{productName}</span>
+                <span className="text-xs font-bold text-zinc-400">{productName}</span>
             </div>
 
             {/* Matrix Table */}
             <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                     <thead>
-                        <tr className="bg-zinc-100 border-b-2 border-black">
-                            <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left border-r-2 border-black min-w-[120px]">
+                        <tr className="bg-zinc-100 border-b border-border">
+                            <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left border-r border-border min-w-[120px]">
                                 Warna
                             </th>
                             {sizes.map((s) => (
-                                <th key={s} className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-center min-w-[60px]">
+                                <th key={s} className="text-xs font-semibold text-zinc-500 px-3 py-2 text-center min-w-[60px]">
                                     {s}
                                 </th>
                             ))}
-                            <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-center border-l-2 border-black min-w-[60px]">
+                            <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-center border-l border-border min-w-[60px]">
                                 Total
                             </th>
                         </tr>
@@ -102,15 +102,15 @@ export function ColorSizeMatrix({ productName, variants, lowStockThreshold = 5 }
                     <tbody>
                         {colors.map((c) => (
                             <tr key={c.code} className="border-b border-zinc-100 last:border-b-0 hover:bg-zinc-50">
-                                <td className="px-3 py-2 border-r-2 border-black">
+                                <td className="px-3 py-2 border-r border-border">
                                     <div className="flex items-center gap-2">
                                         <div
-                                            className="w-3 h-3 border border-black shrink-0"
+                                            className="w-3 h-3 border border-border shrink-0"
                                             style={{ backgroundColor: cssColor(c.code) }}
                                         />
                                         <div>
                                             <span className="font-bold block text-xs">{c.name}</span>
-                                            <span className="text-[9px] text-zinc-400 font-mono">{c.code}</span>
+                                            <span className="text-xs text-zinc-400 font-mono">{c.code}</span>
                                         </div>
                                     </div>
                                 </td>
@@ -137,23 +137,23 @@ export function ColorSizeMatrix({ productName, variants, lowStockThreshold = 5 }
                                         </td>
                                     )
                                 })}
-                                <td className="px-3 py-2 text-center border-l-2 border-black font-black">
+                                <td className="px-3 py-2 text-center border-l border-border font-semibold">
                                     {totalByColor.get(c.code) ?? 0}
                                 </td>
                             </tr>
                         ))}
 
                         {/* Total row */}
-                        <tr className="bg-zinc-100 border-t-2 border-black">
-                            <td className="px-3 py-2 border-r-2 border-black">
-                                <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Total</span>
+                        <tr className="bg-zinc-100 border-t border-border">
+                            <td className="px-3 py-2 border-r border-border">
+                                <span className="text-xs font-semibold text-zinc-500">Total</span>
                             </td>
                             {sizes.map((s) => (
-                                <td key={s} className="px-3 py-2 text-center font-black text-xs">
+                                <td key={s} className="px-3 py-2 text-center font-semibold text-xs">
                                     {totalBySize.get(s) ?? 0}
                                 </td>
                             ))}
-                            <td className="px-3 py-2 text-center border-l-2 border-black font-black text-sm">
+                            <td className="px-3 py-2 text-center border-l border-border font-semibold text-sm">
                                 {grandTotal}
                             </td>
                         </tr>

@@ -63,7 +63,7 @@ describe("felt-speed connections", () => {
         const alerts = src("app/inventory/alerts/page.tsx")
         expect(alerts).not.toMatch(/className=\{`[^`]*\$\{statusFilter === s\}\s*\n/)
         expect(alerts).toContain("statusFilter === s")
-        expect(alerts).toContain('? "bg-black text-white"')
+        expect(alerts).toContain('? "bg-slate-900 text-white"') // active chip (Integra Pro: slate instead of black)
     })
 
     it("money-loop pages refresh the CEO inbox after pay / approve / send", () => {

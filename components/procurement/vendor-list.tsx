@@ -79,12 +79,12 @@ export function VendorList({ initialData }: { initialData: Vendor[] }) {
         <div className="space-y-6">
 
             {/* Toolbar */}
-            <div className="flex flex-col sm:flex-row items-center gap-4 bg-white p-2 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-xl">
+            <div className="flex flex-col sm:flex-row items-center gap-4 bg-white p-2 border border-border shadow-sm rounded-xl">
                 <div className="relative flex-1 w-full">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                         placeholder="Cari nama vendor..."
-                        className="pl-9 border-black focus-visible:ring-black font-medium"
+                        className="pl-9 border-border focus-visible:ring-black font-medium"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -92,13 +92,13 @@ export function VendorList({ initialData }: { initialData: Vendor[] }) {
                 <div className="flex gap-2">
                     <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
                         <DialogTrigger asChild>
-                            <Button className="bg-black text-white hover:bg-zinc-800 border border-black shadow-sm uppercase font-bold tracking-wide">
+                            <Button className="bg-slate-900 text-white hover:bg-zinc-800 border border-border shadow-sm font-bold">
                                 <Plus className="mr-2 h-4 w-4" /> Vendor Baru
                             </Button>
                         </DialogTrigger>
                         <DialogContent>
                             <DialogHeader>
-                                <DialogTitle className="uppercase font-black flex items-center gap-2">
+                                <DialogTitle className=" font-semibold flex items-center gap-2">
                                     <Building2 className="h-5 w-5" /> Add New Vendor
                                 </DialogTitle>
                                 <DialogDescription>Register a new supplier in the system.</DialogDescription>
@@ -135,7 +135,7 @@ export function VendorList({ initialData }: { initialData: Vendor[] }) {
                             </div>
                             <DialogFooter>
                                 <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-                                <Button onClick={handleCreate} disabled={isSubmitting} className="bg-black text-white">
+                                <Button onClick={handleCreate} disabled={isSubmitting} className="bg-slate-900 text-white">
                                     {isSubmitting ? <Loader2 className="animate-spin h-4 w-4" /> : "Create Vendor"}
                                 </Button>
                             </DialogFooter>
@@ -147,19 +147,19 @@ export function VendorList({ initialData }: { initialData: Vendor[] }) {
             {/* Vendors Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filtered.map((vendor) => (
-                    <Card key={vendor.id} className="group relative border border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[3px] hover:translate-y-[3px] transition-all bg-white rounded-xl overflow-hidden flex flex-col">
+                    <Card key={vendor.id} className="group relative border border-border shadow-sm hover:shadow-sm transition-all bg-white rounded-xl overflow-hidden flex flex-col">
                         <div className={`h-2 w-full ${vendor.color} border-b border-black/10`} />
 
                         <CardHeader className="pb-2 flex-row gap-4 items-start space-y-0">
-                            <Avatar className="h-14 w-14 border-2 border-black shadow-sm">
-                                <AvatarFallback className="font-black bg-zinc-100 text-black">{vendor.logo}</AvatarFallback>
+                            <Avatar className="h-14 w-14 border border-border shadow-sm">
+                                <AvatarFallback className="font-semibold bg-zinc-100 text-black">{vendor.logo}</AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between">
-                                    <Badge variant="outline" className="text-[10px] font-bold uppercase border-black bg-zinc-50">{vendor.category}</Badge>
+                                    <Badge variant="outline" className="text-xs font-bold border-border bg-zinc-50">{vendor.category}</Badge>
                                     {vendor.rating >= 4.5 && <BadgeCheck className="h-4 w-4 text-blue-500" />}
                                 </div>
-                                <CardTitle className="text-xl font-black uppercase mt-1 truncate leading-tight" title={vendor.name}>{vendor.name}</CardTitle>
+                                <CardTitle className="text-xl font-semibold mt-1 truncate leading-tight" title={vendor.name}>{vendor.name}</CardTitle>
                                 <div className="flex items-center gap-1 mt-1">
                                     {[...Array(5)].map((_, i) => (
                                         <Star key={i} className={`h-3 w-3 ${i < vendor.rating ? "fill-amber-400 text-amber-400" : "fill-zinc-200 text-zinc-200"}`} />
@@ -186,21 +186,21 @@ export function VendorList({ initialData }: { initialData: Vendor[] }) {
 
                             <div className="grid grid-cols-2 gap-2">
                                 <div className="p-2 border border-black/10 rounded bg-zinc-50">
-                                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Spend</p>
-                                    <p className="text-lg font-black">{vendor.totalSpend}</p>
+                                    <p className="text-xs font-bold text-muted-foreground">Spend</p>
+                                    <p className="text-lg font-semibold">{vendor.totalSpend}</p>
                                 </div>
                                 <div className="p-2 border border-black/10 rounded bg-zinc-50">
-                                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Active Orders</p>
-                                    <p className="text-lg font-black">{vendor.activeOrders}</p>
+                                    <p className="text-xs font-bold text-muted-foreground">Active Orders</p>
+                                    <p className="text-lg font-semibold">{vendor.activeOrders}</p>
                                 </div>
                             </div>
                         </CardContent>
 
-                        <CardFooter className="pt-4 border-t border-black bg-zinc-50 flex gap-2">
-                            <Button variant="outline" className="flex-1 border-black font-bold uppercase text-xs shadow-sm hover:shadow-none bg-white">
+                        <CardFooter className="pt-4 border-t border-border bg-zinc-50 flex gap-2">
+                            <Button variant="outline" className="flex-1 border-border font-bold text-xs shadow-sm hover:shadow-none bg-white">
                                 History
                             </Button>
-                            <Button variant="outline" className="flex-1 border-black font-bold uppercase text-xs shadow-sm hover:shadow-none bg-white">
+                            <Button variant="outline" className="flex-1 border-border font-bold text-xs shadow-sm hover:shadow-none bg-white">
                                 Contact
                             </Button>
                         </CardFooter>
@@ -208,7 +208,7 @@ export function VendorList({ initialData }: { initialData: Vendor[] }) {
                 ))}
 
                 {filtered.length === 0 && (
-                    <div className="col-span-full text-center p-12 border-2 border-dashed border-zinc-200 rounded-xl bg-zinc-50">
+                    <div className="col-span-full text-center p-12 border border-dashed border-zinc-200 rounded-xl bg-zinc-50">
                         <p className="text-muted-foreground font-bold">No vendors found.</p>
                     </div>
                 )}

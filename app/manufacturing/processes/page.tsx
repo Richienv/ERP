@@ -251,10 +251,10 @@ export default function ProcessesPage() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-lg font-black uppercase tracking-widest flex items-center gap-2">
+                    <h1 className="text-lg font-semibold flex items-center gap-2">
                         <Cog className="h-6 w-6" /> Proses Produksi
                     </h1>
-                    <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mt-1">
+                    <p className="text-xs font-bold text-zinc-400 mt-1">
                         Tipe proses yang tersedia di BOM Canvas — klik kartu untuk ubah ikon & warna — tambah work center di halaman{" "}
                         <Link href="/manufacturing/work-centers" className="underline text-black hover:text-zinc-600 transition-colors">
                             Work Center
@@ -270,29 +270,29 @@ export default function ProcessesPage() {
                 const perluPerhatian = allTypes.filter(t => t.stationCount === 0).length
                 return (
                     <div className="grid grid-cols-3 gap-4">
-                        <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-4 py-3">
+                        <div className="border border-border bg-white shadow-sm px-4 py-3">
                             <div className="flex items-center gap-1.5 mb-1">
                                 <Activity className="h-3 w-3 text-zinc-400" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Proses Aktif</span>
+                                <span className="text-xs font-semibold text-zinc-500">Proses Aktif</span>
                             </div>
-                            <span className="text-2xl font-black">{prosesAktif}</span>
+                            <span className="text-2xl font-semibold">{prosesAktif}</span>
                         </div>
-                        <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-4 py-3">
+                        <div className="border border-border bg-white shadow-sm px-4 py-3">
                             <div className="flex items-center gap-1.5 mb-1">
                                 <Layers className="h-3 w-3 text-zinc-400" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Work Center</span>
+                                <span className="text-xs font-semibold text-zinc-500">Total Work Center</span>
                             </div>
-                            <span className="text-2xl font-black">{totalWorkCenter}</span>
+                            <span className="text-2xl font-semibold">{totalWorkCenter}</span>
                         </div>
                         <div className={cn(
-                            "border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-4 py-3",
+                            "border border-border shadow-sm px-4 py-3",
                             perluPerhatian > 0 ? "bg-red-50" : "bg-white"
                         )}>
                             <div className="flex items-center gap-1.5 mb-1">
                                 <AlertTriangle className={cn("h-3 w-3", perluPerhatian > 0 ? "text-red-400" : "text-zinc-400")} />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Perlu Perhatian</span>
+                                <span className="text-xs font-semibold text-zinc-500">Perlu Perhatian</span>
                             </div>
-                            <span className={cn("text-2xl font-black", perluPerhatian > 0 ? "text-red-600" : "")}>{perluPerhatian}</span>
+                            <span className={cn("text-2xl font-semibold", perluPerhatian > 0 ? "text-red-600" : "")}>{perluPerhatian}</span>
                         </div>
                     </div>
                 )
@@ -306,15 +306,15 @@ export default function ProcessesPage() {
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         placeholder="Cari proses..."
-                        className="border-2 border-black rounded-none h-9 pl-9 font-bold text-sm placeholder:text-zinc-300 placeholder:font-normal"
+                        className="border border-border rounded-md h-9 pl-9 font-bold text-sm placeholder:text-zinc-300 placeholder:font-normal"
                     />
                 </div>
                 <Button
                     variant="outline"
                     onClick={() => setShowInactive(!showInactive)}
                     className={cn(
-                        "border-2 border-black rounded-none h-9 text-xs font-black uppercase tracking-widest shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all",
-                        showInactive ? "bg-black text-white hover:bg-zinc-800 hover:text-white" : "bg-white text-black hover:bg-zinc-50"
+                        "border border-border rounded-md h-9 text-xs font-semibold shadow-sm hover:shadow-none transition-all",
+                        showInactive ? "bg-slate-900 text-white hover:bg-zinc-800 hover:text-white" : "bg-white text-black hover:bg-zinc-50"
                     )}
                 >
                     {showInactive ? <Eye className="mr-1.5 h-3.5 w-3.5" /> : <EyeOff className="mr-1.5 h-3.5 w-3.5" />}
@@ -322,7 +322,7 @@ export default function ProcessesPage() {
                 </Button>
                 <Button
                     onClick={() => { setFormLabel(""); setFormIcon("Cog"); setFormColor("zinc"); setDialogOpen(true) }}
-                    className="bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] transition-all uppercase font-black tracking-widest text-xs rounded-none px-6 h-9"
+                    className="bg-slate-900 text-white hover:bg-zinc-800 border border-border shadow-sm hover:shadow-sm transition-all font-semibold text-xs rounded-md px-6 h-9"
                 >
                     <Plus className="mr-2 h-4 w-4" /> Tambah Proses
                 </Button>
@@ -340,20 +340,20 @@ export default function ProcessesPage() {
                             <PopoverTrigger asChild>
                                 <button
                                     className={cn(
-                                        "border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all overflow-hidden text-left cursor-pointer",
+                                        "border border-border bg-white shadow-sm hover:shadow-sm transition-all overflow-hidden text-left cursor-pointer",
                                         isInactive && "opacity-50 grayscale",
                                     )}
                                 >
                                     {/* Card Header */}
-                                    <div className={cn("flex items-center gap-3 px-4 py-3 border-b-2 border-black", item.bg)}>
-                                        <div className="bg-black text-white p-2 relative">
+                                    <div className={cn("flex items-center gap-3 px-4 py-3 border-b border-border", item.bg)}>
+                                        <div className="bg-slate-900 text-white p-2 relative">
                                             <Icon className="h-5 w-5" />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <h3 className="text-sm font-black uppercase tracking-widest truncate">
+                                            <h3 className="text-sm font-semibold truncate">
                                                 {item.label}
                                             </h3>
-                                            <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider">
+                                            <p className="text-xs font-bold text-zinc-400  ">
                                                 {item.isCustom ? "CUSTOM" : item.type}
                                             </p>
                                         </div>
@@ -370,13 +370,13 @@ export default function ProcessesPage() {
                                                 </div>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent
-                                                className="rounded-none border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] min-w-[180px]"
+                                                className="rounded-md border border-border shadow-sm min-w-[180px]"
                                                 align="end"
                                                 onClick={(e) => e.stopPropagation()}
                                             >
                                                 <DropdownMenuItem
                                                     onClick={() => setEditingType(editKey)}
-                                                    className="text-xs font-bold uppercase tracking-wider cursor-pointer"
+                                                    className="text-xs font-bold cursor-pointer"
                                                 >
                                                     <Eye className="mr-2 h-3.5 w-3.5" />
                                                     Ubah Tampilan
@@ -385,7 +385,7 @@ export default function ProcessesPage() {
                                                     <>
                                                         <DropdownMenuItem
                                                             onClick={() => handleToggleActive(item.description!, isInactive)}
-                                                            className="text-xs font-bold uppercase tracking-wider cursor-pointer"
+                                                            className="text-xs font-bold cursor-pointer"
                                                         >
                                                             <Power className="mr-2 h-3.5 w-3.5" />
                                                             {isInactive ? "Aktifkan" : "Nonaktifkan"}
@@ -393,7 +393,7 @@ export default function ProcessesPage() {
                                                         {item.stationCount <= 1 && (
                                                             <DropdownMenuItem
                                                                 onClick={() => setConfirmDeleteType(item.description!)}
-                                                                className="text-xs font-bold uppercase tracking-wider cursor-pointer text-red-600 focus:text-red-600"
+                                                                className="text-xs font-bold cursor-pointer text-red-600 focus:text-red-600"
                                                             >
                                                                 <Trash2 className="mr-2 h-3.5 w-3.5" />
                                                                 Hapus
@@ -408,29 +408,29 @@ export default function ProcessesPage() {
                                     {/* Card Body */}
                                     <div className="px-4 py-3 space-y-2">
                                         <div className="flex items-center justify-between">
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                            <span className="text-xs font-semibold text-zinc-500">
                                                 Work Center
                                             </span>
-                                            <span className="text-sm font-black">
+                                            <span className="text-sm font-semibold">
                                                 {item.stationCount}
                                             </span>
                                         </div>
                                         <div className="flex items-center justify-between">
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                            <span className="text-xs font-semibold text-zinc-500">
                                                 Status
                                             </span>
                                             {isInactive ? (
-                                                <div className="flex items-center gap-1 text-[10px] font-black text-red-600">
+                                                <div className="flex items-center gap-1 text-xs font-semibold text-red-600">
                                                     <XCircle className="h-3 w-3" />
                                                     Nonaktif
                                                 </div>
                                             ) : hasStations ? (
-                                                <div className="flex items-center gap-1 text-[10px] font-black text-emerald-600">
+                                                <div className="flex items-center gap-1 text-xs font-semibold text-emerald-600">
                                                     <CheckCircle2 className="h-3 w-3" />
                                                     {item.activeCount} aktif
                                                 </div>
                                             ) : (
-                                                <div className="flex items-center gap-1 text-[10px] font-black text-zinc-400">
+                                                <div className="flex items-center gap-1 text-xs font-semibold text-zinc-400">
                                                     <XCircle className="h-3 w-3" />
                                                     Belum ada work center
                                                 </div>
@@ -440,7 +440,7 @@ export default function ProcessesPage() {
                                 </button>
                             </PopoverTrigger>
                             <PopoverContent
-                                className="w-72 p-0 border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                                className="w-72 p-0 border border-border rounded-md shadow-sm"
                                 align="start"
                                 sideOffset={8}
                             >
@@ -460,10 +460,10 @@ export default function ProcessesPage() {
 
             {/* Add Custom Process Type Dialog */}
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent className="border-2 border-black rounded-none shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-0 bg-white max-w-md">
-                    <div className="bg-black text-white px-6 py-4 border-b-2 border-black">
+                <DialogContent className="border border-border rounded-md shadow-sm p-0 bg-white max-w-md">
+                    <div className="bg-slate-900 text-white px-6 py-4 border-b border-border">
                         <DialogHeader>
-                            <DialogTitle className="uppercase font-black tracking-tight text-lg text-white">
+                            <DialogTitle className=" font-semibold tracking-tight text-lg text-white">
                                 Tambah Tipe Proses
                             </DialogTitle>
                             <DialogDescription className="text-zinc-400 text-xs">
@@ -473,21 +473,21 @@ export default function ProcessesPage() {
                     </div>
                     <div className="p-6 space-y-4">
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                            <label className="text-xs font-semibold text-zinc-500">
                                 Nama Tipe Proses
                             </label>
                             <Input
                                 value={formLabel}
                                 onChange={(e) => setFormLabel(e.target.value)}
                                 placeholder="Nama..."
-                                className="border-2 border-black rounded-none h-10 font-bold placeholder:text-zinc-300 placeholder:font-normal"
+                                className="border border-border rounded-md h-10 font-bold placeholder:text-zinc-300 placeholder:font-normal"
                                 onKeyDown={(e) => e.key === "Enter" && handleAddCustom()}
                             />
                         </div>
 
                         {/* Icon Picker */}
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                            <label className="text-xs font-semibold text-zinc-500">
                                 Ikon
                             </label>
                             <div className="grid grid-cols-6 gap-1.5 max-h-32 overflow-y-auto">
@@ -499,8 +499,8 @@ export default function ProcessesPage() {
                                             type="button"
                                             onClick={() => setFormIcon(opt.name)}
                                             className={cn(
-                                                "w-8 h-8 border-2 flex items-center justify-center transition-all",
-                                                formIcon === opt.name ? "border-black bg-black text-white" : "border-zinc-200 hover:border-zinc-400 text-zinc-600",
+                                                "w-8 h-8 border flex items-center justify-center transition-all",
+                                                formIcon === opt.name ? "border-border bg-slate-900 text-white" : "border-zinc-200 hover:border-zinc-400 text-zinc-600",
                                             )}
                                             title={opt.label}
                                         >
@@ -513,7 +513,7 @@ export default function ProcessesPage() {
 
                         {/* Color Picker */}
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                            <label className="text-xs font-semibold text-zinc-500">
                                 Warna
                             </label>
                             <div className="grid grid-cols-6 gap-1.5">
@@ -523,8 +523,8 @@ export default function ProcessesPage() {
                                         type="button"
                                         onClick={() => setFormColor(key)}
                                         className={cn(
-                                            "w-8 h-8 border-2 flex items-center justify-center transition-all",
-                                            formColor === key ? "border-black scale-110 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]" : "border-zinc-200 hover:border-zinc-400",
+                                            "w-8 h-8 border flex items-center justify-center transition-all",
+                                            formColor === key ? "border-border scale-110 shadow-sm" : "border-zinc-200 hover:border-zinc-400",
                                         )}
                                         style={{ backgroundColor: theme.hex.bg }}
                                         title={key}
@@ -537,7 +537,7 @@ export default function ProcessesPage() {
 
                         {/* Live Preview Card */}
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                            <label className="text-xs font-semibold text-zinc-500">
                                 Preview
                             </label>
                             {(() => {
@@ -545,16 +545,16 @@ export default function ProcessesPage() {
                                 const previewTheme = getColorTheme(formColor)
                                 const previewBg = previewTheme.toolbar.split(" ").filter(c => c.startsWith("bg-") || c.startsWith("border-")).join(" ")
                                 return (
-                                    <div className="border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                                        <div className={cn("flex items-center gap-3 px-3 py-2 border-b-2 border-black", previewBg)}>
-                                            <div className="bg-black text-white p-1.5">
+                                    <div className="border border-border shadow-sm overflow-hidden">
+                                        <div className={cn("flex items-center gap-3 px-3 py-2 border-b border-border", previewBg)}>
+                                            <div className="bg-slate-900 text-white p-1.5">
                                                 <PreviewIcon className="h-4 w-4" />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <h3 className="text-xs font-black uppercase tracking-widest truncate">
+                                                <h3 className="text-xs font-semibold truncate">
                                                     {formLabel.trim() || "Nama Proses"}
                                                 </h3>
-                                                <p className="text-[8px] font-bold text-zinc-400 uppercase tracking-wider">
+                                                <p className="text-xs font-bold text-zinc-400  ">
                                                     CUSTOM
                                                 </p>
                                             </div>
@@ -568,7 +568,7 @@ export default function ProcessesPage() {
                         <Button
                             onClick={handleAddCustom}
                             disabled={saving}
-                            className="w-full bg-black text-white rounded-none border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all font-black uppercase h-10"
+                            className="w-full bg-slate-900 text-white rounded-md border border-border shadow-sm hover:shadow-none transition-all font-semibold h-10"
                         >
                             {saving ? "Menyimpan..." : "Tambah Tipe Proses"}
                         </Button>
@@ -578,10 +578,10 @@ export default function ProcessesPage() {
 
             {/* Confirm Delete Dialog */}
             <Dialog open={!!confirmDeleteType} onOpenChange={(open) => { if (!open) setConfirmDeleteType(null) }}>
-                <DialogContent className="border-2 border-black rounded-none shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-0 bg-white max-w-sm">
-                    <div className="bg-red-600 text-white px-6 py-4 border-b-2 border-black">
+                <DialogContent className="border border-border rounded-md shadow-sm p-0 bg-white max-w-sm">
+                    <div className="bg-red-600 text-white px-6 py-4 border-b border-border">
                         <DialogHeader>
-                            <DialogTitle className="uppercase font-black tracking-tight text-lg text-white">
+                            <DialogTitle className=" font-semibold tracking-tight text-lg text-white">
                                 Hapus Tipe Proses
                             </DialogTitle>
                             <DialogDescription className="text-red-200 text-xs">
@@ -591,20 +591,20 @@ export default function ProcessesPage() {
                     </div>
                     <div className="p-6">
                         <p className="text-sm font-bold">
-                            Yakin ingin menghapus tipe proses <span className="font-black">&quot;{confirmDeleteType}&quot;</span>?
+                            Yakin ingin menghapus tipe proses <span className="font-semibold">&quot;{confirmDeleteType}&quot;</span>?
                         </p>
                     </div>
                     <DialogFooter className="px-6 pb-6 gap-2">
                         <Button
                             variant="outline"
                             onClick={() => setConfirmDeleteType(null)}
-                            className="border-2 border-black rounded-none font-black uppercase text-xs"
+                            className="border border-border rounded-md font-semibold text-xs"
                         >
                             Batal
                         </Button>
                         <Button
                             onClick={() => confirmDeleteType && handleDeleteCustomType(confirmDeleteType)}
-                            className="bg-red-600 text-white hover:bg-red-700 rounded-none border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all font-black uppercase text-xs"
+                            className="bg-red-600 text-white hover:bg-red-700 rounded-md border border-border shadow-sm hover:shadow-none transition-all font-semibold text-xs"
                         >
                             <Trash2 className="mr-2 h-3.5 w-3.5" />
                             Hapus
@@ -637,24 +637,24 @@ function AppearanceEditor({
     return (
         <div>
             {/* Preview */}
-            <div className={cn("px-4 py-3 border-b-2 border-black flex items-center gap-3", previewTheme.toolbar.split(" ").filter(c => c.startsWith("bg-")).join(" "))}>
-                <div className="bg-black text-white p-2">
+            <div className={cn("px-4 py-3 border-b border-border flex items-center gap-3", previewTheme.toolbar.split(" ").filter(c => c.startsWith("bg-")).join(" "))}>
+                <div className="bg-slate-900 text-white p-2">
                     <PreviewIcon className="h-5 w-5" />
                 </div>
-                <span className="text-xs font-black uppercase">Preview</span>
+                <span className="text-xs font-semibold ">Preview</span>
             </div>
 
             {/* Color picker */}
             <div className="px-4 py-3 border-b border-zinc-200">
-                <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-2">Warna</p>
+                <p className="text-xs font-semibold text-zinc-400 mb-2">Warna</p>
                 <div className="grid grid-cols-6 gap-1.5">
                     {Object.entries(COLOR_THEMES).map(([key, theme]) => (
                         <button
                             key={key}
                             onClick={() => setSelectedColor(key)}
                             className={cn(
-                                "w-8 h-8 border-2 flex items-center justify-center transition-all",
-                                selectedColor === key ? "border-black scale-110 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]" : "border-zinc-200 hover:border-zinc-400",
+                                "w-8 h-8 border flex items-center justify-center transition-all",
+                                selectedColor === key ? "border-border scale-110 shadow-sm" : "border-zinc-200 hover:border-zinc-400",
                             )}
                             style={{ backgroundColor: theme.hex.bg }}
                             title={key}
@@ -667,7 +667,7 @@ function AppearanceEditor({
 
             {/* Icon picker */}
             <div className="px-4 py-3 border-b border-zinc-200">
-                <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-2">Ikon</p>
+                <p className="text-xs font-semibold text-zinc-400 mb-2">Ikon</p>
                 <div className="grid grid-cols-6 gap-1.5 max-h-40 overflow-y-auto">
                     {ICON_OPTIONS.map((opt) => {
                         const OptIcon = opt.icon
@@ -676,8 +676,8 @@ function AppearanceEditor({
                                 key={opt.name}
                                 onClick={() => setSelectedIcon(opt.name)}
                                 className={cn(
-                                    "w-8 h-8 border-2 flex items-center justify-center transition-all",
-                                    selectedIcon === opt.name ? "border-black bg-black text-white" : "border-zinc-200 hover:border-zinc-400 text-zinc-600",
+                                    "w-8 h-8 border flex items-center justify-center transition-all",
+                                    selectedIcon === opt.name ? "border-border bg-slate-900 text-white" : "border-zinc-200 hover:border-zinc-400 text-zinc-600",
                                 )}
                                 title={opt.label}
                             >
@@ -693,7 +693,7 @@ function AppearanceEditor({
                 <button
                     onClick={() => onSave(selectedIcon, selectedColor)}
                     disabled={saving}
-                    className="w-full h-8 bg-black text-white text-[10px] font-black uppercase border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+                    className="w-full h-8 bg-slate-900 text-white text-xs font-semibold border border-border shadow-sm hover:shadow-none transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
                 >
                     {saving ? <><Loader2 className="h-3 w-3 animate-spin" /> Menyimpan...</> : "Simpan Tampilan"}
                 </button>

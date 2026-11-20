@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button"
 export function PeopleOverlay() {
 
     return (
-        <Card className="h-full flex flex-col border border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-xl overflow-hidden bg-white dark:bg-black">
-            <CardHeader className="pb-3 border-b border-black bg-zinc-50 dark:bg-zinc-900">
-                <CardTitle className="text-base font-black uppercase tracking-wider flex items-center gap-2">
+        <Card className="h-full flex flex-col border border-border shadow-sm rounded-xl overflow-hidden bg-white dark:bg-slate-900">
+            <CardHeader className="pb-3 border-b border-border bg-zinc-50 dark:bg-zinc-900">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
                     <Users className="h-4 w-4 text-blue-600" />
                     SDM & Shift
                 </CardTitle>
@@ -22,7 +22,7 @@ export function PeopleOverlay() {
                         <span className="text-xs text-muted-foreground">Hadir Hari Ini</span>
                     </div>
                     <div className="flex flex-col text-right">
-                        <span className="font-bold text-lg text-orange-600">8</span>
+                        <span className="font-bold text-lg text-blue-600">8</span>
                         <span className="text-xs text-muted-foreground">Terlambat</span>
                     </div>
                 </div>
@@ -50,13 +50,13 @@ export function PeopleOverlay() {
                 </div>
 
                 {/* Pending Leave */}
-                <div className="bg-yellow-50 dark:bg-yellow-900/10 p-2 rounded-lg border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                <div className="bg-yellow-50 dark:bg-yellow-900/10 p-2 rounded-lg border border-border shadow-sm">
                     <div className="flex items-start gap-2">
                         <UserMinus className="h-4 w-4 text-yellow-600 mt-0.5" />
                         <div>
                             <p className="text-xs font-bold text-yellow-700">Peringatan Absensi (Besok)</p>
-                            <p className="text-[10px] text-yellow-600/80">3 Operator Weaving Izin. Perlu backup.</p>
-                            <Button size="sm" variant="outline" className="h-6 text-[10px] mt-1 bg-white border border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none active:bg-yellow-100 text-yellow-700">Cari Pengganti</Button>
+                            <p className="text-xs text-yellow-600/80">3 Operator Weaving Izin. Perlu backup.</p>
+                            <Button size="sm" variant="outline" className="h-6 text-xs mt-1 bg-white border border-border shadow-sm hover:shadow-none active:bg-yellow-100 text-yellow-700">Cari Pengganti</Button>
                         </div>
                     </div>
                 </div>

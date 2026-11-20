@@ -187,7 +187,7 @@ export function DirectPurchaseDialog({ vendors, products, warehouses, trigger }:
             ) : (
                 <Button
                     onClick={() => setOpen(true)}
-                    className="bg-emerald-500 text-white hover:bg-emerald-600 border-2 border-emerald-600 font-black uppercase text-[10px] tracking-wide h-10 px-5 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
+                    className="bg-emerald-500 text-white hover:bg-emerald-600 border border-emerald-600 font-semibold text-xs h-10 px-5 shadow-sm active:shadow-none transition-all"
                 >
                     <ShoppingCart className="h-3.5 w-3.5 mr-1.5" /> Pembelian Langsung
                 </Button>
@@ -235,7 +235,7 @@ export function DirectPurchaseDialog({ vendors, products, warehouses, trigger }:
                                 variant="outline"
                                 size="sm"
                                 onClick={addItem}
-                                className="border-2 border-black font-black uppercase text-[9px] tracking-wider h-7 px-3 rounded-none"
+                                className="border border-border font-semibold text-xs h-7 px-3 rounded-md"
                             >
                                 <Plus className="h-3 w-3 mr-1" /> Tambah
                             </Button>
@@ -260,7 +260,7 @@ export function DirectPurchaseDialog({ vendors, products, warehouses, trigger }:
                                                     value={item.productId}
                                                     onValueChange={(v) => updateItem(item.key, "productId", v)}
                                                 >
-                                                    <SelectTrigger className="border-2 border-zinc-300 h-8 text-xs font-bold rounded-none">
+                                                    <SelectTrigger className="border border-zinc-300 h-8 text-xs font-bold rounded-md">
                                                         <SelectValue placeholder="Pilih produk..." />
                                                     </SelectTrigger>
                                                     <SelectContent>
@@ -278,7 +278,7 @@ export function DirectPurchaseDialog({ vendors, products, warehouses, trigger }:
                                                     min={1}
                                                     value={item.quantity}
                                                     onChange={(e) => updateItem(item.key, "quantity", parseInt(e.target.value) || 0)}
-                                                    className="border-2 border-zinc-300 h-8 text-xs font-bold text-right rounded-none w-full"
+                                                    className="border border-zinc-300 h-8 text-xs font-bold text-right rounded-md w-full"
                                                 />
                                             </td>
                                             <td className={NB.tableCell}>
@@ -287,7 +287,7 @@ export function DirectPurchaseDialog({ vendors, products, warehouses, trigger }:
                                                     min={0}
                                                     value={item.unitPrice}
                                                     onChange={(e) => updateItem(item.key, "unitPrice", parseFloat(e.target.value) || 0)}
-                                                    className="border-2 border-zinc-300 h-8 text-xs font-bold text-right rounded-none w-full"
+                                                    className="border border-zinc-300 h-8 text-xs font-bold text-right rounded-md w-full"
                                                 />
                                             </td>
                                             <td className={`${NB.tableCell} text-right font-mono text-xs font-bold`}>
@@ -312,7 +312,7 @@ export function DirectPurchaseDialog({ vendors, products, warehouses, trigger }:
                         </div>
 
                         {/* Totals */}
-                        <div className="bg-zinc-50 px-4 py-3 border-t-2 border-black space-y-1">
+                        <div className="bg-zinc-50 px-4 py-3 border-t border-border space-y-1">
                             <div className="flex justify-between text-xs font-bold text-zinc-500">
                                 <span>Subtotal</span>
                                 <span className="font-mono">{formatIDR(subtotal)}</span>
@@ -321,7 +321,7 @@ export function DirectPurchaseDialog({ vendors, products, warehouses, trigger }:
                                 <span>PPN 11%</span>
                                 <span className="font-mono">{formatIDR(taxAmount)}</span>
                             </div>
-                            <div className="flex justify-between text-sm font-black text-zinc-900 pt-1 border-t border-zinc-300">
+                            <div className="flex justify-between text-sm font-semibold text-zinc-900 pt-1 border-t border-zinc-300">
                                 <span>TOTAL</span>
                                 <span className="font-mono">{formatIDR(total)}</span>
                             </div>
@@ -338,8 +338,8 @@ export function DirectPurchaseDialog({ vendors, products, warehouses, trigger }:
                     />
 
                     {/* Info box — kept as-is (not a form field) */}
-                    <div className="border-2 border-emerald-300 bg-emerald-50 p-3 text-xs text-emerald-800 font-medium space-y-1">
-                        <p className="font-black uppercase text-[10px] tracking-wider mb-1">Yang akan dibuat otomatis:</p>
+                    <div className="border border-emerald-300 bg-emerald-50 p-3 text-xs text-emerald-800 font-medium space-y-1">
+                        <p className="font-semibold text-xs mb-1">Yang akan dibuat otomatis:</p>
                         <ul className="list-disc list-inside space-y-0.5">
                             <li>Purchase Order (status: <span className="font-bold">COMPLETED</span>)</li>
                             <li>Surat Jalan Masuk / GRN (status: <span className="font-bold">ACCEPTED</span>)</li>

@@ -56,7 +56,7 @@ export function CutPlanStatusActions({
                     key={status}
                     onClick={() => handleTransition(status)}
                     disabled={loading !== null}
-                    className={`text-[9px] font-black uppercase tracking-wider px-3 py-1.5 border-2 transition-colors disabled:opacity-50 ${
+                    className={`text-xs font-semibold   px-3 py-1.5 border transition-colors disabled:opacity-50 ${
                         STATUS_ACTION_STYLES[status] || "bg-zinc-100 border-zinc-300"
                     }`}
                 >
