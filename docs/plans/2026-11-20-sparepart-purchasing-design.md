@@ -229,10 +229,12 @@ Page: **Pengadaan → Pembelian Sparepart** (`/procurement/spareparts`).
 
 ### Verified
 
-- `npx vitest run`: 1,223 pass; the same 7 failures as before the branch
-  (`app/actions/inventory.test.ts` ×5, `__tests__/finance/invoice-payment-flow.test.ts` ×2). 29 new
-  tests (parser on both sample PDFs, matching, templates, status rules, save/pay actions with a
-  mocked Prisma, the bill guard).
+- `npx vitest run` (excluding `.next/`): 1,236 pass; the same 7 failures as before the branch
+  (`app/actions/inventory.test.ts` ×5, `__tests__/finance/invoice-payment-flow.test.ts` ×2). 42 new
+  tests (parser on both sample PDFs and OCR-shaped input, matching, templates, typed rates and
+  amounts, status rules, save/pay actions with a mocked Prisma, the bill guard). Note: after
+  `npm run build`, vitest also picks up a copy of the old failing inventory test under
+  `.next/standalone/`; that is a build artefact, not a new failure.
 - `npx tsc --noEmit`: 21 errors = baseline. `NODE_ENV=production npm run build`: pass.
 - Browser walkthrough on a local Postgres with the two sample invoices: RMB import saved, 30% deposit,
   shipped with resi, partial receipt (140/690), rest received, paid off. Books afterwards:
@@ -259,9 +261,36 @@ Click latency was measured from the click to the DOM change with a MutationObser
 browser pane was hidden, which throttles requestAnimationFrame, so frame-based numbers were not
 usable).
 
+### Independent review (same day) and what changed
+
+A separate reviewer read the whole diff. Accounting core confirmed (every posting goes through the
+canonical paths, journals balance, GR/IR nets to zero, no nested transactions, SQL parameterised).
+Fixed after the review, each re-checked in the browser and the DB:
+
+- **Critical:** a rate typed "2.490" was read as 2,49 (everything 1000× too small). Rates are now
+  read in any grouping and must be plausible (RMB 500–10.000, USD 5.000–50.000) on screen and on
+  the server; the screen echoes "1 RMB = Rp 2.490".
+- Typed amounts are read with the Indonesian grouping the screen shows ("26.595" = ¥26.595), with
+  an echo; an unreadable "sudah dibayar" amount blocks Simpan instead of paying in full.
+- No twins: a new supplier with the same NPWP or name is reused; Simpan locks on the first click;
+  a unique-index race returns a friendly duplicate. Verified: triple click → one purchase.
+- PO numbers skip numbers taken by the count-based New PO dialog and use the current month.
+- Files: path derived on the server from the hash; magic-byte check; purchasing role to upload;
+  served with an allowlisted type + `nosniff`; disk storage disabled in production.
+- Save is batched (works for long invoices against the far-away DB); PO item ids are stored per
+  parsed line so OE numbers never land next to the wrong item.
+- Import invoices cannot book foreign VAT as PPN Masukan; the green "sama persis" check only shows
+  when a printed total was really read; unread pages are flagged.
+- Payments pick the cash/bank account (verified: DP from Bank Mandiri 1111).
+- Supplier identity (NPWP/email/template) must agree with the printed name.
+
 ### Not done yet
 
 - **Production:** migration not applied to Supabase, nothing pushed or deployed (needs Richie's OK).
+- **Supabase bucket:** files go to the `documents` bucket under an unguessable hash path and are
+  served via signed URLs. Other ERP code reads that bucket with public URLs, so it is probably
+  public; a private bucket for supplier invoices is safer (setting in Supabase).
+- Approval: admin/CEO/director can save, post, pay and receive with no second person (⚑ above).
 - Cancel / edit a saved purchase from this page. The existing `cancelPurchaseOrder` writes a
   non-existent `Invoice.notes` column, so cancelling a PO that has a bill fails today.
 - FX gain/loss when the bank rate differs from the booked rate; landed cost (freight, bea masuk,
@@ -269,7 +298,10 @@ usable).
 - LLM fallback for low-confidence invoices — needs Richie's OK before any invoice content goes to
   an outside API.
 - OCR engine and language model load from public CDNs on first use (no invoice content is sent);
-  self-hosting them under `public/` would make the first scan faster and work offline.
+  self-hosting them under `public/` would make the first scan faster and work offline. Table OCR on
+  a 150 dpi scan read 3 of 4 lines; the missing line shows as a total difference on screen.
+- Payments have no date field yet (recorded today); `acceptGRN` still posts line by line, so a
+  "barang datang semua" on a very long import invoice is slow against the Tokyo DB.
 - Only generated sample invoices were tested. The first real supplier invoices will show which
   layouts need template tweaks.
 - Seen in local demo mode only: a hard reload of any page lands on `/dashboard` (pre-existing,
