@@ -12,6 +12,7 @@ import {
     Plus, Search, RefreshCcw, Package, Layers, Cog,
     ArrowRight, Scissors, Shirt, Droplets, ShieldCheck, ArchiveRestore, Loader2, Copy, Trash2,
 } from "lucide-react"
+import { confirmAction } from "@/components/ui/confirm-action-host"
 
 const formatCurrency = (val: number) =>
     new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(val)
@@ -110,7 +111,7 @@ export function BOMListClient({ boms }: BOMListClientProps) {
 
     const handleDelete = useCallback(async (bomId: string, productName: string, e: React.MouseEvent) => {
         e.stopPropagation()
-        if (!window.confirm(`Hapus BOM untuk "${productName}"?\n\nSPK yang sudah di-generate tidak akan dihapus, tapi linknya akan terputus.`)) return
+        if (!(await confirmAction({ title: `Hapus BOM untuk ${productName}?`, description: "SPK yang sudah dibuat tidak ikut terhapus, tetapi tautannya ke BOM ini terputus.", confirmLabel: "Hapus BOM", destructive: true }))) return
         setDeletingId(bomId)
         try {
             const res = await fetch(`/api/manufacturing/production-bom/${bomId}`, { method: 'DELETE' })

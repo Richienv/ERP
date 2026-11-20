@@ -25,6 +25,7 @@ import { Progress } from "@/components/ui/progress";
 import { MachineFormDialog } from "@/components/manufacturing/machine-form-dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { confirmAction } from "@/components/ui/confirm-action-host"
 
 interface Machine {
     id: string;
@@ -130,7 +131,7 @@ export function WorkCentersClient({ initialMachines, initialSummary }: Props) {
 
     const handleDeleteMachine = async (e: React.MouseEvent, machine: Machine) => {
         e.stopPropagation();
-        const confirmed = window.confirm(`Hapus mesin "${machine.name}" (${machine.code})?\n\nData mesin akan dihapus permanen.`);
+        const confirmed = await confirmAction({ title: `Hapus mesin ${machine.name} (${machine.code})?`, description: "Data mesin akan dihapus permanen.", confirmLabel: "Hapus mesin", destructive: true });
         if (!confirmed) return;
 
         setDeleting(machine.id);

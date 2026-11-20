@@ -55,6 +55,7 @@ import { createBankAccount, backfillReconciliationItems } from "@/lib/actions/fi
 import type { BankAccountRecord, COAAccount } from "@/hooks/use-reconciliation"
 import { ReconciliationFocusView } from "@/components/finance/reconciliation-focus-view"
 import { useGLAccounts } from "@/hooks/use-gl-accounts"
+import { confirmAction } from "@/components/ui/confirm-action-host"
 
 // ==============================================================================
 // Indonesian Banks
@@ -504,7 +505,7 @@ export function BankReconciliationView({
                 return
             }
         }
-        const confirmed = window.confirm("Tutup rekonsiliasi ini? Setelah ditutup, tidak bisa diubah lagi.")
+        const confirmed = await confirmAction({ title: "Tutup rekonsiliasi ini?", description: "Setelah ditutup, rekonsiliasi tidak bisa diubah lagi.", confirmLabel: "Tutup rekonsiliasi", destructive: true })
         if (!confirmed) return
         setActionLoading("close")
         try {

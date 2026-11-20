@@ -8,6 +8,7 @@ import { formatIDR } from "@/lib/utils"
 import { moveInvoiceToSent, cancelInvoice } from "@/lib/actions/finance-invoices"
 import { queryKeys } from "@/lib/query-keys"
 import { toast } from "sonner"
+import { askText } from "@/components/ui/confirm-action-host"
 
 // ─── Types ───────────────────────────────────────────────────────
 interface PendingItem {
@@ -82,7 +83,7 @@ export function PendingApprovalSection({ items, type }: PendingApprovalSectionPr
     }
 
     async function handleReject(item: PendingItem) {
-        const reason = window.prompt("Alasan penolakan (opsional):")
+        const reason = await askText({ title: `Tolak ${item.invoiceNumber}?`, label: "Alasan penolakan (boleh dikosongkan)", multiline: true, confirmLabel: "Tolak", destructive: true })
         if (reason === null) return // user cancelled prompt
 
         setLoadingId(item.id)

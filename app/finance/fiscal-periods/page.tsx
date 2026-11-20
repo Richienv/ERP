@@ -130,7 +130,7 @@ export default function FiscalPeriodsPage() {
                                 ) : (
                                     <IconPlus className="h-3.5 w-3.5 mr-1.5" />
                                 )}
-                                Generate 12 Bulan
+                                {generateMutation.isPending ? "Membuat 12 periode…" : "Buat 12 periode"}
                             </Button>
                         </div>
                     </div>

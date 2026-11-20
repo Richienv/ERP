@@ -31,6 +31,7 @@ import { CreateDCNoteDialog } from "@/components/finance/create-dcnote-dialog"
 import { DCNoteSettlementDialog } from "@/components/finance/dcnote-settlement-dialog"
 import { NB } from "@/lib/dialog-styles"
 import { exportToExcel } from "@/lib/table-export"
+import { confirmAction } from "@/components/ui/confirm-action-host"
 
 // ──────────────────────────────────────────
 // Type & Reason Labels (Bahasa Indonesia)
@@ -151,7 +152,7 @@ export default function CreditDebitNotesPage() {
     }
 
     const handleVoid = async (id: string) => {
-        if (!confirm("Yakin ingin membatalkan nota ini? Jurnal dan settlement akan di-reverse.")) return
+        if (!(await confirmAction({ title: "Batalkan nota ini?", description: "Jurnal dan pelunasan dari nota ini akan dibalik (reverse).", confirmLabel: "Batalkan nota", cancelLabel: "Tidak", destructive: true }))) return
         setActionLoading(id)
         try {
             const result = await voidDCNote(id)
@@ -169,7 +170,7 @@ export default function CreditDebitNotesPage() {
     }
 
     const handleFixData = async () => {
-        if (!confirm("Perbaiki status invoice yang salah?\n\nIni akan mengubah invoice dengan status SEBAGIAN (yang hanya punya nota kredit/debit, tanpa pembayaran riil) kembali ke TERKIRIM.")) return
+        if (!(await confirmAction({ title: "Perbaiki status invoice yang salah?", description: "Invoice berstatus Sebagian yang hanya punya nota kredit/debit (tanpa pembayaran nyata) dikembalikan ke Terkirim.", confirmLabel: "Perbaiki status" }))) return
         setFixLoading(true)
         try {
             const result = await fixCNPartialInvoices()

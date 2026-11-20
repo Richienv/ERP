@@ -607,7 +607,7 @@ export default function APBillsStackPage() {
                                                     ) : (
                                                         <Check className="h-3 w-3 mr-1" />
                                                     )}
-                                                    Setujui
+                                                    {approvingId === bill.id ? "Menyetujui…" : "Setujui"}
                                                 </button>
                                             )}
                                         </div>
@@ -843,17 +843,18 @@ export default function APBillsStackPage() {
                                     <Button
                                         onClick={() => handleApproveBill(activeBill)}
                                         disabled={approveDisabled}
+                                        loading={approvingId === activeBill.id}
+                                        loadingText="Menyetujui tagihan…"
                                         className={NB.submitBtnOrange}
                                     >
-                                        {approvingId === activeBill.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                        <Check className="mr-2 h-3.5 w-3.5" />
-                                        Setujui
+                                        <Check className="mr-2 h-3.5 w-3.5" aria-hidden />
+                                        Setujui tagihan
                                     </Button>
                                 </>
                             ) : (
                                 <>
                                     <Button variant="outline" onClick={() => { setIsDetailOpen(false); setIsDisputeOpen(true) }} className={NB.cancelBtn}>
-                                        <XCircle className="mr-2 h-3.5 w-3.5" /> Dispute
+                                        <XCircle className="mr-2 h-3.5 w-3.5" aria-hidden /> Tandai bermasalah
                                     </Button>
                                     <Button onClick={() => { setIsDetailOpen(false); setIsPayOpen(true) }} disabled={activeBill.balanceDue <= 0} className={NB.submitBtnGreen}>
                                         <CreditCard className="mr-2 h-3.5 w-3.5" /> Bayar Sekarang

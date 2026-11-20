@@ -1,6 +1,7 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
+import { Loader2 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -41,19 +42,41 @@ function Button({
   variant,
   size,
   asChild = false,
+  loading = false,
+  loadingText,
+  disabled,
+  children,
   ...props
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean
+    /**
+     * While true the button can't be pressed twice and shows a spinner with `loadingText`.
+     * Every wait says what it waits for: pass the action in progress, e.g. "Menyimpan…".
+     */
+    loading?: boolean
+    loadingText?: React.ReactNode
   }) {
   const Comp = asChild ? Slot : "button"
+  const busy = loading && !asChild
 
   return (
     <Comp
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
+      disabled={busy || disabled}
+      aria-busy={busy || undefined}
       {...props}
-    />
+    >
+      {busy ? (
+        <>
+          <Loader2 className="animate-spin" aria-hidden />
+          {loadingText ?? children}
+        </>
+      ) : (
+        children
+      )}
+    </Comp>
   )
 }
 

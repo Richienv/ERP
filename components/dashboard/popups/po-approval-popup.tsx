@@ -15,6 +15,7 @@ import { formatIDR } from "@/lib/utils"
 import { queryKeys } from "@/lib/query-keys"
 import type { SidebarActionCounts } from "@/hooks/use-sidebar-actions"
 import { approvePurchaseOrder, rejectPurchaseOrder } from "@/lib/actions/procurement"
+import { askText } from "@/components/ui/confirm-action-host"
 
 interface PendingPO {
     id: string
@@ -89,7 +90,7 @@ export function POApprovalPopup({ open, onClose, onAllActioned }: POApprovalPopu
     }, [items, invalidateAll, onClose, onAllActioned, queryClient])
 
     const handleReject = useCallback(async (po: PendingPO) => {
-        const reason = window.prompt(`Alasan penolakan PO ${po.number}:`)
+        const reason = await askText({ title: `Tolak PO ${po.number}?`, label: "Alasan penolakan", multiline: true, required: true, confirmLabel: "Tolak PO", destructive: true })
         if (!reason) return
 
         setActing(po.id)
@@ -124,7 +125,8 @@ export function POApprovalPopup({ open, onClose, onAllActioned }: POApprovalPopu
             <NBDialogBody>
                 {loading ? (
                     <div className="flex items-center justify-center py-10">
-                        <Loader2 className="h-5 w-5 animate-spin text-zinc-400" />
+                        <Loader2 className="h-5 w-5 animate-spin text-zinc-400" aria-hidden />
+                        <span className="ml-2 text-sm text-muted-foreground">Memuat PO yang menunggu…</span>
                     </div>
                 ) : items.length === 0 ? (
                     <p className="text-sm text-zinc-500 text-center py-10">
@@ -155,7 +157,7 @@ export function POApprovalPopup({ open, onClose, onAllActioned }: POApprovalPopu
                                         ) : (
                                             <CheckCircle2 className="h-3 w-3 mr-1" />
                                         )}
-                                        Setujui
+                                        {acting === po.id ? "Menyetujui…" : "Setujui"}
                                     </Button>
                                     <Button
                                         size="sm"

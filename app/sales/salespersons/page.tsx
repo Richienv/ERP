@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { confirmAction } from "@/components/ui/confirm-action-host"
 
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat("id-ID", {
@@ -112,7 +113,7 @@ export default function SalespersonsPage() {
   }
 
   const handleDelete = async (sp: SalespersonRow) => {
-    if (!confirm(`Hapus salesperson "${sp.name}"?`)) return
+    if (!(await confirmAction({ title: `Hapus salesperson ${sp.name}?`, confirmLabel: "Hapus salesperson", destructive: true }))) return
     try {
       const res = await fetch(`/api/sales/salespersons?id=${sp.id}`, { method: "DELETE" })
       const json = await res.json()
@@ -294,7 +295,8 @@ export default function SalespersonsPage() {
 
           {reportLoading ? (
             <div className="flex items-center justify-center py-16">
-              <Loader2 className="h-6 w-6 animate-spin text-amber-500" />
+              <Loader2 className="h-6 w-6 animate-spin text-amber-500" aria-hidden />
+              <span className="ml-2 text-sm text-muted-foreground">Memuat laporan komisi…</span>
             </div>
           ) : reportData ? (
             <>

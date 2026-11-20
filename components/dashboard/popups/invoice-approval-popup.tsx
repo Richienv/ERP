@@ -15,6 +15,7 @@ import { formatIDR } from "@/lib/utils"
 import { queryKeys } from "@/lib/query-keys"
 import type { SidebarActionCounts } from "@/hooks/use-sidebar-actions"
 import { moveInvoiceToSent, cancelInvoice } from "@/lib/actions/finance-invoices"
+import { askText } from "@/components/ui/confirm-action-host"
 
 interface PendingInvoice {
     id: string
@@ -91,7 +92,7 @@ export function InvoiceApprovalPopup({ open, onClose, onAllActioned }: InvoiceAp
     }, [items, invalidateAll, onClose, onAllActioned, queryClient])
 
     const handleReject = useCallback(async (inv: PendingInvoice) => {
-        const reason = window.prompt(`Alasan pembatalan Invoice ${inv.number}:`)
+        const reason = await askText({ title: `Batalkan invoice ${inv.number}?`, label: "Alasan pembatalan", multiline: true, required: true, confirmLabel: "Batalkan invoice", cancelLabel: "Tidak", destructive: true })
         if (!reason) return
 
         setActing(inv.id)
@@ -167,7 +168,7 @@ export function InvoiceApprovalPopup({ open, onClose, onAllActioned }: InvoiceAp
                                         ) : (
                                             <Send className="h-3 w-3 mr-1" />
                                         )}
-                                        Kirim
+                                        {acting === inv.id ? "Mengirim…" : "Kirim"}
                                     </Button>
                                     <Button
                                         size="sm"

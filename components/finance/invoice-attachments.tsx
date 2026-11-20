@@ -66,7 +66,7 @@ export function InvoiceAttachmentSection({ invoiceId }: InvoiceAttachmentSection
                     ) : (
                         <IconUpload className="h-3 w-3 mr-1" />
                     )}
-                    Upload
+                    {uploadMutation.isPending ? "Mengunggah…" : "Unggah"}
                 </Button>
                 <input
                     ref={fileInputRef}

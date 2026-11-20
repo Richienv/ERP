@@ -5,6 +5,7 @@ import dynamic from "next/dynamic"
 import { usePathname } from "next/navigation"
 
 import { Toaster } from "@/components/ui/sonner"
+import { ConfirmActionHost } from "@/components/ui/confirm-action-host"
 import { AIProvider } from "@/components/ai/ai-context"
 import { SiteHeader } from "@/components/site-header"
 
@@ -68,6 +69,7 @@ function GlobalLayoutInner({ children }: GlobalLayoutProps) {
         <ServiceWorkerRegister />
         <PerformanceTracker />
         <CommandPalette />
+        <ConfirmActionHost />
         <ShortcutCheatSheet />
       </AIProvider>
     </AuthProvider >

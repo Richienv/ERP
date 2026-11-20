@@ -1428,7 +1428,7 @@ function MatchedItemView({
                         ) : (
                             <Unlink className="h-3 w-3 mr-1.5" />
                         )}
-                        Batalkan Pencocokan
+                        {actionLoading === `unmatch-${item.id}` ? "Membatalkan pencocokan…" : "Batalkan Pencocokan"}
                     </Button>
                 )}
             </div>
@@ -1841,7 +1841,7 @@ export function ReconciliationFocusView({
                         ) : (
                             <Lock className="h-3 w-3 mr-1.5" />
                         )}
-                        Tutup Rekonsiliasi
+                        {actionLoading === "close" ? "Menutup rekonsiliasi…" : "Tutup Rekonsiliasi"}
                     </Button>
                 </div>
             )}

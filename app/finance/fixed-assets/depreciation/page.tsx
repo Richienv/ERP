@@ -13,6 +13,7 @@ import { NB } from "@/lib/dialog-styles"
 import { toast } from "sonner"
 import Link from "next/link"
 import { Calculator, Play, ArrowLeft, RefreshCcw, Undo2, Loader2, AlertTriangle, CheckCircle } from "lucide-react"
+import { confirmAction } from "@/components/ui/confirm-action-host"
 
 export const dynamic = "force-dynamic"
 
@@ -94,9 +95,13 @@ export default function DepreciationRunPage() {
     }
 
     const handleReverse = async (runId: string) => {
-        const confirmed = window.confirm(
-            "Apakah Anda yakin ingin membatalkan run penyusutan ini?\n\nJurnal yang telah dibuat akan di-void dan nilai akumulasi penyusutan akan dikembalikan."
-        )
+        const confirmed = await confirmAction({
+            title: "Batalkan run penyusutan ini?",
+            description: "Jurnal yang sudah dibuat akan di-void dan akumulasi penyusutan dikembalikan ke nilai sebelumnya.",
+            confirmLabel: "Batalkan run",
+            cancelLabel: "Tidak",
+            destructive: true,
+        })
         if (!confirmed) return
 
         setReversingId(runId)

@@ -35,6 +35,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useInvalidateCategories } from "@/hooks/use-categories"
 import { queryKeys } from "@/lib/query-keys"
 import { NB } from "@/lib/dialog-styles"
+import { confirmAction } from "@/components/ui/confirm-action-host"
 
 interface CategoryWithChildren {
     id: string
@@ -573,7 +574,7 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
     }
 
     const handleDelete = async () => {
-        if (!window.confirm("Hapus kategori ini? Tindakan ini tidak dapat dibatalkan.")) return
+        if (!(await confirmAction({ title: `Hapus kategori ${category.name}?`, description: "Tindakan ini tidak dapat dibatalkan.", confirmLabel: "Hapus kategori", destructive: true }))) return
         setIsDeleting(true)
         const result = await deleteCategory(category.id)
         if (result.success) {

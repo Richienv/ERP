@@ -38,6 +38,7 @@ import { useAutoSave, isDraftNewer } from "./hooks/use-auto-save"
 import { usePriceDrift } from "./hooks/use-price-drift"
 import { useCriticalPath } from "./hooks/use-critical-path"
 import { TemplateManagerDialog } from "@/components/manufacturing/bom/template-manager-dialog"
+import { confirmAction } from "@/components/ui/confirm-action-host"
 
 const STATION_TYPE_CONFIG = [
     { type: "CUTTING", label: "Potong", icon: Scissors, color: "bg-red-50 text-red-600 border-red-200 hover:bg-red-100" },
@@ -1004,7 +1005,7 @@ function BOMCanvasPageInner({ id }: { id: string }) {
     // --- RESET SPK (delete linked work orders so user can re-generate) ---
     const [resettingSPK, setResettingSPK] = useState(false)
     const handleResetSPK = async () => {
-        if (!confirm("Reset SPK akan menghapus semua work order yang belum berjalan untuk BOM ini. Lanjutkan?")) return
+        if (!(await confirmAction({ title: "Reset SPK untuk BOM ini?", description: "Semua work order yang belum berjalan untuk BOM ini dihapus, lalu bisa dibuat ulang.", confirmLabel: "Reset SPK", destructive: true }))) return
         setResettingSPK(true)
         try {
             const res = await fetch(`/api/manufacturing/production-bom/${id}/work-orders`, { method: "DELETE" })
@@ -1040,10 +1041,8 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                 {/* Left: Back + Product info + Version + Target */}
                 <div className="flex items-center gap-4 min-w-0">
                     <button
-                        onClick={() => {
-                            if (isDirty) {
-                                if (!window.confirm("Ada perubahan yang belum disimpan. Yakin ingin keluar tanpa menyimpan?")) return
-                            }
+                        onClick={async () => {
+                            if (isDirty && !(await confirmAction({ title: "Keluar tanpa menyimpan?", description: "Perubahan pada BOM ini belum disimpan dan akan hilang.", confirmLabel: "Keluar tanpa menyimpan", cancelLabel: "Tetap di sini", destructive: true }))) return
                             router.push("/manufacturing/bom")
                         }}
                         className="p-2 border border-border hover:bg-zinc-100 transition-colors shrink-0"

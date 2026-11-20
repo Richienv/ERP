@@ -142,7 +142,8 @@ export function ProductQuickEditPopup({ open, onClose, taskType, onAllActioned }
             <NBDialogBody>
                 {loading ? (
                     <div className="flex items-center justify-center py-10">
-                        <Loader2 className="h-5 w-5 animate-spin text-zinc-400" />
+                        <Loader2 className="h-5 w-5 animate-spin text-zinc-400" aria-hidden />
+                        <span className="ml-2 text-sm text-muted-foreground">Memuat data produk…</span>
                     </div>
                 ) : !isProducts ? (
                     <div className="text-center py-8 space-y-3">
@@ -205,7 +206,7 @@ export function ProductQuickEditPopup({ open, onClose, taskType, onAllActioned }
                                                 ) : (
                                                     <Save className="h-3 w-3 mr-1" />
                                                 )}
-                                                Simpan Harga
+                                                {saving === product.id ? "Menyimpan harga…" : "Simpan Harga"}
                                             </Button>
                                         </div>
                                     )}

@@ -666,7 +666,7 @@ export default function ProductDetailPage() {
               ) : (
                 <Save className="h-4 w-4 mr-2" />
               )}
-              Simpan
+              {isSaving ? "Menyimpan…" : "Simpan"}
             </Button>
           </div>
         </div>

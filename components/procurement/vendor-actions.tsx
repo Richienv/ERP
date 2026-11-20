@@ -9,6 +9,7 @@ import { queryKeys } from "@/lib/query-keys"
 import { toggleVendorStatus } from "@/app/actions/vendor"
 import { VendorHistoryDialog } from "./vendor-history-dialog"
 import { VendorContactDialog } from "./vendor-contact-dialog"
+import { confirmAction } from "@/components/ui/confirm-action-host"
 
 interface VendorActionsProps {
     vendor: {
@@ -31,10 +32,11 @@ export function VendorActions({ vendor }: VendorActionsProps) {
     }
 
     const handleToggleStatus = async () => {
-        const action = vendor.isActive ? "menonaktifkan" : "mengaktifkan"
-        const confirmed = window.confirm(
-            `Apakah Anda yakin ingin ${action} vendor "${vendor.name}"?`
-        )
+        const confirmed = await confirmAction({
+            title: vendor.isActive ? `Nonaktifkan vendor ${vendor.name}?` : `Aktifkan vendor ${vendor.name}?`,
+            confirmLabel: vendor.isActive ? "Nonaktifkan vendor" : "Aktifkan vendor",
+            destructive: vendor.isActive,
+        })
         if (!confirmed) return
 
         setIsToggling(true)

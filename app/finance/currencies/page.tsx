@@ -37,6 +37,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { searchCurrencies } from "@/lib/currency-search"
 import type { RankedCurrency } from "@/lib/currency-search"
+import { confirmAction } from "@/components/ui/confirm-action-host"
 
 function fmtRate(val: number | string) {
     return Number(val).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 4 })
@@ -396,8 +397,8 @@ function CurrencyCard({ currency, onAddRate, onDelete }: { currency: Currency; o
                                     <td className="px-1">
                                         <button
                                             className="text-zinc-300 dark:text-zinc-600 hover:text-red-500 dark:hover:text-red-400 transition-colors"
-                                            onClick={() => {
-                                                if (confirm("Hapus kurs ini?")) {
+                                            onClick={async () => {
+                                                if (await confirmAction({ title: "Hapus kurs ini?", confirmLabel: "Hapus kurs", destructive: true })) {
                                                     deleteRate.mutate(rate.id, {
                                                         onSuccess: () => toast.success("Kurs dihapus"),
                                                         onError: (e) => toast.error(e.message),
@@ -526,8 +527,8 @@ export default function CurrenciesPage() {
                             key={c.id}
                             currency={c}
                             onAddRate={(cur) => setRateDialogCurrency(cur)}
-                            onDelete={(cur) => {
-                                if (confirm(`Hapus mata uang ${cur.code}? Semua data kurs untuk mata uang ini juga akan dihapus.`)) {
+                            onDelete={async (cur) => {
+                                if (await confirmAction({ title: `Hapus mata uang ${cur.code}?`, description: "Semua data kurs untuk mata uang ini ikut terhapus.", confirmLabel: "Hapus mata uang", destructive: true })) {
                                     deleteCurrency.mutate(cur.id, {
                                         onSuccess: () => toast.success(`${cur.code} berhasil dihapus`),
                                         onError: (e) => toast.error(e.message),

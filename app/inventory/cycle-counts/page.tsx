@@ -49,6 +49,7 @@ import {
 import { toast } from "sonner"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 import Link from "next/link"
+import { confirmAction } from "@/components/ui/confirm-action-host"
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
     SCHEDULED: { label: "Dijadwalkan", bg: "bg-zinc-100", text: "text-zinc-700" },
@@ -139,7 +140,7 @@ export default function CycleCountsPage() {
 
     const handleFinalize = async () => {
         if (!activeSession) return
-        if (!window.confirm("Finalisasi stok opname? Selisih akan otomatis disesuaikan.")) return
+        if (!(await confirmAction({ title: "Selesaikan stok opname?", description: "Selisih antara hitungan fisik dan stok di sistem akan otomatis disesuaikan.", confirmLabel: "Selesaikan opname" }))) return
 
         setFinalizing(true)
         const result = await finalizeCycleCount(activeSession.id)

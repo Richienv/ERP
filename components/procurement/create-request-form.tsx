@@ -325,7 +325,7 @@ export function CreateRequestForm({ products, employees }: Props) {
               ) : (
                 <Save className="h-3.5 w-3.5" />
               )}
-              {isSubmitting ? "Mengirim..." : "Submit Request"}
+              {isSubmitting ? "Mengirim permintaan…" : "Kirim permintaan"}
             </Button>
           </div>
         </form>

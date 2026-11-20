@@ -4,6 +4,7 @@ import { memo } from "react"
 import { Handle, Position, type NodeProps } from "@xyflow/react"
 import { Scissors, Shirt, Droplets, Printer, Sparkles, ShieldCheck, Package, Wrench, Cog, X, Trash2, Clock, Plus, User, Building2 } from "lucide-react"
 import { getIconByName, getColorTheme } from "./station-config"
+import { askText } from "@/components/ui/confirm-action-host"
 
 const STATION_ICONS: Record<string, any> = {
     CUTTING: Scissors, SEWING: Shirt, WASHING: Droplets,
@@ -103,9 +104,9 @@ function StationNodeComponent({ data }: NodeProps & { data: StationNodeData }) {
                         <span className="bg-slate-900 text-white text-xs font-semibold w-6 h-6 flex items-center justify-center">{sequence}</span>
                         {data.splitPct != null && (
                             <button
-                                onClick={(e) => {
+                                onClick={async (e) => {
                                     e.stopPropagation()
-                                    const input = prompt(`Persentase untuk ${station?.name} (1-99):`, String(data.splitPct))
+                                    const input = await askText({ title: `Persentase untuk ${station?.name ?? "stasiun ini"}`, label: "Persentase (1–99)", inputMode: "numeric", defaultValue: String(data.splitPct), required: true, confirmLabel: "Simpan persentase" })
                                     if (input != null) {
                                         const val = Math.max(1, Math.min(99, parseInt(input) || data.splitPct!))
                                         data.onPctChange?.(val)

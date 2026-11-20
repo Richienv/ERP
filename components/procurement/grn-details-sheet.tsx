@@ -356,7 +356,7 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
                         ) : (
                             <CheckCircle2 className="h-4 w-4" />
                         )}
-                        Terima & Update Stok
+                        {loading ? "Menerima barang…" : "Terima & perbarui stok"}
                     </button>
                     <button
                         type="button"

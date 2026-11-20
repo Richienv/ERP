@@ -207,7 +207,7 @@ export function VendorQuickEditPopup({ open, onClose, onAllActioned }: VendorQui
                                         ) : (
                                             <Save className="h-3 w-3 mr-1" />
                                         )}
-                                        Simpan Data Vendor
+                                        {saving === vendor.id ? "Menyimpan data vendor…" : "Simpan Data Vendor"}
                                     </Button>
                                 </div>
                             </NBSection>

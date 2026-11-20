@@ -10,6 +10,16 @@ import path from "node:path"
 import { describe, expect, it } from "vitest"
 import { statusLabel, statusTone, findStatusWord } from "@/lib/status-labels"
 import { loginErrorMessage } from "@/lib/auth-messages"
+import * as React from "react"
+import { renderToStaticMarkup } from "react-dom/server"
+import { Button } from "@/components/ui/button"
+import {
+    askText,
+    confirmAction,
+    getConfirmSnapshot,
+    registerConfirmHost,
+    settleConfirm,
+} from "@/lib/confirm-store"
 
 function src(rel: string) {
     return fs.readFileSync(path.join(process.cwd(), rel), "utf8")
@@ -138,5 +148,91 @@ describe("dashboard tells the truth about money and stock", () => {
 describe("no fake UI", () => {
     it("the mock English 'ERP Intelligence' panel is not mounted on every page", () => {
         expect(src("components/global-layout.tsx")).not.toContain("<AISidebar")
+    })
+})
+
+describe("confirm and ask dialogs instead of the browser's confirm()/prompt()", () => {
+    it("without a mounted host (server, tests) it cancels instead of hanging", async () => {
+        await expect(confirmAction({ title: "Hapus?" })).resolves.toBe(false)
+        await expect(askText({ title: "Alasan?" })).resolves.toBeNull()
+    })
+
+    it("with a host it waits for the user and resolves their answer", async () => {
+        const unregister = registerConfirmHost()
+        try {
+            const answer = confirmAction({ title: "Hapus produk ini?", confirmLabel: "Hapus produk", destructive: true })
+            const open = getConfirmSnapshot()
+            expect(open?.title).toBe("Hapus produk ini?")
+            expect(open?.confirmLabel).toBe("Hapus produk")
+            expect(open?.cancelLabel).toBe("Batal")
+            settleConfirm(true)
+            await expect(answer).resolves.toBe(true)
+            expect(getConfirmSnapshot()).toBeNull()
+
+            const reason = askText({ title: "Tolak PO-0012?", required: true })
+            settleConfirm("  harga tidak sesuai  ")
+            await expect(reason).resolves.toBe("harga tidak sesuai")
+
+            // a second settle (the dialog's close event after the click) is ignored
+            settleConfirm(false)
+            expect(getConfirmSnapshot()).toBeNull()
+        } finally {
+            unregister()
+        }
+    })
+
+    it("a new request cancels the one still open", async () => {
+        const unregister = registerConfirmHost()
+        try {
+            const first = confirmAction({ title: "Pertama?" })
+            const second = confirmAction({ title: "Kedua?" })
+            await expect(first).resolves.toBe(false)
+            expect(getConfirmSnapshot()?.title).toBe("Kedua?")
+            settleConfirm(true)
+            await expect(second).resolves.toBe(true)
+        } finally {
+            unregister()
+        }
+    })
+
+    it("no screen calls the browser's confirm()/prompt()/alert() any more", () => {
+        const offenders: string[] = []
+        for (const f of UI_FILES) {
+            src(f).split("\n").forEach((line, i) => {
+                if (line.includes("ui-lint-ignore")) return
+                if (/(?<![\w.$])(window\.)?(confirm|prompt|alert)\s*\(/.test(line) && !/function (confirm|prompt|alert)\b/.test(line)) {
+                    offenders.push(`${f}:${i + 1}`)
+                }
+            })
+        }
+        expect(offenders).toEqual([])
+    })
+
+    it("the dialog host is mounted once for the whole app", () => {
+        expect(src("components/global-layout.tsx")).toContain("<ConfirmActionHost />")
+    })
+})
+
+describe("buttons say what they are doing while they wait", () => {
+    it("Button loading shows the words, blocks a second press and marks itself busy", () => {
+        const html = renderToStaticMarkup(
+            React.createElement(Button, { loading: true, loadingText: "Menyimpan…" }, "Simpan"),
+        )
+        expect(html).toContain("Menyimpan…")
+        expect(html).not.toContain(">Simpan<")
+        expect(html).toContain('disabled=""')
+        expect(html).toContain('aria-busy="true"')
+    })
+
+    it("Button without loading renders as before", () => {
+        const html = renderToStaticMarkup(React.createElement(Button, null, "Simpan"))
+        expect(html).toContain("Simpan")
+        expect(html).not.toContain("aria-busy")
+        expect(html).not.toContain('disabled=""')
+    })
+
+    it("labelled buttons switch to the action in progress", () => {
+        expect(src("app/inventory/products/[id]/page.tsx")).toContain('{isSaving ? "Menyimpan…" : "Simpan"}')
+        expect(src("app/finance/bills/page.tsx")).toContain('loadingText="Menyetujui tagihan…"')
     })
 })

@@ -26,6 +26,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { confirmAction } from "@/components/ui/confirm-action-host"
 
 interface PriceBookGalleryProps {
     priceLists: PriceListSummary[]
@@ -98,7 +99,7 @@ function PriceListCard({
     }
 
     async function handleDelete() {
-        if (!confirm(`Hapus daftar harga "${priceList.name}"? Tindakan ini tidak dapat dibatalkan.`)) return
+        if (!(await confirmAction({ title: `Hapus daftar harga ${priceList.name}?`, description: "Tindakan ini tidak dapat dibatalkan.", confirmLabel: "Hapus daftar harga", destructive: true }))) return
         const res = await deletePriceList(priceList.id)
         if (res.success) {
             toast.success("Daftar harga dihapus", {

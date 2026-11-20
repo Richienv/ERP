@@ -34,6 +34,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import Link from "next/link"
+import { askText, confirmAction } from "@/components/ui/confirm-action-host"
 
 interface SalesOrder {
     id: string
@@ -168,14 +169,14 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
 
     const primaryAction = getPrimaryAction(order.status)
 
-    const handleTransition = (targetStatus: string) => {
+    const handleTransition = async (targetStatus: string) => {
         const msg = needsConfirmation(targetStatus)
-        if (msg && !confirm(msg)) return
+        if (msg && !(await confirmAction({ title: msg, destructive: targetStatus === "CANCELLED" }))) return
         transitionMutation.mutate({ targetStatus })
     }
 
-    const handleCancel = () => {
-        const reason = prompt("Alasan pembatalan:")
+    const handleCancel = async () => {
+        const reason = await askText({ title: `Batalkan pesanan ${order.number}?`, label: "Alasan pembatalan", multiline: true, required: true, confirmLabel: "Batalkan pesanan", cancelLabel: "Tidak", destructive: true })
         if (!reason) return
         transitionMutation.mutate({ targetStatus: "CANCELLED", note: reason })
     }

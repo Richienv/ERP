@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/select"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { confirmAction } from "@/components/ui/confirm-action-host"
 
 const STATION_TYPE_CONFIG: { type: string; label: string; icon: any; color: string }[] = [
     { type: "CUTTING", label: "Potong", icon: Scissors, color: "bg-rose-100 text-rose-700 border-rose-300" },
@@ -362,7 +363,7 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
 
     const handleDelete = async (e: React.MouseEvent, station: any) => {
         e.stopPropagation()
-        const confirmed = window.confirm(`Hapus "${station.name}" (${station.code})?\n\nData akan dihapus permanen.`)
+        const confirmed = await confirmAction({ title: `Hapus ${station.name} (${station.code})?`, description: "Data akan dihapus permanen.", confirmLabel: "Hapus stasiun", destructive: true })
         if (!confirmed) return
 
         setDeleting(station.id)

@@ -54,6 +54,7 @@ import { exportToExcel, exportTableToExcel } from "@/lib/table-export"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { toast } from "sonner"
+import { confirmAction } from "@/components/ui/confirm-action-host"
 
 // Also override Decimal types to number for client usage
 export type ProductWithStock = Omit<ProductWithRelations, 'costPrice' | 'sellingPrice' | 'manualBurnRate'> & {
@@ -276,7 +277,9 @@ export function ProductDataTable({ data, categories = [] }: ProductDataTableProp
   }, [])
 
   const handleDelete = React.useCallback(async (id: string) => {
-    const confirmed = window.confirm("Hapus produk ini? Tindakan ini tidak dapat dibatalkan.")
+    const product = data.find((p) => p.id === id)
+    const label = product ? `${product.code ? `${product.code} · ` : ""}${product.name}` : "produk ini"
+    const confirmed = await confirmAction({ title: `Hapus ${label}?`, description: "Tindakan ini tidak dapat dibatalkan.", confirmLabel: "Hapus produk", destructive: true })
     if (!confirmed) return
 
     try {
@@ -285,13 +288,13 @@ export function ProductDataTable({ data, categories = [] }: ProductDataTableProp
         const errorData = await res.json().catch(() => null)
         throw new Error(errorData?.error || "Gagal menghapus produk")
       }
-      toast.success("Produk berhasil dihapus")
+      toast.success(`${product?.name ?? "Produk"} dihapus`)
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Gagal menghapus produk"
       toast.error(message)
     }
-  }, [queryClient])
+  }, [queryClient, data])
 
   const allColumns = React.useMemo(
     () => [...columns, createActionsColumn(handleQuickView, handleDelete)],
@@ -571,7 +574,7 @@ export function ProductDataTable({ data, categories = [] }: ProductDataTableProp
             onClick: async () => {
               const selectedRows = table.getFilteredSelectedRowModel().rows
               if (selectedRows.length === 0) return
-              const confirmed = window.confirm(`Hapus ${selectedRows.length} produk? Tindakan ini tidak dapat dibatalkan.`)
+              const confirmed = await confirmAction({ title: `Hapus ${selectedRows.length} produk?`, description: "Tindakan ini tidak dapat dibatalkan.", confirmLabel: `Hapus ${selectedRows.length} produk`, destructive: true })
               if (!confirmed) return
               let successCount = 0
               for (const row of selectedRows) {

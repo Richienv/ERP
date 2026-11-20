@@ -244,7 +244,7 @@ export function PRApprovalPopup({ open, onClose, onAllActioned }: PRApprovalPopu
                                                 ) : (
                                                     <XCircle className="h-3 w-3 mr-1" />
                                                 )}
-                                                Konfirmasi Tolak
+                                                {acting === pr.id ? "Menolak…" : "Konfirmasi tolak"}
                                             </Button>
                                             <Button
                                                 size="sm"
@@ -269,7 +269,7 @@ export function PRApprovalPopup({ open, onClose, onAllActioned }: PRApprovalPopu
                                             ) : (
                                                 <CheckCircle2 className="h-3 w-3 mr-1" />
                                             )}
-                                            Setujui
+                                            {acting === pr.id ? "Menyetujui…" : "Setujui"}
                                         </Button>
                                         <Button
                                             size="sm"

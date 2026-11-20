@@ -276,7 +276,7 @@ export default function FixedAssetsPage() {
                                                     ) : (
                                                         <BookOpen className="h-3 w-3" />
                                                     )}
-                                                    Sinkron
+                                                    {syncingId === asset.id ? "Menyinkronkan…" : "Sinkron"}
                                                 </motion.button>
                                             )}
                                             {(asset.status === "ACTIVE" || asset.status === "FULLY_DEPRECIATED") && (
