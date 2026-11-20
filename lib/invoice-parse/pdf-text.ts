@@ -21,7 +21,7 @@ export type PdfText = {
 export async function extractTextItems(data: ArrayBuffer | Uint8Array, pdfjs: PdfJsLike, maxPages = 5): Promise<PdfText> {
     const bytes = data instanceof Uint8Array ? data : new Uint8Array(data)
     // pdf.js transfers (detaches) the buffer; give it a copy so callers can reuse theirs.
-    const task = pdfjs.getDocument({ data: bytes.slice(), isEvalSupported: false, disableFontFace: true })
+    const task = pdfjs.getDocument({ data: bytes.slice(), disableFontFace: true })
     const doc = await task.promise
     const items: TextItem[] = []
     const pageSizes: PdfText["pageSizes"] = []

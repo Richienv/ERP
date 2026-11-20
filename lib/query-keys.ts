@@ -460,4 +460,11 @@ export const queryKeys = {
         all: ["invoiceAvailableOrders"] as const,
         list: () => [...queryKeys.invoiceAvailableOrders.all, "list"] as const,
     },
+    sparepartPurchases: {
+        all: ["sparepartPurchases"] as const,
+        lists: () => [...queryKeys.sparepartPurchases.all, "list"] as const,
+        list: (filter: string, q: string) => [...queryKeys.sparepartPurchases.all, "list", filter, q] as const,
+        detail: (id: string) => [...queryKeys.sparepartPurchases.all, "detail", id] as const,
+        lookup: () => [...queryKeys.sparepartPurchases.all, "lookup"] as const,
+    },
 } as const
