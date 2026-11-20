@@ -752,6 +752,35 @@ export async function recordPendingBillFromPO(
             })
             if (!livePo) throw new Error("Purchase Order not found")
 
+            // A PO created from the supplier's own invoice (spare-part fast lane) already has its
+            // bill, with the supplier's prices and tax. Never rebuild it from received quantities —
+            // that would replace the supplier's lines and force 11% PPN onto import bills.
+            const capture = await prisma.supplierInvoiceCapture.findUnique({
+                where: { purchaseOrderId: livePo.id },
+                select: { billId: true, supplierInvoiceNo: true, bill: { select: { number: true, status: true } } },
+            })
+            if (capture) {
+                if (options?.requireConfirmationOnDuplicate) {
+                    return {
+                        success: false,
+                        code: "INVOICE_ALREADY_EXISTS",
+                        requiresConfirmation: false,
+                        existingInvoiceId: capture.billId ?? undefined,
+                        existingInvoiceNumber: capture.bill?.number,
+                        existingInvoiceStatus: capture.bill?.status,
+                        error: `Tagihan PO ${livePo.number} dibuat dari invoice supplier ${capture.supplierInvoiceNo} — tidak dibuat ulang dari penerimaan.`,
+                    } as const
+                }
+                return {
+                    success: true,
+                    skipped: true,
+                    alreadyExists: true,
+                    billId: capture.billId ?? undefined,
+                    billNumber: capture.bill?.number,
+                    existingStatus: capture.bill?.status,
+                } as const
+            }
+
             const existingBills = await prisma.invoice.findMany({
                 where: {
                     type: "INV_IN",
