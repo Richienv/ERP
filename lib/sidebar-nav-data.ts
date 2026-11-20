@@ -40,6 +40,7 @@ import {
   IconFileText,
   IconClipboardList,
   IconPackageImport,
+  IconEngine,
   // Finance sub-icons
   IconCash,
   IconArrowUpRight,
@@ -177,6 +178,7 @@ export const navMain: SidebarNavItem[] = [
       { title: "Dashboard Pengadaan", url: "/procurement", icon: IconLayoutDashboard },
       { title: "Pemasok (Vendor)", url: "/procurement/vendors", icon: IconTruckDelivery },
       { title: "Pesanan Pembelian", url: "/procurement/orders", icon: IconFileText },
+      { title: "Pembelian Sparepart", url: "/procurement/spareparts", icon: IconEngine },
       { title: "Permintaan Pembelian", url: "/procurement/requests", icon: IconClipboardList },
       { title: "Surat Jalan Masuk", url: "/procurement/receiving", icon: IconPackageImport },
     ],
@@ -393,6 +395,7 @@ export const breadcrumbLabels: Record<string, string> = {
   vendors: "Pemasok",
   requests: "Permintaan Pembelian",
   receiving: "Surat Jalan Masuk",
+  spareparts: "Pembelian Sparepart",
   invoices: "Invoice Pelanggan",
   receivables: "Piutang (AR)",
   payables: "Hutang (AP)",

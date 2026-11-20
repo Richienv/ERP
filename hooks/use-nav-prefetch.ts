@@ -20,6 +20,7 @@ import { getFinancialMetrics, getFinanceDashboardData } from "@/lib/actions/fina
 import { getPettyCashTransactions } from "@/lib/actions/finance-petty-cash"
 import { getExpenses, getExpenseAccounts, getARAgingReport, getAPAgingReport } from "@/lib/actions/finance"
 import { fetchPurchaseOrdersPage } from "@/hooks/use-purchase-orders"
+import { fetchSparepartFirstPage } from "@/hooks/use-sparepart-purchases"
 import { getWarehouses } from "@/app/actions/inventory"
 import { getVendors as getVendorList } from "@/app/actions/vendor"
 import { getPayrollRun, getPayrollComplianceReport, getEmployees } from "@/app/actions/hcm"
@@ -143,6 +144,10 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     "/procurement/orders": {
         queryKey: queryKeys.purchaseOrders.list(),
         queryFn: fetchPurchaseOrdersPage,
+    },
+    "/procurement/spareparts": {
+        queryKey: queryKeys.sparepartPurchases.list("all", ""),
+        queryFn: fetchSparepartFirstPage,
     },
     "/inventory/fabric-rolls": {
         queryKey: queryKeys.fabricRolls.list(),

@@ -122,6 +122,7 @@ export const ROUTE_TIERS: Record<string, CacheTier> = {
     "/finance/transactions":          "TRANSACTIONAL",
     "/finance/reconciliation":        "TRANSACTIONAL",
     "/procurement/orders":            "TRANSACTIONAL",
+    "/procurement/spareparts":        "TRANSACTIONAL",
     "/procurement/requests":          "TRANSACTIONAL",
     "/procurement/receiving":         "TRANSACTIONAL",
     "/inventory/movements":           "TRANSACTIONAL",

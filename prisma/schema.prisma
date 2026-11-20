@@ -1152,6 +1152,10 @@ model Supplier {
   Invoice   Invoice[]
   Payment   Payment[]
 
+  // Spare-part purchasing: captured supplier invoices + learned layout
+  invoiceCaptures SupplierInvoiceCapture[]
+  invoiceTemplate SupplierInvoiceTemplate?
+
   @@index([updatedAt])
   @@map("suppliers")
 }
@@ -1246,6 +1250,8 @@ model PurchaseOrder {
   inspections        QualityInspection[]
   transactions       InventoryTransaction[]
   goodsReceivedNotes GoodsReceivedNote[]
+  /// Set when this PO was created from a supplier's own invoice (spare-part fast lane).
+  invoiceCapture     SupplierInvoiceCapture?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1899,6 +1905,7 @@ model Invoice {
   dcNoteSettlements DebitCreditNoteSettlement[] @relation("DCNoteSettlements")
   attachments       InvoiceAttachment[]
   withholdingTaxes  WithholdingTax[]
+  supplierCapture   SupplierInvoiceCapture?     @relation("CaptureBill")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4057,4 +4064,79 @@ enum VehicleStatus {
   SOLD // Sudah dijual
   WRITTEN_OFF // Disposed / scrapped
   INACTIVE // Sementara tidak digunakan
+}
+
+// ============================================================================
+// Spare-part purchasing: supplier invoice capture (2026-11-20)
+// ============================================================================
+
+/// One supplier invoice captured through the spare-part fast lane = one purchase.
+/// It links the PO + bill it created and keeps the invoice exactly as printed
+/// (original currency, file, what the parser read). Payment and receipt progress
+/// are read live from the bill and PO items, never copied here.
+model SupplierInvoiceCapture {
+  id              String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  line            String  @default("SPAREPART")
+  purchaseOrderId String  @unique @db.Uuid
+  billId          String? @unique @db.Uuid
+  supplierId      String  @db.Uuid
+
+  supplierInvoiceNo String
+  invoiceDate       DateTime
+  dueDate           DateTime?
+  paymentTerms      String?
+
+  /// As printed on the invoice. The PO and bill hold the IDR equivalent.
+  currencyCode     String  @default("IDR")
+  exchangeRate     Decimal @default(1) @db.Decimal(15, 4)
+  subtotalOriginal Decimal @db.Decimal(20, 2)
+  taxOriginal      Decimal @default(0) @db.Decimal(20, 2)
+  totalOriginal    Decimal @db.Decimal(20, 2)
+
+  fileName    String?
+  fileType    String?
+  fileSize    Int?
+  fileSha256  String?
+  storagePath String?
+
+  parseMethod     String   @default("MANUAL") // TEXT | OCR | MANUAL
+  parseMs         Int?
+  parseConfidence Decimal? @db.Decimal(4, 3)
+  parsed          Json?
+
+  shippedAt      DateTime?
+  trackingNumber String?
+  eta            DateTime?
+
+  /// Lower-case: PO number, supplier, invoice number, part codes. GIN trigram index (migration).
+  searchText String @default("")
+
+  createdBy String?  @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  bill          Invoice?      @relation("CaptureBill", fields: [billId], references: [id], onDelete: SetNull)
+  supplier      Supplier      @relation(fields: [supplierId], references: [id])
+
+  @@unique([supplierId, supplierInvoiceNo])
+  @@index([line, createdAt(sort: Desc), id])
+  @@index([fileSha256])
+  @@map("supplier_invoice_captures")
+}
+
+/// What the invoice parser learned about one supplier's layout.
+model SupplierInvoiceTemplate {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  supplierId  String   @unique @db.Uuid
+  fingerprint Json // { npwp, emailDomain, printedName }
+  template    Json // { columnMap, labelMap, numberLocale, dateOrder, currencyCode }
+  samples     Int      @default(1)
+  lastRate    Decimal? @db.Decimal(15, 4)
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@map("supplier_invoice_templates")
 }

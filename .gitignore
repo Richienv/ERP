@@ -99,3 +99,9 @@ codex/
 # Local ops notes that have contained credentials — never commit
 supabase-info.txt
 DB_CONNECTION_FIX.md
+
+# Local demo uploads (spare-part supplier invoices)
+.local-uploads/
+
+# pdf.js worker, copied on postinstall
+public/vendor/pdfjs/

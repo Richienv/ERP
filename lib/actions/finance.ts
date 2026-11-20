@@ -1290,52 +1290,10 @@ export async function createCustomerInvoice(data: {
  * That version has duplicate detection, force-create option, and incremented bill numbers.
  */
 export async function recordPendingBillFromPO(po: any) {
-    try {
-        console.log("Creating/Updating Finance Bill for PO:", po.number)
-
-        return await withPrismaAuth(async (prisma) => {
-            // Check if Bill already exists for this PO
-            const existingBill = await prisma.invoice.findFirst({
-                where: { orderId: po.id, type: 'INV_IN' }
-            })
-
-            if (existingBill) {
-                console.log("Bill already exists:", existingBill.number)
-                return { success: true, billId: existingBill.id }
-            }
-
-            // Create new Bill (Invoice Type IN) — relation connect for Prisma 6
-            const bill = await prisma.invoice.create({
-                data: {
-                    number: `BILL-${po.number}`,
-                    type: 'INV_IN',
-                    ...(po.supplierId ? { supplier: { connect: { id: po.supplierId } } } : {}),
-                    status: 'DRAFT',
-                    issueDate: new Date(),
-                    dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
-                    subtotal: po.totalAmount || 0,
-                    taxAmount: po.taxAmount || 0,
-                    totalAmount: po.netAmount || 0,
-                    balanceDue: po.netAmount || 0,
-                    items: {
-                        create: po.items.map((item: any) => ({
-                            description: item.product?.name || 'Unknown Item',
-                            quantity: item.quantity,
-                            unitPrice: item.unitPrice,
-                            amount: item.totalPrice,
-                            ...(item.productId ? { product: { connect: { id: item.productId } } } : {}),
-                        }))
-                    }
-                }
-            })
-
-            console.log("Bill Created:", bill.number)
-            return { success: true, billId: bill.id }
-        })
-    } catch (error) {
-        console.error("Failed to record pending bill:", error)
-        return { success: false, error: "Finance Sync Failed" }
-    }
+    // Delegate to the canonical implementation (duplicate detection, receivedQty billing,
+    // and the guard for POs created from a supplier invoice).
+    const { recordPendingBillFromPO: canonical } = await import("@/lib/actions/finance-invoices")
+    return canonical(po)
 }
 
 // ==========================================
