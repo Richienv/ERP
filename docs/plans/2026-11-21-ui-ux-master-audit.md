@@ -119,14 +119,25 @@ Lint after round 2: **0 errors, 308 warnings** (native dialogs 26 → 0). Tests:
 7 pre-existing failures. tsc 21 (baseline). Build passes. In the browser the product delete dialog
 opened, "Batal" closed it, and no delete request was sent.
 
+## Round 3: the dashboard shows only what this business uses (Richie: "Ya, sembunyikan")
+
+**9. Tanpa Armada dan SDM di dasbor**
+- *Sebelumnya:* the spare-part business saw the mining edition's SDM card (staff, attendance, leave)
+  and leave/fleet items in "Kotak Masuk Operasi", for work it doesn't do in this ERP.
+- *Sekarang:* `lib/business-profile.ts` defaults to `sparepart`. The SDM card and the fleet/HR
+  inbox items are left out, and the inbox counts and "Nilai tertahan" follow. A mining deployment
+  sets `NEXT_PUBLIC_BUSINESS_PROFILE=mining` to keep them. Menus and module pages are unchanged.
+- *Kenapa penting:* every card on the first screen should be something the owner acts on. Fewer
+  cards mean the right one is found faster.
+
 ## Not done (next)
 
 - About 30 icon-only buttons (refresh, clone, delete) spin without words. Their aria-labels name the
   action, but they could also set `aria-busy`.
 - 60 English words remain, mostly in manufacturing, HR and sales, which this business has hidden.
 - 68 one-off hex colours, 44 clickable divs without keyboard support, 28 hover-only actions.
-- The dashboard still shows mining-edition cards (Armada, SDM attendance) for the spare-part
-  business. Whether to hide them is a product decision.
+- The Armada and SDM menus are still in the sidebar. Hiding them too is a one-line flag change if
+  the business never uses them.
 - Pre-existing: a hard reload in local demo mode lands on the dashboard.
 - Pre-existing, found while tracing #1: manufacturing BOM screens sum `quantity` the same way
   (`app/manufacturing/bom/[id]/page.tsx:242,249`, `components/manufacturing/bom/timeline-view.tsx:248`).

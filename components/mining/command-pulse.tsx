@@ -8,6 +8,7 @@ import { queryKeys } from "@/lib/query-keys"
 import { formatIDR } from "@/lib/utils"
 import { NB } from "@/lib/dialog-styles"
 import { InlinePendingBar } from "@/components/ui/inline-pending"
+import { dashboardShowsModule, getBusinessProfile } from "@/lib/business-profile"
 
 const TONE: Record<CommandAction["tone"], { bar: string; chip: string }> = {
     critical: { bar: "border-l-red-500", chip: "bg-red-50 text-red-700 border-red-200" },
@@ -92,7 +93,9 @@ function QueueClean({ compact = false }: { compact?: boolean }) {
             <CheckCircle2 className="h-6 w-6 text-emerald-600" />
             <span className="text-sm font-semibold text-emerald-700">Antrian bersih</span>
             <p className="max-w-sm text-xs text-zinc-500">
-                Tidak ada pekerjaan yang menahan buku. Semua tagihan, armada, dan gaji sudah tercatat.
+                {getBusinessProfile() === "mining"
+                    ? "Tidak ada pekerjaan yang menahan buku. Semua tagihan, armada, dan gaji sudah tercatat."
+                    : "Tidak ada pekerjaan yang menahan buku. Semua tagihan, stok, dan pembayaran sudah tercatat."}
             </p>
         </div>
     )
@@ -150,7 +153,11 @@ export function OperationsInbox({
     limit?: number
 }) {
     const { data, isLoading, isFetching, isError, refetch } = useMiningCommandPulse()
-    const actions = (data?.actions ?? []).filter((action) => !module || action.module === module)
+    // With no module asked for (the dashboard), leave out sections this business doesn't use
+    // (Armada / SDM for a spare-part shop); counts and "Nilai tertahan" follow what is shown.
+    const actions = (data?.actions ?? []).filter((action) =>
+        module ? action.module === module : dashboardShowsModule(action.module)
+    )
     const shown = actions.slice(0, limit)
     const overflow = actions.length - shown.length
 

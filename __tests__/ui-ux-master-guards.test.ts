@@ -10,6 +10,7 @@ import path from "node:path"
 import { describe, expect, it } from "vitest"
 import { statusLabel, statusTone, findStatusWord } from "@/lib/status-labels"
 import { loginErrorMessage } from "@/lib/auth-messages"
+import { dashboardShows, dashboardShowsModule, getBusinessProfile } from "@/lib/business-profile"
 import * as React from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { Button } from "@/components/ui/button"
@@ -234,5 +235,37 @@ describe("buttons say what they are doing while they wait", () => {
     it("labelled buttons switch to the action in progress", () => {
         expect(src("app/inventory/products/[id]/page.tsx")).toContain('{isSaving ? "Menyimpan…" : "Simpan"}')
         expect(src("app/finance/bills/page.tsx")).toContain('loadingText="Menyetujui tagihan…"')
+    })
+})
+
+describe("the dashboard shows only what this business uses", () => {
+    it("a spare-part business (the default) has no Armada or SDM on the dashboard", () => {
+        const saved = process.env.NEXT_PUBLIC_BUSINESS_PROFILE
+        delete process.env.NEXT_PUBLIC_BUSINESS_PROFILE
+        try {
+            expect(getBusinessProfile()).toBe("sparepart")
+            expect(dashboardShows("fleet")).toBe(false)
+            expect(dashboardShows("hcm")).toBe(false)
+            expect(dashboardShowsModule("finance")).toBe(true)
+            expect(dashboardShowsModule("procurement")).toBe(true)
+            expect(dashboardShowsModule("inventory")).toBe(true)
+        } finally {
+            if (saved !== undefined) process.env.NEXT_PUBLIC_BUSINESS_PROFILE = saved
+        }
+    })
+
+    it("the mining edition keeps them", () => {
+        expect(dashboardShows("fleet", "mining")).toBe(true)
+        expect(dashboardShows("hcm", "mining")).toBe(true)
+        expect(dashboardShowsModule("fleet", "mining")).toBe(true)
+    })
+
+    it("the SDM card and the inbox follow the profile; module pages are untouched", () => {
+        expect(src("app/dashboard/dashboard-client.tsx")).toContain('totalStaff > 0 && dashboardShows("hcm")')
+        const pulse = src("components/mining/command-pulse.tsx")
+        const inbox = pulse.slice(pulse.indexOf("export function OperationsInbox("), pulse.indexOf("export function CommandPulse("))
+        const modulePulse = pulse.slice(pulse.indexOf("export function CommandPulse("))
+        expect(inbox).toContain("dashboardShowsModule(action.module)")
+        expect(modulePulse).not.toContain("dashboardShowsModule(")
     })
 })
