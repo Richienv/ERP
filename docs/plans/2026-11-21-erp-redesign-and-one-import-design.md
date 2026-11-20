@@ -103,5 +103,37 @@ screen shows that difference in amber, which is the point.
 
 - Theme tokens, Plus Jakarta Sans, 17 px root, deep-blue brand, navy-ready sidebar tokens.
 - Codemod over 446 files (22,010 class rewrites); `NB` tokens re-valued (keys unchanged).
-- Shell polish (logo, sidebar, header, toasts, waiting states, status words, login): see the commit
-  "Integra Pro shell".
+- Shell: integra logo (sidebar, app icon, OG image), navy sidebar with exactly one active item
+  (the most specific match), 60 px header with Indonesian tooltips and a phone search button,
+  6-second toasts at ≥14 px, "Memuat data…" / "Memperbarui data…" on every waiting state, error and
+  empty states in plain Indonesian with one button, login page with large inputs.
+- Status badges say a word with a dot ("Menunggu persetujuan", "Diterima sebagian", "Terlambat").
+- The old `ritchie-minimal` default theme was masking the new tokens; default is now light and the
+  theme picker offers only Terang / Gelap.
+- Checked in the browser at 1440 px and 375 px (dashboard, spare-part list and review, vendor
+  bills, mobile menu). A list crash at 375 px turned out to be a cache-shape bug between the sidebar
+  prefetch and the infinite list; fixed at the source and guarded in the page.
+
+### Verified
+
+- `npx vitest run` (excluding `.next/`): 1,251 pass; the same 7 pre-existing failures as `main`.
+- `npx tsc --noEmit`: 21 (baseline). Production build: pass.
+- No real names, document numbers or files from the family company are in the repo (public): the
+  branch history was rewritten before any push so comments, docs and tests use roles and fictional
+  numbers.
+
+### Before deploying (Richie)
+
+- Apply both migrations (`20261120090000_sparepart_invoice_capture`, `20261121090000_capture_po_documents`).
+- Tell the system which companies are "us": add a `system_settings` row `company.names` =
+  the company's name(s), comma-separated (or set `NEXT_PUBLIC_OUR_COMPANY_NAMES` on Vercel).
+  Without it, our own PO/CO is read as someone else's document.
+
+### Not done yet
+
+- Sales side (customer PO → sales order → our surat jalan → our invoice): documents are read, not
+  saved, because the Sales module is hidden in this edition.
+- Many older pages keep their own English status maps ("Overdue", "PARTIAL", "ISSUED"); only the
+  shared badge and the spare-part screens are fully Indonesian. Dark grid table headers were kept.
+- Charts keep their old colours; print layouts untouched.
+- A hard reload of any page in local demo mode still lands on the dashboard (pre-existing).
