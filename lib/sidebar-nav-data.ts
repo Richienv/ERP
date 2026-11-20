@@ -395,6 +395,7 @@ export const breadcrumbLabels: Record<string, string> = {
   vendors: "Pemasok",
   requests: "Permintaan Pembelian",
   receiving: "Surat Jalan Masuk",
+  spareparts: "Pembelian Sparepart",
   invoices: "Invoice Pelanggan",
   receivables: "Piutang (AR)",
   payables: "Hutang (AP)",
