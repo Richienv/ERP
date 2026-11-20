@@ -206,3 +206,73 @@ would cut each request noticeably.
 - Pre-existing bugs found on the way: `createDirectPurchase` books PPN into inventory and skips
   GR/IR; `totalsFromReceivedLines` always adds 11% PPN; `createGRN` counts DRAFT/REJECTED GRNs as
   received; `cancelPurchaseOrder` writes a non-existent `Invoice.notes`.
+
+## What shipped (2026-11-20, branch `feat/sparepart-purchasing`, not pushed)
+
+Page: **Pengadaan → Pembelian Sparepart** (`/procurement/spareparts`).
+
+- Drop / paste / pick a PDF or photo anywhere on the page → review screen with the real invoice on
+  the left (boxes over the source of each field) and the parsed form on the right → **Simpan**.
+- Save creates supplier (if new), parts (if new), supplier SKUs, PO (VENDOR_CONFIRMED), bill
+  (debit GR/IR), capture, learned template; then posts the bill, records "sudah dibayar" and
+  "barang sudah datang semua" if ticked, each step reported in the toast.
+- List with paid / received bars and one next action; KPI chips double as filters; trigram search
+  over part code, invoice no, supplier and PO; keyset infinite scroll.
+- Detail sheet: next action button, pay (RMB-aware, DP 30% / lunasi chips), mark shipped (resi,
+  ETA), receive per line (partial deliveries), original invoice file.
+- OCR fallback (tesseract.js in the browser) for scans and photos, plus a headerless table reader
+  for when OCR garbles the header. Lines it is unsure of are amber; the total check shows what is
+  missing.
+- Shared-code change: `recordPendingBillFromPO` skips POs that have a capture (ripple-checked:
+  acceptGRN, app/actions/inventory receive, create-invoice dialog, approve/confirm PO; the
+  deprecated copy in finance.ts now delegates).
+
+### Verified
+
+- `npx vitest run`: 1,223 pass; the same 7 failures as before the branch
+  (`app/actions/inventory.test.ts` ×5, `__tests__/finance/invoice-payment-flow.test.ts` ×2). 29 new
+  tests (parser on both sample PDFs, matching, templates, status rules, save/pay actions with a
+  mocked Prisma, the bill guard).
+- `npx tsc --noEmit`: 21 errors = baseline. `NODE_ENV=production npm run build`: pass.
+- Browser walkthrough on a local Postgres with the two sample invoices: RMB import saved, 30% deposit,
+  shipped with resi, partial receipt (140/690), rest received, paid off. Books afterwards:
+  GR/IR 0, Hutang 0, Persediaan +Rp 220.738.500, Bank −Rp 220.738.500. IDR faktur with PPN saved
+  with "dibayar + datang" ticked: DPP to GR/IR, PPN 1.084.325 to PPN Masukan (1330), trial balance
+  difference 0. Duplicate file and duplicate invoice number are both caught before Simpan.
+
+### Measured (Apple Silicon, local Postgres, `next dev` — production builds render faster)
+
+| What | Time |
+|---|---|
+| Drop text PDF → form on screen | 129 ms first drop, 59–64 ms after (pdf.js read 37–103 ms) |
+| Scan/photo via OCR | 10.8 s the very first time (engine + model download), then 0.85–1.3 s |
+| Simpan → row in list (optimistic) | 23–29 ms; server done incl. bill posting 120–150 ms |
+| Pay / receive → screen updated (optimistic) | 13 ms; server done 46–90 ms |
+| Open pay / ship / receive dialog | 17–22 ms |
+| Filter chip | 8–9 ms |
+| Search a part code | 44 ms |
+| Open detail from list (prefetched on hover) | ~51 ms |
+| Sidebar → list with data (prefetched) | 53–64 ms |
+| SQL at 5,000 purchases / 30,000 lines: first page · page 50 · search · filter · KPI | 0.28 · 0.81 · 0.61 · 0.07 · 9.4 ms |
+
+Click latency was measured from the click to the DOM change with a MutationObserver (the
+browser pane was hidden, which throttles requestAnimationFrame, so frame-based numbers were not
+usable).
+
+### Not done yet
+
+- **Production:** migration not applied to Supabase, nothing pushed or deployed (needs Richie's OK).
+- Cancel / edit a saved purchase from this page. The existing `cancelPurchaseOrder` writes a
+  non-existent `Invoice.notes` column, so cancelling a PO that has a bill fails today.
+- FX gain/loss when the bank rate differs from the booked rate; landed cost (freight, bea masuk,
+  PPN impor, PPh 22) for imports.
+- LLM fallback for low-confidence invoices — needs Richie's OK before any invoice content goes to
+  an outside API.
+- OCR engine and language model load from public CDNs on first use (no invoice content is sent);
+  self-hosting them under `public/` would make the first scan faster and work offline.
+- Only generated sample invoices were tested. The first real supplier invoices will show which
+  layouts need template tweaks.
+- Seen in local demo mode only: a hard reload of any page lands on `/dashboard` (pre-existing,
+  also on `/procurement/orders`).
+- Speed in production: the DB is in Tokyo and every server action also calls Supabase Auth;
+  pinning Vercel functions to the DB's region would cut each round trip.
