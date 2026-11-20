@@ -167,7 +167,7 @@ export function SubcontractorRatesTable({ rates, subcontractorId }: Subcontracto
                                     </td>
                                     <td className="px-2 py-1.5 text-right">
                                         <div className="flex items-center gap-1 justify-end">
-                                            <Button
+                                            <Button aria-label="Konfirmasi"
                                                 variant="ghost"
                                                 size="icon"
                                                 className="h-7 w-7 text-emerald-600 hover:bg-emerald-50"
@@ -176,7 +176,7 @@ export function SubcontractorRatesTable({ rates, subcontractorId }: Subcontracto
                                             >
                                                 {processing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
                                             </Button>
-                                            <Button
+                                            <Button aria-label="Tutup"
                                                 variant="ghost"
                                                 size="icon"
                                                 className="h-7 w-7 text-zinc-400 hover:bg-zinc-100"

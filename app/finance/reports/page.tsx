@@ -786,7 +786,7 @@ export default function FinancialReportsPage() {
                                     </div>
                                     <div className={NB.footer}>
                                         <Button variant="outline" onClick={() => setExportDialogOpen(false)} className={NB.cancelBtn}>Batal</Button>
-                                        <Button onClick={exportReportPack} className={NB.submitBtn}>Download</Button>
+                                        <Button onClick={exportReportPack} className={NB.submitBtn}>Unduh</Button>
                                     </div>
                                 </div>
                             </DialogContent>

@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation"
 
 import { Toaster } from "@/components/ui/sonner"
 import { AIProvider } from "@/components/ai/ai-context"
-import { AISidebar } from "@/components/ai/ai-sidebar"
 import { SiteHeader } from "@/components/site-header"
 
 import { AppSidebar } from "@/components/app-sidebar"
@@ -58,7 +57,6 @@ function GlobalLayoutInner({ children }: GlobalLayoutProps) {
                     {children}
                   </PageTransition>
                 </div>
-                <AISidebar />
                 <Toaster />
               </SidebarInset>
             </SidebarProvider>

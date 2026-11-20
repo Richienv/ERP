@@ -359,7 +359,7 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
                   </div>
 
                   <div className="p-2 flex items-center justify-center">
-                    <Button
+                    <Button aria-label="Hapus"
                       type="button"
                       variant="ghost"
                       size="icon"

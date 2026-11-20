@@ -113,7 +113,7 @@ export function NotaDebitTab() {
                 <div className={NB.pageAccent} />
 
                 {/* Row 1: Toolbar */}
-                <div className={`px-5 py-2.5 flex items-center justify-between ${NB.pageRowBorder}`}>
+                <div className={`px-5 py-2.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between ${NB.pageRowBorder}`}>
                     <p className="text-xs font-bold text-zinc-400">
                         Koreksi tagihan supplier atau retur barang
                     </p>
@@ -147,7 +147,7 @@ export function NotaDebitTab() {
                     <TableHeader>
                         <TableRow className="bg-zinc-50/80 dark:bg-zinc-800/30">
                             <TableHead className="text-xs font-semibold text-zinc-400">No</TableHead>
-                            <TableHead className="text-xs font-semibold text-zinc-400">Supplier</TableHead>
+                            <TableHead className="text-xs font-semibold text-zinc-400">Pemasok</TableHead>
                             <TableHead className="text-xs font-semibold text-zinc-400">Alasan</TableHead>
                             <TableHead className="text-xs font-semibold text-zinc-400 text-right">Jumlah</TableHead>
                             <TableHead className="text-xs font-semibold text-zinc-400">Status</TableHead>
@@ -204,7 +204,7 @@ export function NotaDebitTab() {
                     <NBSection icon={FileText} title="Data Nota Debit">
                         <div className="grid grid-cols-2 gap-3">
                             <NBSelect
-                                label="Supplier"
+                                label="Pemasok"
                                 required
                                 value={form.supplierId}
                                 onValueChange={(v) => setForm(f => ({ ...f, supplierId: v }))}

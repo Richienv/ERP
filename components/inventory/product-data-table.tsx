@@ -510,7 +510,7 @@ export function ProductDataTable({ data, categories = [] }: ProductDataTableProp
           </span>
           {pageCount > 1 && (
             <div className="flex items-center gap-2">
-              <Button
+              <Button aria-label="Sebelumnya"
                 variant="outline"
                 size="icon"
                 className="h-8 w-8 border border-border"
@@ -522,7 +522,7 @@ export function ProductDataTable({ data, categories = [] }: ProductDataTableProp
               <span className="text-xs font-semibold min-w-[50px] text-center">
                 {pageIndex + 1}/{pageCount}
               </span>
-              <Button
+              <Button aria-label="Berikutnya"
                 variant="outline"
                 size="icon"
                 className="h-8 w-8 border border-border"

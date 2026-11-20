@@ -401,7 +401,7 @@ export function StationWorkloadTimeline() {
                                         <div className="flex items-center gap-1">
                                             <span className="text-xs font-mono text-zinc-400">{stationBars.length} proses</span>
                                             {label.operationType === "SUBCONTRACTOR" && (
-                                                <span className="text-[7px] font-bold bg-amber-100 text-amber-700 px-1 py-0.5">SUB</span>
+                                                <span className="text-xs font-bold bg-amber-100 text-amber-700 px-1 py-0.5">SUB</span>
                                             )}
                                         </div>
                                     </div>
@@ -500,7 +500,7 @@ export function StationWorkloadTimeline() {
                         {totalMinutes > 0 && (
                             <div className="absolute top-0 bottom-0 z-20" style={{ left: totalMinutes * PIXELS_PER_MINUTE }}>
                                 <div className="w-px h-full bg-emerald-300/50" />
-                                <div className="absolute top-0 -left-px bg-emerald-500 text-white text-[7px] font-bold px-1.5 py-0.5 rounded-b whitespace-nowrap">
+                                <div className="absolute top-0 -left-px bg-emerald-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-b whitespace-nowrap">
                                     {fmtDuration(totalMinutes)}
                                 </div>
                             </div>

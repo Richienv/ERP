@@ -11,7 +11,8 @@ interface ModuleCardProps {
     title: string
     icon: Icon
     href: string
-    accentColor: string
+    /** Kept for callers; the header is now calm and the same for every card (emphasis is relative). */
+    accentColor?: string
     badge?: number
     badgeColor?: string
     children: ReactNode
@@ -19,23 +20,25 @@ interface ModuleCardProps {
     wide?: boolean
 }
 
-export function ModuleCard({ title, icon: IconComponent, href, accentColor, badge, badgeColor = "bg-red-500", children, wide }: ModuleCardProps) {
+export function ModuleCard({ title, icon: IconComponent, href, badge, badgeColor = "bg-red-500", children, wide }: ModuleCardProps) {
     return (
-        <div className={`border border-border bg-white dark:bg-zinc-900 shadow-sm flex flex-col overflow-hidden ${wide ? "lg:col-span-2" : ""}`}>
-            {/* Header with thick accent */}
-            <div className={`${accentColor} px-3.5 py-2.5 flex items-center gap-2`}>
-                <IconComponent className="w-4 h-4 text-white" />
-                <span className="text-xs font-semibold text-white">{title}</span>
+        <div className={`rounded-lg border border-border bg-card shadow-sm flex flex-col overflow-hidden ${wide ? "lg:col-span-2" : ""}`}>
+            {/* Calm header: one hairline, the title in words, one link. No black slabs. */}
+            <div className="flex items-center gap-2 border-b border-border px-3.5 py-2.5">
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary" aria-hidden>
+                    <IconComponent className="size-4" />
+                </span>
+                <h3 className="text-sm font-semibold text-foreground">{title}</h3>
                 {badge !== undefined && badge > 0 && (
-                    <span className={`ml-auto flex h-5 min-w-5 items-center justify-center ${badgeColor} border border-border px-1.5 text-xs font-semibold text-white tabular-nums`}>
+                    <span className={`flex h-5 min-w-5 items-center justify-center rounded-full ${badgeColor} px-1.5 text-xs font-semibold text-white tabular-nums`}>
                         {badge}
                     </span>
                 )}
                 <Link
                     href={href}
-                    className="ml-auto flex items-center gap-1 text-xs font-semibold text-white/70 hover:text-white transition-colors"
+                    className="ml-auto flex items-center gap-1 rounded-sm text-sm font-medium text-primary hover:underline underline-offset-4"
                 >
-                    Detail <IconArrowRight className="w-3 h-3" />
+                    Lihat <span className="sr-only">{title}</span> <IconArrowRight className="size-3.5" aria-hidden />
                 </Link>
             </div>
 
@@ -51,11 +54,11 @@ export function ModuleCard({ title, icon: IconComponent, href, accentColor, badg
 
 export function CardMetric({ label, value, alert, sub }: { label: string; value: string; alert?: boolean; sub?: string }) {
     return (
-        <div className="flex items-center justify-between py-1 border-b border-dashed border-zinc-200 dark:border-zinc-700 last:border-0">
-            <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">{label}</span>
+        <div className="flex items-center justify-between gap-3 py-1 border-b border-dashed border-zinc-200 dark:border-zinc-700 last:border-0">
+            <span className="min-w-0 text-sm text-slate-600 dark:text-zinc-400">{label}</span>
             <div className="flex items-baseline gap-1.5">
                 {sub && <span className="text-xs text-zinc-400">{sub}</span>}
-                <span className={`text-[13px] font-semibold tabular-nums tracking-tight ${alert ? "text-red-600" : "text-zinc-900 dark:text-zinc-100"}`}>
+                <span className={`text-sm font-semibold tabular-nums ${alert ? "text-red-600" : "text-zinc-900 dark:text-zinc-100"}`}>
                     {value}
                 </span>
             </div>
@@ -72,7 +75,7 @@ export function StatBlock({ label, value, accent, icon }: { label: string; value
                 {icon}
                 <span className={`text-xl font-semibold tracking-tight tabular-nums ${accent}`}>{value}</span>
             </div>
-            <p className="text-xs font-bold text-zinc-400">{label}</p>
+            <p className="text-xs font-medium text-slate-600 dark:text-zinc-400">{label}</p>
         </div>
     )
 }
@@ -89,7 +92,7 @@ export function ProgressBar({ value, max, color = "bg-emerald-500", label }: { v
                     <span className="font-semibold text-zinc-700 dark:text-zinc-300 tabular-nums">{Math.round(pct)}%</span>
                 </div>
             )}
-            <div className="h-2 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+            <div className="h-2 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
                 <div className={`h-full ${color} transition-all duration-500 ease-out`} style={{ width: `${pct}%` }} />
             </div>
         </div>
@@ -101,7 +104,7 @@ export function ProgressBar({ value, max, color = "bg-emerald-500", label }: { v
 export function SectionDivider({ label }: { label: string }) {
     return (
         <div className="flex items-center gap-2 pt-2.5 pb-1">
-            <span className="text-xs font-semibold text-zinc-400">{label}</span>
+            <span className="text-xs font-semibold text-slate-600 dark:text-zinc-400">{label}</span>
             <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
         </div>
     )

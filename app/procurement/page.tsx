@@ -22,23 +22,23 @@ import { NB } from "@/lib/dialog-styles"
 
 function statusLabel(status: string) {
   const map: Record<string, { label: string; dot: string; bg: string; text: string }> = {
-    PO_DRAFT: { label: 'Draft', dot: 'bg-zinc-400', bg: 'bg-zinc-100 border-zinc-300', text: 'text-zinc-700' },
-    DRAFT: { label: 'Draft', dot: 'bg-zinc-400', bg: 'bg-zinc-100 border-zinc-300', text: 'text-zinc-700' },
-    PENDING: { label: 'Pending', dot: 'bg-amber-500', bg: 'bg-amber-50 border-amber-300', text: 'text-amber-700' },
-    PENDING_APPROVAL: { label: 'Pending', dot: 'bg-amber-500', bg: 'bg-amber-50 border-amber-300', text: 'text-amber-700' },
-    APPROVED: { label: 'Approved', dot: 'bg-emerald-500', bg: 'bg-emerald-50 border-emerald-300', text: 'text-emerald-700' },
-    PO_CREATED: { label: 'PO Created', dot: 'bg-zinc-500', bg: 'bg-zinc-100 border-zinc-300', text: 'text-zinc-700' },
-    ORDERED: { label: 'Ordered', dot: 'bg-zinc-500', bg: 'bg-zinc-100 border-zinc-300', text: 'text-zinc-700' },
-    VENDOR_CONFIRMED: { label: 'Confirmed', dot: 'bg-zinc-500', bg: 'bg-zinc-100 border-zinc-300', text: 'text-zinc-700' },
-    SHIPPED: { label: 'Shipped', dot: 'bg-zinc-500', bg: 'bg-zinc-100 border-zinc-300', text: 'text-zinc-700' },
-    PARTIAL_RECEIVED: { label: 'Partial', dot: 'bg-amber-500', bg: 'bg-amber-50 border-amber-300', text: 'text-amber-700' },
-    PARTIAL_ACCEPTED: { label: 'Partial', dot: 'bg-amber-500', bg: 'bg-amber-50 border-amber-300', text: 'text-amber-700' },
-    RECEIVED: { label: 'Received', dot: 'bg-emerald-500', bg: 'bg-emerald-50 border-emerald-300', text: 'text-emerald-700' },
-    ACCEPTED: { label: 'Accepted', dot: 'bg-emerald-500', bg: 'bg-emerald-50 border-emerald-300', text: 'text-emerald-700' },
-    COMPLETED: { label: 'Completed', dot: 'bg-emerald-600', bg: 'bg-emerald-50 border-emerald-300', text: 'text-emerald-700' },
-    INSPECTING: { label: 'Inspecting', dot: 'bg-amber-500', bg: 'bg-amber-50 border-amber-300', text: 'text-amber-700' },
-    REJECTED: { label: 'Rejected', dot: 'bg-red-500', bg: 'bg-red-50 border-red-300', text: 'text-red-700' },
-    CANCELLED: { label: 'Cancelled', dot: 'bg-zinc-400', bg: 'bg-zinc-100 border-zinc-300', text: 'text-zinc-500' },
+    PO_DRAFT: { label: 'Draf', dot: 'bg-zinc-400', bg: 'bg-zinc-100 border-zinc-300', text: 'text-zinc-700' },
+    DRAFT: { label: 'Draf', dot: 'bg-zinc-400', bg: 'bg-zinc-100 border-zinc-300', text: 'text-zinc-700' },
+    PENDING: { label: 'Menunggu persetujuan', dot: 'bg-amber-500', bg: 'bg-amber-50 border-amber-300', text: 'text-amber-700' },
+    PENDING_APPROVAL: { label: 'Menunggu persetujuan', dot: 'bg-amber-500', bg: 'bg-amber-50 border-amber-300', text: 'text-amber-700' },
+    APPROVED: { label: 'Disetujui', dot: 'bg-emerald-500', bg: 'bg-emerald-50 border-emerald-300', text: 'text-emerald-700' },
+    PO_CREATED: { label: 'PO sudah dibuat', dot: 'bg-zinc-500', bg: 'bg-zinc-100 border-zinc-300', text: 'text-zinc-700' },
+    ORDERED: { label: 'Sudah dipesan', dot: 'bg-zinc-500', bg: 'bg-zinc-100 border-zinc-300', text: 'text-zinc-700' },
+    VENDOR_CONFIRMED: { label: 'Dikonfirmasi vendor', dot: 'bg-zinc-500', bg: 'bg-zinc-100 border-zinc-300', text: 'text-zinc-700' },
+    SHIPPED: { label: 'Dalam perjalanan', dot: 'bg-zinc-500', bg: 'bg-zinc-100 border-zinc-300', text: 'text-zinc-700' },
+    PARTIAL_RECEIVED: { label: 'Diterima sebagian', dot: 'bg-amber-500', bg: 'bg-amber-50 border-amber-300', text: 'text-amber-700' },
+    PARTIAL_ACCEPTED: { label: 'Diterima sebagian', dot: 'bg-amber-500', bg: 'bg-amber-50 border-amber-300', text: 'text-amber-700' },
+    RECEIVED: { label: 'Diterima lengkap', dot: 'bg-emerald-500', bg: 'bg-emerald-50 border-emerald-300', text: 'text-emerald-700' },
+    ACCEPTED: { label: 'Diterima', dot: 'bg-emerald-500', bg: 'bg-emerald-50 border-emerald-300', text: 'text-emerald-700' },
+    COMPLETED: { label: 'Selesai', dot: 'bg-emerald-600', bg: 'bg-emerald-50 border-emerald-300', text: 'text-emerald-700' },
+    INSPECTING: { label: 'Sedang diperiksa', dot: 'bg-amber-500', bg: 'bg-amber-50 border-amber-300', text: 'text-amber-700' },
+    REJECTED: { label: 'Ditolak', dot: 'bg-red-500', bg: 'bg-red-50 border-red-300', text: 'text-red-700' },
+    CANCELLED: { label: 'Dibatalkan', dot: 'bg-zinc-400', bg: 'bg-zinc-100 border-zinc-300', text: 'text-zinc-500' },
   }
   return map[status] || { label: status, dot: 'bg-zinc-400', bg: 'bg-zinc-100 border-zinc-300', text: 'text-zinc-700' }
 }
@@ -227,10 +227,10 @@ export default function ProcurementPage() {
             ]}
             filters={[
               { label: 'Semua', href: buildHref({ po_status: null, po_page: "1" }) },
-              { label: 'Pending', href: buildHref({ po_status: "PENDING_APPROVAL", po_page: "1" }) },
-              { label: 'Approved', href: buildHref({ po_status: "APPROVED", po_page: "1" }) },
-              { label: 'Ordered', href: buildHref({ po_status: "ORDERED", po_page: "1" }) },
-              { label: 'Received', href: buildHref({ po_status: "RECEIVED", po_page: "1" }) },
+              { label: 'Menunggu', href: buildHref({ po_status: "PENDING_APPROVAL", po_page: "1" }) },
+              { label: 'Disetujui', href: buildHref({ po_status: "APPROVED", po_page: "1" }) },
+              { label: 'Sudah dipesan', href: buildHref({ po_status: "ORDERED", po_page: "1" }) },
+              { label: 'Diterima lengkap', href: buildHref({ po_status: "RECEIVED", po_page: "1" }) },
             ]}
             items={(purchaseOrders?.recent ?? []).map((po: any) => ({
               id: po.id,
@@ -254,10 +254,10 @@ export default function ProcurementPage() {
             ]}
             filters={[
               { label: 'Semua', href: buildHref({ pr_status: null, pr_page: "1" }) },
-              { label: 'Pending', href: buildHref({ pr_status: "PENDING", pr_page: "1" }) },
-              { label: 'Approved', href: buildHref({ pr_status: "APPROVED", pr_page: "1" }) },
-              { label: 'PO Created', href: buildHref({ pr_status: "PO_CREATED", pr_page: "1" }) },
-              { label: 'Draft', href: buildHref({ pr_status: "DRAFT", pr_page: "1" }) },
+              { label: 'Menunggu', href: buildHref({ pr_status: "PENDING", pr_page: "1" }) },
+              { label: 'Disetujui', href: buildHref({ pr_status: "APPROVED", pr_page: "1" }) },
+              { label: 'PO sudah dibuat', href: buildHref({ pr_status: "PO_CREATED", pr_page: "1" }) },
+              { label: 'Draf', href: buildHref({ pr_status: "DRAFT", pr_page: "1" }) },
             ]}
             items={(purchaseRequests?.recent ?? []).map((pr: any) => ({
               id: pr.id,
@@ -281,10 +281,10 @@ export default function ProcurementPage() {
             ]}
             filters={[
               { label: 'Semua', href: buildHref({ grn_status: null, grn_page: "1" }) },
-              { label: 'Draft', href: buildHref({ grn_status: "DRAFT", grn_page: "1" }) },
-              { label: 'Inspecting', href: buildHref({ grn_status: "INSPECTING", grn_page: "1" }) },
-              { label: 'Partial', href: buildHref({ grn_status: "PARTIAL_ACCEPTED", grn_page: "1" }) },
-              { label: 'Accepted', href: buildHref({ grn_status: "ACCEPTED", grn_page: "1" }) },
+              { label: 'Draf', href: buildHref({ grn_status: "DRAFT", grn_page: "1" }) },
+              { label: 'Sedang diperiksa', href: buildHref({ grn_status: "INSPECTING", grn_page: "1" }) },
+              { label: 'Diterima sebagian', href: buildHref({ grn_status: "PARTIAL_ACCEPTED", grn_page: "1" }) },
+              { label: 'Diterima', href: buildHref({ grn_status: "ACCEPTED", grn_page: "1" }) },
             ]}
             items={(receiving?.recent ?? []).map((grn: any) => ({
               id: grn.id,
@@ -402,13 +402,13 @@ function RegistryTable({
         {meta.totalPages > 1 ? (
           <div className="flex items-center gap-1.5">
             <Link href={buildPageHref(Math.max(1, meta.page - 1))} className={meta.page <= 1 ? "pointer-events-none opacity-40" : ""}>
-              <Button variant="outline" size="icon" className="h-7 w-7 border border-border">
+              <Button aria-label="Sebelumnya" variant="outline" size="icon" className="h-7 w-7 border border-border">
                 <ChevronLeft className="h-3 w-3" />
               </Button>
             </Link>
             <span className="text-xs font-semibold min-w-[40px] text-center">{meta.page}/{meta.totalPages}</span>
             <Link href={buildPageHref(Math.min(meta.totalPages, meta.page + 1))} className={meta.page >= meta.totalPages ? "pointer-events-none opacity-40" : ""}>
-              <Button variant="outline" size="icon" className="h-7 w-7 border border-border">
+              <Button aria-label="Berikutnya" variant="outline" size="icon" className="h-7 w-7 border border-border">
                 <ChevronRight className="h-3 w-3" />
               </Button>
             </Link>

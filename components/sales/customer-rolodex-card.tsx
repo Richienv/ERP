@@ -147,7 +147,7 @@ export function CustomerRolodexCard({ customer }: CustomerRolodexCardProps) {
                     <div className="absolute top-4 right-2">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-slate-900 hover:text-white rounded-md">
+                                <Button aria-label="Aksi lainnya" variant="ghost" size="icon" className="h-7 w-7 hover:bg-slate-900 hover:text-white rounded-md">
                                     <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                             </DropdownMenuTrigger>

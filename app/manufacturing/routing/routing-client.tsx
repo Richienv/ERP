@@ -246,7 +246,7 @@ export function RoutingClient({ initialRoutings }: Props) {
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button
+                        <Button aria-label="Muat ulang"
                             variant="outline"
                             size="icon"
                             onClick={fetchRoutings}

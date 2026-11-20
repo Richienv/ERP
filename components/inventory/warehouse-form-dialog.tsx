@@ -109,7 +109,7 @@ export function WarehouseFormDialog({ mode, warehouse, trigger }: WarehouseFormD
         <Button
           onClick={() => setOpen(true)}
           className={mode === "create"
-            ? "bg-slate-900 text-white border border-border hover:bg-zinc-800 font-semibold text-xs px-4 h-8 rounded-md"
+            ? "bg-primary text-primary-foreground border border-border hover:bg-primary/90 font-semibold text-xs px-4 h-8 rounded-md"
             : "border border-zinc-300 text-zinc-500 font-bold text-xs px-4 h-8 rounded-md"
           }
         >

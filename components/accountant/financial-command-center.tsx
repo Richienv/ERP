@@ -328,7 +328,7 @@ export function FinancialCommandCenter() {
                                     <p className="text-xs text-muted-foreground">Analisis mendalam menggunakan data perusahaan real-time.</p>
                                 </div>
                             </div>
-                            <Button variant="ghost" size="icon" onClick={() => setSelectedMetric(null)} className="rounded-full hover:bg-black/5">
+                            <Button aria-label="Tutup" variant="ghost" size="icon" onClick={() => setSelectedMetric(null)} className="rounded-full hover:bg-black/5">
                                 <X className="h-5 w-5" />
                             </Button>
                         </div>

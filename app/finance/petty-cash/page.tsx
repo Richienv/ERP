@@ -100,7 +100,7 @@ export default function PettyCashPage() {
                 <div className={NB.pageAccent} />
 
                 {/* Row 1: Title + Toolbar Actions */}
-                <div className={`px-5 py-3.5 flex items-center justify-between ${NB.pageRowBorder}`}>
+                <div className={`px-5 py-3.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between ${NB.pageRowBorder}`}>
                     <div className="flex items-center gap-3">
                         <div className="w-9 h-9 bg-blue-500 flex items-center justify-center">
                             <Wallet className="h-4.5 w-4.5 text-white" />
@@ -282,9 +282,9 @@ export default function PettyCashPage() {
                 style={{ minHeight: 480 }}
             >
                 {/* Table Header */}
-                <div className="hidden md:grid grid-cols-[120px_90px_1fr_1.5fr_130px_130px] gap-2 px-5 py-2.5 bg-slate-900 dark:bg-zinc-950 border-b border-border">
+                <div className="hidden md:grid grid-cols-[120px_90px_1fr_1.5fr_130px_130px] gap-2 px-5 py-2.5 bg-slate-50 dark:bg-zinc-900 border-b border-border">
                     {["Tanggal", "Tipe", "Nama", "Keterangan", "Jumlah", "Saldo"].map((h) => (
-                        <span key={h} className="text-xs font-semibold text-zinc-400">{h}</span>
+                        <span key={h} className="text-xs font-semibold text-slate-600 dark:text-zinc-400">{h}</span>
                     ))}
                 </div>
 
@@ -365,12 +365,12 @@ export default function PettyCashPage() {
 
                 {/* Pagination */}
                 <div className="px-5 py-3 border-t border-zinc-200 dark:border-zinc-700 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
-                    <span className={NB.label + " !mb-0 !text-[10px]"}>
+                    <span className={NB.label + " !mb-0 !text-xs"}>
                         {transactions.length} transaksi
                     </span>
                     {transactions.length > PAGE_SIZE ? (
                         <div className="flex items-center gap-2">
-                            <Button
+                            <Button aria-label="Sebelumnya"
                                 variant="outline"
                                 size="icon"
                                 className="h-7 w-7 border border-zinc-300 dark:border-zinc-600 rounded-md"
@@ -380,7 +380,7 @@ export default function PettyCashPage() {
                                 <ChevronLeft className="h-3.5 w-3.5" />
                             </Button>
                             <span className="text-xs font-semibold min-w-[50px] text-center">{page}/{totalPages}</span>
-                            <Button
+                            <Button aria-label="Berikutnya"
                                 variant="outline"
                                 size="icon"
                                 className="h-7 w-7 border border-zinc-300 dark:border-zinc-600 rounded-md"

@@ -123,12 +123,12 @@ export function SupplierScorecard({ data }: SupplierScorecardProps) {
                         <PolarGrid stroke="#e4e4e7" />
                         <PolarAngleAxis
                             dataKey="subject"
-                            tick={{ fontSize: 9, fontWeight: 700, fill: '#71717a' }}
+                            tick={{ fontSize: 12, fontWeight: 700, fill: '#71717a' }}
                         />
                         <PolarRadiusAxis
                             angle={90}
                             domain={[0, 100]}
-                            tick={{ fontSize: 8 }}
+                            tick={{ fontSize: 12 }}
                             tickCount={5}
                         />
                         <Radar

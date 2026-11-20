@@ -434,6 +434,17 @@
      Integra Pro light tokens from :root (the old black-and-white overrides were removed). */
 }
 
+/* Integra Pro legibility floor (ui-ux-master skill: tokens + accessibility layers, WCAG 1.4.3).
+   About 1,760 secondary labels use text-zinc-400, which is 2.6:1 on white: it fails AA and is
+   hard to read for 40–60+ eyes. In light mode the neutral 400 and 500 steps are darkened so all
+   secondary text passes AA (≥ 4.5:1) on white cards and on the grey canvas, while 400 stays
+   lighter than 500 and 600 (hierarchy kept). Dark mode keeps Tailwind's own values. */
+:root:not(.dark) {
+  --color-zinc-400: oklch(0.54 0.016 286);
+  --color-zinc-500: oklch(0.49 0.016 286);
+  --color-gray-400: oklch(0.54 0.02 264);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

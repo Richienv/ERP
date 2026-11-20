@@ -330,7 +330,7 @@ export function DiscountFormDialog({ open, onOpenChange, editing }: DiscountForm
                                                     </td>
                                                     <td className="px-3 py-2">
                                                         {tierFields.length > 1 && (
-                                                            <Button
+                                                            <Button aria-label="Hapus"
                                                                 type="button"
                                                                 variant="ghost"
                                                                 size="icon"

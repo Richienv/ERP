@@ -266,7 +266,8 @@ async function fetchCardDetails() {
             name: p.name,
             code: p.code,
             minStock: p.minStock,
-            totalStock: (p.stockLevels ?? []).reduce((sum: number, sl: any) => sum + (sl.quantity ?? 0), 0),
+            // quantity is a Prisma Decimal: `0 + Decimal` concatenates strings ("0"+"1"+"2" = "012").
+            totalStock: (p.stockLevels ?? []).reduce((sum: number, sl: any) => sum + Number(sl.quantity ?? 0), 0),
         })).sort((a: any, b: any) => a.totalStock - b.totalStock)
 
         return {

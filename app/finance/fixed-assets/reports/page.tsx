@@ -66,8 +66,8 @@ function AssetRegisterTab() {
                 <table className="w-full">
                     <thead>
                         <tr className="border-b border-border bg-zinc-50">
-                            {["Kode", "Nama", "Kategori", "Supplier", "Tgl Pembelian", "Harga Perolehan", "Akum. Penyusutan", "Nilai Buku", "Status"].map(h => (
-                                <th key={h} className="text-xs font-semibold text-zinc-500 px-4 py-3 text-left">{h}</th>
+                            {["Kode", "Nama", "Kategori", "Pemasok", "Tgl Pembelian", "Harga Perolehan", "Akum. Penyusutan", "Nilai Buku", "Status"].map(h => (
+                                <th key={h} className={`text-xs font-semibold text-zinc-500 px-4 py-3 ${MONEY_COLUMNS.has(h) ? "text-right" : "text-left"}`}>{h}</th>
                             ))}
                         </tr>
                     </thead>
@@ -104,9 +104,9 @@ function AssetRegisterTab() {
                                                     <td className="px-4 py-3 text-sm font-medium text-zinc-600">{asset.category?.name}</td>
                                                     <td className="px-4 py-3 text-sm font-medium text-zinc-600">{asset.supplier?.name || "-"}</td>
                                                     <td className="px-4 py-3 text-sm font-medium text-zinc-600">{formatDate(asset.purchaseDate)}</td>
-                                                    <td className="px-4 py-3 font-mono font-bold text-sm">{formatCurrency(Number(asset.purchaseCost))}</td>
-                                                    <td className="px-4 py-3 font-mono font-bold text-sm text-amber-600">{formatCurrency(Number(asset.accumulatedDepreciation))}</td>
-                                                    <td className="px-4 py-3 font-mono font-bold text-sm text-indigo-700">{formatCurrency(Number(asset.netBookValue))}</td>
+                                                    <td className="px-4 py-3 font-mono font-bold text-sm text-right tabular-nums">{formatCurrency(Number(asset.purchaseCost))}</td>
+                                                    <td className="px-4 py-3 font-mono font-bold text-sm text-amber-600 text-right tabular-nums">{formatCurrency(Number(asset.accumulatedDepreciation))}</td>
+                                                    <td className="px-4 py-3 font-mono font-bold text-sm text-indigo-700 text-right tabular-nums">{formatCurrency(Number(asset.netBookValue))}</td>
                                                     <td className="px-4 py-3">
                                                         <Badge variant="outline" className={`text-xs font-semibold border ${status.color}`}>
                                                             {status.label}
@@ -118,9 +118,9 @@ function AssetRegisterTab() {
                                         {/* Category subtotal */}
                                         <tr className="bg-zinc-50 border-b border-zinc-200">
                                             <td colSpan={5} className="px-4 py-2 text-right text-xs font-semibold text-zinc-500">Subtotal {catName}</td>
-                                            <td className="px-4 py-2 font-mono font-semibold text-sm">{formatCurrency(subtotalCost)}</td>
-                                            <td className="px-4 py-2 font-mono font-semibold text-sm text-amber-600">{formatCurrency(subtotalAccDep)}</td>
-                                            <td className="px-4 py-2 font-mono font-semibold text-sm text-indigo-700">{formatCurrency(subtotalNBV)}</td>
+                                            <td className="px-4 py-2 font-mono font-semibold text-sm text-right tabular-nums">{formatCurrency(subtotalCost)}</td>
+                                            <td className="px-4 py-2 font-mono font-semibold text-sm text-amber-600 text-right tabular-nums">{formatCurrency(subtotalAccDep)}</td>
+                                            <td className="px-4 py-2 font-mono font-semibold text-sm text-indigo-700 text-right tabular-nums">{formatCurrency(subtotalNBV)}</td>
                                             <td />
                                         </tr>
                                     </Fragment>
@@ -179,7 +179,7 @@ function DepreciationScheduleTab() {
                         <thead>
                             <tr className="border-b border-border bg-zinc-50">
                                 {["Kode Aset", "Nama", "Periode", "Tgl Dijadwalkan", "Penyusutan", "Akumulasi", "Nilai Buku", "Status"].map(h => (
-                                    <th key={h} className="text-xs font-semibold text-zinc-500 px-4 py-3 text-left">{h}</th>
+                                    <th key={h} className={`text-xs font-semibold text-zinc-500 px-4 py-3 ${MONEY_COLUMNS.has(h) ? "text-right" : "text-left"}`}>{h}</th>
                                 ))}
                             </tr>
                         </thead>
@@ -199,9 +199,9 @@ function DepreciationScheduleTab() {
                                         <td className="px-4 py-3 font-bold text-sm">{s.asset?.name}</td>
                                         <td className="px-4 py-3 text-sm font-bold text-zinc-700">{s.periodNo}</td>
                                         <td className="px-4 py-3 text-sm font-medium text-zinc-600">{formatDate(s.scheduledDate)}</td>
-                                        <td className="px-4 py-3 font-mono font-bold text-sm">{formatCurrency(Number(s.depreciationAmount))}</td>
-                                        <td className="px-4 py-3 font-mono font-bold text-sm text-amber-600">{formatCurrency(Number(s.accumulatedAmount))}</td>
-                                        <td className="px-4 py-3 font-mono font-bold text-sm text-indigo-700">{formatCurrency(Number(s.bookValueAfter))}</td>
+                                        <td className="px-4 py-3 font-mono font-bold text-sm text-right tabular-nums">{formatCurrency(Number(s.depreciationAmount))}</td>
+                                        <td className="px-4 py-3 font-mono font-bold text-sm text-amber-600 text-right tabular-nums">{formatCurrency(Number(s.accumulatedAmount))}</td>
+                                        <td className="px-4 py-3 font-mono font-bold text-sm text-indigo-700 text-right tabular-nums">{formatCurrency(Number(s.bookValueAfter))}</td>
                                         <td className="px-4 py-3">
                                             {s.isPosted ? (
                                                 <span className="inline-flex items-center gap-1 text-emerald-600">
@@ -276,7 +276,7 @@ function AssetMovementTab() {
                         <thead>
                             <tr className="border-b border-border bg-zinc-50">
                                 {["Tanggal", "Kode Aset", "Nama", "Tipe", "Hasil", "Laba/Rugi", "Catatan"].map(h => (
-                                    <th key={h} className="text-xs font-semibold text-zinc-500 px-4 py-3 text-left">{h}</th>
+                                    <th key={h} className={`text-xs font-semibold text-zinc-500 px-4 py-3 ${MONEY_COLUMNS.has(h) ? "text-right" : "text-left"}`}>{h}</th>
                                 ))}
                             </tr>
                         </thead>
@@ -302,7 +302,7 @@ function AssetMovementTab() {
                                                     {movementTypeLabels[m.type] || m.type}
                                                 </Badge>
                                             </td>
-                                            <td className="px-4 py-3 font-mono font-bold text-sm">
+                                            <td className="px-4 py-3 font-mono font-bold text-sm text-right tabular-nums">
                                                 {m.proceeds != null ? formatCurrency(Number(m.proceeds)) : "-"}
                                             </td>
                                             <td className="px-4 py-3 font-mono font-bold text-sm">
@@ -414,6 +414,9 @@ function NetBookValueTab() {
 // ============================================================
 // Main Reports Page
 // ============================================================
+/** Money columns align right so amounts can be compared digit by digit (receipt rule). */
+const MONEY_COLUMNS = new Set(["Harga Perolehan", "Akum. Penyusutan", "Nilai Buku", "Penyusutan", "Akumulasi", "Hasil", "Laba/Rugi"])
+
 export default function FixedAssetReportsPage() {
     const [activeTab, setActiveTab] = useState<TabKey>("register")
 
@@ -445,7 +448,7 @@ export default function FixedAssetReportsPage() {
                         onClick={() => setActiveTab(tab.key)}
                         className={`px-4 py-2 border border-border text-xs font-semibold   transition-all ${
                             activeTab === tab.key
-                                ? "bg-slate-900 text-white shadow-none"
+                                ? "bg-primary text-primary-foreground shadow-none"
                                 : "bg-white text-zinc-700 hover:bg-zinc-50 shadow-sm hover:shadow-none"
                         }`}
                     >

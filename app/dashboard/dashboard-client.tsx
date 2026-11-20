@@ -10,6 +10,7 @@ import { CardPageSkeleton } from "@/components/ui/page-skeleton"
 import { InlinePendingBar } from "@/components/ui/inline-pending"
 import { OperationsInbox } from "@/components/mining/command-pulse"
 import { formatCurrency } from "@/lib/utils"
+import { statusLabel } from "@/lib/status-labels"
 import Link from "next/link"
 import { AreaChart, Area, ResponsiveContainer } from "recharts"
 import { FlagButton } from "@/components/dashboard/flag-button"
@@ -52,7 +53,9 @@ import {
 /** Only render a CardMetric if value is non-zero / non-"Rp 0" / non-"0" */
 function NonZeroMetric({ label, value, alert, sub }: { label: string; value: string; alert?: boolean; sub?: string }) {
     // Hide if the display value is effectively zero
-    if (value === "0" || value === "Rp 0" || value === "0%" || value === "Rp0") return null
+    // formatCurrency puts a non-breaking space after "Rp", so compare without any spaces
+    const bare = value.replace(/\s/g, "")
+    if (bare === "0" || bare === "Rp0" || bare === "0%") return null
     return <CardMetric label={label} value={value} alert={alert} sub={sub} />
 }
 
@@ -67,13 +70,21 @@ function NonZeroStat({ label, value, accent, icon }: { label: string; value: str
     return <StatBlock label={label} value={value} accent={accent} icon={icon} />
 }
 
+/** Attendance values arrive as English codes ("Absent", "PRESENT") or a rate ("98%"). */
+function attendanceWord(value: unknown): string {
+    if (value === null || value === undefined || value === "") return "—"
+    const v = String(value)
+    const words: Record<string, string> = { present: "Hadir", absent: "Tidak hadir", late: "Terlambat", leave: "Cuti", sick: "Sakit", wfh: "Kerja dari rumah" }
+    return words[v.toLowerCase()] ?? v
+}
+
 export function DashboardPageClient() {
     const { data, isFetching } = useExecutiveDashboard()
 
     const inbox = (
         <OperationsInbox
             title="Kotak Masuk Operasi"
-            subtitle="Antrian kerja KRI hari ini — kerjakan dari nomor 01, tiap tombol mendarat di layar kerjanya"
+            subtitle="Pekerjaan hari ini, urut dari yang paling mendesak. Tiap tombol langsung membuka layar kerjanya."
         />
     )
 
@@ -205,7 +216,7 @@ export function DashboardPageClient() {
                                 {((sales?.activeOrders ?? 0) > 0 || (sales?.totalRevenue ?? 0) > 0) && (
                                     <div className="flex flex-wrap gap-4 py-1 justify-center">
                                         <NonZeroStat label="Pesanan Aktif" value={String(sales?.activeOrders ?? 0)} accent="text-zinc-900 dark:text-zinc-100" />
-                                        <NonZeroStat label="Revenue" value={formatCurrency(sales?.totalRevenue ?? 0)} accent="text-emerald-600" />
+                                        <NonZeroStat label="Pendapatan" value={formatCurrency(sales?.totalRevenue ?? 0)} accent="text-emerald-600" />
                                         {(operations?.salesFulfillment?.fulfillmentRate ?? 0) > 0 && (
                                             <StatBlock label="Fulfillment" value={`${operations.salesFulfillment.fulfillmentRate}%`} accent="text-zinc-900 dark:text-zinc-100" />
                                         )}
@@ -246,10 +257,15 @@ export function DashboardPageClient() {
 
                             {/* PROFITABILITAS */}
                             <ModuleCard title="Profitabilitas" icon={IconReportMoney} href="/finance/reports" accentColor="bg-zinc-800">
-                                <div className="grid grid-cols-2 gap-x-4">
+                                <div className="grid grid-cols-1">
                                     <NonZeroMetric label="Laba Kotor" value={formatCurrency(profitability.grossProfit)} />
-                                    <NonZeroMetric label="Revenue" value={formatCurrency(profitability.revenue)} />
+                                    <NonZeroMetric label="Pendapatan" value={formatCurrency(profitability.revenue)} />
                                 </div>
+                                {profitability.revenue === 0 && profitability.grossProfit === 0 && (
+                                    <p className="py-2 text-sm text-slate-600 dark:text-zinc-400">
+                                        Belum ada penjualan tercatat bulan ini, jadi laba belum bisa dihitung.
+                                    </p>
+                                )}
 
                                 {profitability.revenue > 0 && (
                                     <ProgressBar
@@ -315,7 +331,7 @@ export function DashboardPageClient() {
                             {/* PELANGGAN */}
                             {isModuleEnabled("sales") && (
                             <ModuleCard title="Pelanggan" icon={IconUsersGroup} href="/sales/customers" accentColor="bg-zinc-800">
-                                <div className="grid grid-cols-2 gap-x-4">
+                                <div className="grid grid-cols-1">
                                     <CardMetric label="Pelanggan Aktif" value={String(customerInsights.totalActive)} />
                                     {customerInsights.newThisMonth > 0 && (
                                         <CardMetric label="Baru (Bulan Ini)" value={String(customerInsights.newThisMonth)} />
@@ -384,7 +400,7 @@ export function DashboardPageClient() {
                                 badge={lowStockCount > 0 ? lowStockCount : undefined}
                                 badgeColor="bg-red-500"
                             >
-                                <div className="grid grid-cols-2 gap-x-4">
+                                <div className="grid grid-cols-1">
                                     <NonZeroMetric label="Nilai Stok" value={formatCurrency(operations?.inventoryValue?.value ?? 0)} />
                                     <CardMetric label="Total SKU" value={String(operations?.inventorySummary?.productCount ?? 0)} />
                                     <CardMetric label="Gudang Aktif" value={String(operations?.inventorySummary?.warehouseCount ?? 0)} />
@@ -472,7 +488,7 @@ export function DashboardPageClient() {
                                 badgeColor="bg-blue-500"
                             >
                                 {hasProcData && (
-                                    <div className="grid grid-cols-2 gap-x-4">
+                                    <div className="grid grid-cols-1">
                                         {totalPOs > 0 && <CardMetric label="Total PO" value={String(totalPOs)} sub={`${operations?.procurement?.activeCount ?? 0} aktif`} />}
                                         {(operations?.procurement?.totalPOValue ?? 0) > 0 && <CardMetric label="Nilai PO" value={formatCurrency(operations.procurement.totalPOValue)} />}
                                         {totalPRs > 0 && <CardMetric label="Total PR" value={String(totalPRs)} sub={`${operations?.procurement?.pendingPRs ?? 0} pending`} />}
@@ -486,7 +502,7 @@ export function DashboardPageClient() {
                                         <div className="flex flex-wrap gap-1.5">
                                             {nonZeroPoStatus.slice(0, 5).map(([status, count]) => (
                                                 <span key={status} className="inline-flex items-center gap-1 px-2 py-0.5 border border-zinc-200 dark:border-zinc-700 text-xs font-bold text-zinc-600 dark:text-zinc-400">
-                                                    {String(status).replace(/_/g, " ")} <span className="font-semibold text-zinc-900 dark:text-zinc-100">{String(count)}</span>
+                                                    {statusLabel(String(status))} <span className="font-semibold text-zinc-900 dark:text-zinc-100">{String(count)}</span>
                                                 </span>
                                             ))}
                                         </div>
@@ -534,7 +550,7 @@ export function DashboardPageClient() {
                                                         }`} />
                                                         <div className="min-w-0">
                                                             <span className="text-zinc-900 dark:text-zinc-100 font-medium truncate block">{po.supplier}</span>
-                                                            <span className="text-xs text-zinc-400">{po.number} · {po.status.replace(/_/g, " ")}</span>
+                                                            <span className="text-xs text-zinc-400">{po.number} · {statusLabel(po.status)}</span>
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-2">
@@ -622,7 +638,7 @@ export function DashboardPageClient() {
                                 {woTotal > 0 && (
                                     <>
                                         <SectionDivider label="Work Order Pipeline" />
-                                        <div className="grid grid-cols-2 gap-x-4">
+                                        <div className="grid grid-cols-1">
                                             <CardMetric label="Total WO" value={String(woTotal)} />
                                             {woCompletedMonth > 0 && <CardMetric label="Selesai (Bulan)" value={String(woCompletedMonth)} />}
                                         </div>
@@ -647,7 +663,7 @@ export function DashboardPageClient() {
                                                                 wo.status === "IN_PROGRESS" ? "text-amber-700 bg-amber-50" :
                                                                 "text-zinc-500 bg-zinc-100"
                                                             }`}>
-                                                                {wo.status?.replace(/_/g, " ")}
+                                                                {statusLabel(wo.status)}
                                                             </span>
                                                             <FlagButton title={`WO butuh perhatian: ${wo.number}`} sourceType="WORK_ORDER" sourceId={wo.id} sourceLabel={wo.number} />
                                                         </div>
@@ -725,7 +741,7 @@ export function DashboardPageClient() {
                                                 <Link key={wo.id} href="/manufacturing/orders" className="flex items-center justify-between text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800 -mx-1 px-2 py-1.5 transition-colors group">
                                                     <div className="min-w-0">
                                                         <span className="text-zinc-900 dark:text-zinc-100 font-medium truncate block">{wo.product}</span>
-                                                        <span className="text-xs text-zinc-400">{wo.number} · {wo.status.replace(/_/g, " ")}</span>
+                                                        <span className="text-xs text-zinc-400">{wo.number} · {statusLabel(wo.status)}</span>
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-xs font-mono font-bold tabular-nums text-zinc-600">{wo.actualQty}/{wo.plannedQty}</span>
@@ -759,7 +775,7 @@ export function DashboardPageClient() {
                                     badge={overdueCount > 0 ? overdueCount : undefined}
                                     badgeColor="bg-red-500"
                                 >
-                                    <div className="grid grid-cols-2 gap-x-4">
+                                    <div className="grid grid-cols-1">
                                         <NonZeroMetric label="Kas" value={formatCurrency(financials?.cashBalance ?? 0)} />
                                         <NonZeroMetric label="Kas Masuk Bersih" value={formatCurrency(financials?.netCashIn ?? 0)} />
                                         <NonZeroMetric label="PPN Keluar" value={formatCurrency(tax?.ppnOut ?? 0)} />
@@ -778,7 +794,7 @@ export function DashboardPageClient() {
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             <span className={`text-xs font-semibold px-1.5 py-0.5 ${statusColors[inv.status] ?? "text-zinc-500 bg-zinc-100"}`}>
-                                                                {inv.status}
+                                                                {statusLabel(inv.status, "payment")}
                                                             </span>
                                                             <span className="font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">{formatCurrency(inv.total ?? 0)}</span>
                                                         </div>
@@ -790,7 +806,7 @@ export function DashboardPageClient() {
 
                                     {overdueCount > 0 && (
                                         <>
-                                            <SectionDivider label="Invoice Overdue" />
+                                            <SectionDivider label="Invoice terlambat dibayar" />
                                             <div className="space-y-1">
                                                 {overdueInvoices.slice(0, 3).map((inv: any, i: number) => (
                                                     <Link key={i} href="/finance/invoices" className="flex items-center justify-between text-xs hover:bg-red-50 dark:hover:bg-red-950/20 -mx-1 px-2 py-1.5 transition-colors group">
@@ -799,7 +815,7 @@ export function DashboardPageClient() {
                                                             <span className="text-zinc-600 dark:text-zinc-400 truncate">{inv.customer || inv.number || `INV-${i + 1}`}</span>
                                                         </div>
                                                         <div className="flex items-center gap-2">
-                                                            <span className="font-semibold text-red-600 tabular-nums">{formatCurrency(inv.amount ?? 0)}</span>
+                                                            <span className="font-semibold text-red-600 tabular-nums">{formatCurrency(inv.balanceDue ?? inv.totalAmount ?? inv.amount ?? 0)}</span>
                                                             <FlagButton title={`Invoice overdue: ${inv.customer || inv.number}`} sourceType="INVOICE" sourceId={inv.id || `inv-${i}`} sourceLabel={inv.customer || inv.number || `INV-${i+1}`} />
                                                         </div>
                                                     </Link>
@@ -814,12 +830,17 @@ export function DashboardPageClient() {
                                             <div className="space-y-1">
                                                 {(upcomingPayables as any[]).slice(0, 3).map((bill: any, i: number) => (
                                                     <div key={i} className="flex items-center justify-between text-xs px-1 py-1 group">
-                                                        <div className="flex items-center gap-2 min-w-0">
-                                                            <IconCalendarDue className="w-3 h-3 text-amber-400 shrink-0" />
-                                                            <span className="text-zinc-600 dark:text-zinc-400 truncate">{bill.supplier || bill.vendor || bill.number || `Bill-${i + 1}`}</span>
+                                                        <div className="flex items-start gap-2 min-w-0">
+                                                            <IconCalendarDue className="mt-0.5 w-3 h-3 text-amber-500 shrink-0" aria-hidden />
+                                                            <div className="min-w-0">
+                                                                <span className="block text-zinc-700 dark:text-zinc-300 truncate">{bill.supplier || bill.vendor || bill.number || `Tagihan ${i + 1}`}</span>
+                                                                {bill.dueDate && (
+                                                                    <span className="block text-zinc-500">Jatuh tempo {new Date(bill.dueDate).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</span>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                         <div className="flex items-center gap-2">
-                                                            <span className="font-bold text-amber-600 tabular-nums">{formatCurrency(bill.amount ?? bill.total ?? 0)}</span>
+                                                            <span className="font-bold text-amber-600 tabular-nums">{formatCurrency(bill.balanceDue ?? bill.totalAmount ?? bill.amount ?? 0)}</span>
                                                             <FlagButton title={`Tagihan mendatang: ${bill.supplier || bill.vendor}`} sourceType="INVOICE" sourceId={bill.id || `bill-${i}`} sourceLabel={bill.supplier || bill.vendor || bill.number || `Bill-${i+1}`} />
                                                         </div>
                                                     </div>
@@ -832,9 +853,9 @@ export function DashboardPageClient() {
 
                             {/* ARUS KAS */}
                             <ModuleCard title="Arus Kas" icon={IconCash} href="/finance/reports" accentColor="bg-zinc-800">
-                                <div className="grid grid-cols-2 gap-x-4">
-                                    <NonZeroMetric label="Kas Masuk (7h)" value={formatCurrency(cashFlow.kasMasuk)} />
-                                    <NonZeroMetric label="Kas Keluar (7h)" value={formatCurrency(cashFlow.kasKeluar)} />
+                                <div className="grid grid-cols-1">
+                                    <NonZeroMetric label="Kas masuk (7 hari)" value={formatCurrency(cashFlow.kasMasuk)} />
+                                    <NonZeroMetric label="Kas keluar (7 hari)" value={formatCurrency(cashFlow.kasKeluar)} />
                                 </div>
 
                                 <div className="flex items-center gap-1.5 mt-1.5 text-xs">
@@ -843,7 +864,7 @@ export function DashboardPageClient() {
                                     ) : (
                                         <IconTrendingDown className="w-3.5 h-3.5 text-red-500" />
                                     )}
-                                    <span className="text-zinc-500 font-semibold">Net Cash Flow:</span>
+                                    <span className="text-zinc-500 font-semibold">Arus kas bersih (7 hari):</span>
                                     <span className={`font-semibold tabular-nums ${cashFlow.netCashFlow >= 0 ? "text-emerald-600" : "text-red-600"}`}>
                                         {formatCurrency(cashFlow.netCashFlow)}
                                     </span>
@@ -920,7 +941,7 @@ export function DashboardPageClient() {
                                     badge={lateCount > 0 ? lateCount : undefined}
                                     badgeColor="bg-amber-500"
                                 >
-                                    <div className="grid grid-cols-2 gap-x-4">
+                                    <div className="grid grid-cols-1">
                                         <CardMetric label="Total Karyawan" value={String(totalStaff)} />
                                         {presentCount > 0 && <CardMetric label="Hadir" value={String(presentCount)} />}
                                         {lateCount > 0 && <CardMetric label="Terlambat" value={String(lateCount)} alert />}
@@ -940,13 +961,13 @@ export function DashboardPageClient() {
                                         <div className="mt-1.5 flex items-center gap-2 px-2 py-1.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 text-xs">
                                             <IconCalendarDue className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                                             <span className="text-amber-700 dark:text-amber-300 font-semibold">{pendingLeaves} pengajuan cuti menunggu</span>
-                                            <Link href="/hcm" className="ml-auto text-xs font-semibold text-amber-600 hover:text-amber-800">Review →</Link>
+                                            <Link href="/hcm" className="ml-auto text-xs font-semibold text-amber-600 hover:text-amber-800">Tinjau cuti →</Link>
                                         </div>
                                     )}
 
                                     {topEmployees.length > 0 && (
                                         <>
-                                            <SectionDivider label="Kehadiran Terbaik" />
+                                            <SectionDivider label="Kehadiran hari ini" />
                                             <div className="space-y-1">
                                                 {(topEmployees as any[]).slice(0, 3).map((emp: any, i: number) => (
                                                     <div key={i} className="flex items-center justify-between text-xs px-1 py-1">
@@ -954,7 +975,7 @@ export function DashboardPageClient() {
                                                             <IconUserCheck className="w-3 h-3 text-zinc-400 shrink-0" />
                                                             <span className="text-zinc-600 dark:text-zinc-400 truncate">{emp.name}</span>
                                                         </div>
-                                                        <span className="font-bold text-emerald-600 tabular-nums">{emp.attendance ?? emp.rate ?? "100%"}</span>
+                                                        <span className={`font-bold tabular-nums ${/absent|alpha|tidak/i.test(String(emp.attendance ?? "")) ? "text-red-600" : /late|terlambat/i.test(String(emp.attendance ?? "")) ? "text-amber-600" : "text-emerald-600"}`}>{attendanceWord(emp.attendance ?? emp.rate)}</span>
                                                     </div>
                                                 ))}
                                             </div>
@@ -992,10 +1013,10 @@ export function DashboardPageClient() {
                                 badge={compliance.totalIssues > 0 ? compliance.totalIssues : undefined}
                                 badgeColor="bg-red-500"
                             >
-                                <div className="grid grid-cols-2 gap-x-4">
-                                    {compliance.draftInvoices > 0 && <CardMetric label="Invoice Draft" value={String(compliance.draftInvoices)} alert />}
-                                    {compliance.draftJournals > 0 && <CardMetric label="Jurnal Draft" value={String(compliance.draftJournals)} alert />}
-                                    {compliance.overdueAP > 0 && <CardMetric label="AP Overdue" value={String(compliance.overdueAP)} alert />}
+                                <div className="grid grid-cols-1">
+                                    {compliance.draftInvoices > 0 && <CardMetric label="Invoice masih draf" value={String(compliance.draftInvoices)} alert />}
+                                    {compliance.draftJournals > 0 && <CardMetric label="Jurnal masih draf" value={String(compliance.draftJournals)} alert />}
+                                    {compliance.overdueAP > 0 && <CardMetric label="Hutang terlambat" value={String(compliance.overdueAP)} alert />}
                                     {compliance.missingTax > 0 && <CardMetric label="Tanpa PPN" value={String(compliance.missingTax)} alert />}
                                 </div>
 
@@ -1019,13 +1040,13 @@ export function DashboardPageClient() {
                                 {compliance.status !== 'green' && (
                                     <div className="mt-1.5 flex items-center gap-2 group">
                                         <FlagButton title={`Kepatuhan butuh perhatian: ${compliance.totalIssues} masalah`} sourceType="JOURNAL" sourceId="compliance" sourceLabel={`${compliance.totalIssues} item compliance`} />
-                                        <span className="text-xs text-zinc-400">Flag ke tim Finance</span>
+                                        <span className="text-xs text-zinc-500">Tandai untuk tim keuangan</span>
                                     </div>
                                 )}
                             </ModuleCard>
 
                             {/* TUGAS HARI INI */}
-                            <div className="[&>div]:h-full [&>div]:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                            <div className="[&>div]:h-full">
                                 <TodaysTasks />
                             </div>
                         </div>
@@ -1033,7 +1054,7 @@ export function DashboardPageClient() {
 
                     {/* ═══ FULL-WIDTH: Activity Feed — only if there are activities ═══ */}
                     {activityFeed.length > 0 && (
-                        <div className="[&>div]:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                        <div>
                             <CompactActivityFeed activities={activityFeed} />
                         </div>
                     )}

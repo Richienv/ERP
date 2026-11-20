@@ -59,6 +59,17 @@ import { queryKeys } from "@/lib/query-keys"
 import { invalidateOpsLoop } from "@/lib/invalidate-ops-loop"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 import { InlinePendingBar } from "@/components/ui/inline-pending"
+import { statusLabel } from "@/lib/status-labels"
+import { StatusBadge } from "@/components/module/status-badge"
+
+/** Whole days between a due date and today (for "Terlambat · 12 hari"). */
+function daysLate(dueDate: string | Date): number {
+    const due = new Date(dueDate)
+    due.setHours(0, 0, 0, 0)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return Math.max(1, Math.round((today.getTime() - due.getTime()) / 86_400_000))
+}
 import { useChartOfAccounts } from "@/hooks/use-chart-accounts"
 
 export default function APBillsStackPage() {
@@ -264,7 +275,7 @@ export default function APBillsStackPage() {
         setProcessing(true)
         try {
             const result = await disputeBill(activeBill.id, disputeReason)
-            if (result.success) { toast.success("Bill disputed"); setIsDisputeOpen(false); setDisputeReason(""); invalidateAfterDispute() }
+            if (result.success) { toast.success(`Tagihan ${activeBill?.number ?? ""} ditandai bermasalah`, { description: "Tagihan tidak akan dibayar sampai masalahnya selesai." }); setIsDisputeOpen(false); setDisputeReason(""); invalidateAfterDispute() }
             else toast.error("Gagal dispute bill")
         } catch { toast.error("Terjadi kesalahan") } finally { setProcessing(false) }
     }
@@ -392,32 +403,10 @@ export default function APBillsStackPage() {
 
     return (
         <div className="mf-page">
-            {/* ─── RIWAYAT PEMBAYARAN — above active bills ─── */}
-            <PaymentHistoryTable
-                title="Riwayat Pembayaran"
-                rows={completedBills.map((bill): PaymentHistoryRow => ({
-                    id: bill.id,
-                    documentNumber: bill.number,
-                    counterpartyName: bill.vendor?.name ?? "—",
-                    method: bill.payments?.[0]?.method ?? "—",
-                    reference: bill.payments?.[0]?.reference ?? null,
-                    amount: bill.amount,
-                    date: bill.payments?.[0]?.date ?? bill.date,
-                    status: "PAID",
-                }))}
-                documentLabel="No. Bill"
-                counterpartyLabel="Vendor"
-                onRowClick={(row) => {
-                    const match = completedBills.find(b => b.id === row.id)
-                    if (match) openBillDetail(match)
-                }}
-                maxHeight={250}
-            />
-
             {/* ─── Single unified card: KPI + Filter + Table ─── */}
             <div className="relative border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
                 <InlinePendingBar active={!!billsData && isFetching} />
-                {/* Row 1: Toolbar — Scan Bill button + count */}
+                {/* Row 1: Toolbar — Scan tagihan button + count */}
                 <div className="px-5 py-2.5 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800">
                     <div className="flex items-center gap-3">
                         <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">
@@ -431,7 +420,7 @@ export default function APBillsStackPage() {
                         onClick={() => toast.info("Fitur scan bill belum tersedia")}
                         className={NB.toolbarBtnPrimary}
                     >
-                        <Plus className="h-3.5 w-3.5 mr-1.5" /> Scan Bill
+                        <Plus className="h-3.5 w-3.5 mr-1.5" /> Scan tagihan
                     </Button>
                 </div>
 
@@ -450,14 +439,14 @@ export default function APBillsStackPage() {
                     <div className={NB.kpiCell}>
                         <div className="flex items-center gap-1.5">
                             <span className="w-2 h-2 bg-zinc-400 rounded-full" />
-                            <span className={NB.kpiLabel}>Pending</span>
+                            <span className={NB.kpiLabel}>Belum dibayar</span>
                         </div>
                         <span className={NB.kpiCount}>{pendingBills}</span>
                     </div>
                     <div className={NB.kpiCell}>
                         <div className="flex items-center gap-1.5">
                             <span className={`w-2 h-2 rounded-full ${dueTodayBills > 0 ? "bg-blue-500" : "bg-zinc-300"}`} />
-                            <span className={NB.kpiLabel}>Hari Ini</span>
+                            <span className={NB.kpiLabel}>Jatuh tempo hari ini</span>
                         </div>
                         <span className={`${NB.kpiCount} ${dueTodayBills > 0 ? "text-blue-600 dark:text-blue-400" : ""}`}>{dueTodayBills}</span>
                     </div>
@@ -478,7 +467,7 @@ export default function APBillsStackPage() {
                             <Search className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 z-10 transition-colors ${searchText ? NB.inputIconActive : NB.inputIconEmpty}`} />
                             <input
                                 className={`border border-r-0 font-medium h-9 w-[280px] text-xs rounded-md pl-9 pr-8 outline-none placeholder:text-zinc-400 transition-all ${searchText ? NB.inputActive : NB.inputEmpty}`}
-                                placeholder="Cari nomor bill, vendor..."
+                                placeholder="Cari nomor tagihan, vendor..."
                                 value={searchText}
                                 onChange={(e) => setSearchText(e.target.value)}
                                 onKeyDown={(e) => e.key === "Enter" && applyFilters()}
@@ -496,12 +485,12 @@ export default function APBillsStackPage() {
                             triggerClassName={NB.filterDropdown}
                             triggerActiveClassName="flex items-center gap-2 border border-blue-400 dark:border-blue-500 border-r-0 h-9 px-3 bg-blue-50/50 dark:bg-blue-950/20 text-xs font-medium min-w-[120px] justify-between transition-all rounded-md"
                             options={[
-                                { value: "DRAFT", label: "Draft" },
-                                { value: "ISSUED", label: "Issued" },
-                                { value: "PARTIAL", label: "Partial" },
-                                { value: "OVERDUE", label: "Overdue" },
-                                { value: "DISPUTED", label: "Disputed" },
-                                { value: "PAID", label: "Paid" },
+                                { value: "DRAFT", label: statusLabel("DRAFT", "payment") },
+                                { value: "ISSUED", label: statusLabel("ISSUED", "payment") },
+                                { value: "PARTIAL", label: statusLabel("PARTIAL", "payment") },
+                                { value: "OVERDUE", label: statusLabel("OVERDUE", "payment") },
+                                { value: "DISPUTED", label: statusLabel("DISPUTED", "payment") },
+                                { value: "PAID", label: statusLabel("PAID", "payment") },
                             ]}
                             selected={selectedStatuses}
                             onChange={setSelectedStatuses}
@@ -521,9 +510,9 @@ export default function APBillsStackPage() {
                 </div>
 
                 {/* ─── Table Header — black bar ─── */}
-                <div className="hidden md:grid grid-cols-[1fr_1.5fr_110px_100px_140px_110px] gap-2 px-5 py-2.5 bg-slate-900 dark:bg-zinc-950 border-b border-border">
-                    {["No. Bill", "Vendor", "Jatuh Tempo", "Status", "Jumlah", "Aksi"].map((h) => (
-                        <span key={h} className="text-xs font-semibold text-zinc-400">{h}</span>
+                <div className="hidden md:grid grid-cols-[1fr_1.4fr_120px_170px_150px_120px] gap-2 px-5 py-2.5 bg-slate-50 dark:bg-zinc-900 border-b border-border">
+                    {["No. tagihan", "Vendor", "Jatuh tempo", "Status", "Jumlah", "Aksi"].map((h) => (
+                        <span key={h} className={`text-xs font-semibold text-slate-600 dark:text-zinc-400 ${h === "Jumlah" || h === "Aksi" ? "text-right" : ""}`}>{h}</span>
                     ))}
                 </div>
 
@@ -545,7 +534,7 @@ export default function APBillsStackPage() {
                                 return (
                                     <div
                                         key={bill.id}
-                                        className={`grid grid-cols-1 md:grid-cols-[1fr_1.5fr_110px_100px_140px_110px] gap-2 px-5 py-3 items-center hover:bg-blue-50/50 dark:hover:bg-blue-950/10 ${
+                                        className={`grid grid-cols-1 md:grid-cols-[1fr_1.4fr_120px_170px_150px_120px] gap-2 px-5 py-3 items-center hover:bg-blue-50/50 dark:hover:bg-blue-950/10 ${
                                             idx % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/60 dark:bg-zinc-800/20"
                                         } ${isOverdue ? "border-l border-l-red-500" : billDueToday ? "border-l border-l-orange-400" : ""}`}
                                     >
@@ -560,24 +549,19 @@ export default function APBillsStackPage() {
                                         {/* Due date */}
                                         <div>
                                             <span className={`text-xs font-medium ${isOverdue ? "text-red-600 dark:text-red-400 font-bold" : billDueToday ? "text-blue-600 dark:text-blue-400 font-bold" : "text-zinc-500"}`}>
-                                                {new Date(bill.dueDate).toLocaleDateString("id-ID")}
+                                                {new Date(bill.dueDate).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
                                             </span>
                                         </div>
                                         {/* Status */}
                                         <div>
-                                            <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-1 border rounded-md ${getStatusColor(bill.status, isOverdue, billDueToday)}`}>
-                                                <span className={`w-1.5 h-1.5 ${
-                                                    isOverdue ? "bg-red-500" :
-                                                    billDueToday ? "bg-blue-500" :
-                                                    bill.status === "PAID" ? "bg-emerald-500" :
-                                                    bill.status === "DISPUTED" ? "bg-amber-500" :
-                                                    "bg-zinc-400"
-                                                }`} />
-                                                {isOverdue ? "Overdue" : billDueToday ? "Hari Ini" : bill.status}
-                                            </span>
+                                            <StatusBadge
+                                                status={isOverdue ? "OVERDUE" : billDueToday ? "DUE_TODAY" : bill.status}
+                                                context="payment"
+                                                detail={isOverdue ? `${daysLate(bill.dueDate)} hari` : undefined}
+                                            />
                                         </div>
-                                        {/* Amount */}
-                                        <div>
+                                        {/* Amount — right-aligned so amounts compare digit by digit */}
+                                        <div className="md:text-right tabular-nums">
                                             <span className={`font-mono font-semibold text-sm ${
                                                 isOverdue ? "text-red-600 dark:text-red-400" :
                                                 bill.status === "PAID" ? "text-emerald-600 dark:text-emerald-400" :
@@ -641,17 +625,39 @@ export default function APBillsStackPage() {
                             {billMeta.total} tagihan
                         </span>
                         <div className="flex items-center gap-2">
-                            <Button variant="outline" size="icon" className="h-7 w-7 border border-zinc-300 dark:border-zinc-600 rounded-md" disabled={billMeta.page <= 1} onClick={() => setPage(billMeta.page - 1)}>
+                            <Button aria-label="Sebelumnya" variant="outline" size="icon" className="h-7 w-7 border border-zinc-300 dark:border-zinc-600 rounded-md" disabled={billMeta.page <= 1} onClick={() => setPage(billMeta.page - 1)}>
                                 <ChevronLeft className="h-3.5 w-3.5" />
                             </Button>
                             <span className="text-xs font-semibold min-w-[50px] text-center">{billMeta.page}/{billMeta.totalPages}</span>
-                            <Button variant="outline" size="icon" className="h-7 w-7 border border-zinc-300 dark:border-zinc-600 rounded-md" disabled={billMeta.page >= billMeta.totalPages} onClick={() => setPage(billMeta.page + 1)}>
+                            <Button aria-label="Berikutnya" variant="outline" size="icon" className="h-7 w-7 border border-zinc-300 dark:border-zinc-600 rounded-md" disabled={billMeta.page >= billMeta.totalPages} onClick={() => setPage(billMeta.page + 1)}>
                                 <ChevronRight className="h-3.5 w-3.5" />
                             </Button>
                         </div>
                     </div>
                 )}
             </div>
+
+            {/* ─── RIWAYAT PEMBAYARAN — below the work list: history is looked up, the work list is acted on ─── */}
+            <PaymentHistoryTable
+                title="Riwayat Pembayaran"
+                rows={completedBills.map((bill): PaymentHistoryRow => ({
+                    id: bill.id,
+                    documentNumber: bill.number,
+                    counterpartyName: bill.vendor?.name ?? "—",
+                    method: bill.payments?.[0]?.method ?? "—",
+                    reference: bill.payments?.[0]?.reference ?? null,
+                    amount: bill.amount,
+                    date: bill.payments?.[0]?.date ?? bill.date,
+                    status: "PAID",
+                }))}
+                documentLabel="No. tagihan"
+                counterpartyLabel="Vendor"
+                onRowClick={(row) => {
+                    const match = completedBills.find(b => b.id === row.id)
+                    if (match) openBillDetail(match)
+                }}
+                maxHeight={250}
+            />
 
             {/* ═══ BILL DETAIL DIALOG ═══ */}
             <Dialog open={isDetailOpen} onOpenChange={(open) => {
@@ -667,19 +673,19 @@ export default function APBillsStackPage() {
                                     <p className={NB.subtitle}>{activeBill.vendor?.name || "Unknown Vendor"}</p>
                                 </div>
                                 <span className={`px-3 py-1 text-xs font-semibold border ${getStatusColor(activeBill.status, activeBill.isOverdue)}`}>
-                                    {activeBill.isOverdue ? "Overdue" : activeBill.status}
+                                    {activeBill.isOverdue ? `Terlambat · ${daysLate(activeBill.dueDate)} hari` : statusLabel(activeBill.status, "payment")}
                                 </span>
                             </div>
                         </DialogHeader>
                         {stamped && (
                             <div className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none">
-                                <div className="border-8 border-emerald-600 text-emerald-600 font-semibold text-5xl px-6 py-3 -rotate-12 opacity-70">PAID</div>
+                                <div className="border-8 border-emerald-600 text-emerald-600 font-semibold text-5xl px-6 py-3 -rotate-12 opacity-70">LUNAS</div>
                             </div>
                         )}
                         <div className={`px-6 py-5 space-y-4 overflow-y-auto ${NB.scroll}`}>
                             <div className="grid grid-cols-2 gap-4">
                                 <div><label className={NB.label}>No. Invoice</label><p className="font-mono font-bold text-sm">{activeBill.number}</p></div>
-                                <div><label className={NB.label}>Jatuh Tempo</label><p className="font-bold text-sm">{new Date(activeBill.dueDate).toLocaleDateString("id-ID")}</p></div>
+                                <div><label className={NB.label}>Jatuh Tempo</label><p className="font-bold text-sm">{new Date(activeBill.dueDate).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</p></div>
                                 <div><label className={NB.label}>Total Tagihan</label><p className="text-2xl font-semibold">{formatIDR(activeBill.amount)}</p></div>
                                 <div><label className={NB.label}>Sisa Bayar</label><p className="text-2xl font-semibold text-red-600">{formatIDR(activeBill.balanceDue)}</p></div>
                             </div>
@@ -806,7 +812,7 @@ export default function APBillsStackPage() {
                                                 </div>
                                                 <div className="flex items-center gap-3">
                                                     <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">{formatIDR(p.amount)}</span>
-                                                    <span className="text-zinc-400">{new Date(p.date).toLocaleDateString("id-ID")}</span>
+                                                    <span className="text-zinc-400">{new Date(p.date).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</span>
                                                 </div>
                                             </div>
                                         ))}
@@ -821,7 +827,7 @@ export default function APBillsStackPage() {
                                         <span className="text-xs font-semibold px-2 py-1 bg-emerald-100 text-emerald-700 border border-emerald-300">Lunas</span>
                                         {activeBill.payments?.[0] && (
                                             <span className="text-xs text-zinc-400">
-                                                {new Date(activeBill.payments[0].date).toLocaleDateString("id-ID")}
+                                                {new Date(activeBill.payments[0].date).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
                                             </span>
                                         )}
                                     </div>
@@ -1000,7 +1006,7 @@ export default function APBillsStackPage() {
                                                 ) : (
                                                     <>
                                                         {/* Table header */}
-                                                        <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-slate-900 text-zinc-400">
+                                                        <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-slate-50 text-slate-600 dark:bg-zinc-900 dark:text-zinc-400">
                                                             <div className="col-span-1 text-xs font-semibold  "></div>
                                                             <div className="col-span-3 text-xs font-semibold  ">No. Tagihan</div>
                                                             <div className="col-span-2 text-xs font-semibold  ">Jatuh Tempo</div>
@@ -1023,14 +1029,14 @@ export default function APBillsStackPage() {
                                                                 <div className="col-span-3">
                                                                     <span className="font-mono text-xs font-bold">{row.billNumber}</span>
                                                                     {row.isOverdue && (
-                                                                        <span className="ml-2 text-xs font-semibold text-red-600 bg-red-100 px-1.5 py-0.5">Overdue</span>
+                                                                        <span className="ml-2 text-xs font-semibold text-red-700 bg-red-100 px-1.5 py-0.5">Terlambat</span>
                                                                     )}
                                                                     {!row.isOverdue && (row as any).isDueToday && (
-                                                                        <span className="ml-2 text-xs font-semibold text-blue-600 bg-blue-100 px-1.5 py-0.5">Hari Ini</span>
+                                                                        <span className="ml-2 text-xs font-semibold text-blue-700 bg-blue-100 px-1.5 py-0.5">Jatuh tempo hari ini</span>
                                                                     )}
                                                                 </div>
                                                                 <div className="col-span-2 text-xs text-zinc-500">
-                                                                    {row.dueDate.toLocaleDateString("id-ID")}
+                                                                    {row.dueDate.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
                                                                 </div>
                                                                 <div className="col-span-2 text-right font-mono text-xs text-zinc-500">
                                                                     {formatIDR(row.totalAmount)}

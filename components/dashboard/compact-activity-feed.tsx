@@ -58,7 +58,7 @@ export function CompactActivityFeed({ activities }: CompactActivityFeedProps) {
                     <Clock className="h-4 w-4 text-zinc-500" />
                     <h3 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Aktivitas Terbaru</h3>
                 </div>
-                <span className="bg-emerald-500 text-white text-xs font-semibold px-1.5 py-0.5">LIVE</span>
+                <span className="bg-emerald-500 text-white text-xs font-semibold px-1.5 py-0.5">Terkini</span>
             </div>
 
             {/* Feed Items */}

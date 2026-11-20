@@ -1359,7 +1359,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                             <TableCell className="font-mono">{row.number}</TableCell>
                                             <TableCell>{row.partnerName || "-"}</TableCell>
                                             <TableCell><Badge variant="outline">{row.status}</Badge></TableCell>
-                                            <TableCell>{formatCurrency(row.totalAmount)}</TableCell>
+                                            <TableCell className="text-right tabular-nums">{formatCurrency(row.totalAmount)}</TableCell>
                                             <TableCell>{formatDateTime(row.updatedAt)}</TableCell>
                                             <TableCell className="text-right">
                                                 <a href={row.viewUrl} target="_blank" rel="noreferrer">
@@ -1473,7 +1473,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                             <TableCell>{row.partnerName || "-"}</TableCell>
                                             <TableCell><Badge variant="secondary">{row.type || "-"}</Badge></TableCell>
                                             <TableCell><Badge variant="outline">{row.status}</Badge></TableCell>
-                                            <TableCell>{formatCurrency(row.totalAmount)}</TableCell>
+                                            <TableCell className="text-right tabular-nums">{formatCurrency(row.totalAmount)}</TableCell>
                                             <TableCell>{formatDateTime(row.updatedAt)}</TableCell>
                                             <TableCell className="text-right">
                                                 <a href={row.viewUrl} target="_blank" rel="noreferrer">

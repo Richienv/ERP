@@ -615,7 +615,7 @@ export function InvoicesPageClient() {
                     subtitle="Kelola invoice, tagihan, dan pembayaran"
                     secondaryActions={[
                         {
-                            label: "Export",
+                            label: "Ekspor",
                             icon: <Download className="h-3.5 w-3.5" />,
                             onClick: () => {
                                 const cols = [
@@ -780,9 +780,9 @@ export function InvoicesPageClient() {
             >
                 <InlinePendingBar active={isFetching && hasInvoiceData} />
                 {/* Table Header */}
-                <div className="hidden md:grid grid-cols-[1fr_1.2fr_90px_140px_120px_110px_120px] gap-2 px-5 py-2.5 bg-slate-900 dark:bg-zinc-950 border-b border-border">
+                <div className="hidden md:grid grid-cols-[1fr_1.2fr_90px_140px_120px_110px_120px] gap-2 px-5 py-2.5 bg-slate-50 dark:bg-zinc-900 border-b border-border">
                     {['No. Invoice', 'Pihak', 'Tipe', 'Jumlah', 'Status', 'Jatuh Tempo', 'Aksi'].map((h) => (
-                        <span key={h} className="text-xs font-semibold text-zinc-400">{h}</span>
+                        <span key={h} className="text-xs font-semibold text-slate-600 dark:text-zinc-400">{h}</span>
                     ))}
                 </div>
 
@@ -928,7 +928,7 @@ export function InvoicesPageClient() {
                     </span>
                     {filteredInvoices.length > PAGE_SIZE ? (
                         <div className="flex items-center gap-2">
-                            <Button
+                            <Button aria-label="Sebelumnya"
                                 variant="outline"
                                 size="icon"
                                 className="h-7 w-7 border border-zinc-300 dark:border-zinc-600 rounded-md"
@@ -938,7 +938,7 @@ export function InvoicesPageClient() {
                                 <ChevronLeft className="h-3.5 w-3.5" />
                             </Button>
                             <span className="text-xs font-semibold min-w-[50px] text-center">{page}/{totalPages}</span>
-                            <Button
+                            <Button aria-label="Berikutnya"
                                 variant="outline"
                                 size="icon"
                                 className="h-7 w-7 border border-zinc-300 dark:border-zinc-600 rounded-md"

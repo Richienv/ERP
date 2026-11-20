@@ -95,7 +95,7 @@ export function OpeningBalancesAPAR() {
                         onClick={() => setActiveSection("AR")}
                         className={`flex items-center gap-1 h-8 px-3 border text-xs font-semibold   rounded-md transition-all ${
                             activeSection === "AR"
-                                ? "bg-slate-900 text-white border-border dark:bg-white dark:text-black dark:border-white"
+                                ? "bg-primary text-primary-foreground border-border dark:bg-white dark:text-black dark:border-white"
                                 : "bg-white dark:bg-zinc-900 text-zinc-500 border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50"
                         }`}
                     >

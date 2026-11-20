@@ -90,7 +90,7 @@ export function WarehouseStaffDialog({ warehouseId, warehouseName, triggerMode }
           <p className="text-2xl font-semibold">{data?.activeStaff?.length ?? "View"}</p>
         </button>
       ) : (
-        <Button
+        <Button aria-label="Atur staf gudang"
           variant="outline"
           size="icon"
           onClick={() => setOpen(true)}

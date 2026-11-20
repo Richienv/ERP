@@ -138,7 +138,7 @@ export function GanttSchedule({ workOrders, onSelectWorkOrder }: GanttSchedulePr
                                             {day.getDate()}
                                         </span>
                                         {day.getDate() === 1 && (
-                                            <span className="text-[7px] font-semibold text-zinc-400 ">
+                                            <span className="text-xs font-semibold text-zinc-400 ">
                                                 {day.toLocaleDateString('id-ID', { month: 'short' })}
                                             </span>
                                         )}

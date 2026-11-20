@@ -154,7 +154,7 @@ export function CreateAssetDialog({ open, onOpenChange }: Props) {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <NBSelect
-                            label="Supplier"
+                            label="Pemasok"
                             value={form.supplierId}
                             onValueChange={v => setForm(p => ({ ...p, supplierId: v }))}
                             placeholder="Pilih supplier"

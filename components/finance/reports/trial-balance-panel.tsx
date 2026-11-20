@@ -81,7 +81,7 @@ export function TrialBalancePanel({ data, onReconcile }: TrialBalancePanelProps)
               onClick={() => setShowAll(false)}
               className={`rounded-md border border-border text-xs font-semibold   ${
                 !showAll
-                  ? "bg-slate-900 text-white"
+                  ? "bg-primary text-primary-foreground"
                   : "bg-white text-black hover:bg-zinc-100"
               }`}
             >
@@ -93,7 +93,7 @@ export function TrialBalancePanel({ data, onReconcile }: TrialBalancePanelProps)
               onClick={() => setShowAll(true)}
               className={`rounded-md border border-border text-xs font-semibold   ${
                 showAll
-                  ? "bg-slate-900 text-white"
+                  ? "bg-primary text-primary-foreground"
                   : "bg-white text-black hover:bg-zinc-100"
               }`}
             >

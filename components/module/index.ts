@@ -20,7 +20,7 @@ export type { ApprovalItem, ApprovalBannerProps } from './approval-banner'
 export { SearchFilterBar } from './search-filter-bar'
 export type { FilterDropdown, SearchFilterBarProps } from './search-filter-bar'
 
-export { StatusBadge, STATUS_MAP, VARIANT_STYLES } from './status-badge'
+export { StatusBadge } from './status-badge'
 export type { BadgeVariant, StatusBadgeProps } from './status-badge'
 
 export { ActionButtonGroup } from './action-button-group'

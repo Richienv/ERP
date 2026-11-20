@@ -330,7 +330,7 @@ export function SubkonSelector({ stationType, allocations, totalQty, onChange }:
                                     <span className="font-mono text-xs font-bold text-zinc-700 min-w-[50px]">
                                         {formatCurrency(alloc.pricePerPcs || 0)}
                                     </span>
-                                    <Button
+                                    <Button aria-label="Ubah"
                                         variant="outline" size="icon"
                                         className="h-5 w-5 rounded-md border-zinc-200"
                                         onClick={() => setEditingPriceStation(alloc.stationId)}

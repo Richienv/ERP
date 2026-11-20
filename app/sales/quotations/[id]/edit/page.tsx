@@ -31,7 +31,7 @@ export default function EditQuotationPage() {
         <div className="mf-page">
             <div className="max-w-5xl">
             <div className="flex items-center gap-4">
-                <Button variant="outline" size="icon" asChild className="border border-border rounded-md shadow-sm">
+                <Button aria-label="Kembali" variant="outline" size="icon" asChild className="border border-border rounded-md shadow-sm">
                     <Link href={`/sales/quotations/${id}`}><ArrowLeft className="h-4 w-4" /></Link>
                 </Button>
                 <div>

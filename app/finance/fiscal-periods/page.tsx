@@ -87,7 +87,7 @@ export default function FiscalPeriodsPage() {
                 <div className={NB.pageAccent} />
 
                 {/* Row 1: Title + Actions */}
-                <div className={`px-5 py-3.5 flex items-center justify-between ${NB.pageRowBorder}`}>
+                <div className={`px-5 py-3.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between ${NB.pageRowBorder}`}>
                     <div className="flex items-center gap-3">
                         <div className="w-9 h-9 bg-blue-500 flex items-center justify-center">
                             <Calendar className="h-4.5 w-4.5 text-white" />

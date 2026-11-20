@@ -237,7 +237,7 @@ export function StockClient({ products, warehouses }: StockClientProps) {
                             className={`
                                 px-3 py-1.5 text-xs font-semibold   border transition-all rounded-md
                                 ${filterCategory === cat
-                                    ? 'bg-slate-900 text-white border-border shadow-sm'
+                                    ? 'bg-primary text-primary-foreground border-border shadow-sm'
                                     : 'bg-white text-zinc-500 border-zinc-200 hover:border-zinc-400 hover:text-black'}
                             `}
                         >

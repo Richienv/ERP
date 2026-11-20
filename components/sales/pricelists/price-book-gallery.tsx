@@ -144,7 +144,7 @@ function PriceListCard({
                     {/* Actions dropdown */}
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <Button
+                            <Button aria-label="Aksi lainnya"
                                 variant="outline"
                                 size="icon"
                                 className="h-8 w-8 shrink-0 border border-border shadow-sm hover:shadow-sm transition-all opacity-0 group-hover:opacity-100 bg-white"

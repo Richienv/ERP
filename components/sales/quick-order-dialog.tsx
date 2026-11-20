@@ -280,7 +280,7 @@ export function QuickOrderDialog({
                                                     </SelectContent>
                                                 </Select>
                                             </div>
-                                            <Button
+                                            <Button aria-label="Hapus"
                                                 type="button"
                                                 variant="ghost"
                                                 size="icon"

@@ -138,7 +138,7 @@ export function QuotationKanban({ quotations }: QuotationKanbanProps) {
                     <span className="font-mono text-xs text-zinc-400 font-semibold ">{qt.number}</span>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity rounded-md">
+                            <Button aria-label="Aksi lainnya" variant="ghost" size="icon" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity rounded-md">
                                 <MoreHorizontal className="h-3.5 w-3.5" />
                             </Button>
                         </DropdownMenuTrigger>

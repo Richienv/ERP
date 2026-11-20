@@ -144,7 +144,7 @@ export function NotaKreditTab() {
                     <TableHeader>
                         <TableRow className="bg-zinc-50">
                             <TableHead className="text-xs font-semibold  ">No</TableHead>
-                            <TableHead className="text-xs font-semibold  ">Customer</TableHead>
+                            <TableHead className="text-xs font-semibold  ">Pelanggan</TableHead>
                             <TableHead className="text-xs font-semibold  ">Invoice</TableHead>
                             <TableHead className="text-xs font-semibold  ">Alasan</TableHead>
                             <TableHead className="text-xs font-semibold text-right">Jumlah</TableHead>
@@ -215,7 +215,7 @@ export function NotaKreditTab() {
                 <NBDialogBody>
                     <NBSection icon={FileText} title="Data Nota Kredit">
                         <NBSelect
-                            label="Customer"
+                            label="Pelanggan"
                             required
                             value={form.customerId}
                             onValueChange={(v) => setForm(f => ({ ...f, customerId: v }))}

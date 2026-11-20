@@ -243,7 +243,7 @@ function KanbanColumn({ title, status, products, color, onDrop, onCardClick, onR
                                         <div className="text-xs font-mono font-bold text-violet-500 mt-0.5">
                                             {product.prNumber}
                                             <span className={cn(
-                                                "ml-1 px-1 py-0.5 text-[7px] font-semibold border",
+                                                "ml-1 px-1 py-0.5 text-xs font-semibold border",
                                                 product.prStatus === 'APPROVED' ? "bg-emerald-100 text-emerald-800 border-emerald-300"
                                                     : product.prStatus === 'REJECTED' ? "bg-red-100 text-red-800 border-red-300"
                                                         : "bg-violet-100 text-violet-800 border-violet-300"

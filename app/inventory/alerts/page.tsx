@@ -193,7 +193,7 @@ function StockAlertsInner() {
                                 onClick={() => { setStatusFilter(s); setPage(0); }}
                                 className={`px-3 py-2 text-xs font-semibold   transition-all border-r border-border last:border-r-0 ${
                                     statusFilter === s
-                                        ? "bg-slate-900 text-white"
+                                        ? "bg-primary text-primary-foreground"
                                         : "bg-white text-zinc-400 hover:bg-zinc-50"
                                 }`}
                             >

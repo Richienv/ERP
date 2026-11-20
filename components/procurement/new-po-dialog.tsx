@@ -507,7 +507,7 @@ export function NewPurchaseOrderDialog({ vendors: vendorsProp, products: product
                                                             <span className="font-mono font-bold text-xs">{formatIDR(itemSubtotal)}</span>
                                                         </td>
                                                         <td className={NB.tableCell}>
-                                                            <Button
+                                                            <Button aria-label="Hapus"
                                                                 type="button"
                                                                 variant="ghost"
                                                                 size="icon"

@@ -151,7 +151,7 @@ export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingL
                             onClick={() => setActiveTab(tab.key)}
                             className={`flex-1 px-2 py-2 text-xs font-semibold   transition-all relative
                                 ${activeTab === tab.key
-                                    ? "bg-slate-900 text-white"
+                                    ? "bg-primary text-primary-foreground"
                                     : "bg-white dark:bg-zinc-900 text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                                 }
                                 ${tab.key !== "actions" ? "border-r border-border" : ""}

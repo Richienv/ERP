@@ -301,7 +301,7 @@ export async function getMiningCommandPulse(): Promise<MiningCommandPulse> {
             count: overdueAr,
             amount: overdueArAmount,
             cta: "Tagih sekarang",
-            owner: "Finance — Piutang",
+            owner: "Keuangan — Piutang",
             due: "Hari ini",
             impact: "Menurunkan Piutang Usaha saat pelanggan bayar",
         })
@@ -311,13 +311,13 @@ export async function getMiningCommandPulse(): Promise<MiningCommandPulse> {
             id: "ap-due",
             module: "finance",
             title: "Bayar tagihan vendor minggu ini",
-            detail: `${billsDueSoon.length} bill vendor jatuh tempo ≤ 7 hari — hindari stop kirim solar & spare part`,
+            detail: `${billsDueSoon.length} tagihan vendor jatuh tempo ≤ 7 hari — hindari stop kirim solar & spare part`,
             href: "/finance/vendor-payments",
             tone: "warn",
             count: billsDueSoon.length,
             amount: billsDueAmount,
             cta: "Bayar",
-            owner: "Finance — Kas",
+            owner: "Keuangan — Kas",
             due: "≤ 7 hari",
             impact: "Menurunkan Utang Usaha dan Kas/Bank",
         })
@@ -333,7 +333,7 @@ export async function getMiningCommandPulse(): Promise<MiningCommandPulse> {
             count: draftInvoices,
             amount: draftInvoicesAmount,
             cta: "Kirim invoice",
-            owner: "Finance — Piutang",
+            owner: "Keuangan — Piutang",
             due: "Bulan ini",
             impact: "Mengakui Pendapatan + PPN Keluaran",
         })
@@ -349,7 +349,7 @@ export async function getMiningCommandPulse(): Promise<MiningCommandPulse> {
             count: draftBills,
             amount: draftBillsAmount,
             cta: "Setujui",
-            owner: "Finance — Utang",
+            owner: "Keuangan — Utang",
             due: "Bulan ini",
             impact: "Menaikkan Beban/HPP + PPN Masukan dan Utang Usaha",
         })
@@ -365,7 +365,7 @@ export async function getMiningCommandPulse(): Promise<MiningCommandPulse> {
             count: matchExceptions.count,
             amount: matchExceptions.amount,
             cta: "Cek selisih",
-            owner: "Finance — Utang",
+            owner: "Keuangan — Utang",
             due: "Hari ini",
             impact: "Qty tagihan > qty diterima — jangan Setujui sebelum dicek",
         })
@@ -445,7 +445,7 @@ export async function getMiningCommandPulse(): Promise<MiningCommandPulse> {
             tone: "go",
             count: fleetBare,
             cta: "Kapitalisasi",
-            owner: "Finance — Aset",
+            owner: "Keuangan — Aset",
             due: "Bulan ini",
             impact: "Memindahkan nilai unit ke Aset Tetap dan memulai penyusutan",
         })
@@ -477,7 +477,7 @@ export async function getMiningCommandPulse(): Promise<MiningCommandPulse> {
             tone: "critical",
             amount: payrollCompanyCost,
             cta: "Posting jurnal",
-            owner: "Finance — Payroll",
+            owner: "Keuangan — Payroll",
             due: "Sebelum tutup bulan",
             impact: "Mengakui Beban Gaji + BPJS perusahaan",
         })
@@ -491,7 +491,7 @@ export async function getMiningCommandPulse(): Promise<MiningCommandPulse> {
             href: "/hcm/attendance?tab=leave",
             tone: "warn",
             count: pendingLeave,
-            cta: "Review cuti",
+            cta: "Tinjau cuti",
             owner: "HRD",
             due: "≤ 7 hari",
             impact: "Tidak menyentuh jurnal — memengaruhi jadwal kerja",

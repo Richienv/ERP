@@ -90,7 +90,7 @@ export function LeaveRequestWidget({ requests = [], pendingCount = 0, onChanged 
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
-                                    <Button
+                                    <Button aria-label="Konfirmasi"
                                         size="icon"
                                         variant="ghost"
                                         className="h-8 w-8 text-green-600 hover:bg-green-50 hover:text-green-700"
@@ -99,7 +99,7 @@ export function LeaveRequestWidget({ requests = [], pendingCount = 0, onChanged 
                                     >
                                         <Check className="h-4 w-4" />
                                     </Button>
-                                    <Button
+                                    <Button aria-label="Tutup"
                                         size="icon"
                                         variant="ghost"
                                         className="h-8 w-8 text-red-600 hover:bg-red-50 hover:text-red-700"

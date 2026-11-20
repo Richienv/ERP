@@ -365,7 +365,7 @@ export function WorkOrdersClient({ initialOrders }: Props) {
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button
+                        <Button aria-label="Muat ulang"
                             variant="outline"
                             size="icon"
                             onClick={fetchWorkOrders}
@@ -437,7 +437,7 @@ export function WorkOrdersClient({ initialOrders }: Props) {
                                 className={cn(
                                     "border border-border rounded-md font-bold text-xs transition-all h-9 px-4",
                                     (filter === 'All' && !statusFilter) || statusFilter === filter
-                                        ? 'bg-slate-900 text-white shadow-sm'
+                                        ? 'bg-primary text-primary-foreground shadow-sm'
                                         : 'bg-white hover:bg-zinc-100 hover:shadow-sm'
                                 )}
                                 onClick={() => handleStatusFilter(filter === 'All' ? null : filter)}

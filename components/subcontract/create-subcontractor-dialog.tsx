@@ -172,7 +172,7 @@ export function CreateSubcontractorDialog({
                                                 onClick={() => toggleCapability(cap.value)}
                                                 className={`px-3 py-1.5 border border-border text-xs font-semibold   transition-all ${
                                                     selected
-                                                        ? 'bg-slate-900 text-white shadow-sm'
+                                                        ? 'bg-primary text-primary-foreground shadow-sm'
                                                         : 'bg-white text-black hover:bg-zinc-100'
                                                 }`}
                                             >

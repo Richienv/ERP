@@ -145,7 +145,7 @@ export default function MaterialDemandPage() {
                                 onClick={() => setStatusFilter(f.key)}
                                 className={`px-3 py-1.5 text-xs font-bold border border-border transition-colors ${
                                     statusFilter === f.key
-                                        ? "bg-slate-900 text-white"
+                                        ? "bg-primary text-primary-foreground"
                                         : "bg-white text-black hover:bg-zinc-100 dark:bg-zinc-800 dark:text-white dark:hover:bg-zinc-700"
                                 }`}
                             >

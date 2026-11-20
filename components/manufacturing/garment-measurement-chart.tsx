@@ -62,12 +62,12 @@ export function GarmentMeasurementChart({ measurements, title }: GarmentMeasurem
                             <BarChart data={chartData} barGap={2} barSize={16}>
                                 <XAxis
                                     dataKey="name"
-                                    tick={{ fontSize: 9, fontWeight: 800 }}
+                                    tick={{ fontSize: 12, fontWeight: 800 }}
                                     tickLine={false}
                                     axisLine={{ stroke: '#18181b', strokeWidth: 2 }}
                                 />
                                 <YAxis
-                                    tick={{ fontSize: 9, fontWeight: 700 }}
+                                    tick={{ fontSize: 12, fontWeight: 700 }}
                                     tickLine={false}
                                     axisLine={false}
                                     width={36}
@@ -77,7 +77,7 @@ export function GarmentMeasurementChart({ measurements, title }: GarmentMeasurem
                                         border: '2px solid black',
                                         borderRadius: 0,
                                         boxShadow: '3px 3px 0px 0px rgba(0,0,0,1)',
-                                        fontSize: 11,
+                                        fontSize: 12,
                                         fontWeight: 700,
                                     }}
                                     formatter={(value: number, name: string) => [

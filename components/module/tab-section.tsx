@@ -39,7 +39,7 @@ export function TabSection({
               className={cn(
                 "px-6 py-3 text-sm font-bold transition-colors flex items-center gap-2",
                 isActive
-                  ? "bg-slate-900 text-white"
+                  ? "bg-primary text-primary-foreground"
                   : "bg-gray-800 text-gray-400 hover:bg-gray-700"
               )}
             >

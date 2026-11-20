@@ -61,7 +61,7 @@ export function VendorList({ initialData }: { initialData: Vendor[] }) {
         try {
             const result = await createVendor(newVendor)
             if (result.success) {
-                toast.success("Vendor Created")
+                toast.success(`Vendor ${newVendor.name} tersimpan`, { description: "Sekarang bisa dipilih saat membuat PO." })
                 setIsCreateOpen(false)
                 setNewVendor({ name: "", code: "", contactName: "", email: "", phone: "", address: "" }) // Reset
                 queryClient.invalidateQueries({ queryKey: queryKeys.vendors.all })
@@ -134,7 +134,7 @@ export function VendorList({ initialData }: { initialData: Vendor[] }) {
                                 </div>
                             </div>
                             <DialogFooter>
-                                <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
+                                <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Batal</Button>
                                 <Button onClick={handleCreate} disabled={isSubmitting} className="bg-slate-900 text-white">
                                     {isSubmitting ? <Loader2 className="animate-spin h-4 w-4" /> : "Create Vendor"}
                                 </Button>

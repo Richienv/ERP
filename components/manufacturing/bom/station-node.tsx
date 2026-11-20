@@ -89,12 +89,12 @@ function StationNodeComponent({ data }: NodeProps & { data: StationNodeData }) {
                                 {isSubcon ? "Subkon" : "In-House"}
                             </span>
                             {station?.stationType && (
-                                <span className="text-[7px] font-semibold px-1 py-0.5 bg-black/10 text-zinc-600">
+                                <span className="text-xs font-semibold px-1 py-0.5 bg-black/10 text-zinc-600">
                                     {station.stationType}
                                 </span>
                             )}
                             {wcCode && (
-                                <span className="text-[7px] font-mono text-zinc-400">{wcCode}</span>
+                                <span className="text-xs font-mono text-zinc-400">{wcCode}</span>
                             )}
                         </div>
                     </div>

@@ -103,7 +103,7 @@ export default function NumberingPage() {
                 <Button
                     className={cn(
                         "border border-border shadow-sm hover:shadow-sm font-semibold text-xs",
-                        dirty ? "bg-slate-900 text-white" : "bg-zinc-200 text-zinc-500"
+                        dirty ? "bg-primary text-primary-foreground" : "bg-zinc-200 text-zinc-500"
                     )}
                     onClick={handleSave}
                     disabled={!dirty}

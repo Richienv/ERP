@@ -319,12 +319,12 @@ function CurrencyCard({ currency, onAddRate, onDelete }: { currency: Currency; o
             className="border border-border bg-white dark:bg-zinc-900 shadow-sm overflow-hidden"
         >
             {/* Card header — black bar */}
-            <div className="bg-slate-900 dark:bg-zinc-950 text-white px-4 py-3 flex items-center justify-between">
+            <div className="bg-slate-50 dark:bg-zinc-900 text-foreground px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <span className="text-2xl font-bold">{currency.symbol}</span>
                     <div>
                         <div className="font-semibold text-sm ">{currency.code}</div>
-                        <div className="text-xs text-zinc-400 font-medium">{currency.name}</div>
+                        <div className="text-xs text-slate-600 dark:text-zinc-400 font-medium">{currency.name}</div>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -335,7 +335,7 @@ function CurrencyCard({ currency, onAddRate, onDelete }: { currency: Currency; o
                         <Plus className="h-3 w-3" /> Input Kurs
                     </button>
                     <button
-                        className="text-zinc-400 hover:text-red-400 transition-colors h-7 w-7 flex items-center justify-center"
+                        className="text-slate-600 dark:text-zinc-400 hover:text-red-400 transition-colors h-7 w-7 flex items-center justify-center"
                         onClick={() => onDelete(currency)}
                         title="Hapus mata uang"
                     >
@@ -439,7 +439,7 @@ export default function CurrenciesPage() {
                 <div className={NB.pageAccent} />
 
                 {/* Row 1: Title + Actions */}
-                <div className={`px-5 py-3.5 flex items-center justify-between ${NB.pageRowBorder}`}>
+                <div className={`px-5 py-3.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between ${NB.pageRowBorder}`}>
                     <div className="flex items-center gap-3">
                         <div className="w-9 h-9 bg-blue-500 flex items-center justify-center">
                             <DollarSign className="h-4.5 w-4.5 text-white" />

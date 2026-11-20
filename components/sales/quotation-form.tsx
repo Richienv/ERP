@@ -490,7 +490,7 @@ export function QuotationForm({ initialCustomerId, initialData }: QuotationFormP
                       </Select>
                     </div>
                     <div className="flex items-end">
-                      <Button
+                      <Button aria-label="Hapus"
                         type="button"
                         variant="ghost"
                         size="icon"

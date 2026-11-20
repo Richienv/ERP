@@ -150,7 +150,7 @@ export default function ProductDetailPage() {
     return (
       <div className="mf-page">
         <div className="flex items-center space-x-4">
-          <Button variant="outline" size="icon" asChild className="border border-border">
+          <Button aria-label="Kembali" variant="outline" size="icon" asChild className="border border-border">
             <Link href="/inventory/products">
               <ArrowLeft className="h-4 w-4" />
             </Link>
@@ -268,7 +268,7 @@ export default function ProductDetailPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <Button variant="outline" size="icon" asChild className="border border-border">
+          <Button aria-label="Kembali" variant="outline" size="icon" asChild className="border border-border">
             <Link href="/inventory/products">
               <ArrowLeft className="h-4 w-4" />
             </Link>
@@ -734,7 +734,7 @@ export default function ProductDetailPage() {
                       <TableHead>Tanggal</TableHead>
                       <TableHead>Tipe</TableHead>
                       <TableHead>Referensi</TableHead>
-                      <TableHead className="text-center">Quantity</TableHead>
+                      <TableHead className="text-center">Jumlah</TableHead>
                       <TableHead>Gudang</TableHead>
                       <TableHead className="text-right">Unit Cost</TableHead>
                     </TableRow>

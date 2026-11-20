@@ -26,7 +26,7 @@ export function VendorPerformanceWidget() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Supplier</TableHead>
+                            <TableHead>Pemasok</TableHead>
                             <TableHead className="text-center">Rating</TableHead>
                             <TableHead className="text-center">On-Time %</TableHead>
                             <TableHead className="text-center">Defect Rate</TableHead>

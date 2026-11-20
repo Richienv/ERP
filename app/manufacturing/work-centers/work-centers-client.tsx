@@ -204,7 +204,7 @@ export function WorkCentersClient({ initialMachines, initialSummary }: Props) {
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button
+                        <Button aria-label="Muat ulang"
                             variant="outline"
                             size="icon"
                             onClick={fetchMachines}
@@ -276,7 +276,7 @@ export function WorkCentersClient({ initialMachines, initialSummary }: Props) {
                                 className={cn(
                                     "border border-border rounded-md text-xs font-semibold h-8 transition-all hover:bg-slate-900 hover:text-white",
                                     ((filter === 'All' && !statusFilter) || statusFilter === filter)
-                                        ? 'bg-slate-900 text-white shadow-sm'
+                                        ? 'bg-primary text-primary-foreground shadow-sm'
                                         : 'bg-white text-zinc-600 shadow-sm hover:shadow-sm'
                                 )}
                                 onClick={() => handleStatusFilter(filter === 'All' ? null : filter)}

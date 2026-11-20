@@ -165,7 +165,7 @@ export default function CycleCountsPage() {
             <div className="border border-border shadow-sm overflow-hidden bg-white">
                 <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-amber-400">
                     <div className="flex items-center gap-3">
-                        <Button variant="outline" size="icon" asChild className="border border-border h-8 w-8 rounded-md shadow-sm hover:shadow-none">
+                        <Button aria-label="Kembali" variant="outline" size="icon" asChild className="border border-border h-8 w-8 rounded-md shadow-sm hover:shadow-none">
                             <Link href="/inventory/audit"><ArrowLeft className="h-4 w-4" /></Link>
                         </Button>
                         <div>

@@ -384,7 +384,7 @@ export function CashflowPlanningBoard({
                         <button
                             onClick={() => setViewMode("planning")}
                             className={`h-9 px-3.5 text-xs font-bold   border border-zinc-300 dark:border-zinc-700 border-r-0 rounded-md transition-colors ${
-                                viewMode === "planning" ? "bg-slate-900 text-white border-border" : "bg-white dark:bg-zinc-900 text-zinc-400 hover:bg-zinc-50"
+                                viewMode === "planning" ? "bg-primary text-primary-foreground border-border" : "bg-white dark:bg-zinc-900 text-zinc-400 hover:bg-zinc-50"
                             }`}
                         >
                             Planning
@@ -392,7 +392,7 @@ export function CashflowPlanningBoard({
                         <button
                             onClick={() => setViewMode("riil")}
                             className={`h-9 px-3.5 text-xs font-bold   border border-zinc-300 dark:border-zinc-700 rounded-md transition-colors ${
-                                viewMode === "riil" ? "bg-slate-900 text-white border-border" : "bg-white dark:bg-zinc-900 text-zinc-400 hover:bg-zinc-50"
+                                viewMode === "riil" ? "bg-primary text-primary-foreground border-border" : "bg-white dark:bg-zinc-900 text-zinc-400 hover:bg-zinc-50"
                             }`}
                         >
                             Riil

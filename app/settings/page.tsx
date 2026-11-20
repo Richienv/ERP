@@ -101,7 +101,7 @@ export default function SystemSettingsPage() {
         <div className="mf-page">
             <div className={NB.pageCard}>
                 <div className={NB.pageAccent} />
-                <div className={`px-5 py-3.5 flex items-center justify-between ${NB.pageRowBorder}`}>
+                <div className={`px-5 py-3.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between ${NB.pageRowBorder}`}>
                     <div className="flex items-center gap-3">
                         <div className="flex h-9 w-9 items-center justify-center bg-zinc-800 text-white">
                             <Settings className="h-4 w-4" />

@@ -370,7 +370,7 @@ export default function PayrollPage() {
         <div className={NB.pageAccent} />
 
         {/* Row 1: Title + Toolbar Actions */}
-        <div className={`px-5 py-3.5 flex items-center justify-between ${NB.pageRowBorder}`}>
+        <div className={`px-5 py-3.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between ${NB.pageRowBorder}`}>
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-blue-500 flex items-center justify-center">
               <IconCash className="h-5 w-5 text-white" />
@@ -575,7 +575,7 @@ export default function PayrollPage() {
                 size="sm"
                 onClick={handleApprove}
                 disabled={processing}
-                className={NB.submitBtnGreen + " !h-8 !px-4 !text-[10px]"}
+                className={NB.submitBtnGreen + " !h-8 !px-4 !text-xs"}
               >
                 <IconCheck className="mr-1.5 h-3.5 w-3.5" />
                 Approve & Post Jurnal
@@ -647,9 +647,9 @@ export default function PayrollPage() {
           <TabsContent value="current" className="mt-4">
             <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden flex flex-col" style={{ minHeight: 480 }}>
               {/* Table Header */}
-              <div className="hidden md:grid grid-cols-[1.5fr_1fr_1fr_90px_90px_90px_1fr_70px] gap-2 px-5 py-2.5 bg-slate-900 dark:bg-zinc-950 border-b border-border">
+              <div className="hidden md:grid grid-cols-[1.5fr_1fr_1fr_90px_90px_90px_1fr_70px] gap-2 px-5 py-2.5 bg-slate-50 dark:bg-zinc-900 border-b border-border">
                 {["Karyawan", "Gaji Pokok", "Tunjangan", "Lembur", "BPJS", "PPh21", "Gaji Bersih", "Slip"].map((h) => (
-                  <span key={h} className="text-xs font-semibold text-zinc-400">{h}</span>
+                  <span key={h} className="text-xs font-semibold text-slate-600 dark:text-zinc-400">{h}</span>
                 ))}
               </div>
 
@@ -750,9 +750,9 @@ export default function PayrollPage() {
           {/* ── TAB: Perhitungan ── */}
           <TabsContent value="calculation" className="mt-4 space-y-4">
             <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
-              <div className="hidden md:grid grid-cols-[1fr_1fr_1fr] bg-slate-900 dark:bg-zinc-950 border-b border-border">
+              <div className="hidden md:grid grid-cols-[1fr_1fr_1fr] bg-slate-50 dark:bg-zinc-900 border-b border-border">
                 {["Tunjangan", "BPJS Karyawan", "PPh 21 (UU HPP)"].map((h) => (
-                  <span key={h} className="px-5 py-2.5 text-xs font-semibold text-zinc-400 border-r border-zinc-800 last:border-r-0">{h}</span>
+                  <span key={h} className="px-5 py-2.5 text-xs font-semibold text-slate-600 dark:text-zinc-400 border-r border-border last:border-r-0">{h}</span>
                 ))}
               </div>
               <div className="grid gap-0 md:grid-cols-3">
@@ -785,9 +785,9 @@ export default function PayrollPage() {
 
             {/* Overtime Formula */}
             <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
-              <div className="hidden md:grid grid-cols-2 bg-slate-900 dark:bg-zinc-950 border-b border-border">
+              <div className="hidden md:grid grid-cols-2 bg-slate-50 dark:bg-zinc-900 border-b border-border">
                 {["Lembur Hari Kerja", "Upah Per Jam"].map((h) => (
-                  <span key={h} className="px-5 py-2.5 text-xs font-semibold text-zinc-400 border-r border-zinc-800 last:border-r-0">{h}</span>
+                  <span key={h} className="px-5 py-2.5 text-xs font-semibold text-slate-600 dark:text-zinc-400 border-r border-border last:border-r-0">{h}</span>
                 ))}
               </div>
               <div className="grid gap-0 md:grid-cols-2">
@@ -812,8 +812,8 @@ export default function PayrollPage() {
           {/* ── TAB: Laporan ── */}
           <TabsContent value="reports" className="mt-4">
             <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
-              <div className="px-5 py-2.5 bg-slate-900 dark:bg-zinc-950 border-b border-border">
-                <span className="text-xs font-semibold text-zinc-400">Laporan Payroll — {selectedLabel}</span>
+              <div className="px-5 py-2.5 bg-slate-50 dark:bg-zinc-900 border-b border-border">
+                <span className="text-xs font-semibold text-slate-600 dark:text-zinc-400">Laporan Payroll — {selectedLabel}</span>
               </div>
 
               {!run ? (
@@ -900,8 +900,8 @@ export default function PayrollPage() {
           {/* ── TAB: Pengaturan ── */}
           <TabsContent value="settings" className="mt-4">
             <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
-              <div className="px-5 py-2.5 bg-slate-900 dark:bg-zinc-950 border-b border-border">
-                <span className="text-xs font-semibold text-zinc-400">Pengaturan Payroll</span>
+              <div className="px-5 py-2.5 bg-slate-50 dark:bg-zinc-900 border-b border-border">
+                <span className="text-xs font-semibold text-slate-600 dark:text-zinc-400">Pengaturan Payroll</span>
               </div>
               <div className="p-5">
                 <div className="grid gap-4 md:grid-cols-2">

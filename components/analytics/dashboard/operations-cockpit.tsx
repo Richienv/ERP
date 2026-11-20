@@ -82,7 +82,7 @@ export function OperationsCockpit() {
                     <div className="p-4 border-t bg-white dark:bg-slate-900 mt-auto">
                         <div className="relative">
                             <Input placeholder="Tanya tentang data produksi, keuangan, atau pelanggan..." className="pr-12" />
-                            <Button size="icon" className="absolute right-1 top-1 h-8 w-8 bg-indigo-600 hover:bg-indigo-700">
+                            <Button aria-label="Kirim" size="icon" className="absolute right-1 top-1 h-8 w-8 bg-indigo-600 hover:bg-indigo-700">
                                 <Send className="h-4 w-4 text-white" />
                             </Button>
                         </div>

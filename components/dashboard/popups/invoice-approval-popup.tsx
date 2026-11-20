@@ -126,7 +126,8 @@ export function InvoiceApprovalPopup({ open, onClose, onAllActioned }: InvoiceAp
             <NBDialogBody>
                 {loading ? (
                     <div className="flex items-center justify-center py-10">
-                        <Loader2 className="h-5 w-5 animate-spin text-zinc-400" />
+                        <Loader2 className="h-5 w-5 animate-spin text-zinc-400" aria-hidden />
+                        <span className="ml-2 text-sm text-muted-foreground">Memuat invoice…</span>
                     </div>
                 ) : items.length === 0 ? (
                     <p className="text-sm text-zinc-500 text-center py-10">

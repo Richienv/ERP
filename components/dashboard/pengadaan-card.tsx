@@ -175,7 +175,7 @@ export function PengadaanCard({
                                 <p className="text-sm font-semibold text-amber-900">{poStatusSummary?.requested || 0}</p>
                             </div>
                             <div className="rounded border border-emerald-200 bg-emerald-50 p-2">
-                                <p className="text-xs text-emerald-700">Approved</p>
+                                <p className="text-xs text-emerald-700">Disetujui</p>
                                 <p className="text-sm font-semibold text-emerald-900">{poStatusSummary?.approved || 0}</p>
                             </div>
                             <div className="rounded border border-blue-200 bg-blue-50 p-2">
@@ -183,7 +183,7 @@ export function PengadaanCard({
                                 <p className="text-sm font-semibold text-blue-900">{poStatusSummary?.active || 0}</p>
                             </div>
                             <div className="rounded border border-emerald-200 bg-emerald-50 p-2">
-                                <p className="text-xs text-emerald-700">Completed</p>
+                                <p className="text-xs text-emerald-700">Selesai</p>
                                 <p className="text-sm font-semibold text-emerald-900">{poStatusSummary?.completed || 0}</p>
                             </div>
                             <div className="rounded border border-red-200 bg-red-50 p-2">
@@ -220,7 +220,7 @@ export function PengadaanCard({
                                 <p className="text-sm font-semibold text-amber-900">{prStatusSummary?.requested || 0}</p>
                             </div>
                             <div className="rounded border border-emerald-200 bg-emerald-50 p-2">
-                                <p className="text-xs text-emerald-700">Approved</p>
+                                <p className="text-xs text-emerald-700">Disetujui</p>
                                 <p className="text-sm font-semibold text-emerald-900">{prStatusSummary?.approved || 0}</p>
                             </div>
                             <div className="rounded border border-blue-200 bg-blue-50 p-2">

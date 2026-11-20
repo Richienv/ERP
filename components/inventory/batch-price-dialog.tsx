@@ -298,7 +298,7 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                                         onClick={() => setBulkMode("percent")}
                                         className={`px-3 py-1.5 text-xs font-semibold   border-r border-border ${
                                             bulkMode === "percent"
-                                                ? "bg-slate-900 text-white"
+                                                ? "bg-primary text-primary-foreground"
                                                 : "bg-white hover:bg-zinc-50"
                                         }`}
                                     >
@@ -309,7 +309,7 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                                         onClick={() => setBulkMode("fixed")}
                                         className={`px-3 py-1.5 text-xs font-semibold   ${
                                             bulkMode === "fixed"
-                                                ? "bg-slate-900 text-white"
+                                                ? "bg-primary text-primary-foreground"
                                                 : "bg-white hover:bg-zinc-50"
                                         }`}
                                     >
@@ -327,7 +327,7 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                                         onClick={() => setBulkTarget("both")}
                                         className={`px-3 py-1.5 text-xs font-semibold   border-r border-border ${
                                             bulkTarget === "both"
-                                                ? "bg-slate-900 text-white"
+                                                ? "bg-primary text-primary-foreground"
                                                 : "bg-white hover:bg-zinc-50"
                                         }`}
                                     >
@@ -338,7 +338,7 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                                         onClick={() => setBulkTarget("costPrice")}
                                         className={`px-3 py-1.5 text-xs font-semibold   border-r border-border ${
                                             bulkTarget === "costPrice"
-                                                ? "bg-slate-900 text-white"
+                                                ? "bg-primary text-primary-foreground"
                                                 : "bg-white hover:bg-zinc-50"
                                         }`}
                                     >
@@ -349,7 +349,7 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                                         onClick={() => setBulkTarget("sellingPrice")}
                                         className={`px-3 py-1.5 text-xs font-semibold   ${
                                             bulkTarget === "sellingPrice"
-                                                ? "bg-slate-900 text-white"
+                                                ? "bg-primary text-primary-foreground"
                                                 : "bg-white hover:bg-zinc-50"
                                         }`}
                                     >

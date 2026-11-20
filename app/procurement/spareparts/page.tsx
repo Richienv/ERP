@@ -184,7 +184,7 @@ export default function SparepartPurchasesPage() {
                         )}
                     </div>
                     <span className="hidden sm:inline text-xs font-bold text-zinc-400 whitespace-nowrap ml-3">
-                        {rows.length} pembelian{serverMs != null && <span className="font-mono"> · {serverMs} ms</span>}
+                        <span title={serverMs != null ? `Dimuat dalam ${serverMs} ms` : undefined}>{rows.length} pembelian</span>
                         {list.isFetching && !list.isFetchingNextPage && <span className="ml-1.5 inline-block h-1.5 w-1.5 bg-blue-500 animate-pulse" />}
                     </span>
                 </div>

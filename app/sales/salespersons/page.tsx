@@ -253,10 +253,10 @@ export default function SalespersonsPage() {
                       </TableCell>
                       <TableCell className="text-center">
                         <div className="flex items-center justify-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(sp)}>
+                          <Button aria-label="Ubah" variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(sp)}>
                             <IconEdit className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700" onClick={() => handleDelete(sp)}>
+                          <Button aria-label="Hapus" variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700" onClick={() => handleDelete(sp)}>
                             <IconTrash className="h-4 w-4" />
                           </Button>
                         </div>

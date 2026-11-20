@@ -1078,13 +1078,13 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                     <div className="flex border border-border overflow-hidden">
                         <button
                             onClick={() => setViewMode("canvas")}
-                            className={`px-3 py-1.5 text-xs font-semibold  transition-colors ${viewMode === "canvas" ? "bg-slate-900 text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"}`}
+                            className={`px-3 py-1.5 text-xs font-semibold  transition-colors ${viewMode === "canvas" ? "bg-primary text-primary-foreground" : "bg-white text-zinc-400 hover:bg-zinc-50"}`}
                         >
                             Canvas
                         </button>
                         <button
                             onClick={() => setViewMode("timeline")}
-                            className={`px-3 py-1.5 text-xs font-semibold  border-l border-border transition-colors ${viewMode === "timeline" ? "bg-slate-900 text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"}`}
+                            className={`px-3 py-1.5 text-xs font-semibold  border-l border-border transition-colors ${viewMode === "timeline" ? "bg-primary text-primary-foreground" : "bg-white text-zinc-400 hover:bg-zinc-50"}`}
                         >
                             Timeline
                         </button>

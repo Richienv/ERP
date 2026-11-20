@@ -34,7 +34,7 @@ export function AICoachWidget() {
                         className="flex-1 text-xs border border-border rounded-lg px-3 py-1.5 bg-white dark:bg-zinc-900 focus:outline-none focus:shadow-sm transition-all"
                         placeholder="Tanya AI tentang produksi..."
                     />
-                    <Button size="icon" className="h-7 w-7 rounded-lg border border-border bg-white hover:bg-zinc-100 shadow-sm active:shadow-none transition-all">
+                    <Button aria-label="Berikutnya" size="icon" className="h-7 w-7 rounded-lg border border-border bg-white hover:bg-zinc-100 shadow-sm active:shadow-none transition-all">
                         <ChevronRight className="h-4 w-4 text-black" />
                     </Button>
                 </div>

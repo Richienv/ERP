@@ -165,19 +165,19 @@ export function OperationsInbox({
             <InlinePendingBar active={!!(isFetching && data)} />
 
             {/* Row 1: identitas inbox + status buku */}
-            <div className={`flex items-start justify-between gap-4 px-4 py-3 ${NB.pageRowBorder}`}>
+            <div className={`flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4 ${NB.pageRowBorder}`}>
                 <div className="flex items-start gap-2.5 min-w-0">
                     <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center border border-border bg-blue-500 text-white">
                         <Inbox className="h-4 w-4" />
                     </span>
                     <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                            <h2 className="text-sm font-semibold  ">{title}</h2>
+                            <h2 className="text-base font-semibold">{title}</h2>
                             <span className="border border-zinc-300 px-1.5 py-0.5 text-xs font-semibold text-zinc-500 dark:border-zinc-700">
                                 {data ? `${actions.length} tugas` : "memuat"}
                             </span>
                         </div>
-                        <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>
+                        <p className="mt-0.5 text-sm text-zinc-500">{subtitle}</p>
                     </div>
                 </div>
                 {data ? <IntegrityBadge pulse={data} /> : null}

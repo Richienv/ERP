@@ -572,7 +572,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                     <button
                         onClick={() => setActiveTab("payments")}
                         className={`flex-1 px-4 py-2 text-xs font-semibold   transition-colors relative ${activeTab === "payments"
-                            ? "bg-slate-900 text-white"
+                            ? "bg-primary text-primary-foreground"
                             : "bg-zinc-50 dark:bg-zinc-800 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                             }`}
                     >
@@ -586,7 +586,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                     <button
                         onClick={() => setActiveTab("invoices")}
                         className={`flex-1 px-4 py-2 text-xs font-semibold   transition-colors relative ${activeTab === "invoices"
-                            ? "bg-slate-900 text-white"
+                            ? "bg-primary text-primary-foreground"
                             : "bg-zinc-50 dark:bg-zinc-800 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                             }`}
                     >
@@ -692,7 +692,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                             </div>
                                             <div className="flex items-center gap-2 shrink-0">
                                                 <span className={`font-mono font-semibold text-sm ${invoice.isOverdue ? "text-red-700 dark:text-red-400" : "text-zinc-900 dark:text-zinc-100"}`}>{formatIDR(invoice.balanceDue)}</span>
-                                                {invoice.isOverdue && <Badge variant="destructive" className="text-xs font-semibold px-1.5 py-0 h-4 rounded-md">Overdue</Badge>}
+                                                {invoice.isOverdue && <Badge variant="destructive" className="text-xs font-semibold px-1.5 py-0 h-4 rounded-md">Terlambat</Badge>}
                                             </div>
                                         </div>
                                         <div className="mt-0.5 text-xs font-medium text-zinc-400">

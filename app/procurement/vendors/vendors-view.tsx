@@ -183,7 +183,7 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
                                 onClick={() => setFilterStatus(s)}
                                 className={`px-3 py-2 text-xs font-semibold   transition-all border-r border-border last:border-r-0 ${
                                     filterStatus === s
-                                        ? "bg-slate-900 text-white"
+                                        ? "bg-primary text-primary-foreground"
                                         : "bg-white text-zinc-400 hover:bg-zinc-50"
                                 }`}
                             >
@@ -196,7 +196,7 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
                             <button
                                 onClick={() => setFilterCategory("ALL")}
                                 className={`px-3 py-2 text-xs font-semibold   transition-all border-r border-border ${
-                                    filterCategory === "ALL" ? "bg-slate-900 text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"
+                                    filterCategory === "ALL" ? "bg-primary text-primary-foreground" : "bg-white text-zinc-400 hover:bg-zinc-50"
                                 }`}
                             >
                                 Semua Kategori
@@ -206,7 +206,7 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
                                     key={cat.id}
                                     onClick={() => setFilterCategory(cat.id)}
                                     className={`px-3 py-2 text-xs font-semibold   transition-all border-r border-border last:border-r-0 ${
-                                        filterCategory === cat.id ? "bg-slate-900 text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"
+                                        filterCategory === cat.id ? "bg-primary text-primary-foreground" : "bg-white text-zinc-400 hover:bg-zinc-50"
                                     }`}
                                 >
                                     {cat.name}

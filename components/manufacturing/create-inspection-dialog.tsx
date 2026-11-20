@@ -318,7 +318,7 @@ export function CreateInspectionDialog({ open, onOpenChange, onCreated }: Props)
                 </Select>
               </div>
               <div className="col-span-1">
-                <Button type="button" variant="outline" size="icon" className="border border-red-300 text-red-600 h-8 w-8 rounded-md" onClick={() => removeDefect(index)}>
+                <Button aria-label="Hapus" type="button" variant="outline" size="icon" className="border border-red-300 text-red-600 h-8 w-8 rounded-md" onClick={() => removeDefect(index)}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>

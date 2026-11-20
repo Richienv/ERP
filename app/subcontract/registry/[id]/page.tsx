@@ -81,7 +81,7 @@ export default function SubcontractorDetailPage() {
                             <div className="text-xs font-bold text-zinc-400 ">Kapabilitas</div>
                             <div className="flex flex-wrap gap-1 mt-0.5">
                                 {data.capabilities.map((cap) => (
-                                    <span key={cap} className={`text-[7px] font-semibold px-1 py-0.5 border ${CAPABILITY_COLORS[cap] || "bg-zinc-100 text-zinc-600 border-zinc-300"}`}>
+                                    <span key={cap} className={`text-xs font-semibold px-1 py-0.5 border ${CAPABILITY_COLORS[cap] || "bg-zinc-100 text-zinc-600 border-zinc-300"}`}>
                                         {CAPABILITY_LABELS[cap] || cap}
                                     </span>
                                 ))}

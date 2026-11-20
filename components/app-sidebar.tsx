@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { useWorkflowConfig } from "@/components/workflow/workflow-config-context"
 import { NavMain } from "@/components/nav-main"
@@ -18,6 +19,7 @@ import {
   SidebarHeader,
   SidebarMenu,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar"
 
 /** Isolated header — only re-renders when tenantBranding changes.
@@ -55,6 +57,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { filteredNavMain, filteredNavSecondary } = useFilteredNav(user, activeModules)
   const navWithBadges = useInjectBadges(filteredNavMain, actionCounts)
   const isStaff = user?.role === "ROLE_STAFF"
+
+  // On a phone the menu is a sheet over the page. Close it once a new page opens, so people
+  // land on the screen they picked instead of tapping "close" every time (one tap less).
+  const pathname = usePathname()
+  const { isMobile, setOpenMobile } = useSidebar()
+  React.useEffect(() => {
+    if (isMobile) setOpenMobile(false)
+  }, [pathname, isMobile, setOpenMobile])
 
   return (
     <Sidebar collapsible="icon" {...props}>
