@@ -109,9 +109,9 @@ export function validateSaveLines(lines: SaveLineInput[]): string | null {
 
 // ── Status at a glance ───────────────────────────────────────────────────────
 
-export type PayStage = "UNPOSTED" | "UNPAID" | "PARTIAL" | "PAID" | "VOID"
+export type PayStage = "NO_BILL" | "UNPOSTED" | "UNPAID" | "PARTIAL" | "PAID" | "VOID"
 export type GoodsStage = "ORDERED" | "SHIPPED" | "PARTIAL" | "RECEIVED" | "CANCELLED"
-export type NextAction = "POST_BILL" | "PAY" | "SHIP" | "RECEIVE" | "NONE"
+export type NextAction = "ATTACH_INVOICE" | "POST_BILL" | "PAY" | "SHIP" | "RECEIVE" | "NONE"
 
 export type StatusInput = {
     poStatus: string
@@ -139,16 +139,18 @@ const DAY = 24 * 60 * 60 * 1000
 
 export function derivePurchaseStatus(s: StatusInput, now: Date = new Date()): PurchaseStatus {
     const cancelled = s.poStatus === "CANCELLED" || s.poStatus === "REJECTED"
-    const billVoid = !s.billStatus || s.billStatus === "CANCELLED" || s.billStatus === "VOID"
+    const noBill = !s.billStatus
+    const billVoid = s.billStatus === "CANCELLED" || s.billStatus === "VOID"
 
     let payStage: PayStage
-    if (billVoid) payStage = "VOID"
+    if (noBill) payStage = "NO_BILL"
+    else if (billVoid) payStage = "VOID"
     else if (s.billStatus === "DRAFT") payStage = "UNPOSTED"
     else if (s.balanceDue <= 0.005) payStage = "PAID"
     else if (s.balanceDue < s.billTotal - 0.005) payStage = "PARTIAL"
     else payStage = "UNPAID"
 
-    const paidPct = billVoid || s.billTotal <= 0 ? 0 : Math.min(1, Math.max(0, (s.billTotal - s.balanceDue) / s.billTotal))
+    const paidPct = noBill || billVoid || s.billTotal <= 0 ? 0 : Math.min(1, Math.max(0, (s.billTotal - s.balanceDue) / s.billTotal))
     const receivedPct = s.ordered > 0 ? Math.min(1, s.received / s.ordered) : 0
 
     let goodsStage: GoodsStage
@@ -167,6 +169,7 @@ export function derivePurchaseStatus(s: StatusInput, now: Date = new Date()): Pu
     if (!cancelled) {
         const goodsOpen = goodsStage !== "RECEIVED"
         if (payStage === "UNPOSTED") nextAction = "POST_BILL"
+        else if (payStage === "NO_BILL" && !goodsOpen) nextAction = "ATTACH_INVOICE"
         else if (open && (overdue || dueSoon)) nextAction = "PAY"
         else if (goodsOpen && goodsStage !== "ORDERED") nextAction = "RECEIVE"
         else if (goodsOpen) nextAction = s.currencyCode !== "IDR" ? "SHIP" : "RECEIVE"
@@ -177,6 +180,7 @@ export function derivePurchaseStatus(s: StatusInput, now: Date = new Date()): Pu
 }
 
 export const NEXT_ACTION_LABEL: Record<NextAction, string> = {
+    ATTACH_INVOICE: "Upload tagihan supplier",
     POST_BILL: "Posting tagihan",
     PAY: "Catat bayar",
     SHIP: "Tandai dikirim",
@@ -185,6 +189,7 @@ export const NEXT_ACTION_LABEL: Record<NextAction, string> = {
 }
 
 export const PAY_STAGE_LABEL: Record<PayStage, string> = {
+    NO_BILL: "Belum ada tagihan",
     UNPOSTED: "Tagihan belum diposting",
     UNPAID: "Belum bayar",
     PARTIAL: "Dibayar sebagian",

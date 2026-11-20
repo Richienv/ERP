@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { preloadPdfjs } from "@/lib/invoice-parse/client"
 import type { Box } from "@/lib/invoice-parse/types"
+import type { PdfText } from "@/lib/invoice-parse/pdf-text"
 import { cn } from "@/lib/utils"
 
 export type PreviewMark = { box: Box; tone: "focus" | "warn" }
@@ -11,9 +12,48 @@ export type PreviewMark = { box: Box; tone: "focus" | "warn" }
  * The supplier's invoice as it really looks, with boxes over the text each field was read from.
  * Hovering a field on the right lights up its source here, so checking takes a glance.
  */
-export function InvoicePreview({ file, bytes, marks }: { file: File; bytes: Uint8Array; marks: PreviewMark[] }) {
+export function InvoicePreview({ file, bytes, marks, text }: { file: File; bytes: Uint8Array; marks: PreviewMark[]; text?: PdfText | null }) {
     const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name)
+    if (/\.(xlsx|xlsm)$/i.test(file.name) && text) return <SheetPreview text={text} marks={marks} />
     return isPdf ? <PdfPages bytes={bytes} marks={marks} /> : <ImagePreview file={file} />
+}
+
+/** An Excel document drawn like its printout: every cell where it would print, with the same boxes. */
+function SheetPreview({ text, marks }: { text: PdfText; marks: PreviewMark[] }) {
+    const wrapRef = useRef<HTMLDivElement>(null)
+    const [cssWidth, setCssWidth] = useState(0)
+    useEffect(() => {
+        const el = wrapRef.current
+        if (!el) return
+        const ro = new ResizeObserver(([entry]) => setCssWidth(Math.floor(entry.contentRect.width)))
+        ro.observe(el)
+        return () => ro.disconnect()
+    }, [])
+    const size = text.pageSizes[0] ?? { width: 600, height: 800 }
+    const scale = cssWidth ? cssWidth / size.width : 1
+    return (
+        <div ref={wrapRef}>
+            <div className="relative bg-white rounded-md shadow-sm border border-border overflow-hidden" style={{ height: size.height * scale }}>
+                {text.items.map((it, i) => (
+                    <span
+                        key={i}
+                        className="absolute whitespace-nowrap text-slate-800 leading-none"
+                        style={{ left: it.x * scale, top: (it.y - it.h) * scale, fontSize: Math.max(7, 8.5 * scale) }}
+                    >
+                        {it.str}
+                    </span>
+                ))}
+                {marks.map((m, j) => (
+                    <div
+                        key={`${m.tone}-${j}`}
+                        className={cn("pointer-events-none absolute rounded-sm transition-all duration-150", m.tone === "focus" ? "bg-blue-400/20 ring-2 ring-blue-600" : "bg-amber-300/20 ring-1 ring-amber-500/70")}
+                        style={{ left: m.box.x * scale - 2, top: m.box.y * scale - 2, width: m.box.w * scale + 4, height: m.box.h * scale + 3 }}
+                    />
+                ))}
+            </div>
+            <p className="mt-2 text-xs text-slate-500">Tampilan isi file Excel (tanpa format warna).</p>
+        </div>
+    )
 }
 
 function ImagePreview({ file }: { file: File }) {
@@ -93,7 +133,7 @@ function PdfPages({ bytes, marks }: { bytes: Uint8Array; marks: PreviewMark[] })
                                     key={`${m.tone}-${j}`}
                                     className={cn(
                                         "pointer-events-none absolute transition-all duration-150",
-                                        m.tone === "focus" ? "bg-orange-400/25 ring-2 ring-orange-500" : "bg-amber-300/20 ring-1 ring-amber-500/70",
+                                        m.tone === "focus" ? "bg-blue-400/25 ring-2 ring-blue-500" : "bg-amber-300/20 ring-1 ring-amber-500/70",
                                     )}
                                     style={{
                                         left: m.box.x * scale - 2,

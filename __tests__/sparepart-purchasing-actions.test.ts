@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 const m = vi.hoisted(() => {
     const tx = {
         supplier: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn() },
-        supplierInvoiceCapture: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
+        supplierInvoiceCapture: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
+        purchaseOrderItem: { update: vi.fn() },
         category: { upsert: vi.fn() },
         product: { findMany: vi.fn(), createManyAndReturn: vi.fn() },
         purchaseOrder: { create: vi.fn(), update: vi.fn(), findUnique: vi.fn() },
@@ -262,3 +263,83 @@ describe("recordSparepartPayment", () => {
         expect(m.recordVendorPayment).not.toHaveBeenCalled()
     })
 })
+
+describe("one import: our own PO/CO, then the vendor's invoice attaches to it", () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        m.getAuthzUser.mockResolvedValue({ id: "u1", role: "ROLE_ADMIN" })
+        m.assertRole.mockImplementation(() => undefined)
+        m.getNextDocNumber.mockImplementation(async (_tx: unknown, prefix: string) => `${prefix}-0009`)
+        m.tx.supplier.findFirst.mockResolvedValue({ id: "s-arta", name: "ARTA MOBIL" })
+        m.tx.supplierInvoiceCapture.findFirst.mockResolvedValue(null)
+        m.tx.product.findMany.mockResolvedValue([{ id: "p1", code: "4013A314" }])
+        m.tx.purchaseOrder.findUnique.mockResolvedValue(null)
+        m.tx.purchaseOrder.create.mockResolvedValue({ id: "po-co", number: "CO24-03-0016" })
+        m.tx.supplierInvoiceCapture.create.mockResolvedValue({ id: "cap-co" })
+        m.moveInvoiceToSent.mockResolvedValue({ success: true })
+    })
+
+    const coInput = (): SaveSupplierInvoiceInput => ({
+        kind: "PURCHASE_ORDER",
+        poDocumentNo: "CO24-03-0016",
+        modelUnit: "TRITON",
+        supplier: { name: "ARTA MOBIL" },
+        invoiceNo: "CO24-03-0016",
+        invoiceDate: "2024-03-27",
+        currencyCode: "IDR",
+        exchangeRate: 1,
+        taxOriginal: 0,
+        lines: [{ newProduct: { code: "4013A314", name: "BALL JOINT LOWER ARM", unit: "PCS" }, partNo: "4013A314", description: "BALL JOINT LOWER ARM", qty: 2, unitPriceOriginal: 100000 }],
+    })
+
+    it("records our CO as an ordered PO with its own number and no bill yet", async () => {
+        const r = await saveSupplierInvoice(coInput())
+        expect(r).toMatchObject({ success: true, poNumber: "CO24-03-0016", billId: null })
+        expect(m.tx.purchaseOrder.create.mock.calls[0][0].data).toMatchObject({ number: "CO24-03-0016", status: "ORDERED", supplierId: "s-arta" })
+        expect(m.tx.invoice.create).not.toHaveBeenCalled()
+        expect(m.tx.supplierInvoiceCapture.create.mock.calls[0][0].data).toMatchObject({ billId: null, supplierInvoiceNo: null, poDocumentNo: "CO24-03-0016" })
+        expect(m.moveInvoiceToSent).not.toHaveBeenCalled()
+        expect(r.success && r.steps.post?.skipped).toMatch(/invoice supplier datang/)
+    })
+
+    it("refuses the same CO twice", async () => {
+        m.tx.supplierInvoiceCapture.findFirst.mockResolvedValue({ id: "cap-old", purchaseOrder: { number: "CO24-03-0016" } })
+        expect(await saveSupplierInvoice(coInput())).toMatchObject({ success: false, code: "DUPLICATE", existingId: "cap-old" })
+    })
+
+    const attachInput = (): SaveSupplierInvoiceInput => ({
+        attachToCaptureId: "cap-co",
+        supplier: { id: "s-arta", name: "ARTA MOBIL" },
+        invoiceNo: "INV-ARTA-77",
+        invoiceDate: "2024-04-02",
+        currencyCode: "IDR",
+        exchangeRate: 1,
+        taxOriginal: 22000,
+        lines: [{ productId: "p1", partNo: "4013A314", description: "BALL JOINT LOWER ARM", qty: 2, unitPriceOriginal: 100000 }],
+    })
+
+    it("puts the vendor's bill on that same PO (no second PO) and aligns the PO price before receipt", async () => {
+        m.tx.supplierInvoiceCapture.findUnique
+            .mockResolvedValueOnce({ id: "cap-co", billId: null, supplierId: "s-arta", poDocumentNo: "CO24-03-0016", searchText: "co24-03-0016", supplier: { name: "ARTA MOBIL" }, purchaseOrder: { id: "po-co", number: "CO24-03-0016", status: "ORDERED", items: [{ id: "it1", productId: "p1", receivedQty: 0, quantity: 2, unitPrice: 95000 }] } })
+            .mockResolvedValueOnce(null)
+        m.tx.invoice.create.mockResolvedValue({ id: "bill-co", number: "BILL-CO24-03-0016" })
+        const r = await saveSupplierInvoice(attachInput())
+        expect(r).toMatchObject({ success: true, poNumber: "CO24-03-0016", billId: "bill-co" })
+        expect(m.tx.purchaseOrder.create).not.toHaveBeenCalled()
+        expect(m.tx.purchaseOrderItem.update).toHaveBeenCalledWith({ where: { id: "it1" }, data: { unitPrice: 100000, totalPrice: 200000 } })
+        expect(m.tx.invoice.create.mock.calls[0][0].data).toMatchObject({ purchaseOrderId: "po-co", subtotal: 200000, taxAmount: 22000, totalAmount: 222000, glAccountCode: "2150" })
+        expect(m.tx.supplierInvoiceCapture.update.mock.calls[0][0].data).toMatchObject({ billId: "bill-co", supplierInvoiceNo: "INV-ARTA-77" })
+        expect(m.moveInvoiceToSent).toHaveBeenCalledWith("bill-co")
+    })
+
+    it("refuses lines that are not on the PO, naming them", async () => {
+        m.tx.supplierInvoiceCapture.findUnique
+            .mockResolvedValueOnce({ id: "cap-co", billId: null, supplierId: "s-arta", poDocumentNo: "CO24-03-0016", searchText: "", supplier: { name: "ARTA MOBIL" }, purchaseOrder: { id: "po-co", number: "CO24-03-0016", status: "ORDERED", items: [{ id: "it1", productId: "p-other", receivedQty: 0, quantity: 2, unitPrice: 1 }] } })
+            .mockResolvedValueOnce(null)
+        const r = await saveSupplierInvoice(attachInput())
+        expect(r).toMatchObject({ success: false })
+        expect(r.success ? "" : r.error).toMatch(/1 barang di invoice tidak ada di PO CO24-03-0016: 4013A314/)
+        expect(m.tx.invoice.create).not.toHaveBeenCalled()
+    })
+})
+

@@ -14,6 +14,7 @@ import {
     markSparepartShipped,
     postSparepartBill,
     receiveSparepartGoods,
+    receiveByDeliveryNote,
     recordSparepartPayment,
     saveSupplierInvoice,
     type SaveSupplierInvoiceInput,
@@ -289,3 +290,22 @@ export function useSaveSupplierInvoice() {
         },
     })
 }
+
+/** Surat jalan from a vendor: receive the referenced PO's lines in one go. */
+export function useReceiveByDeliveryNote() {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: async (v: Parameters<typeof receiveByDeliveryNote>[0]) => {
+            const r = await receiveByDeliveryNote(v)
+            if (!r.success) throw new Error(r.error || "Gagal menerima barang")
+            return r
+        },
+        onSuccess: (r) => toast.success(`Barang diterima${"grnNumber" in r && r.grnNumber ? ` · ${r.grnNumber}` : ""}${"received" in r && r.received ? ` · ${r.received} pcs masuk stok` : ""}`),
+        onError: (e) => toast.error(e.message),
+        onSettled: (_d, _e, v) => {
+            settle(qc, v.captureId)
+            void qc.invalidateQueries({ queryKey: queryKeys.receiving.all })
+        },
+    })
+}
+

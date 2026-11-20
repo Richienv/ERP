@@ -48,7 +48,7 @@ export function PayDialog({ detail, lookup, open, onOpenChange }: { detail: Spar
             <NBDialogBody>
                 <div className="flex items-baseline justify-between">
                     <span className={NB.label}>Sisa tagihan</span>
-                    <span className="font-mono font-black text-lg">{money(remaining, detail.currencyCode)}</span>
+                    <span className="font-mono font-semibold text-lg">{money(remaining, detail.currencyCode)}</span>
                 </div>
                 <div>
                     <label className={NB.label}>Jumlah dibayar ({detail.currencyCode === "CNY" ? "RMB" : detail.currencyCode})</label>
@@ -61,7 +61,7 @@ export function PayDialog({ detail, lookup, open, onOpenChange }: { detail: Spar
                     />
                     <div className="mt-2 flex gap-2">
                         {chips.map((c) => (
-                            <button key={c.label} onClick={() => setAmount(fmt(c.value))} className="border border-zinc-300 px-2.5 h-7 text-[11px] font-bold hover:border-black transition-colors">
+                            <button key={c.label} onClick={() => setAmount(fmt(c.value))} className="border border-zinc-300 px-2.5 h-7 text-xs font-bold hover:border-border transition-colors">
                                 {c.label}
                             </button>
                         ))}
@@ -188,7 +188,7 @@ export function ReceiveDialog({ detail, lookup, open, onOpenChange }: { detail: 
                         </tbody>
                     </table>
                 </div>
-                <p className="text-[11px] text-zinc-500">Barang yang belum datang tetap tercatat sebagai sisa — bisa diterima nanti.</p>
+                <p className="text-xs text-zinc-500">Barang yang belum datang tetap tercatat sebagai sisa — bisa diterima nanti.</p>
             </NBDialogBody>
             <NBDialogFooter
                 onCancel={() => onOpenChange(false)}

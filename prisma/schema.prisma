@@ -4081,7 +4081,10 @@ model SupplierInvoiceCapture {
   billId          String? @unique @db.Uuid
   supplierId      String  @db.Uuid
 
-  supplierInvoiceNo String
+  /// The supplier's invoice number. Null while only our PO/CO has been imported (no invoice yet).
+  supplierInvoiceNo String?
+  /// Our PO / CO number as printed (e.g. "CO24-03-0016"), when the purchase started from our own PO.
+  poDocumentNo      String?
   invoiceDate       DateTime
   dueDate           DateTime?
   paymentTerms      String?
@@ -4122,6 +4125,7 @@ model SupplierInvoiceCapture {
   @@unique([supplierId, supplierInvoiceNo])
   @@index([line, createdAt(sort: Desc), id])
   @@index([fileSha256])
+  @@index([poDocumentNo])
   @@map("supplier_invoice_captures")
 }
 

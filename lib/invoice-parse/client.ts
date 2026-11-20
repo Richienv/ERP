@@ -1,6 +1,7 @@
 "use client"
 
 import { extractTextItems, needsOcr, type PdfText } from "./pdf-text"
+import { excelToTextItems, isExcelFile } from "./excel"
 import { parseInvoice } from "./parse-invoice"
 import type { ParsedInvoice, SupplierTemplate } from "./types"
 
@@ -28,7 +29,7 @@ export function preloadPdfjs(): Promise<PdfJs> {
 }
 
 export type ReadResult = {
-    kind: "pdf" | "image"
+    kind: "pdf" | "image" | "excel"
     parsed: ParsedInvoice
     text: PdfText | null
     sha256: string
@@ -51,10 +52,14 @@ export async function readInvoiceFile(file: File, opts: { ocr?: (file: File, byt
     const hashPromise = sha256Hex(bytes)
     const t1 = performance.now()
     const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name)
+    const isExcel = isExcelFile(file)
 
     let text: PdfText | null = null
     let scanned = false
-    if (isPdf) {
+    if (isExcel) {
+        const XLSX = await import("xlsx")
+        text = excelToTextItems(bytes, XLSX as never)
+    } else if (isPdf) {
         const pdfjs = await preloadPdfjs()
         text = await extractTextItems(bytes, pdfjs as never)
         if (needsOcr(text) && opts.ocr) {
@@ -76,7 +81,7 @@ export async function readInvoiceFile(file: File, opts: { ocr?: (file: File, byt
     const sha256 = await hashPromise
 
     return {
-        kind: isPdf ? "pdf" : "image",
+        kind: isExcel ? "excel" : isPdf ? "pdf" : "image",
         parsed,
         text,
         sha256,
