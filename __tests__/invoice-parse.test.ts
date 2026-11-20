@@ -155,6 +155,25 @@ describe("parser edge cases", () => {
         expect(r.lines[0].confidence).toBeLessThan(0.75)
     })
 
+    it("falls back to price + amount rows when OCR destroyed the table header, and flags them", () => {
+        // Shape of a real OCR pass over a scanned faktur (header row garbled, narrow columns lost).
+        const items = layout([
+            [[40, "CV SUMBER TEKNIK MOTOR"], [400, "FAKTUR PENJUALAN"]],
+            [[300, "No. Faktur: INV/STM/2026/11/0457"]],
+            [[40, "[No"], [70, "oe"], [100, "Barang"], [330, "Harga"], [360, "Saran"], [400, "[se"], [440, "Jaman"]],
+            [[40, "MZ680070"], [90, "|"], [100, "Filter Oli Mitsubishi L200"], [330, "85.000"], [440, "2.040.000"]],
+            [[40, "4605A558"], [90, "|"], [100, "Kampas Rem Depan L200"], [330, "425.000"], [400, "5%"], [440, "4.037.500"]],
+            [[360, "Subtotal:"], [440, "Rp 6.077.500"]],
+        ])
+        const r = parseInvoice(items, { method: "OCR" })
+        expect(r.lines).toHaveLength(2)
+        expect(r.lines[0]).toMatchObject({ partNo: "MZ680070", description: "Filter Oli Mitsubishi L200", qty: 24, unitPrice: 85000, amount: 2040000 })
+        expect(r.lines[1]).toMatchObject({ partNo: "4605A558", qty: 10, discountPct: 5, amount: 4037500 })
+        expect(r.lines.every((l) => l.confidence < 0.75 && l.issues.length > 0)).toBe(true)
+        expect(r.fields.subtotal?.value).toBe(6077500)
+        expect(r.checks.linesVsSubtotal).toBe(0)
+    })
+
     it("attaches a wrapped description printed above the numbers", () => {
         const items = layout([
             [[40, "PT SUPPLIER CONTOH"]],

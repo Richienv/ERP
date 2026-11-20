@@ -306,6 +306,66 @@ function toParsedLine(row: RawRow, locale: NumberLocale): ParsedLine {
     }
 }
 
+// ── Headerless fallback (scans where the header row did not survive OCR) ───────
+
+const UNIT_WORD = /^(PCS|PC|PCE|SET|SETS|UNIT|UNITS|BOX|KG|EA|LOT|ROLL|BTL|LTR|PAIR|PRS|BH|BUAH)\.?$/i
+const NOISE_CELL = /^[|[\]{}()_\-–—:;.,'"`~]+$/
+
+/**
+ * When no item header is found, treat a line as an item when it has text on the left and at least
+ * a price and an amount on the right that agree with a whole quantity. Every such line is marked for
+ * review (confidence 0.6), never silently trusted.
+ */
+function readHeaderless(lines: Line[], locale: NumberLocale, stopAt: number): ParsedLine[] {
+    const out: ParsedLine[] = []
+    for (let i = 0; i < stopAt; i++) {
+        const line = lines[i]
+        const cells = line.cells.map((c) => ({ ...c, text: c.text.replace(/^[|[\]]+|[|[\]]+$/g, "").trim() })).filter((c) => c.text && !NOISE_CELL.test(c.text))
+        if (cells.length < 2 || cells.some((c) => /[:：]/.test(c.text))) continue
+        const words = cells.flatMap((c) => c.text.split(/\s+/))
+        // Peel numbers off the right end of the line.
+        const nums: { value: number; pct: boolean }[] = []
+        while (words.length) {
+            const w = words[words.length - 1]
+            const v = parseAmount(w, locale)
+            if (v === null || parseDocDate(w)) break
+            nums.unshift({ value: v, pct: /%$/.test(w) })
+            words.pop()
+        }
+        let unit: string | null = null
+        if (words.length && UNIT_WORD.test(words[words.length - 1])) unit = words.pop()!.replace(".", "").toUpperCase()
+        const plain = nums.filter((n) => !n.pct)
+        const disc = nums.find((n) => n.pct)?.value ?? null
+        if (plain.length < 2 || !words.some((w) => /[A-Za-z]{3,}/.test(w))) continue
+        const amount = plain[plain.length - 1].value
+        const price = plain[plain.length - 2].value
+        const factor = 1 - (disc || 0) / 100
+        let qty = plain.length >= 3 ? plain[plain.length - 3].value : null
+        if (qty !== null && Math.abs(qty * price * factor - amount) > Math.max(1, amount * 0.005)) qty = null
+        if (qty === null) {
+            const q = price > 0 ? amount / (price * factor) : 0
+            if (q < 1 || Math.abs(q - Math.round(q)) > 0.01) continue
+            qty = Math.round(q)
+        }
+        let partNo: string | null = null
+        if (words.length > 1 && /\d/.test(words[0]) && /^[A-Z0-9][A-Z0-9/-]{3,}$/i.test(words[0])) partNo = words.shift()!.toUpperCase()
+        if (words.length && /^\d{1,3}$/.test(words[0])) words.shift() // row number
+        out.push({
+            partNo,
+            description: words.join(" "),
+            qty,
+            unit,
+            unitPrice: price,
+            discountPct: disc,
+            amount,
+            confidence: 0.6,
+            issues: ["Dibaca tanpa kepala tabel — cek kode & qty"],
+            source: lineBox(line),
+        })
+    }
+    return out
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 const field = <T extends string | number>(value: T, confidence: number, cell?: Cell, label?: string): ParsedField =>
@@ -427,6 +487,12 @@ export function parseInvoice(
         const { rows, endIndex } = readTable(lines, header, locale)
         parsedLines = rows.map((r) => toParsedLine(r, locale))
         tableEnd = endIndex
+    }
+    if (!parsedLines.length) {
+        const firstStop = lines.findIndex((l) => STOP_WORDS.test(l.cells[0]?.text ?? "") || l.cells.some((c, i) => i > 0 && /^(sub ?total|total|ppn|grand total)\b/i.test(c.text)))
+        const stopAt = firstStop === -1 ? lines.length : firstStop
+        parsedLines = readHeaderless(lines, locale, stopAt)
+        if (parsedLines.length) tableEnd = stopAt
     }
 
     // Totals: read below the table (or anywhere if there is no table).

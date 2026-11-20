@@ -169,7 +169,9 @@ export function InvoiceReview({
             .then((j) => (j?.success ? (j as Upload) : null))
             .catch(() => null)
         let cancelled = false
-        readInvoiceFile(f)
+        // Scans and photos fall back to OCR in the browser; the engine loads only when needed.
+        const ocr = (file: File, bytes: Uint8Array) => import("@/lib/invoice-parse/ocr").then((m) => m.ocrInvoice(file, bytes))
+        readInvoiceFile(f, { ocr })
             .then((r) => {
                 if (cancelled) return
                 setRead(r)
@@ -688,6 +690,7 @@ function ReadingState() {
         <div className="p-5 space-y-4">
             <div className="flex items-center gap-2 text-sm font-bold text-zinc-600">
                 <Loader2 className="h-4 w-4 animate-spin text-orange-500" /> Membaca invoice di perangkat ini…
+                <span className="font-medium text-zinc-400">(PDF teks: sekejap · scan/foto: beberapa detik)</span>
             </div>
             {[0, 1, 2].map((i) => (
                 <div key={i} className="space-y-2">
