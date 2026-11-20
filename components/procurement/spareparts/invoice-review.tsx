@@ -237,7 +237,7 @@ export function InvoiceReview({
             else if (c.price == null) p.push(`Baris ${i + 1}: harga`)
             else if (!l.productId && !l.partNo.trim()) p.push(`Baris ${i + 1}: pilih produk atau isi kode part`)
         })
-        if (duplicate && !duplicate.sameFile && duplicate.supplierInvoiceNo === draft.invoiceNo.trim()) p.push("Invoice ini sudah tercatat")
+        if (duplicate && (duplicate.sameFile || duplicate.supplierInvoiceNo === draft.invoiceNo.trim())) p.push("Invoice ini sudah tercatat — buka yang lama")
         return p
     }, [draft, calc, duplicate])
 

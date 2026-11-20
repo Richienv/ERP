@@ -261,16 +261,27 @@ export async function listSparepartPurchases(params: { cursor?: string | null; q
         LIMIT ${limit + 1}`
 
     // KPI strip only with the first page (it ignores the filter, so the chips always show totals).
+    // One grouped aggregate over the line's PO items instead of a per-row LATERAL: 9 ms vs 15 ms
+    // at 5,000 purchases (docs/plans/2026-11-20-sparepart-purchasing-design.md, "What shipped").
     const kpiPromise = params.cursor
         ? Promise.resolve(null)
         : prisma.$queryRaw<{ total: number; unpaid: number; unpaidAmount: number; transit: number; incoming: number; done: number }[]>`
+            WITH it AS (
+                SELECT i."purchaseOrderId", COALESCE(SUM(i.quantity), 0)::int AS ordered, COALESCE(SUM(i."receivedQty"), 0)::int AS received
+                FROM purchase_order_items i
+                JOIN supplier_invoice_captures c2 ON c2."purchaseOrderId" = i."purchaseOrderId" AND c2.line = ${LINE}
+                GROUP BY 1
+            )
             SELECT COUNT(*)::int AS total,
                    COUNT(*) FILTER (WHERE b."balanceDue" > 0.005 AND b.status NOT IN ('CANCELLED','VOID'))::int AS unpaid,
                    COALESCE(SUM(b."balanceDue") FILTER (WHERE b."balanceDue" > 0.005 AND b.status NOT IN ('CANCELLED','VOID')), 0)::float8 AS "unpaidAmount",
                    COUNT(*) FILTER (WHERE c."shippedAt" IS NOT NULL AND it.received < it.ordered AND po.status NOT IN ('CANCELLED','REJECTED'))::int AS transit,
                    COUNT(*) FILTER (WHERE it.received < it.ordered AND po.status NOT IN ('CANCELLED','REJECTED'))::int AS incoming,
                    COUNT(*) FILTER (WHERE COALESCE(b."balanceDue", 0) <= 0.005 AND it.received >= it.ordered)::int AS done
-            ${FROM_SQL}
+            FROM supplier_invoice_captures c
+            JOIN purchase_orders po ON po.id = c."purchaseOrderId"
+            LEFT JOIN invoices b ON b.id = c."billId"
+            LEFT JOIN it ON it."purchaseOrderId" = c."purchaseOrderId"
             WHERE c.line = ${LINE} ${searchSql}`
 
     const [raw, kpi] = await Promise.all([rowsPromise, kpiPromise])

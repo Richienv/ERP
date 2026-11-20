@@ -278,6 +278,10 @@ export function useSaveSupplierInvoice() {
         onError: (_e, _v, ctx) => {
             if (ctx?.prev) qc.setQueryData(ctx.key, ctx.prev)
         },
-        onSettled: () => settle(qc),
+        onSettled: () => {
+            settle(qc)
+            // New supplier, parts, SKUs, template and last rate: the next upload must know them.
+            void qc.invalidateQueries({ queryKey: queryKeys.sparepartPurchases.lookup() })
+        },
     })
 }
