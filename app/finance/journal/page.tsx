@@ -152,7 +152,7 @@ export default function GeneralLedgerPage() {
                 <div className={NB.pageAccent} />
 
                 {/* Row 1: Title + Actions */}
-                <div className={`px-5 py-3.5 flex items-center justify-between ${NB.pageRowBorder}`}>
+                <div className={`px-5 py-3.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between ${NB.pageRowBorder}`}>
                     <div className="flex items-center gap-3">
                         <div className="w-9 h-9 bg-blue-500 flex items-center justify-center">
                             <BookText className="h-4.5 w-4.5 text-white" />
@@ -387,11 +387,11 @@ export default function GeneralLedgerPage() {
                 style={{ minHeight: 420 }}
             >
                 {/* Table Header — black bar */}
-                <div className="hidden md:grid grid-cols-[80px_1fr_140px_100px] gap-2 px-5 py-2.5 bg-slate-900 dark:bg-zinc-950 border-b border-border">
+                <div className="hidden md:grid grid-cols-[80px_1fr_140px_100px] gap-2 px-5 py-2.5 bg-slate-50 dark:bg-zinc-900 border-b border-border">
                     {["Tanggal", "Deskripsi & Akun", "Jumlah", "Status"].map((h) => (
                         <span
                             key={h}
-                            className="text-xs font-semibold text-zinc-400"
+                            className="text-xs font-semibold text-slate-600 dark:text-zinc-400"
                         >
                             {h}
                         </span>

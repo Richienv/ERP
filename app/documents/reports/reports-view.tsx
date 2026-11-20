@@ -307,7 +307,7 @@ export function ReportsView({ documents, documentsMeta, documentsQuery }: Report
                             key={tab.key}
                             onClick={() => setActiveTab(tab.key)}
                             className={`px-3 py-2 text-xs font-semibold   transition-all border border-border flex items-center gap-1.5 ${
-                                activeTab === tab.key ? "bg-slate-900 text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"
+                                activeTab === tab.key ? "bg-primary text-primary-foreground" : "bg-white text-zinc-400 hover:bg-zinc-50"
                             }`}
                         >
                             {tab.label}

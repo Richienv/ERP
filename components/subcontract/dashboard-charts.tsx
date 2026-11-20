@@ -56,13 +56,13 @@ export function StatusDistributionChart({ data }: StatusDistributionChartProps) 
                         </Pie>
                         <Tooltip
                             formatter={(value: number) => [value, "Order"]}
-                            contentStyle={{ fontSize: 11, fontWeight: 700 }}
+                            contentStyle={{ fontSize: 12, fontWeight: 700 }}
                         />
                     </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
                     <span className="text-lg font-semibold">{total}</span>
-                    <div className="text-[7px] font-bold text-zinc-400 ">Total</div>
+                    <div className="text-xs font-bold text-zinc-400 ">Total</div>
                 </div>
             </div>
             <div className="flex-1 space-y-1">

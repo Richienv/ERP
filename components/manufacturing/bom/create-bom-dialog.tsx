@@ -401,7 +401,8 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated }: CreateBOMDial
                             <ScrollArea className="h-[140px] border border-zinc-200">
                                 {loadingProducts ? (
                                     <div className="flex items-center justify-center py-8">
-                                        <Loader2 className="h-5 w-5 animate-spin text-zinc-300" />
+                                        <Loader2 className="h-5 w-5 animate-spin text-zinc-300" aria-hidden />
+                                        <span className="ml-2 text-sm text-muted-foreground">Memuat daftar produk…</span>
                                     </div>
                                 ) : filteredProducts.length === 0 ? (
                                     <div className="text-center py-8">
@@ -507,7 +508,8 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated }: CreateBOMDial
                     <ScrollArea className="h-[180px] border border-zinc-200">
                         {loadingProducts ? (
                             <div className="flex items-center justify-center py-8">
-                                <Loader2 className="h-5 w-5 animate-spin text-zinc-300" />
+                                <Loader2 className="h-5 w-5 animate-spin text-zinc-300" aria-hidden />
+                                <span className="ml-2 text-sm text-muted-foreground">Memuat daftar bahan…</span>
                             </div>
                         ) : filteredMaterials.length === 0 ? (
                             <div className="text-center py-8">

@@ -38,7 +38,7 @@ export function ProcurementInsights({ data }: ProcurementInsightsProps) {
                         <div className="text-base font-semibold text-red-600 tracking-tighter leading-none">
                             {formatCurrency(data.summary.totalRestockCost)}
                         </div>
-                        <div className="text-[7px] font-bold text-zinc-400">
+                        <div className="text-xs font-bold text-zinc-400">
                             {data.summary.itemsCriticalCount} item kritis
                         </div>
                     </div>
@@ -54,7 +54,7 @@ export function ProcurementInsights({ data }: ProcurementInsightsProps) {
                         <div className="text-base font-semibold text-zinc-900 dark:text-white tracking-tighter leading-none">
                             {data.summary.totalIncoming} <span className="text-xs text-zinc-400 font-bold">PO</span>
                         </div>
-                        <div className="text-[7px] font-bold text-zinc-400">
+                        <div className="text-xs font-bold text-zinc-400">
                             Diproses vendor
                         </div>
                     </div>
@@ -71,7 +71,7 @@ export function ProcurementInsights({ data }: ProcurementInsightsProps) {
                             <div className="text-base font-semibold text-violet-600 tracking-tighter leading-none">
                                 {data.summary.totalPending} <span className="text-xs text-zinc-400 font-bold">PR</span>
                             </div>
-                            <div className="text-[7px] font-bold text-zinc-400">
+                            <div className="text-xs font-bold text-zinc-400">
                                 Menunggu proses
                             </div>
                         </div>

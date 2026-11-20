@@ -5,8 +5,8 @@ import dynamic from "next/dynamic"
 import { usePathname } from "next/navigation"
 
 import { Toaster } from "@/components/ui/sonner"
+import { ConfirmActionHost } from "@/components/ui/confirm-action-host"
 import { AIProvider } from "@/components/ai/ai-context"
-import { AISidebar } from "@/components/ai/ai-sidebar"
 import { SiteHeader } from "@/components/site-header"
 
 import { AppSidebar } from "@/components/app-sidebar"
@@ -58,7 +58,6 @@ function GlobalLayoutInner({ children }: GlobalLayoutProps) {
                     {children}
                   </PageTransition>
                 </div>
-                <AISidebar />
                 <Toaster />
               </SidebarInset>
             </SidebarProvider>
@@ -70,6 +69,7 @@ function GlobalLayoutInner({ children }: GlobalLayoutProps) {
         <ServiceWorkerRegister />
         <PerformanceTracker />
         <CommandPalette />
+        <ConfirmActionHost />
         <ShortcutCheatSheet />
       </AIProvider>
     </AuthProvider >

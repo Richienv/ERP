@@ -96,7 +96,7 @@ export function StockTransferList({ transfers, warehouses, products }: StockTran
                         variant="outline"
                         size="sm"
                         className={`h-8 text-xs font-semibold   border border-border rounded-md ${
-                            statusFilter === f.value ? 'bg-slate-900 text-white' : 'bg-white hover:bg-zinc-100'
+                            statusFilter === f.value ? 'bg-primary text-primary-foreground' : 'bg-white hover:bg-zinc-100'
                         }`}
                         onClick={() => setStatusFilter(f.value)}
                     >

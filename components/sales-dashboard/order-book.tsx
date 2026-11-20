@@ -22,7 +22,7 @@ export function OrderBookWidget() {
                     <ResponsiveContainer width="100%" height="100%">
                         <ComposedChart data={data} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                             <XAxis dataKey="week" scale="point" padding={{ left: 10, right: 10 }} tick={{ fill: 'black', fontSize: 12, fontWeight: 'bold' }} axisLine={{ stroke: 'black' }} tickLine={{ stroke: 'black' }} />
-                            <YAxis tick={{ fill: 'black', fontSize: 10 }} axisLine={{ stroke: 'black' }} tickLine={{ stroke: 'black' }} />
+                            <YAxis tick={{ fill: 'black', fontSize: 12 }} axisLine={{ stroke: 'black' }} tickLine={{ stroke: 'black' }} />
                             <Tooltip
                                 contentStyle={{ borderRadius: '8px', border: '2px solid black', boxShadow: '4px 4px 0px 0px rgba(0,0,0,1)' }}
                                 itemStyle={{ fontWeight: 'bold' }}

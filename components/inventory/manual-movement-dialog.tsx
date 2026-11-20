@@ -202,7 +202,7 @@ export function ManualMovementDialog({ products, warehouses, userId = "system-us
             </div>
             <div className="grid grid-cols-2 gap-3">
               <NBInput
-                label="Quantity"
+                label="Jumlah"
                 required
                 type="number"
                 value={quantity}
@@ -210,7 +210,7 @@ export function ManualMovementDialog({ products, warehouses, userId = "system-us
                 placeholder="0"
               />
               <NBTextarea
-                label="Notes"
+                label="Catatan"
                 value={notes}
                 onChange={setNotes}
                 placeholder="Reason for movement..."

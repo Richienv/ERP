@@ -34,6 +34,7 @@ import { RoutingFormDialog } from "@/components/manufacturing/routing-form-dialo
 import { AddRoutingStepDialog } from "@/components/manufacturing/add-routing-step-dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { confirmAction } from "@/components/ui/confirm-action-host"
 
 interface RoutingStep {
     id: string;
@@ -191,7 +192,7 @@ export function RoutingClient({ initialRoutings }: Props) {
 
     const handleDeleteRouting = async () => {
         if (!selectedRouting) return;
-        const confirmed = window.confirm(`Hapus routing "${selectedRouting.name}" (${selectedRouting.code})?\n\nSemua langkah proses akan ikut dihapus.`);
+        const confirmed = await confirmAction({ title: `Hapus routing ${selectedRouting.name} (${selectedRouting.code})?`, description: "Semua langkah proses di routing ini ikut terhapus.", confirmLabel: "Hapus routing", destructive: true });
         if (!confirmed) return;
 
         setDeleting(true);
@@ -246,7 +247,7 @@ export function RoutingClient({ initialRoutings }: Props) {
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button
+                        <Button aria-label="Muat ulang"
                             variant="outline"
                             size="icon"
                             onClick={fetchRoutings}

@@ -83,7 +83,7 @@ export function ProfitLossView() {
                                     </TableCell>
                                     <TableCell className="text-right text-sm">{item.volume}</TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
+                                        <Button aria-label="Buka rincian" variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100">
                                             <ArrowRight className="h-4 w-4" />
                                         </Button>
                                     </TableCell>

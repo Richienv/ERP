@@ -421,13 +421,13 @@ export default function CoALedgerPage() {
                 className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden"
             >
                 {/* Table header */}
-                <div className="grid grid-cols-[100px_1fr_120px_120px_160px_80px] items-center px-5 py-2.5 bg-slate-900 dark:bg-zinc-950 border-b border-border">
-                    <span className="text-xs font-semibold text-zinc-400">Kode</span>
-                    <span className="text-xs font-semibold text-zinc-400">Nama Akun</span>
-                    <span className="text-xs font-semibold text-zinc-400">Tipe</span>
-                    <span className="text-xs font-semibold text-zinc-400">Klasifikasi</span>
-                    <span className="text-xs font-semibold text-zinc-400 text-right">Saldo (IDR)</span>
-                    <span className="text-xs font-semibold text-zinc-400 text-center">Aksi</span>
+                <div className="grid grid-cols-[100px_1fr_120px_120px_160px_80px] items-center px-5 py-2.5 bg-slate-50 dark:bg-zinc-900 border-b border-border">
+                    <span className="text-xs font-semibold text-slate-600 dark:text-zinc-400">Kode</span>
+                    <span className="text-xs font-semibold text-slate-600 dark:text-zinc-400">Nama Akun</span>
+                    <span className="text-xs font-semibold text-slate-600 dark:text-zinc-400">Tipe</span>
+                    <span className="text-xs font-semibold text-slate-600 dark:text-zinc-400">Klasifikasi</span>
+                    <span className="text-xs font-semibold text-slate-600 dark:text-zinc-400 text-right">Saldo (IDR)</span>
+                    <span className="text-xs font-semibold text-slate-600 dark:text-zinc-400 text-center">Aksi</span>
                 </div>
 
                 {loading ? (

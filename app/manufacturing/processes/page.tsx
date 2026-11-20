@@ -314,7 +314,7 @@ export default function ProcessesPage() {
                     onClick={() => setShowInactive(!showInactive)}
                     className={cn(
                         "border border-border rounded-md h-9 text-xs font-semibold shadow-sm hover:shadow-none transition-all",
-                        showInactive ? "bg-slate-900 text-white hover:bg-zinc-800 hover:text-white" : "bg-white text-black hover:bg-zinc-50"
+                        showInactive ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-white" : "bg-white text-black hover:bg-zinc-50"
                     )}
                 >
                     {showInactive ? <Eye className="mr-1.5 h-3.5 w-3.5" /> : <EyeOff className="mr-1.5 h-3.5 w-3.5" />}

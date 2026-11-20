@@ -89,7 +89,7 @@ export function ManagerWorkload() {
                                     </div>
                                     <div className="flex gap-2 justify-end">
                                         <Button variant="outline" size="sm" className="h-7 text-xs">View Tasks</Button>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7"><Phone className="h-3 w-3" /></Button>
+                                        <Button aria-label="Telepon" variant="ghost" size="icon" className="h-7 w-7"><Phone className="h-3 w-3" /></Button>
                                     </div>
                                 </div>
                             </div>

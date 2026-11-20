@@ -27,6 +27,7 @@ import { GroupFormDialog } from "@/components/manufacturing/group-form-dialog";
 import { AssignMachineGroupDialog } from "@/components/manufacturing/assign-machine-group-dialog";
 import { toast } from "sonner";
 import Link from "next/link";
+import { confirmAction } from "@/components/ui/confirm-action-host"
 
 interface Machine {
     id: string;
@@ -135,7 +136,7 @@ export function GroupsClient({ initialGroups }: Props) {
 
     const handleDeleteGroup = async () => {
         if (!selectedGroup) return;
-        const confirmed = window.confirm(`Hapus grup "${selectedGroup.name}" (${selectedGroup.code})?\n\nMesin di grup ini tidak akan dihapus, hanya dicopot dari grup.`);
+        const confirmed = await confirmAction({ title: `Hapus grup ${selectedGroup.name} (${selectedGroup.code})?`, description: "Mesin di grup ini tidak dihapus, hanya dilepas dari grup.", confirmLabel: "Hapus grup", destructive: true });
         if (!confirmed) return;
 
         setDeleting(true);

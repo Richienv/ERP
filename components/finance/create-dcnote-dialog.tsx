@@ -327,14 +327,14 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
                                     <button
                                         type="button"
                                         onClick={() => { setPartyType("customer"); setPartyId(""); setOriginalInvoiceId(""); setReasonCode("") }}
-                                        className={`px-5 py-2 text-xs font-semibold   transition-colors ${partyType === "customer" ? "bg-slate-900 text-white" : "bg-white text-zinc-500 hover:bg-zinc-50"}`}
+                                        className={`px-5 py-2 text-xs font-semibold   transition-colors ${partyType === "customer" ? "bg-primary text-primary-foreground" : "bg-white text-zinc-500 hover:bg-zinc-50"}`}
                                     >
                                         Customer
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => { setPartyType("supplier"); setPartyId(""); setOriginalInvoiceId(""); setReasonCode("") }}
-                                        className={`px-5 py-2 text-xs font-semibold   transition-colors border-l border-border ${partyType === "supplier" ? "bg-slate-900 text-white" : "bg-white text-zinc-500 hover:bg-zinc-50"}`}
+                                        className={`px-5 py-2 text-xs font-semibold   transition-colors border-l border-border ${partyType === "supplier" ? "bg-primary text-primary-foreground" : "bg-white text-zinc-500 hover:bg-zinc-50"}`}
                                     >
                                         Supplier
                                     </button>

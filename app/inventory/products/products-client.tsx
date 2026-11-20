@@ -101,7 +101,7 @@ export function ProductsPageClient({ products, categories, warehouses, stats }: 
                             <button
                                 onClick={() => setView("kanban")}
                                 className={`px-3 py-2 flex items-center gap-1.5 text-xs font-semibold   transition-all border-r border-border ${view === "kanban"
-                                    ? "bg-slate-900 text-white"
+                                    ? "bg-primary text-primary-foreground"
                                     : "bg-white text-zinc-400 hover:bg-zinc-50"
                                     }`}
                             >
@@ -111,7 +111,7 @@ export function ProductsPageClient({ products, categories, warehouses, stats }: 
                             <button
                                 onClick={() => setView("list")}
                                 className={`px-3 py-2 flex items-center gap-1.5 text-xs font-semibold   transition-all ${view === "list"
-                                    ? "bg-slate-900 text-white"
+                                    ? "bg-primary text-primary-foreground"
                                     : "bg-white text-zinc-400 hover:bg-zinc-50"
                                     }`}
                             >

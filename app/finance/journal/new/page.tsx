@@ -169,7 +169,7 @@ export default function NewJournalEntryPage() {
         <div className="mf-page">
             <div className="flex items-center justify-between space-y-2">
                 <div className="flex items-center space-x-4">
-                    <Button variant="outline" size="icon" asChild>
+                    <Button aria-label="Kembali" variant="outline" size="icon" asChild>
                         <Link href="/finance/journal">
                             <ArrowLeft className="h-4 w-4" />
                         </Link>
@@ -301,7 +301,7 @@ export default function NewJournalEntryPage() {
                                             />
                                         </TableCell>
                                         <TableCell>
-                                            <Button
+                                            <Button aria-label="Hapus"
                                                 type="button"
                                                 variant="ghost"
                                                 size="icon"

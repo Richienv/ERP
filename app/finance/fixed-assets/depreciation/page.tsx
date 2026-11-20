@@ -13,6 +13,7 @@ import { NB } from "@/lib/dialog-styles"
 import { toast } from "sonner"
 import Link from "next/link"
 import { Calculator, Play, ArrowLeft, RefreshCcw, Undo2, Loader2, AlertTriangle, CheckCircle } from "lucide-react"
+import { confirmAction } from "@/components/ui/confirm-action-host"
 
 export const dynamic = "force-dynamic"
 
@@ -94,9 +95,13 @@ export default function DepreciationRunPage() {
     }
 
     const handleReverse = async (runId: string) => {
-        const confirmed = window.confirm(
-            "Apakah Anda yakin ingin membatalkan run penyusutan ini?\n\nJurnal yang telah dibuat akan di-void dan nilai akumulasi penyusutan akan dikembalikan."
-        )
+        const confirmed = await confirmAction({
+            title: "Batalkan run penyusutan ini?",
+            description: "Jurnal yang sudah dibuat akan di-void dan akumulasi penyusutan dikembalikan ke nilai sebelumnya.",
+            confirmLabel: "Batalkan run",
+            cancelLabel: "Tidak",
+            destructive: true,
+        })
         if (!confirmed) return
 
         setReversingId(runId)
@@ -225,7 +230,7 @@ export default function DepreciationRunPage() {
                                         <thead>
                                             <tr className={NB.tableHead}>
                                                 {["Kode Aset", "Nama Aset", "Kategori", "Penyusutan", "Akumulasi Setelah", "Nilai Buku Setelah"].map(h => (
-                                                    <th key={h} className={NB.tableHeadCell + " text-left"}>{h}</th>
+                                                    <th key={h} className={NB.tableHeadCell + (["Penyusutan", "Akumulasi Setelah", "Nilai Buku Setelah", "Total Penyusutan"].includes(h) ? " text-right" : " text-left")}>{h}</th>
                                                 ))}
                                             </tr>
                                         </thead>
@@ -235,15 +240,15 @@ export default function DepreciationRunPage() {
                                                     <td className={NB.tableCell + " font-mono font-bold text-purple-700"}>{item.assetCode}</td>
                                                     <td className={NB.tableCell + " font-bold"}>{item.assetName}</td>
                                                     <td className={NB.tableCell + " text-zinc-600"}>{item.categoryName}</td>
-                                                    <td className={NB.tableCell + " font-mono font-bold text-red-600"}>{formatCurrency(Number(item.depreciationAmount) || 0)}</td>
-                                                    <td className={NB.tableCell + " font-mono font-bold text-amber-600"}>{formatCurrency(Number(item.accumulatedAfter) || 0)}</td>
-                                                    <td className={NB.tableCell + " font-mono font-bold text-indigo-700"}>{formatCurrency(Number(item.bookValueAfter) || 0)}</td>
+                                                    <td className={NB.tableCell + " font-mono font-bold text-red-600 text-right tabular-nums"}>{formatCurrency(Number(item.depreciationAmount) || 0)}</td>
+                                                    <td className={NB.tableCell + " font-mono font-bold text-amber-600 text-right tabular-nums"}>{formatCurrency(Number(item.accumulatedAfter) || 0)}</td>
+                                                    <td className={NB.tableCell + " font-mono font-bold text-indigo-700 text-right tabular-nums"}>{formatCurrency(Number(item.bookValueAfter) || 0)}</td>
                                                 </tr>
                                             ))}
                                             {/* Total Row */}
                                             <tr className="border-t border-border bg-zinc-50">
                                                 <td colSpan={3} className={NB.tableCell + "font-semibold text-xs text-zinc-500 text-right"}>Total Penyusutan</td>
-                                                <td className={NB.tableCell + " font-mono font-semibold text-red-700 text-base"}>{formatCurrency(totalDepreciation)}</td>
+                                                <td className={NB.tableCell + " font-mono font-semibold text-red-700 text-base text-right tabular-nums"}>{formatCurrency(totalDepreciation)}</td>
                                                 <td colSpan={2} />
                                             </tr>
                                         </tbody>
@@ -325,7 +330,7 @@ export default function DepreciationRunPage() {
                                             <td className="px-4 py-3 font-mono font-bold text-sm">{runDate}</td>
                                             <td className="px-4 py-3 text-sm font-medium text-zinc-600">{periodLabel}</td>
                                             <td className="px-4 py-3 font-mono font-bold text-sm text-center">{run.totalAssets ?? run._count?.entries ?? "-"}</td>
-                                            <td className="px-4 py-3 font-mono font-bold text-sm text-red-600">{formatCurrency(Number(run.totalDepreciation) || 0)}</td>
+                                            <td className="px-4 py-3 font-mono font-bold text-sm text-red-600 text-right tabular-nums">{formatCurrency(Number(run.totalDepreciation) || 0)}</td>
                                             <td className="px-4 py-3">
                                                 <Badge variant="outline" className={`text-xs font-semibold border ${status.color}`}>
                                                     {status.label}

@@ -111,7 +111,7 @@ export function WarehouseEditDialog({ warehouse }: WarehouseEditDialogProps) {
                 onChange={(v) => setFormData({ ...formData, code: v })}
               />
               <NBInput
-                label="Name"
+                label="Nama"
                 value={formData.name}
                 onChange={(v) => setFormData({ ...formData, name: v })}
               />

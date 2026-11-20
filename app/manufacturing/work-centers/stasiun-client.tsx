@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/select"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { confirmAction } from "@/components/ui/confirm-action-host"
 
 const STATION_TYPE_CONFIG: { type: string; label: string; icon: any; color: string }[] = [
     { type: "CUTTING", label: "Potong", icon: Scissors, color: "bg-rose-100 text-rose-700 border-rose-300" },
@@ -362,7 +363,7 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
 
     const handleDelete = async (e: React.MouseEvent, station: any) => {
         e.stopPropagation()
-        const confirmed = window.confirm(`Hapus "${station.name}" (${station.code})?\n\nData akan dihapus permanen.`)
+        const confirmed = await confirmAction({ title: `Hapus ${station.name} (${station.code})?`, description: "Data akan dihapus permanen.", confirmLabel: "Hapus stasiun", destructive: true })
         if (!confirmed) return
 
         setDeleting(station.id)
@@ -667,10 +668,10 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
                                     <Input placeholder="Cari..." className="pl-10 h-10 border border-border shadow-sm focus-visible:ring-0 transition-all bg-white dark:bg-zinc-900 rounded-md font-medium placeholder:text-zinc-300 placeholder:font-normal" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                                 </div>
                                 <div className="flex border border-border shrink-0">
-                                    <Button variant="ghost" size="sm" className={cn("h-10 rounded-md border-r border-border text-xs font-semibold px-3", viewMode === "type" ? "bg-slate-900 text-white hover:bg-slate-900 hover:text-white" : "bg-white text-zinc-600 hover:bg-zinc-100")} onClick={() => setViewMode("type")} title="Per Tipe">
+                                    <Button variant="ghost" size="sm" className={cn("h-10 rounded-md border-r border-border text-xs font-semibold px-3", viewMode === "type" ? "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground" : "bg-white text-zinc-600 hover:bg-zinc-100")} onClick={() => setViewMode("type")} title="Per Tipe">
                                         <LayoutGrid className="h-4 w-4 mr-1.5" /> Tipe
                                     </Button>
-                                    <Button variant="ghost" size="sm" className={cn("h-10 rounded-md text-xs font-semibold px-3", viewMode === "group" ? "bg-slate-900 text-white hover:bg-slate-900 hover:text-white" : "bg-white text-zinc-600 hover:bg-zinc-100")} onClick={() => setViewMode("group")} title="Per Grup">
+                                    <Button variant="ghost" size="sm" className={cn("h-10 rounded-md text-xs font-semibold px-3", viewMode === "group" ? "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground" : "bg-white text-zinc-600 hover:bg-zinc-100")} onClick={() => setViewMode("group")} title="Per Grup">
                                         <Layers className="h-4 w-4 mr-1.5" /> Grup
                                     </Button>
                                 </div>
@@ -678,12 +679,12 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
 
                             {viewMode === "type" && (
                                 <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end">
-                                    <Button variant="outline" size="sm" className={cn("border border-border rounded-md text-xs font-semibold h-8 transition-all hover:bg-slate-900 hover:text-white", !typeFilter ? "bg-slate-900 text-white" : "bg-white text-zinc-600")} onClick={() => setTypeFilter(null)}>Semua</Button>
+                                    <Button variant="outline" size="sm" className={cn("border border-border rounded-md text-xs font-semibold h-8 transition-all hover:bg-slate-900 hover:text-white", !typeFilter ? "bg-primary text-primary-foreground" : "bg-white text-zinc-600")} onClick={() => setTypeFilter(null)}>Semua</Button>
                                     {STATION_TYPE_CONFIG.map((cfg) => {
                                         const count = inHouseStations.filter((s: any) => s.stationType === cfg.type).length
                                         if (count === 0) return null
                                         return (
-                                            <Button key={cfg.type} variant="outline" size="sm" className={cn("border border-border rounded-md text-xs font-semibold h-8 transition-all hover:bg-slate-900 hover:text-white", typeFilter === cfg.type ? "bg-slate-900 text-white" : "bg-white text-zinc-600")} onClick={() => setTypeFilter(cfg.type)}>
+                                            <Button key={cfg.type} variant="outline" size="sm" className={cn("border border-border rounded-md text-xs font-semibold h-8 transition-all hover:bg-slate-900 hover:text-white", typeFilter === cfg.type ? "bg-primary text-primary-foreground" : "bg-white text-zinc-600")} onClick={() => setTypeFilter(cfg.type)}>
                                                 {cfg.label} ({count})
                                             </Button>
                                         )

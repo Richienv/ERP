@@ -113,7 +113,8 @@ export function LowStockPopup({ open, onClose, onAllActioned }: LowStockPopupPro
             <NBDialogBody>
                 {loading ? (
                     <div className="flex items-center justify-center py-10">
-                        <Loader2 className="h-5 w-5 animate-spin text-zinc-400" />
+                        <Loader2 className="h-5 w-5 animate-spin text-zinc-400" aria-hidden />
+                        <span className="ml-2 text-sm text-muted-foreground">Memuat produk stok rendah…</span>
                     </div>
                 ) : items.length === 0 ? (
                     <p className="text-sm text-zinc-500 text-center py-10">
@@ -180,7 +181,7 @@ export function LowStockPopup({ open, onClose, onAllActioned }: LowStockPopupPro
                                                 ) : (
                                                     <Save className="h-3 w-3 mr-1" />
                                                 )}
-                                                Simpan
+                                                {saving === product.id ? "Menyimpan…" : "Simpan"}
                                             </Button>
                                             <Button
                                                 size="sm"

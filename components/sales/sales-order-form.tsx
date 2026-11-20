@@ -587,7 +587,7 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
                       </Select>
                     </div>
                     <div className="flex items-end">
-                      <Button
+                      <Button aria-label="Hapus"
                         type="button"
                         variant="ghost"
                         size="icon"

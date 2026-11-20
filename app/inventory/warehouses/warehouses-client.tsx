@@ -153,7 +153,7 @@ export function WarehousesClient({ warehouses }: WarehousesClientProps) {
                                 </div>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-slate-900 hover:text-white rounded-md -mr-1">
+                                        <Button aria-label="Aksi lainnya" variant="ghost" size="icon" className="h-7 w-7 hover:bg-slate-900 hover:text-white rounded-md -mr-1">
                                             <MoreVertical className="h-3.5 w-3.5" />
                                         </Button>
                                     </DropdownMenuTrigger>

@@ -1012,7 +1012,7 @@ export function OrdersClient({ initialOrders, initialSummary }: Props) {
                                                                     onChange={(e) => updateBomLine(line.id, "wastePct", e.target.value)}
                                                                     className="text-xs border border-border font-bold text-center bg-white h-9 rounded-md"
                                                                 />
-                                                                <Button
+                                                                <Button aria-label="Hapus"
                                                                     type="button" variant="outline" size="icon"
                                                                     className="h-9 w-9 border border-red-300 text-red-600 hover:bg-red-50 rounded-md"
                                                                     onClick={() => removeBomLine(line.id)}

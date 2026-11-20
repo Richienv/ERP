@@ -130,7 +130,8 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors, initialOrder 
 
             {!hasHeaderData ? (
                 <div className="flex items-center justify-center py-16">
-                    <Loader2 className="h-8 w-8 animate-spin text-zinc-300" />
+                    <Loader2 className="h-8 w-8 animate-spin text-zinc-300" aria-hidden />
+                    <span className="ml-2 text-sm text-muted-foreground">Memuat data PO…</span>
                 </div>
             ) : (
                 <NBDialogBody>

@@ -164,7 +164,7 @@ export function TemplateManagerDialog({ open, onClose, onApply }: Props) {
                                     <button
                                         key={type}
                                         onClick={() => toggleType(type)}
-                                        className={`text-xs font-bold px-2 py-1 border transition-all ${selectedTypes.includes(type) ? "bg-slate-900 text-white border-border" : "bg-white text-zinc-600 border-zinc-300 hover:border-zinc-500"}`}
+                                        className={`text-xs font-bold px-2 py-1 border transition-all ${selectedTypes.includes(type) ? "bg-primary text-primary-foreground border-border" : "bg-white text-zinc-600 border-zinc-300 hover:border-zinc-500"}`}
                                     >
                                         {TYPE_LABELS[type]}
                                     </button>

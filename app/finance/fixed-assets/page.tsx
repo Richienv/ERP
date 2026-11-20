@@ -93,7 +93,7 @@ export default function FixedAssetsPage() {
                 <div className={NB.pageAccent} />
 
                 {/* Row 1: Title + Actions */}
-                <div className={`px-5 py-3.5 flex items-center justify-between ${NB.pageRowBorder}`}>
+                <div className={`px-5 py-3.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between ${NB.pageRowBorder}`}>
                     <div className="flex items-center gap-3">
                         <div className="w-9 h-9 bg-blue-500 flex items-center justify-center">
                             <Building className="h-4.5 w-4.5 text-white" />
@@ -214,9 +214,9 @@ export default function FixedAssetsPage() {
                 style={{ minHeight: 400 }}
             >
                 {/* Black header */}
-                <div className="hidden md:grid grid-cols-[100px_1fr_120px_140px_140px_140px_100px_110px_160px] gap-2 px-5 py-2.5 bg-slate-900 dark:bg-zinc-950 border-b border-border">
+                <div className="hidden md:grid grid-cols-[100px_1fr_120px_140px_140px_140px_100px_110px_160px] gap-2 px-5 py-2.5 bg-slate-50 dark:bg-zinc-900 border-b border-border">
                     {["Kode", "Nama Aset", "Kategori", "Harga Perolehan", "Akum. Penyusutan", "Nilai Buku", "Metode", "Status", "Aksi"].map((h) => (
-                        <span key={h} className="text-xs font-semibold text-zinc-400">{h}</span>
+                        <span key={h} className="text-xs font-semibold text-slate-600 dark:text-zinc-400">{h}</span>
                     ))}
                 </div>
 
@@ -276,7 +276,7 @@ export default function FixedAssetsPage() {
                                                     ) : (
                                                         <BookOpen className="h-3 w-3" />
                                                     )}
-                                                    Sinkron
+                                                    {syncingId === asset.id ? "Menyinkronkan…" : "Sinkron"}
                                                 </motion.button>
                                             )}
                                             {(asset.status === "ACTIVE" || asset.status === "FULLY_DEPRECIATED") && (
@@ -306,7 +306,7 @@ export default function FixedAssetsPage() {
 
                 {/* Footer */}
                 <div className="px-5 py-3 border-t border-zinc-200 dark:border-zinc-700 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
-                    <span className={NB.label + " !mb-0 !text-[10px]"}>{assets.length} aset</span>
+                    <span className={NB.label + " !mb-0 !text-xs"}>{assets.length} aset</span>
                     <div />
                 </div>
             </div>

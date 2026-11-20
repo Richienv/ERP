@@ -109,7 +109,7 @@ export function ApprovalsView({ pendingPOs }: ApprovalsViewProps) {
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                     <Link href="/dashboard">
-                        <Button variant="ghost" size="icon">
+                        <Button aria-label="Kembali" variant="ghost" size="icon">
                             <ArrowLeft className="h-5 w-5" />
                         </Button>
                     </Link>
@@ -177,7 +177,7 @@ export function ApprovalsView({ pendingPOs }: ApprovalsViewProps) {
                                         <div className="font-bold">{po.requester}</div>
                                     </div>
                                     <div>
-                                        <div className="text-xs font-bold text-zinc-500 mb-1">Date</div>
+                                        <div className="text-xs font-bold text-zinc-500 mb-1">Tanggal</div>
                                         <div className="font-bold">{new Date(po.orderDate).toLocaleDateString()}</div>
                                     </div>
                                 </div>
@@ -234,7 +234,7 @@ export function ApprovalsView({ pendingPOs }: ApprovalsViewProps) {
                                     <div className="font-mono font-bold">{selectedPO.number}</div>
                                 </div>
                                 <div>
-                                    <div className="text-xs font-bold text-zinc-500">Date</div>
+                                    <div className="text-xs font-bold text-zinc-500">Tanggal</div>
                                     <div className="font-medium">{new Date(selectedPO.orderDate).toLocaleDateString()}</div>
                                 </div>
                                 <div>

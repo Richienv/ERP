@@ -408,7 +408,7 @@ export function TimelineView({
                                                 <span className="text-xs font-semibold shrink-0" style={{ color: c.text }}>{Math.round(progress)}%</span>
                                             )}
                                             {bar.step.station?.operationType === "SUBCONTRACTOR" && (
-                                                <span className="text-[7px] font-bold bg-amber-100 text-amber-700 px-1 py-0.5 rounded shrink-0">SUB</span>
+                                                <span className="text-xs font-bold bg-amber-100 text-amber-700 px-1 py-0.5 rounded shrink-0">SUB</span>
                                             )}
                                         </div>
                                     </div>
@@ -445,7 +445,7 @@ export function TimelineView({
                         {/* End marker */}
                         <div className="absolute top-0 bottom-0 z-20" style={{ left: totalMinutes * PIXELS_PER_MINUTE }}>
                             <div className="w-px h-full bg-emerald-300/50" />
-                            <div className="absolute top-0 -left-px bg-emerald-500 text-white text-[7px] font-bold px-1.5 py-0.5 rounded-b whitespace-nowrap">
+                            <div className="absolute top-0 -left-px bg-emerald-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-b whitespace-nowrap">
                                 {fmtDuration(totalMinutes)}
                             </div>
                         </div>

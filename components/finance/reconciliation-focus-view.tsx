@@ -175,7 +175,7 @@ function TierBadge({ tier, score }: { tier: string | null; score?: number | null
     const layer = layerMap[tier] || "BELUM"
     const cfg = LAYER_CONFIG[layer]
     return (
-        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[7px] font-semibold border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-semibold border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
             {cfg.label}
             {score != null && <span className="font-mono">{score >= 99 ? 100 : score}%</span>}
         </span>
@@ -218,7 +218,7 @@ function SignalBar({ signals, score }: { signals: MatchSignals; score: number })
         {SIGNAL_LABELS.map(({ key, label, weight }) => (
           <span
             key={key}
-            className="text-[6px] font-bold text-zinc-400 text-center truncate"
+            className="text-xs font-bold text-zinc-400 text-center truncate"
             style={{ width: `${weight}%` }}
           >
             {label}
@@ -475,21 +475,21 @@ function QueueItemRow({
                         <span className={`text-xs font-mono ${
                             item.bankAmount >= 0 ? "text-emerald-600" : "text-red-500"
                         }`}>
-                            <span className="text-[7px]">{item.bankAmount >= 0 ? "\u25B2" : "\u25BC"}</span>{" "}
+                            <span className="text-xs">{item.bankAmount >= 0 ? "\u25B2" : "\u25BC"}</span>{" "}
                             Rp {formatIDR(Math.abs(item.bankAmount))}
                         </span>
                         <div className="flex items-center gap-1">
                             {item.source === 'GL_AUTO' && (
-                                <span className="text-[7px] font-bold px-1 py-0.5 bg-blue-100 text-blue-700 border border-blue-300">
+                                <span className="text-xs font-bold px-1 py-0.5 bg-blue-100 text-blue-700 border border-blue-300">
                                     GL
                                 </span>
                             )}
                             {item.source === 'CSV_IMPORT' && (
-                                <span className="text-[7px] font-bold px-1 py-0.5 bg-zinc-100 text-zinc-500 border border-zinc-300">
+                                <span className="text-xs font-bold px-1 py-0.5 bg-zinc-100 text-zinc-500 border border-zinc-300">
                                     CSV
                                 </span>
                             )}
-                            <span className={`text-[7px] font-semibold px-1 py-0.5 border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+                            <span className={`text-xs font-semibold px-1 py-0.5 border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
                                 {cfg.label}
                                 {item.matchScore != null && layer !== "CONFIRMED" && layer !== "IGNORED" && (
                                     <span className="font-mono ml-0.5">{(item.matchScore ?? 0) >= 99 ? 100 : item.matchScore}%</span>
@@ -505,7 +505,7 @@ function QueueItemRow({
                         <button
                             onClick={(e) => { e.stopPropagation(); onConfirm() }}
                             disabled={isLoading}
-                            className="flex-1 text-[7px] font-bold px-1.5 py-1 bg-emerald-500 text-white border border-emerald-600 hover:bg-emerald-600 disabled:opacity-50"
+                            className="flex-1 text-xs font-bold px-1.5 py-1 bg-emerald-500 text-white border border-emerald-600 hover:bg-emerald-600 disabled:opacity-50"
                         >
                             {isLoading ? "..." : "Konfirmasi"}
                         </button>
@@ -514,7 +514,7 @@ function QueueItemRow({
                         <button
                             onClick={(e) => { e.stopPropagation(); onReject() }}
                             disabled={isLoading}
-                            className="flex-1 text-[7px] font-bold px-1.5 py-1 bg-white text-red-600 border border-red-300 hover:bg-red-50 disabled:opacity-50"
+                            className="flex-1 text-xs font-bold px-1.5 py-1 bg-white text-red-600 border border-red-300 hover:bg-red-50 disabled:opacity-50"
                         >
                             Tolak
                         </button>
@@ -523,7 +523,7 @@ function QueueItemRow({
                         <button
                             onClick={(e) => { e.stopPropagation(); onIgnore() }}
                             disabled={isLoading}
-                            className="flex-1 text-[7px] font-bold px-1.5 py-1 bg-white text-zinc-500 border border-zinc-300 hover:bg-zinc-50 disabled:opacity-50"
+                            className="flex-1 text-xs font-bold px-1.5 py-1 bg-white text-zinc-500 border border-zinc-300 hover:bg-zinc-50 disabled:opacity-50"
                         >
                             Abaikan
                         </button>
@@ -652,7 +652,7 @@ function QueueSidebar({
                                         <button
                                             onClick={onBulkConfirmCocok}
                                             disabled={!!actionLoading}
-                                            className="text-[7px] font-bold px-1.5 py-0.5 bg-emerald-600 text-white border border-emerald-700 hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                                            className="text-xs font-bold px-1.5 py-0.5 bg-emerald-600 text-white border border-emerald-700 hover:bg-emerald-700 disabled:opacity-50 transition-colors"
                                         >
                                             {actionLoading === "bulk-confirm" ? "..." : "Konfirmasi Semua"}
                                         </button>
@@ -1428,7 +1428,7 @@ function MatchedItemView({
                         ) : (
                             <Unlink className="h-3 w-3 mr-1.5" />
                         )}
-                        Batalkan Pencocokan
+                        {actionLoading === `unmatch-${item.id}` ? "Membatalkan pencocokan…" : "Batalkan Pencocokan"}
                     </Button>
                 )}
             </div>
@@ -1841,7 +1841,7 @@ export function ReconciliationFocusView({
                         ) : (
                             <Lock className="h-3 w-3 mr-1.5" />
                         )}
-                        Tutup Rekonsiliasi
+                        {actionLoading === "close" ? "Menutup rekonsiliasi…" : "Tutup Rekonsiliasi"}
                     </Button>
                 </div>
             )}

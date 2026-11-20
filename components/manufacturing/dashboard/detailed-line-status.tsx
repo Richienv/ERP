@@ -80,7 +80,7 @@ export function DetailedLineStatus() {
                                 </TableCell>
                                 <TableCell className="text-right font-mono font-bold">{line.oee}</TableCell>
                                 <TableCell className="text-right">
-                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <Button aria-label="Aksi lainnya" variant="ghost" size="icon" className="h-8 w-8">
                                         <MoreHorizontal className="h-4 w-4" />
                                     </Button>
                                 </TableCell>

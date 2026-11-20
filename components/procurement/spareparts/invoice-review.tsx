@@ -614,7 +614,7 @@ export function InvoiceReview({
                                                             const r = c === "IDR" ? "1" : String(tpl?.lastRate ?? lookup?.latestRate?.[c]?.rate ?? "")
                                                             setDraft((d) => (d ? { ...d, currency: c, rate: r, tax: c === "IDR" ? d.tax : "0" } : d))
                                                         }}
-                                                        className={cn("flex-1 text-xs font-semibold transition-colors", draft.currency === c ? "bg-slate-900 text-white" : "text-zinc-500 hover:bg-zinc-50")}
+                                                        className={cn("flex-1 text-xs font-semibold transition-colors", draft.currency === c ? "bg-primary text-primary-foreground" : "text-zinc-500 hover:bg-zinc-50")}
                                                     >
                                                         {c === "CNY" ? "RMB" : c}
                                                     </button>

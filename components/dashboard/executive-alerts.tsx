@@ -68,7 +68,7 @@ export function ExecutiveAlerts({ data }: ExecutiveAlertsProps) {
                                         Cost: <span className={`font-bold px-1 rounded ${alert.severity === 'critical' ? 'text-red-600 bg-red-50' : 'text-amber-600 bg-amber-50'}`}>{alert.impact}</span>
                                     </p>
                                 </div>
-                                <Button size="icon" variant="outline" className="h-8 w-8 rounded-lg border-border bg-white hover:bg-zinc-50 shadow-sm active:shadow-none transition-all">
+                                <Button aria-label="Buka" size="icon" variant="outline" className="h-8 w-8 rounded-lg border-border bg-white hover:bg-zinc-50 shadow-sm active:shadow-none transition-all">
                                     <ArrowUpRight className="h-4 w-4" />
                                 </Button>
                             </div>

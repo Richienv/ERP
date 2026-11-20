@@ -284,7 +284,7 @@ export function CreateRequestForm({ products, employees }: Props) {
                         <div className="text-right font-mono font-bold text-sm text-zinc-900 dark:text-white">
                           {Number(item.quantity)} <span className="text-zinc-400 text-xs">{p?.unit}</span>
                         </div>
-                        <Button
+                        <Button aria-label="Hapus"
                           type="button"
                           variant="outline"
                           size="icon"
@@ -325,7 +325,7 @@ export function CreateRequestForm({ products, employees }: Props) {
               ) : (
                 <Save className="h-3.5 w-3.5" />
               )}
-              {isSubmitting ? "Mengirim..." : "Submit Request"}
+              {isSubmitting ? "Mengirim permintaan…" : "Kirim permintaan"}
             </Button>
           </div>
         </form>

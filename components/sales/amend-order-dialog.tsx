@@ -242,7 +242,7 @@ export function AmendOrderDialog({ orderId, orderNumber, currentItems, status }:
                                                 {formatIDR(calcLineTotal(item))}
                                             </td>
                                             <td className="px-3 py-2">
-                                                <Button
+                                                <Button aria-label="Hapus"
                                                     variant="ghost"
                                                     size="icon"
                                                     className="h-7 w-7 hover:bg-red-50 hover:text-red-600"

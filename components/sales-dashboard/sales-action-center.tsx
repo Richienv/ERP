@@ -46,7 +46,7 @@ export function SalesActionCenter() {
                                         <span className="text-xs font-mono text-muted-foreground">Sent 3 days ago • Rp 450 Jt</span>
                                     </div>
                                 </div>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded border border-border hover:bg-slate-900 hover:text-white transition-colors">
+                                <Button aria-label="Buka" variant="ghost" size="icon" className="h-8 w-8 rounded border border-border hover:bg-slate-900 hover:text-white transition-colors">
                                     <ArrowRight className="h-4 w-4" />
                                 </Button>
                             </div>
@@ -58,7 +58,7 @@ export function SalesActionCenter() {
                                         <span className="text-xs font-mono text-muted-foreground">Expires tomorrow • Rp 120 Jt</span>
                                     </div>
                                 </div>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded border border-border hover:bg-slate-900 hover:text-white transition-colors">
+                                <Button aria-label="Buka" variant="ghost" size="icon" className="h-8 w-8 rounded border border-border hover:bg-slate-900 hover:text-white transition-colors">
                                     <ArrowRight className="h-4 w-4" />
                                 </Button>
                             </div>
@@ -88,7 +88,7 @@ export function SalesActionCenter() {
                                         <span className="text-xs font-mono text-muted-foreground">3 Pengiriman Terkonfirmasi</span>
                                     </div>
                                 </div>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded border border-border hover:bg-slate-900 hover:text-white transition-colors">
+                                <Button aria-label="Buka" variant="ghost" size="icon" className="h-8 w-8 rounded border border-border hover:bg-slate-900 hover:text-white transition-colors">
                                     <ArrowRight className="h-4 w-4" />
                                 </Button>
                             </div>
@@ -115,7 +115,7 @@ function OrderApprovalDialog() {
                             <span className="text-xs font-mono text-muted-foreground">#SO-099 • Margin 8% (Low)</span>
                         </div>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded border border-border hover:bg-slate-900 hover:text-white transition-colors">
+                    <Button aria-label="Buka" variant="ghost" size="icon" className="h-8 w-8 rounded border border-border hover:bg-slate-900 hover:text-white transition-colors">
                         <ArrowRight className="h-4 w-4" />
                     </Button>
                 </div>

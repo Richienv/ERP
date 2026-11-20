@@ -55,6 +55,7 @@ import { createBankAccount, backfillReconciliationItems } from "@/lib/actions/fi
 import type { BankAccountRecord, COAAccount } from "@/hooks/use-reconciliation"
 import { ReconciliationFocusView } from "@/components/finance/reconciliation-focus-view"
 import { useGLAccounts } from "@/hooks/use-gl-accounts"
+import { confirmAction } from "@/components/ui/confirm-action-host"
 
 // ==============================================================================
 // Indonesian Banks
@@ -504,7 +505,7 @@ export function BankReconciliationView({
                 return
             }
         }
-        const confirmed = window.confirm("Tutup rekonsiliasi ini? Setelah ditutup, tidak bisa diubah lagi.")
+        const confirmed = await confirmAction({ title: "Tutup rekonsiliasi ini?", description: "Setelah ditutup, rekonsiliasi tidak bisa diubah lagi.", confirmLabel: "Tutup rekonsiliasi", destructive: true })
         if (!confirmed) return
         setActionLoading("close")
         try {
@@ -1188,7 +1189,7 @@ export function BankReconciliationView({
                                                         {rec.glAccountName}
                                                     </span>
                                                 </div>
-                                                <span className={`text-[7px] font-semibold px-1.5 py-0.5 border shrink-0 ${statusCfg.bg} ${statusCfg.text} ${statusCfg.border}`}>
+                                                <span className={`text-xs font-semibold px-1.5 py-0.5 border shrink-0 ${statusCfg.bg} ${statusCfg.text} ${statusCfg.border}`}>
                                                     {statusCfg.label}
                                                 </span>
                                             </div>
@@ -1328,7 +1329,7 @@ export function BankReconciliationView({
                                 try {
                                     const result = await onRejectItem(itemId)
                                     if (result.success) {
-                                        toast.success("Match ditolak")
+                                        toast.success("Pencocokan ditolak")
                                         if (selectedRec) await reloadDetail(selectedRec.id)
                                     } else {
                                         toast.error(result.error || "Gagal menolak")
@@ -1382,7 +1383,7 @@ export function BankReconciliationView({
                                 {/* 3-step workflow guide */}
                                 <div className="flex items-center justify-center gap-3 text-left">
                                     {[
-                                        { step: "1", icon: Upload, label: "Upload", desc: "Impor mutasi bank" },
+                                        { step: "1", icon: Upload, label: "Unggah", desc: "Impor mutasi bank" },
                                         { step: "2", icon: ArrowRightLeft, label: "Cocokkan", desc: "Auto/manual match" },
                                         { step: "3", icon: Lock, label: "Tutup", desc: "Finalisasi rekon" },
                                     ].map((s, i) => (

@@ -5,6 +5,7 @@ import { getFinancialMetrics } from "@/lib/actions/finance"
 import { PrismaClient } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
 import { isModuleEnabled } from "@/lib/sidebar-feature-flags"
+import { statusLabel } from "@/lib/status-labels"
 
 async function requireAuth() {
     const supabase = await createClient()
@@ -633,12 +634,12 @@ async function fetchActivityFeed(prisma: PrismaClient) {
         ...invoices.map(i => ({
             id: `inv-${i.id}`,
             type: 'invoice' as const,
-            title: `Invoice ${i.number}`,
+            title: `${i.type === 'INV_OUT' ? 'Invoice' : 'Tagihan'} ${i.number}`,
             description: i.type === 'INV_OUT'
                 ? `Faktur ke ${i.customer?.name || 'pelanggan'}`
                 : `Tagihan dari ${i.supplier?.name || 'vendor'}`,
             timestamp: i.issueDate.toISOString(),
-            user: 'Finance'
+            user: 'Keuangan'
         })),
         ...movements.map(m => {
             const isInbound = ['PO_RECEIVE', 'PRODUCTION_IN', 'RETURN_IN'].includes(m.type)
@@ -649,7 +650,7 @@ async function fetchActivityFeed(prisma: PrismaClient) {
                 title: `${typeLabel} ${m.product.name}`,
                 description: `${m.quantity} ${m.product.unit || 'pcs'} @ ${m.warehouse?.name || 'Gudang'}`,
                 timestamp: m.createdAt.toISOString(),
-                user: m.performedBy || 'Warehouse'
+                user: m.performedBy || 'Gudang'
             }
         }),
         ...employees.map(e => ({
@@ -664,17 +665,17 @@ async function fetchActivityFeed(prisma: PrismaClient) {
             id: `po-${po.id}`,
             type: 'procurement' as const,
             title: `PO ${po.number}`,
-            description: `${po.supplier.name} - ${po.status.replace(/_/g, ' ').toLowerCase()}`,
+            description: `${po.supplier.name} · ${statusLabel(po.status)}`,
             timestamp: po.createdAt.toISOString(),
-            user: 'Procurement'
+            user: 'Pengadaan'
         })),
         ...salesOrders.map(so => ({
             id: `so-${so.id}`,
             type: 'sales' as const,
             title: `SO ${so.number}`,
-            description: `${so.customer.name} - ${so.status.toLowerCase()}`,
+            description: `${so.customer.name} · ${statusLabel(so.status)}`,
             timestamp: so.orderDate.toISOString(),
-            user: 'Sales'
+            user: 'Penjualan'
         }))
     ]
 

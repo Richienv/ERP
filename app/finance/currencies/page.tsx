@@ -37,6 +37,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { searchCurrencies } from "@/lib/currency-search"
 import type { RankedCurrency } from "@/lib/currency-search"
+import { confirmAction } from "@/components/ui/confirm-action-host"
 
 function fmtRate(val: number | string) {
     return Number(val).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 4 })
@@ -319,12 +320,12 @@ function CurrencyCard({ currency, onAddRate, onDelete }: { currency: Currency; o
             className="border border-border bg-white dark:bg-zinc-900 shadow-sm overflow-hidden"
         >
             {/* Card header — black bar */}
-            <div className="bg-slate-900 dark:bg-zinc-950 text-white px-4 py-3 flex items-center justify-between">
+            <div className="bg-slate-50 dark:bg-zinc-900 text-foreground px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <span className="text-2xl font-bold">{currency.symbol}</span>
                     <div>
                         <div className="font-semibold text-sm ">{currency.code}</div>
-                        <div className="text-xs text-zinc-400 font-medium">{currency.name}</div>
+                        <div className="text-xs text-slate-600 dark:text-zinc-400 font-medium">{currency.name}</div>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -335,7 +336,7 @@ function CurrencyCard({ currency, onAddRate, onDelete }: { currency: Currency; o
                         <Plus className="h-3 w-3" /> Input Kurs
                     </button>
                     <button
-                        className="text-zinc-400 hover:text-red-400 transition-colors h-7 w-7 flex items-center justify-center"
+                        className="text-slate-600 dark:text-zinc-400 hover:text-red-400 transition-colors h-7 w-7 flex items-center justify-center"
                         onClick={() => onDelete(currency)}
                         title="Hapus mata uang"
                     >
@@ -396,8 +397,8 @@ function CurrencyCard({ currency, onAddRate, onDelete }: { currency: Currency; o
                                     <td className="px-1">
                                         <button
                                             className="text-zinc-300 dark:text-zinc-600 hover:text-red-500 dark:hover:text-red-400 transition-colors"
-                                            onClick={() => {
-                                                if (confirm("Hapus kurs ini?")) {
+                                            onClick={async () => {
+                                                if (await confirmAction({ title: "Hapus kurs ini?", confirmLabel: "Hapus kurs", destructive: true })) {
                                                     deleteRate.mutate(rate.id, {
                                                         onSuccess: () => toast.success("Kurs dihapus"),
                                                         onError: (e) => toast.error(e.message),
@@ -439,7 +440,7 @@ export default function CurrenciesPage() {
                 <div className={NB.pageAccent} />
 
                 {/* Row 1: Title + Actions */}
-                <div className={`px-5 py-3.5 flex items-center justify-between ${NB.pageRowBorder}`}>
+                <div className={`px-5 py-3.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between ${NB.pageRowBorder}`}>
                     <div className="flex items-center gap-3">
                         <div className="w-9 h-9 bg-blue-500 flex items-center justify-center">
                             <DollarSign className="h-4.5 w-4.5 text-white" />
@@ -526,8 +527,8 @@ export default function CurrenciesPage() {
                             key={c.id}
                             currency={c}
                             onAddRate={(cur) => setRateDialogCurrency(cur)}
-                            onDelete={(cur) => {
-                                if (confirm(`Hapus mata uang ${cur.code}? Semua data kurs untuk mata uang ini juga akan dihapus.`)) {
+                            onDelete={async (cur) => {
+                                if (await confirmAction({ title: `Hapus mata uang ${cur.code}?`, description: "Semua data kurs untuk mata uang ini ikut terhapus.", confirmLabel: "Hapus mata uang", destructive: true })) {
                                     deleteCurrency.mutate(cur.id, {
                                         onSuccess: () => toast.success(`${cur.code} berhasil dihapus`),
                                         onError: (e) => toast.error(e.message),

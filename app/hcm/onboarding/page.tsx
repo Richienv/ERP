@@ -424,7 +424,7 @@ export default function OnboardingPage() {
 
                 {/* Title + Actions */}
                 <div
-                    className={`px-5 py-3.5 flex items-center justify-between ${NB.pageRowBorder}`}
+                    className={`px-5 py-3.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between ${NB.pageRowBorder}`}
                 >
                     <div className="flex items-center gap-3">
                         <div className="w-9 h-9 bg-zinc-800 flex items-center justify-center">
@@ -501,7 +501,7 @@ export default function OnboardingPage() {
                             }}
                             className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold   rounded-md transition-all ${
                                 activeTab === tab.key
-                                    ? "bg-slate-900 text-white dark:bg-white dark:text-black"
+                                    ? "bg-primary text-primary-foreground dark:bg-white dark:text-black"
                                     : "text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                             }`}
                         >

@@ -229,7 +229,7 @@ export function BarcodeLabelDialog({
         {/* Quantity selector */}
         <NBSection icon={Hash} title="Jumlah Label">
           <div className="flex items-center gap-3">
-            <Button
+            <Button aria-label="Kurangi"
               type="button"
               variant="outline"
               size="icon"
@@ -252,7 +252,7 @@ export function BarcodeLabelDialog({
               }}
               className="border border-zinc-300 rounded-md h-8 w-24 text-center font-mono font-bold text-sm"
             />
-            <Button
+            <Button aria-label="Tambah"
               type="button"
               variant="outline"
               size="icon"

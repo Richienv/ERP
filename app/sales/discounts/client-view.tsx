@@ -339,7 +339,7 @@ export function DiscountsClient({ schemes, summary }: DiscountsClientProps) {
                                         <TableCell className="px-4 py-2.5">
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7">
+                                                    <Button aria-label="Aksi lainnya" variant="ghost" size="icon" className="h-7 w-7">
                                                         <MoreHorizontal className="h-4 w-4" />
                                                     </Button>
                                                 </DropdownMenuTrigger>

@@ -295,7 +295,7 @@ export function AiSearchCard() {
                                                     placeholder="Tanyakan detail lebih lanjut (contoh: bandingkan dengan Q2)..."
                                                     className="pr-10 rounded-xl bg-secondary/50 border-border/50 focus-visible:ring-primary/20"
                                                 />
-                                                <Button size="icon" type="submit" variant="ghost" className="absolute right-1 top-1 h-8 w-8 text-muted-foreground hover:text-primary">
+                                                <Button aria-label="Kirim" size="icon" type="submit" variant="ghost" className="absolute right-1 top-1 h-8 w-8 text-muted-foreground hover:text-primary">
                                                     <Send className="h-4 w-4" />
                                                 </Button>
                                             </div>

@@ -43,7 +43,7 @@ export function EquipmentTracker() {
                                 <div className="text-xs text-muted-foreground">Valid until Jan 17, 2026</div>
                             </div>
                         </div>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-indigo-600">
+                        <Button aria-label="Unduh" variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-indigo-600">
                             <Download className="h-4 w-4" />
                         </Button>
                     </div>
@@ -59,7 +59,7 @@ export function EquipmentTracker() {
                                 <div className="text-xs text-muted-foreground">Last: Jan 3 (Oil Change)</div>
                             </div>
                         </div>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-indigo-600">
+                        <Button aria-label="Unduh" variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-indigo-600">
                             <Download className="h-4 w-4" />
                         </Button>
                     </div>

@@ -45,7 +45,7 @@ export default function QuotationDetailPage() {
             <div className="border border-border shadow-sm overflow-hidden bg-white dark:bg-zinc-900">
                 <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-amber-400">
                     <div className="flex items-center gap-3">
-                        <Button variant="outline" size="icon" asChild className="border border-border rounded-md shadow-sm">
+                        <Button aria-label="Kembali" variant="outline" size="icon" asChild className="border border-border rounded-md shadow-sm">
                             <Link href="/sales/quotations"><ArrowLeft className="h-4 w-4" /></Link>
                         </Button>
                         <div>

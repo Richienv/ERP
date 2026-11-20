@@ -368,7 +368,7 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                     <div className="flex border-b border-border">
                         <button
                             onClick={() => setTab("detail")}
-                            className={`flex-1 px-4 py-2.5 text-xs font-semibold   transition-all border-r border-border ${tab === "detail" ? "bg-slate-900 text-white" : "bg-white text-zinc-500 hover:bg-zinc-50"
+                            className={`flex-1 px-4 py-2.5 text-xs font-semibold   transition-all border-r border-border ${tab === "detail" ? "bg-primary text-primary-foreground" : "bg-white text-zinc-500 hover:bg-zinc-50"
                                 }`}
                         >
                             <Package className="h-3.5 w-3.5 inline mr-1.5" />
@@ -376,7 +376,7 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                         </button>
                         <button
                             onClick={() => setTab("movements")}
-                            className={`flex-1 px-4 py-2.5 text-xs font-semibold   transition-all ${tab === "movements" ? "bg-slate-900 text-white" : "bg-white text-zinc-500 hover:bg-zinc-50"
+                            className={`flex-1 px-4 py-2.5 text-xs font-semibold   transition-all ${tab === "movements" ? "bg-primary text-primary-foreground" : "bg-white text-zinc-500 hover:bg-zinc-50"
                                 }`}
                         >
                             <History className="h-3.5 w-3.5 inline mr-1.5" />
@@ -394,7 +394,8 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                     <ScrollArea className="max-h-[60vh]">
                         {loading ? (
                             <div className="flex items-center justify-center py-20">
-                                <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
+                                <Loader2 className="h-6 w-6 animate-spin text-zinc-400" aria-hidden />
+                                <span className="ml-2 text-sm text-muted-foreground">Memuat data produk…</span>
                             </div>
                         ) : !product ? (
                             <div className="text-center py-20 text-zinc-400">

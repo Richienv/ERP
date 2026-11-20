@@ -173,7 +173,7 @@ export function WarehouseLocationsSection({ warehouseId }: WarehouseLocationsSec
                                                 {loc.name}
                                             </h4>
                                         </div>
-                                        <Button
+                                        <Button aria-label="Hapus"
                                             variant="ghost"
                                             size="icon"
                                             className="h-6 w-6 text-zinc-400 hover:text-red-600 hover:bg-red-50"

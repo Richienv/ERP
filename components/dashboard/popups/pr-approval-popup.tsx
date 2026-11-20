@@ -147,7 +147,8 @@ export function PRApprovalPopup({ open, onClose, onAllActioned }: PRApprovalPopu
             <NBDialogBody>
                 {loading ? (
                     <div className="flex items-center justify-center py-10">
-                        <Loader2 className="h-5 w-5 animate-spin text-zinc-400" />
+                        <Loader2 className="h-5 w-5 animate-spin text-zinc-400" aria-hidden />
+                        <span className="ml-2 text-sm text-muted-foreground">Memuat permintaan pembelian…</span>
                     </div>
                 ) : items.length === 0 ? (
                     <p className="text-sm text-zinc-500 text-center py-10">
@@ -243,7 +244,7 @@ export function PRApprovalPopup({ open, onClose, onAllActioned }: PRApprovalPopu
                                                 ) : (
                                                     <XCircle className="h-3 w-3 mr-1" />
                                                 )}
-                                                Konfirmasi Tolak
+                                                {acting === pr.id ? "Menolak…" : "Konfirmasi tolak"}
                                             </Button>
                                             <Button
                                                 size="sm"
@@ -268,7 +269,7 @@ export function PRApprovalPopup({ open, onClose, onAllActioned }: PRApprovalPopu
                                             ) : (
                                                 <CheckCircle2 className="h-3 w-3 mr-1" />
                                             )}
-                                            Setujui
+                                            {acting === pr.id ? "Menyetujui…" : "Setujui"}
                                         </Button>
                                         <Button
                                             size="sm"

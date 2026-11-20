@@ -70,7 +70,7 @@ export function LeadCard({ lead }: LeadCardProps) {
                         <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 font-normal text-muted-foreground">
                             {lead.source}
                         </Badge>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 -mr-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button aria-label="Aksi lainnya" variant="ghost" size="icon" className="h-6 w-6 -mr-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                         </Button>
                     </div>

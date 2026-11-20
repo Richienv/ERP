@@ -83,7 +83,7 @@ export function FabricRollList({ rolls, products, warehouses }: FabricRollListPr
                             variant="outline"
                             size="sm"
                             className={`h-9 text-xs font-semibold   border border-border rounded-md ${
-                                statusFilter === f.value ? 'bg-slate-900 text-white' : 'bg-white hover:bg-zinc-100'
+                                statusFilter === f.value ? 'bg-primary text-primary-foreground' : 'bg-white hover:bg-zinc-100'
                             }`}
                             onClick={() => setStatusFilter(f.value)}
                         >
@@ -96,7 +96,7 @@ export function FabricRollList({ rolls, products, warehouses }: FabricRollListPr
                     <Button
                         variant="outline"
                         size="sm"
-                        className={`h-9 w-9 p-0 border border-border rounded-md ${viewMode === 'grid' ? 'bg-slate-900 text-white' : ''}`}
+                        className={`h-9 w-9 p-0 border border-border rounded-md ${viewMode === 'grid' ? 'bg-primary text-primary-foreground' : ''}`}
                         onClick={() => setViewMode('grid')}
                     >
                         <LayoutGrid className="h-3.5 w-3.5" />
@@ -104,7 +104,7 @@ export function FabricRollList({ rolls, products, warehouses }: FabricRollListPr
                     <Button
                         variant="outline"
                         size="sm"
-                        className={`h-9 w-9 p-0 border border-border rounded-md ${viewMode === 'table' ? 'bg-slate-900 text-white' : ''}`}
+                        className={`h-9 w-9 p-0 border border-border rounded-md ${viewMode === 'table' ? 'bg-primary text-primary-foreground' : ''}`}
                         onClick={() => setViewMode('table')}
                     >
                         <List className="h-3.5 w-3.5" />

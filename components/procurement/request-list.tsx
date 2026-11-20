@@ -82,13 +82,13 @@ export function RequestList({ data }: { data: PurchaseRequest[] }) {
 
     const confirmReject = async () => {
         if (!selectedReq) return
-        if (!rejectReason.trim()) return toast.error("Reason required")
+        if (!rejectReason.trim()) return toast.error("Tulis alasan penolakan dulu, supaya pemohon tahu apa yang harus diperbaiki.")
 
         setProcessing(selectedReq.id)
         try {
             const result = await rejectPurchaseRequest(selectedReq.id, rejectReason)
             if (result.success) {
-                toast.success("Request Rejected")
+                toast.success(`Permintaan ${selectedReq.number ?? ""} ditolak`, { description: "Pemohon akan melihat alasan penolakannya." })
                 setRejectOpen(false)
                 queryClient.invalidateQueries({ queryKey: queryKeys.purchaseRequests.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
@@ -184,7 +184,7 @@ export function RequestList({ data }: { data: PurchaseRequest[] }) {
                         <div className="absolute top-0 left-0 right-0 h-1 bg-amber-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <Clock className="h-4 w-4 text-zinc-400" />
-                            <span className="text-xs font-semibold text-zinc-500">Pending</span>
+                            <span className="text-xs font-semibold text-zinc-500">Menunggu</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-amber-600">{pendingCount}</div>
                         <div className="text-xs font-bold text-amber-600 mt-1">Menunggu persetujuan</div>
@@ -193,7 +193,7 @@ export function RequestList({ data }: { data: PurchaseRequest[] }) {
                         <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <CheckCircle2 className="h-4 w-4 text-zinc-400" />
-                            <span className="text-xs font-semibold text-zinc-500">Approved</span>
+                            <span className="text-xs font-semibold text-zinc-500">Disetujui</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-emerald-600">{approvedCount}</div>
                         <div className="text-xs font-bold text-emerald-600 mt-1">Disetujui</div>
@@ -202,7 +202,7 @@ export function RequestList({ data }: { data: PurchaseRequest[] }) {
                         <div className="absolute top-0 left-0 right-0 h-1 bg-red-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <XCircle className="h-4 w-4 text-zinc-400" />
-                            <span className="text-xs font-semibold text-zinc-500">Rejected</span>
+                            <span className="text-xs font-semibold text-zinc-500">Ditolak</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-red-600">{rejectedCount}</div>
                         <div className="text-xs font-bold text-red-600 mt-1">Ditolak</div>
@@ -211,7 +211,7 @@ export function RequestList({ data }: { data: PurchaseRequest[] }) {
                         <div className="absolute top-0 left-0 right-0 h-1 bg-blue-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <Package className="h-4 w-4 text-zinc-400" />
-                            <span className="text-xs font-semibold text-zinc-500">Completed</span>
+                            <span className="text-xs font-semibold text-zinc-500">Selesai</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-blue-600">{completedCount}</div>
                         <div className="text-xs font-bold text-blue-600 mt-1">PO dibuat</div>
@@ -233,17 +233,17 @@ export function RequestList({ data }: { data: PurchaseRequest[] }) {
                     </div>
                     <div className="flex border border-border">
                         {([
-                            { key: 'pending' as const, label: 'Pending', count: pendingCount },
-                            { key: 'approved' as const, label: 'Approved', count: approvedCount },
-                            { key: 'rejected' as const, label: 'Rejected', count: rejectedCount },
-                            { key: 'completed' as const, label: 'Completed', count: completedCount },
+                            { key: 'pending' as const, label: 'Menunggu', count: pendingCount },
+                            { key: 'approved' as const, label: 'Disetujui', count: approvedCount },
+                            { key: 'rejected' as const, label: 'Ditolak', count: rejectedCount },
+                            { key: 'completed' as const, label: 'Selesai', count: completedCount },
                         ]).map((s) => (
                             <button
                                 key={s.key}
                                 onClick={() => setFilter(s.key)}
                                 className={`px-3 py-2 text-xs font-semibold   transition-all border-r border-border last:border-r-0 flex items-center gap-1.5 ${
                                     filter === s.key
-                                        ? "bg-slate-900 text-white"
+                                        ? "bg-primary text-primary-foreground"
                                         : "bg-white text-zinc-400 hover:bg-zinc-50"
                                 }`}
                             >

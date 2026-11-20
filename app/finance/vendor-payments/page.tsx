@@ -329,11 +329,11 @@ export default function APCheckbookPage() {
                 <div className={NB.pageAccent} />
 
                 {/* Row 1: Toolbar */}
-                <div className={`px-5 py-2.5 flex items-center justify-between ${NB.pageRowBorder}`}>
+                <div className={`px-5 py-2.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between ${NB.pageRowBorder}`}>
                     <p className="text-xs font-bold text-zinc-400">
                         Transfer & cek pembayaran vendor dengan otorisasi
                     </p>
-                    <div className="flex items-center gap-0">
+                    <div className="flex flex-wrap items-center gap-y-2">
                         <Button
                             variant="outline"
                             onClick={() => {
@@ -360,7 +360,7 @@ export default function APCheckbookPage() {
                             }}
                             className={`${NB.toolbarBtn} ${NB.toolbarBtnJoin}`}
                         >
-                            <Download className="h-3.5 w-3.5 mr-1" /> Export
+                            <Download className="h-3.5 w-3.5 mr-1" aria-hidden /> Ekspor Excel
                         </Button>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -369,7 +369,7 @@ export default function APCheckbookPage() {
                                     disabled={payments.length === 0}
                                     className={`${NB.toolbarBtn} ${NB.toolbarBtnJoin}`}
                                 >
-                                    <Landmark className="h-3.5 w-3.5 mr-1" /> Download Transfer <ChevronDown className="ml-1 h-3 w-3" />
+                                    <Landmark className="h-3.5 w-3.5 mr-1" aria-hidden /> File transfer bank <ChevronDown className="ml-1 h-3 w-3" />
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="border border-zinc-300 shadow-md rounded-md">
@@ -645,6 +645,9 @@ export default function APCheckbookPage() {
             <div className={NB.pageCard}>
                 <div className={NB.pageAccent} />
 
+                {/* On a phone the 6 columns scroll sideways instead of overlapping each other */}
+                <div className="overflow-x-auto">
+                <div className="min-w-[720px]">
                 {/* Table header row */}
                 <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-zinc-50/80 dark:bg-zinc-800/30 border-b border-zinc-200 dark:border-zinc-700 text-xs font-semibold text-zinc-400">
                     <div className="col-span-2">No.</div>
@@ -692,6 +695,9 @@ export default function APCheckbookPage() {
                         )
                     })
                 )}
+
+                </div>
+                </div>
 
                 {/* Table footer */}
                 {payments.length > 0 && (

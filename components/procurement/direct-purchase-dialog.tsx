@@ -294,7 +294,7 @@ export function DirectPurchaseDialog({ vendors, products, warehouses, trigger }:
                                                 {formatIDR(item.quantity * item.unitPrice)}
                                             </td>
                                             <td className={NB.tableCell}>
-                                                <Button
+                                                <Button aria-label="Hapus"
                                                     type="button"
                                                     variant="ghost"
                                                     size="icon"
@@ -341,7 +341,7 @@ export function DirectPurchaseDialog({ vendors, products, warehouses, trigger }:
                     <div className="border border-emerald-300 bg-emerald-50 p-3 text-xs text-emerald-800 font-medium space-y-1">
                         <p className="font-semibold text-xs mb-1">Yang akan dibuat otomatis:</p>
                         <ul className="list-disc list-inside space-y-0.5">
-                            <li>Purchase Order (status: <span className="font-bold">COMPLETED</span>)</li>
+                            <li>Purchase Order (status: <span className="font-bold">Selesai</span>)</li>
                             <li>Surat Jalan Masuk / GRN (status: <span className="font-bold">ACCEPTED</span>)</li>
                             <li>Tagihan Vendor / Bill (status: <span className="font-bold">DRAFT</span>)</li>
                             <li>Stok gudang langsung bertambah</li>

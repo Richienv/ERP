@@ -61,7 +61,8 @@ export function DCNoteDetailDialog({ noteId, open, onOpenChange }: DCNoteDetailD
 
                 {loading && (
                     <div className="flex items-center justify-center p-12">
-                        <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
+                        <Loader2 className="h-6 w-6 animate-spin text-zinc-400" aria-hidden />
+                        <span className="ml-2 text-sm text-muted-foreground">Memuat rincian nota…</span>
                     </div>
                 )}
 

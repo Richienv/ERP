@@ -163,7 +163,7 @@ describe("Kotak Masuk Operasi — antrian aksi", () => {
         expect(mismatch?.tone).toBe("warn")
         expect(mismatch?.count).toBe(1)
         expect(mismatch?.amount).toBeGreaterThan(0)
-        expect(mismatch?.owner).toBe("Finance — Utang")
+        expect(mismatch?.owner).toBe("Keuangan — Utang")
     })
 
     it("mengarahkan stok rendah ke dialog Buat PR", async () => {
@@ -211,7 +211,7 @@ describe("Kotak Masuk Operasi — antrian aksi", () => {
         const leave = pulse.actions.find((a) => a.id === "leave")
 
         expect(leave?.href).toBe("/hcm/attendance?tab=leave")
-        expect(leave?.cta).toBe("Review cuti")
+        expect(leave?.cta).toBe("Tinjau cuti")
     })
 
     it("mengarahkan Setujui PO ke halaman pengadaan yang punya tombol Setujui", async () => {

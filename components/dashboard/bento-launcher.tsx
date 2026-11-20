@@ -105,7 +105,7 @@ export function BentoLauncher({ items, columns = 3, compact = false }: BentoLaun
                                         isRitchiePop
                                             ? "bg-white/20 backdrop-blur-sm p-2 rounded-full border border-black/10" // Pop: Smaller Bubble
                                             : isRitchieMinimal
-                                                ? "bg-slate-900 text-white p-2 rounded-full border-none shadow-none" // Minimal: Smaller Bubble (Only shows in Compact)
+                                                ? "bg-primary text-primary-foreground p-2 rounded-full border-none shadow-none" // Minimal: Smaller Bubble (Only shows in Compact)
                                                 : cn("bg-secondary", item.color) // Default
                                     )}>
                                         <item.icon className={cn(

@@ -523,7 +523,7 @@ export function ProductionGantt() {
                                         style={{ left: todayOffset * DAY_WIDTH + DAY_WIDTH / 2 }}
                                     >
                                         <div className="w-0.5 h-full bg-indigo-500/70" />
-                                        <div className="absolute -top-0 -left-[18px] bg-indigo-600 text-white text-[7px] font-bold px-1.5 py-0.5 rounded-b whitespace-nowrap">
+                                        <div className="absolute -top-0 -left-[18px] bg-indigo-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-b whitespace-nowrap">
                                             HARI INI
                                         </div>
                                     </div>

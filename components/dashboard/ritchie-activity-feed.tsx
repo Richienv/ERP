@@ -154,7 +154,7 @@ export function RitchieActivityFeed({ data }: RitchieActivityFeedProps) {
                     </div>
 
                     <DialogFooter className="p-6 bg-zinc-50 border-t border-border gap-3">
-                        <Button variant="outline" onClick={() => setIsOpen(false)} className="flex-1 border-border font-bold h-12  ">Close</Button>
+                        <Button variant="outline" onClick={() => setIsOpen(false)} className="flex-1 border-border font-bold h-12">Tutup</Button>
                         <Button className="flex-1 bg-slate-900 text-white hover:bg-zinc-800 border border-border shadow-sm active:shadow-none font-semibold h-12 transition-all">
                             View Full Context
                         </Button>

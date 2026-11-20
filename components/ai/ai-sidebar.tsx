@@ -50,7 +50,7 @@ export function AISidebar() {
                                 <p className="text-xs text-zinc-400">Powered by Gemini</p>
                             </div>
                         </div>
-                        <Button
+                        <Button aria-label="Tutup"
                             variant="ghost"
                             size="icon"
                             onClick={close}
@@ -123,7 +123,7 @@ export function AISidebar() {
                                 placeholder="Ask anything about your data..."
                                 className="pr-12 bg-white/5 border-white/10 text-white placeholder:text-zinc-500 focus-visible:ring-indigo-500/50 focus-visible:border-indigo-500/50"
                             />
-                            <Button
+                            <Button aria-label="Kirim"
                                 size="icon"
                                 className="absolute right-1 top-1 h-8 w-8 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white"
                             >

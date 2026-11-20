@@ -194,7 +194,7 @@ export function PurchaseDetailSheet({ row, lookup, onClose, onUpload }: { row: S
                                         </ol>
                                         {view.parseMethod !== "MANUAL" && (
                                             <p className="mt-3 text-xs text-zinc-400">
-                                                Dibaca otomatis{view.parseMs ? ` dalam ${view.parseMs} ms` : ""}{view.parseConfidence != null ? ` · keyakinan ${Math.round(view.parseConfidence * 100)}%` : ""}
+                                                Dibaca otomatis{view.parseConfidence != null ? ` · keyakinan ${Math.round(view.parseConfidence * 100)}%` : ""}
                                             </p>
                                         )}
                                     </Section>
