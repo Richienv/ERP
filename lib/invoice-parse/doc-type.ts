@@ -119,7 +119,8 @@ export function detectDocument(items: TextItem[], opts: { issuerName?: string | 
     const to = labelValue(lines, /KEPADA(?:\s*YTH)?|TO|BILL\s*TO|SOLD\s*TO/, (v) => v.length > 2 && !/^[:：]$/.test(v))
     const counterparty = issuedByUs ? (to?.value.replace(/\s*[:：]\s*$/, "") ?? null) : issuer
     const poRefHit = labelValue(lines, /REFF?\s*PO|NOMOR\s*PO|NO\.?\s*PO|PO\s*REF(?:ERENCE)?|YOUR\s*ORDER/, (v) => /\d/.test(v) && v.length < 40)
-    const pic = labelValue(lines, /PIC/, (v) => v.length > 1 && v.length < 40 && !/^[:：]/.test(v))?.value ?? null
+    const clean = (v?: string | null) => (v ? v.replace(/[\s:：*]+$/, "").replace(/^[\s:：*]+/, "").trim() || null : null)
+    const pic = clean(labelValue(lines, /PIC/, (v) => v.length > 1 && v.length < 40 && !/^[:：]/.test(v))?.value)
     const modelUnit = labelValue(lines, /MODEL\s*UNIT/, (v) => v.length > 0 && v !== "-")?.value ?? null
     const payment = labelValue(lines, /PEMBAYARAN|PAYMENT(?:\s*ROLE|\s*TERMS)?/, (v) => v.length > 2 && v.length < 60)?.value ?? null
 
@@ -132,9 +133,9 @@ export function detectDocument(items: TextItem[], opts: { issuerName?: string | 
         counterpartyBox: to && issuedByUs ? cellBox(to.cell) : undefined,
         documentNo,
         documentNoBox,
-        poRef: poRefHit ? poRefHit.value.replace(/\s+/g, " ").trim() : null,
+        poRef: poRefHit ? clean(poRefHit.value.replace(/\s+/g, " ")) : null,
         pic: pic?.replace(/^(BPK|IBU|BAPAK|PAK|BU)\.?\s+/i, (m) => m) ?? null,
-        modelUnit: modelUnit && modelUnit !== "-" ? modelUnit : null,
+        modelUnit: clean(modelUnit) && clean(modelUnit) !== "-" ? clean(modelUnit) : null,
         payment,
     }
 }

@@ -487,7 +487,7 @@ export function InvoiceReview({
                                 <span className="ml-2 text-zinc-500">
                                     · dibaca dalam <span className="text-emerald-400 font-mono">{ms(read.timing.total)}</span>
                                     {" · "}
-                                    {parsed.method === "OCR" ? "scan (OCR)" : "teks PDF"}
+                                    {parsed.method === "OCR" ? "scan (OCR)" : read.kind === "excel" ? "Excel" : "teks PDF"}
                                     {" · keyakinan "}
                                     <span className={cn("font-mono", parsed.confidence >= 0.9 ? "text-emerald-400" : parsed.confidence >= 0.7 ? "text-amber-400" : "text-red-400")}>
                                         {Math.round(parsed.confidence * 100)}%
@@ -529,7 +529,7 @@ export function InvoiceReview({
                         {draft && calc && (
                             <div className="p-5 space-y-4 animate-in fade-in-0 slide-in-from-bottom-1 duration-200">
                                 {doc?.kind && plan && (
-                                    <PlanBanner doc={doc} plan={plan} refState={ref.state} refPo={refPo} attachMode={attachMode} unmatched={unmatchedInPo} lines={draft.lines.length} total={money(calc.total, draft.currency)} />
+                                    <PlanBanner doc={{ ...doc, documentNo: doc.documentNo ?? (draft.invoiceNo || null) }} plan={plan} refState={ref.state} refPo={refPo} attachMode={attachMode} unmatched={unmatchedInPo} lines={draft.lines.length} total={money(calc.total, draft.currency)} />
                                 )}
                                 {read?.text?.totalPages != null && read.text.totalPages > read.text.pages && (
                                     <div className="flex items-start gap-3 border border-amber-400 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
@@ -805,10 +805,10 @@ export function InvoiceReview({
                     <div className="flex-1 min-w-0 text-xs font-bold">
                         {saveError && <span className="text-red-600">{saveError}</span>}
                         {!saveError && problems.length > 0 && draft && (
-                            <span className="text-amber-700 truncate block">Lengkapi: {problems.slice(0, 3).join(" · ")}{problems.length > 3 ? ` · +${problems.length - 3}` : ""}</span>
+                            <span className={cn("truncate block", plan?.action === "SALES_NOT_ENABLED" ? "text-slate-600" : "text-amber-700")}>{plan?.action === "SALES_NOT_ENABLED" || plan?.action === "RECEIVE_DELIVERY" ? "" : "Lengkapi: "}{problems.slice(0, 3).join(" · ")}{problems.length > 3 ? ` · +${problems.length - 3}` : ""}</span>
                         )}
                         {!saveError && problems.length === 0 && (
-                            <span className="text-emerald-700 inline-flex items-center gap-1"><CircleCheck className="h-3.5 w-3.5" /> Siap disimpan{lookup?.canPost ? " · tagihan langsung diposting" : " · tagihan menunggu finance"}</span>
+                            <span className="text-emerald-700 inline-flex items-center gap-1"><CircleCheck className="h-3.5 w-3.5" /> Siap disimpan{plan?.action === "CREATE_PO" ? " · PO dicatat, tagihan menyusul" : plan?.action === "RECEIVE_DELIVERY" ? " · stok bertambah otomatis" : lookup?.canPost ? " · tagihan langsung diposting" : " · tagihan menunggu finance"}</span>
                         )}
                     </div>
                     <button onClick={onClose} className={NB.cancelBtn}>Batal</button>
