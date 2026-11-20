@@ -92,12 +92,37 @@ Lint over `app/ components/ lib/` (930 files):
 - Login: checked in code and tests only. The browser session is signed in to the local demo, and
   signing out was avoided.
 
+## Round 2 (same day, Richie: "Ya, lanjut")
+
+**7. Konfirmasi yang jelas, bukan popup browser**
+- *Sebelumnya:* 26 actions used the browser's own `confirm()` / `prompt()`. A grey box shows the
+  site address, says "OK", blocks the whole page and looks like an error.
+- *Sekarang:* one Integra dialog for the whole app (`lib/confirm-store.ts` +
+  `components/ui/confirm-action-host.tsx`). The title names the thing ("Hapus FLT-001 · Filter oli?"), one line says what changes, and the buttons are "Batal" and a verb ("Hapus
+  produk"), red when it deletes. Reasons for rejecting a PO or cancelling an invoice are typed into
+  a proper field, which must be filled before "Tolak PO" works. Callers just `await
+  confirmAction({...})` / `askText({...})`.
+- *Kenapa penting:* deleting and rejecting are the scariest clicks for 40–60+ users. The dialog must
+  say exactly what will happen, in their words, and look like part of the system.
+
+**8. Tombol bilang sedang apa**
+- *Sebelumnya:* a spinner replaced the icon but the label stayed "Simpan", so the user couldn't tell
+  whether it had worked or whether to press again.
+- *Sekarang:* 18 labelled buttons switch to the action in progress ("Menyimpan…", "Menyetujui…",
+  "Menutup periode…"). Six more loading panels say what they load. `Button` has `loading` +
+  `loadingText` (blocks a second press, sets `aria-busy`) for every new button. The bill approval
+  uses it first.
+- *Kenapa penting:* every wait says what it waits for, and nobody double-posts a payment because the
+  screen looked frozen.
+
+Lint after round 2: **0 errors, 308 warnings** (native dialogs 26 → 0). Tests: 1,275 pass, the same
+7 pre-existing failures. tsc 21 (baseline). Build passes. In the browser the product delete dialog
+opened, "Batal" closed it, and no delete request was sent.
+
 ## Not done (next)
 
-- 26 native `confirm()` / `prompt()` dialogs (mostly manufacturing). They are Indonesian already, but
-  unstyled. Move them to `components/ui/confirm-dialog`.
-- 61 button spinners keep their label while waiting ("Simpan" stays "Simpan"). They should say
-  "Menyimpan…". This should be fixed once in `Button` (a `loading` + `loadingText` prop), not per page.
+- About 30 icon-only buttons (refresh, clone, delete) spin without words. Their aria-labels name the
+  action, but they could also set `aria-busy`.
 - 60 English words remain, mostly in manufacturing, HR and sales, which this business has hidden.
 - 68 one-off hex colours, 44 clickable divs without keyboard support, 28 hover-only actions.
 - The dashboard still shows mining-edition cards (Armada, SDM attendance) for the spare-part
