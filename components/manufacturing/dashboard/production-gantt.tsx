@@ -118,11 +118,11 @@ function useGanttData() {
 function WODetailPanel({ wo, onClose }: { wo: GanttWorkOrder; onClose: () => void }) {
     const sc = STATUS_COLORS[wo.status] || STATUS_COLORS.PLANNED
     return (
-        <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-            <div className={`px-4 py-2.5 border-b-2 border-black flex items-center justify-between ${sc.bg}`}>
+        <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
+            <div className={`px-4 py-2.5 border-b border-border flex items-center justify-between ${sc.bg}`}>
                 <div className="flex items-center gap-2">
                     <Info className="h-4 w-4" />
-                    <span className="text-xs font-black uppercase tracking-wide">Detail Work Order</span>
+                    <span className="text-xs font-semibold  ">Detail Work Order</span>
                 </div>
                 <button onClick={onClose} className="hover:bg-black/10 rounded p-0.5 transition-colors">
                     <X className="h-4 w-4" />
@@ -130,8 +130,8 @@ function WODetailPanel({ wo, onClose }: { wo: GanttWorkOrder; onClose: () => voi
             </div>
             <div className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                    <span className="font-mono text-sm font-black">{wo.number}</span>
-                    <span className={`inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 border ${sc.bg} ${sc.border} ${sc.text}`}>
+                    <span className="font-mono text-sm font-semibold">{wo.number}</span>
+                    <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 border ${sc.bg} ${sc.border} ${sc.text}`}>
                         {STATUS_LABELS[wo.status] || wo.status}
                     </span>
                 </div>
@@ -157,7 +157,7 @@ function WODetailPanel({ wo, onClose }: { wo: GanttWorkOrder; onClose: () => voi
                 <div className="border-t border-zinc-200 pt-2">
                     <div className="flex justify-between text-xs mb-1">
                         <span className="font-bold text-zinc-500">Progress</span>
-                        <span className="font-black text-zinc-800">{wo.actualQty}/{wo.plannedQty} {wo.product.unit}</span>
+                        <span className="font-semibold text-zinc-800">{wo.actualQty}/{wo.plannedQty} {wo.product.unit}</span>
                     </div>
                     <div className="w-full h-2 bg-zinc-200 border border-zinc-300">
                         <div
@@ -166,13 +166,13 @@ function WODetailPanel({ wo, onClose }: { wo: GanttWorkOrder; onClose: () => voi
                         />
                     </div>
                     <div className="text-right mt-0.5">
-                        <span className="text-[10px] font-black text-zinc-500">{wo.progress}%</span>
+                        <span className="text-xs font-semibold text-zinc-500">{wo.progress}%</span>
                     </div>
                 </div>
                 {wo.priority === "CRITICAL" || wo.priority === "HIGH" ? (
                     <div className="flex items-center gap-1.5 px-2 py-1.5 bg-red-50 border border-red-300">
                         <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
-                        <span className="text-[10px] font-bold text-red-700">Prioritas: {wo.priority}</span>
+                        <span className="text-xs font-bold text-red-700">Prioritas: {wo.priority}</span>
                     </div>
                 ) : null}
             </div>
@@ -326,8 +326,8 @@ export function ProductionGantt() {
     /* ── Loading skeleton ── */
     if (isLoading) {
         return (
-            <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden animate-pulse">
-                <div className="bg-indigo-50 dark:bg-indigo-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-indigo-400">
+            <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden animate-pulse">
+                <div className="bg-indigo-50 dark:bg-indigo-950/20 px-5 py-2.5 border-b border-border flex items-center gap-2 border-l-[5px] border-l-indigo-400">
                     <div className="h-4 w-4 bg-zinc-200 rounded" />
                     <div className="h-4 w-40 bg-zinc-200 rounded" />
                 </div>
@@ -346,19 +346,19 @@ export function ProductionGantt() {
     /* ── Empty state ── */
     if (!workOrders || workOrders.length === 0 || rows.length === 0) {
         return (
-            <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-                <div className="bg-indigo-50 dark:bg-indigo-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-indigo-400">
+            <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
+                <div className="bg-indigo-50 dark:bg-indigo-950/20 px-5 py-2.5 border-b border-border flex items-center gap-2 border-l-[5px] border-l-indigo-400">
                     <Calendar className="h-4 w-4 text-indigo-600" />
-                    <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">
+                    <h3 className="text-xs font-semibold text-zinc-700 dark:text-zinc-200">
                         Gantt Chart Produksi
                     </h3>
                 </div>
                 <div className="text-center py-16">
                     <Calendar className="h-10 w-10 mx-auto text-zinc-300 mb-3" />
-                    <p className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-1">
+                    <p className="text-xs font-semibold text-zinc-400 mb-1">
                         Belum Ada Work Order Terjadwal
                     </p>
-                    <p className="text-[10px] text-zinc-400">
+                    <p className="text-xs text-zinc-400">
                         Buat work order dengan tanggal mulai & selesai untuk melihat Gantt chart
                     </p>
                 </div>
@@ -369,15 +369,15 @@ export function ProductionGantt() {
     return (
         <div className="space-y-3">
             {/* Gantt Chart Card */}
-            <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+            <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
                 {/* Header */}
-                <div className="bg-indigo-50 dark:bg-indigo-950/20 px-5 py-2.5 border-b-2 border-black flex items-center justify-between border-l-[5px] border-l-indigo-400">
+                <div className="bg-indigo-50 dark:bg-indigo-950/20 px-5 py-2.5 border-b border-border flex items-center justify-between border-l-[5px] border-l-indigo-400">
                     <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-indigo-600" />
-                        <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">
+                        <h3 className="text-xs font-semibold text-zinc-700 dark:text-zinc-200">
                             Gantt Chart Produksi
                         </h3>
-                        <span className="text-[9px] font-bold text-zinc-400 ml-2">
+                        <span className="text-xs font-bold text-zinc-400 ml-2">
                             {rows.length} work center &middot; {rows.reduce((s, r) => s + r.bars.length, 0)} order
                         </span>
                     </div>
@@ -386,7 +386,7 @@ export function ProductionGantt() {
                             variant="outline"
                             size="sm"
                             onClick={scrollToToday}
-                            className="border-2 border-zinc-300 font-bold uppercase text-[9px] tracking-wide h-7 px-2.5 hover:border-indigo-400 transition-colors"
+                            className="border border-zinc-300 font-bold text-xs h-7 px-2.5 hover:border-indigo-400 transition-colors"
                         >
                             <Calendar className="h-3 w-3 mr-1" /> Hari Ini
                         </Button>
@@ -400,7 +400,7 @@ export function ProductionGantt() {
                         return (
                             <div key={key} className="flex items-center gap-1.5">
                                 <div className={`w-3 h-2.5 border ${sc.border} ${sc.bg}`} />
-                                <span className="text-[9px] font-bold text-zinc-500">{label}</span>
+                                <span className="text-xs font-bold text-zinc-500">{label}</span>
                             </div>
                         )
                     })}
@@ -409,10 +409,10 @@ export function ProductionGantt() {
                 {/* Scrollable Gantt area */}
                 <div className="flex overflow-hidden" style={{ maxHeight: 600 }}>
                     {/* Left sidebar - row labels */}
-                    <div className="shrink-0 bg-white dark:bg-zinc-900 border-r-2 border-zinc-200 z-10" style={{ width: LABEL_WIDTH }}>
+                    <div className="shrink-0 bg-white dark:bg-zinc-900 border-r border-zinc-200 z-10" style={{ width: LABEL_WIDTH }}>
                         {/* Header spacer */}
                         <div className="border-b border-zinc-200 px-3 flex items-end pb-1" style={{ height: HEADER_HEIGHT }}>
-                            <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400">
+                            <span className="text-xs font-semibold text-zinc-400">
                                 Mesin / Work Center
                             </span>
                         </div>
@@ -424,10 +424,10 @@ export function ProductionGantt() {
                                     style={{ height: ROW_HEIGHT + ROW_GAP }}
                                 >
                                     <div className="min-w-0">
-                                        <p className="text-[10px] font-bold truncate text-zinc-700 dark:text-zinc-300">
+                                        <p className="text-xs font-bold truncate text-zinc-700 dark:text-zinc-300">
                                             {row.label}
                                         </p>
-                                        <p className="text-[8px] text-zinc-400 font-medium">
+                                        <p className="text-xs text-zinc-400 font-medium">
                                             {row.bars.length} order
                                         </p>
                                     </div>
@@ -452,7 +452,7 @@ export function ProductionGantt() {
                                             className="border-r border-zinc-200 flex items-center justify-center"
                                             style={{ width: mh.span * DAY_WIDTH, left: mh.startOffset * DAY_WIDTH }}
                                         >
-                                            <span className="text-[9px] font-black uppercase tracking-wide text-zinc-500">
+                                            <span className="text-xs font-semibold text-zinc-500">
                                                 {mh.label}
                                             </span>
                                         </div>
@@ -472,8 +472,8 @@ export function ProductionGantt() {
                                             }`}
                                             style={{ width: DAY_WIDTH }}
                                         >
-                                            <span className={`text-[9px] font-bold ${
-                                                tick.isToday ? "text-indigo-700 font-black" : "text-zinc-400"
+                                            <span className={`text-xs font-bold ${
+                                                tick.isToday ? "text-indigo-700 font-semibold" : "text-zinc-400"
                                             }`}>
                                                 {tick.dayLabel}
                                             </span>
@@ -543,7 +543,7 @@ export function ProductionGantt() {
                                             <div
                                                 key={bar.wo.id}
                                                 onClick={() => setSelectedWO(isSelected ? null : bar.wo)}
-                                                className={`absolute cursor-pointer transition-all border-2 border-l-[4px] ${sc.border} ${sc.bg} ${priorityBorder} ${
+                                                className={`absolute cursor-pointer transition-all border border-l-[4px] ${sc.border} ${sc.bg} ${priorityBorder} ${
                                                     isSelected
                                                         ? "ring-2 ring-offset-1 ring-indigo-400 shadow-md z-20 scale-[1.02]"
                                                         : "hover:shadow-md hover:z-10 z-5"
@@ -567,15 +567,15 @@ export function ProductionGantt() {
                                                 )}
                                                 <div className="relative h-full flex items-center gap-1.5 px-2 overflow-hidden">
                                                     <div className="min-w-0 flex-1">
-                                                        <p className={`text-[10px] font-bold truncate ${sc.text}`}>
+                                                        <p className={`text-xs font-bold truncate ${sc.text}`}>
                                                             {bar.wo.number}
                                                         </p>
-                                                        <p className="text-[8px] text-zinc-400 truncate">
+                                                        <p className="text-xs text-zinc-400 truncate">
                                                             {bar.wo.product.name}
                                                         </p>
                                                     </div>
                                                     {bar.wo.progress > 0 && barWidth > 80 && (
-                                                        <span className={`text-[8px] font-black shrink-0 ${sc.text}`}>
+                                                        <span className={`text-xs font-semibold shrink-0 ${sc.text}`}>
                                                             {bar.wo.progress}%
                                                         </span>
                                                     )}

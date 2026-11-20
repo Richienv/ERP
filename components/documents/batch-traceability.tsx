@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 
 export function BatchTraceability() {
     return (
-        <Card className="col-span-1 md:col-span-2 lg:col-span-1 shadow-sm border-l-4 border-l-purple-500">
+        <Card className="col-span-1 md:col-span-2 lg:col-span-1 shadow-sm border-l border-l-purple-500">
             <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
                     <Search className="h-5 w-5 text-purple-600" />
@@ -20,13 +20,13 @@ export function BatchTraceability() {
                     <Input placeholder="Enter Batch ID (e.g. B2026...)" className="h-9" defaultValue="B20260108-PSU500-L2" />
                 </div>
 
-                <div className="relative border-l-2 border-purple-200 dark:border-purple-900 ml-3 space-y-6 pb-2">
+                <div className="relative border-l border-purple-200 dark:border-purple-900 ml-3 space-y-6 pb-2">
                     {/* Step 1: Production */}
                     <div className="relative pl-6">
                         <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-purple-600 ring-4 ring-white dark:ring-black"></div>
                         <div className="text-sm font-bold text-purple-700 dark:text-purple-400">Production (Jan 8)</div>
                         <div className="text-xs text-muted-foreground mb-1">Qty: 500 Units</div>
-                        <Badge variant="outline" className="text-[10px] bg-purple-50">Line 2 • Shift 1</Badge>
+                        <Badge variant="outline" className="text-xs bg-purple-50">Line 2 • Shift 1</Badge>
                     </div>
 
                     {/* Step 2: Warehouse */}

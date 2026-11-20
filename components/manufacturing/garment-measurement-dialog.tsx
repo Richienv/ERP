@@ -95,7 +95,7 @@ export function GarmentMeasurementDialog({ inspectionId, styleVariantId, onSave,
                 <span onClick={() => setOpen(true)}>{trigger}</span>
             ) : (
                 <Button
-                    className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-4 h-8 rounded-none"
+                    className="bg-slate-900 text-white border border-border hover:bg-zinc-800 font-semibold text-xs px-4 h-8 rounded-md"
                     onClick={() => setOpen(true)}
                 >
                     <Ruler className="mr-2 h-4 w-4" /> Ukur Garment
@@ -116,12 +116,12 @@ export function GarmentMeasurementDialog({ inspectionId, styleVariantId, onSave,
                             <table className="w-full">
                                 <thead className="bg-zinc-800 text-white">
                                     <tr>
-                                        <th className="text-[10px] font-black uppercase tracking-widest p-2 text-left">Titik Ukur</th>
-                                        <th className="text-[10px] font-black uppercase tracking-widest p-2 text-center w-24">Spec (cm)</th>
-                                        <th className="text-[10px] font-black uppercase tracking-widest p-2 text-center w-24">Aktual (cm)</th>
-                                        <th className="text-[10px] font-black uppercase tracking-widest p-2 text-center w-20">Tol. (±cm)</th>
-                                        <th className="text-[10px] font-black uppercase tracking-widest p-2 text-center w-16">Status</th>
-                                        <th className="text-[10px] font-black uppercase tracking-widest p-2 w-10"></th>
+                                        <th className="text-xs font-semibold p-2 text-left">Titik Ukur</th>
+                                        <th className="text-xs font-semibold p-2 text-center w-24">Spec (cm)</th>
+                                        <th className="text-xs font-semibold p-2 text-center w-24">Aktual (cm)</th>
+                                        <th className="text-xs font-semibold p-2 text-center w-20">Tol. (±cm)</th>
+                                        <th className="text-xs font-semibold p-2 text-center w-16">Status</th>
+                                        <th className="text-xs font-semibold p-2 w-10"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -136,7 +136,7 @@ export function GarmentMeasurementDialog({ inspectionId, styleVariantId, onSave,
                                             <tr key={idx} className="border-b border-zinc-200 last:border-b-0">
                                                 <td className="p-2">
                                                     <Input
-                                                        className="border border-zinc-300 font-bold h-8 rounded-none text-xs"
+                                                        className="border border-zinc-300 font-bold h-8 rounded-md text-xs"
                                                         value={entry.measurePoint}
                                                         onChange={(e) => updateEntry(idx, 'measurePoint', e.target.value)}
                                                         placeholder="Titik ukur"
@@ -144,7 +144,7 @@ export function GarmentMeasurementDialog({ inspectionId, styleVariantId, onSave,
                                                 </td>
                                                 <td className="p-2">
                                                     <Input
-                                                        className="border border-zinc-300 font-mono font-bold h-8 rounded-none text-xs text-center"
+                                                        className="border border-zinc-300 font-mono font-bold h-8 rounded-md text-xs text-center"
                                                         type="number"
                                                         step="0.1"
                                                         value={entry.specValue}
@@ -153,7 +153,7 @@ export function GarmentMeasurementDialog({ inspectionId, styleVariantId, onSave,
                                                 </td>
                                                 <td className="p-2">
                                                     <Input
-                                                        className="border border-zinc-300 font-mono font-bold h-8 rounded-none text-xs text-center"
+                                                        className="border border-zinc-300 font-mono font-bold h-8 rounded-md text-xs text-center"
                                                         type="number"
                                                         step="0.1"
                                                         value={entry.actualValue}
@@ -162,7 +162,7 @@ export function GarmentMeasurementDialog({ inspectionId, styleVariantId, onSave,
                                                 </td>
                                                 <td className="p-2">
                                                     <Input
-                                                        className="border border-zinc-300 font-mono font-bold h-8 rounded-none text-xs text-center"
+                                                        className="border border-zinc-300 font-mono font-bold h-8 rounded-md text-xs text-center"
                                                         type="number"
                                                         step="0.1"
                                                         value={entry.tolerance}
@@ -171,7 +171,7 @@ export function GarmentMeasurementDialog({ inspectionId, styleVariantId, onSave,
                                                 </td>
                                                 <td className="p-2 text-center">
                                                     {hasValues && (
-                                                        <span className={`inline-block px-1.5 py-0.5 text-[9px] font-black border ${
+                                                        <span className={`inline-block px-1.5 py-0.5 text-xs font-semibold border ${
                                                             withinSpec ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-red-100 text-red-700 border-red-300'
                                                         }`}>
                                                             {withinSpec ? 'OK' : 'NG'}
@@ -193,7 +193,7 @@ export function GarmentMeasurementDialog({ inspectionId, styleVariantId, onSave,
                         <Button
                             variant="outline"
                             onClick={addEntry}
-                            className="border border-zinc-300 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none w-full"
+                            className="border border-zinc-300 text-zinc-500 font-bold text-xs px-4 h-8 rounded-md w-full"
                         >
                             <Plus className="mr-2 h-4 w-4" /> Tambah Titik Ukur
                         </Button>

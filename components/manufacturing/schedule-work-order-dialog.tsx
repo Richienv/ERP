@@ -89,7 +89,7 @@ export function ScheduleWorkOrderDialog({ workOrder, machines, routings, onSched
                 <span onClick={() => setOpen(true)}>{trigger}</span>
             ) : (
                 <Button
-                    className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-4 h-8 rounded-none"
+                    className="bg-slate-900 text-white border border-border hover:bg-zinc-800 font-semibold text-xs px-4 h-8 rounded-md"
                     size="sm"
                     onClick={() => setOpen(true)}
                 >
@@ -109,16 +109,16 @@ export function ScheduleWorkOrderDialog({ workOrder, machines, routings, onSched
                     <NBSection icon={CalendarClock} title="Info Work Order">
                         <div className="grid grid-cols-3 gap-4 text-sm">
                             <div>
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Nomor</span>
+                                <span className="text-xs font-bold text-zinc-600 mb-1 block">Nomor</span>
                                 <span className="font-mono font-bold block">{workOrder.number}</span>
                             </div>
                             <div>
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Qty</span>
+                                <span className="text-xs font-bold text-zinc-600 mb-1 block">Qty</span>
                                 <span className="font-bold block">{workOrder.plannedQty}</span>
                             </div>
                             <div>
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Prioritas</span>
-                                <span className={`inline-block px-2 py-0.5 text-[10px] font-black border border-zinc-300 ${
+                                <span className="text-xs font-bold text-zinc-600 mb-1 block">Prioritas</span>
+                                <span className={`inline-block px-2 py-0.5 text-xs font-semibold border border-zinc-300 ${
                                     workOrder.priority === 'CRITICAL' ? 'bg-red-100 text-red-700' :
                                     workOrder.priority === 'HIGH' ? 'bg-amber-100 text-amber-700' :
                                     'bg-zinc-100 text-zinc-700'
@@ -133,25 +133,25 @@ export function ScheduleWorkOrderDialog({ workOrder, machines, routings, onSched
                     <NBSection icon={CalendarClock} title="Jadwal">
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">
+                                <label className="text-xs font-bold text-zinc-600 mb-1 block">
                                     Mulai <span className="text-red-500">*</span>
                                 </label>
                                 <input
                                     type="datetime-local"
                                     value={scheduledStart}
                                     onChange={(e) => setScheduledStart(e.target.value)}
-                                    className="w-full border border-zinc-300 h-8 text-sm rounded-none px-2 font-medium transition-colors focus:border-orange-400 focus:bg-orange-50/50 focus:outline-none"
+                                    className="w-full border border-zinc-300 h-8 text-sm rounded-md px-2 font-medium transition-colors focus:border-blue-400 focus:bg-blue-50/50 focus:outline-none"
                                 />
                             </div>
                             <div>
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">
+                                <label className="text-xs font-bold text-zinc-600 mb-1 block">
                                     Selesai <span className="text-red-500">*</span>
                                 </label>
                                 <input
                                     type="datetime-local"
                                     value={scheduledEnd}
                                     onChange={(e) => setScheduledEnd(e.target.value)}
-                                    className="w-full border border-zinc-300 h-8 text-sm rounded-none px-2 font-medium transition-colors focus:border-orange-400 focus:bg-orange-50/50 focus:outline-none"
+                                    className="w-full border border-zinc-300 h-8 text-sm rounded-md px-2 font-medium transition-colors focus:border-blue-400 focus:bg-blue-50/50 focus:outline-none"
                                 />
                             </div>
                         </div>
@@ -161,7 +161,7 @@ export function ScheduleWorkOrderDialog({ workOrder, machines, routings, onSched
                     <NBSection icon={CalendarClock} title="Mesin & Routing" optional>
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Mesin</label>
+                                <label className="text-xs font-bold text-zinc-600 mb-1 block">Mesin</label>
                                 <ComboboxWithCreate
                                     options={machineOptions}
                                     value={machineId}
@@ -172,7 +172,7 @@ export function ScheduleWorkOrderDialog({ workOrder, machines, routings, onSched
                                 />
                             </div>
                             <div>
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Routing</label>
+                                <label className="text-xs font-bold text-zinc-600 mb-1 block">Routing</label>
                                 <ComboboxWithCreate
                                     options={routingOptions}
                                     value={routingId}

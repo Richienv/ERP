@@ -15,13 +15,13 @@ export function CashflowBoardSkeleton() {
     return (
         <div className="mf-page space-y-6 animate-pulse">
             {/* ═══ TOP STRIP ═══ */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
-                <div className="h-1 bg-gradient-to-r from-orange-500/30 via-amber-400/30 to-orange-500/30" />
+            <div className="border border-border shadow-sm overflow-hidden bg-white dark:bg-zinc-900">
+                <div className="h-1 bg-gradient-to-r from-blue-500/30 via-amber-400/30 to-blue-500/30" />
 
                 {/* Header row */}
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-5 py-3.5 border-b border-zinc-200 dark:border-zinc-800">
                     <div className="flex items-center gap-3">
-                        <Bone className="w-9 h-9 rounded-none" />
+                        <Bone className="w-9 h-9 rounded-md" />
                         <div className="space-y-1.5">
                             <Bone className="h-4 w-44" />
                             <Bone className="h-3 w-56" />
@@ -79,7 +79,7 @@ export function CashflowBoardSkeleton() {
                 {Array.from({ length: 6 }).map((_, i) => (
                     <div
                         key={i}
-                        className="border-2 border-black border-l-4 p-4 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900"
+                        className="border border-border border-l p-4 shadow-sm bg-white dark:bg-zinc-900"
                         style={{ borderLeftColor: ["#10b981", "#ef4444", "#6366f1", "#f97316", "#d946ef", "#71717a"][i] }}
                     >
                         <div className="flex items-center justify-between mb-2">
@@ -100,10 +100,10 @@ export function CashflowBoardSkeleton() {
                 {Array.from({ length: 4 }).map((_, weekIdx) => (
                     <div
                         key={weekIdx}
-                        className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col"
+                        className="border border-border bg-white shadow-sm flex flex-col"
                     >
                         {/* Week header */}
-                        <div className={`px-4 py-3 border-b-2 border-black flex items-center justify-between ${weekIdx === 2 ? "bg-emerald-100" : "bg-zinc-100"}`}>
+                        <div className={`px-4 py-3 border-b border-border flex items-center justify-between ${weekIdx === 2 ? "bg-emerald-100" : "bg-zinc-100"}`}>
                             <div className="space-y-1">
                                 <Bone className="h-4 w-14" />
                                 <Bone className="h-3 w-24" />
@@ -115,7 +115,7 @@ export function CashflowBoardSkeleton() {
                         <div className="flex-1 min-h-[120px] p-3 space-y-2">
                             <Bone className="h-3 w-16 mb-2" />
                             {Array.from({ length: 2 + (weekIdx % 2) }).map((_, j) => (
-                                <div key={j} className="border-l-4 border-zinc-200 pl-2 py-1 space-y-1">
+                                <div key={j} className="border-l border-zinc-200 pl-2 py-1 space-y-1">
                                     <Bone className="h-3 w-3/4" />
                                     <Bone className="h-4 w-20" />
                                 </div>
@@ -125,7 +125,7 @@ export function CashflowBoardSkeleton() {
                                     <div className="border-t border-dashed border-zinc-200 my-2" />
                                     <Bone className="h-3 w-16 mb-2" />
                                     {Array.from({ length: 1 + (weekIdx % 2) }).map((_, j) => (
-                                        <div key={j} className="border-l-4 border-zinc-200 pl-2 py-1 space-y-1">
+                                        <div key={j} className="border-l border-zinc-200 pl-2 py-1 space-y-1">
                                             <Bone className="h-3 w-2/3" />
                                             <Bone className="h-4 w-20" />
                                         </div>
@@ -135,7 +135,7 @@ export function CashflowBoardSkeleton() {
                         </div>
 
                         {/* Week footer */}
-                        <div className="border-t-2 border-black bg-zinc-50 p-3 space-y-2">
+                        <div className="border-t border-border bg-zinc-50 p-3 space-y-2">
                             <div className="flex justify-between">
                                 <Bone className="h-4 w-14" />
                                 <Bone className="h-4 w-14" />
@@ -152,8 +152,8 @@ export function CashflowBoardSkeleton() {
             </div>
 
             {/* ═══ SUMMARY CARD ═══ */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
-                <div className="h-1 bg-gradient-to-r from-orange-500/30 via-amber-400/30 to-orange-500/30" />
+            <div className="border border-border shadow-sm overflow-hidden bg-white dark:bg-zinc-900">
+                <div className="h-1 bg-gradient-to-r from-blue-500/30 via-amber-400/30 to-blue-500/30" />
                 <div className="flex items-center divide-x divide-zinc-200 dark:divide-zinc-800">
                     {Array.from({ length: 5 }).map((_, i) => (
                         <div key={i} className="flex-1 px-4 py-3 flex items-center justify-between gap-2">
@@ -176,12 +176,12 @@ export function CashflowSubpageSkeleton({ variant = "simulasi" }: { variant?: "s
     const isSimulasi = variant === "simulasi"
 
     return (
-        <div className={`animate-pulse ${isSimulasi ? "flex gap-0 border-2 border-black rounded-xl overflow-hidden mt-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" : "mt-4 border-2 border-black rounded-xl overflow-hidden bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"}`} style={isSimulasi ? { minHeight: "70vh" } : undefined}>
+        <div className={`animate-pulse ${isSimulasi ? "flex gap-0 border border-border rounded-xl overflow-hidden mt-4 shadow-sm" : "mt-4 border border-border rounded-xl overflow-hidden bg-white shadow-sm"}`} style={isSimulasi ? { minHeight: "70vh" } : undefined}>
             {/* Sidebar (simulasi only) */}
             {isSimulasi && (
-                <div className="w-[280px] border-r-2 border-black bg-zinc-50 dark:bg-zinc-900 flex flex-col">
+                <div className="w-[280px] border-r border-border bg-zinc-50 dark:bg-zinc-900 flex flex-col">
                     {/* Sidebar header */}
-                    <div className="p-4 border-b-2 border-black">
+                    <div className="p-4 border-b border-border">
                         <Bone className="h-5 w-28 mb-3" />
                         <Bone className="h-9 w-full" />
                     </div>
@@ -210,7 +210,7 @@ export function CashflowSubpageSkeleton({ variant = "simulasi" }: { variant?: "s
             {/* Main content */}
             <div className="flex-1 bg-white">
                 {/* KPI Strip */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 border-b-2 border-black">
+                <div className="grid grid-cols-2 lg:grid-cols-4 border-b border-border">
                     {Array.from({ length: 4 }).map((_, i) => (
                         <div key={i} className={`p-4 ${i < 3 ? "border-r border-zinc-200" : ""}`}>
                             <div className="flex items-center gap-1.5 mb-2">
@@ -233,7 +233,7 @@ export function CashflowSubpageSkeleton({ variant = "simulasi" }: { variant?: "s
                 {/* Week Cards */}
                 <div className="p-4 space-y-4">
                     {Array.from({ length: 4 }).map((_, weekIdx) => (
-                        <div key={weekIdx} className="border-2 border-black rounded-lg overflow-hidden">
+                        <div key={weekIdx} className="border border-border rounded-lg overflow-hidden">
                             {/* Week header */}
                             <div className="flex items-center justify-between px-3 py-2 bg-zinc-50 border-b border-zinc-200">
                                 <div className="flex items-center gap-2">
@@ -267,7 +267,7 @@ export function CashflowSubpageSkeleton({ variant = "simulasi" }: { variant?: "s
                 </div>
 
                 {/* Summary Bar */}
-                <div className="border-t-2 border-black bg-zinc-50 px-4 py-3">
+                <div className="border-t border-border bg-zinc-50 px-4 py-3">
                     <div className="grid grid-cols-5 gap-4 text-center">
                         {Array.from({ length: 5 }).map((_, i) => (
                             <div key={i} className="space-y-1">

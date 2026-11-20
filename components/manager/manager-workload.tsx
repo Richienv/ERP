@@ -62,7 +62,7 @@ export function ManagerWorkload() {
                                     </Avatar>
                                     <div className="space-y-1">
                                         <div className="font-semibold text-base">{mgr.name}</div>
-                                        <div className="text-xs text-muted-foreground uppercase font-medium">{mgr.role}</div>
+                                        <div className="text-xs text-muted-foreground font-medium">{mgr.role}</div>
 
                                         <div className="flex items-center gap-3 text-sm pt-1">
                                             <span className="flex items-center gap-1">
@@ -95,7 +95,7 @@ export function ManagerWorkload() {
                             </div>
 
                             <div className="mt-4 bg-muted/40 p-3 rounded-lg border border-border/50 text-sm">
-                                <span className="text-muted-foreground font-medium text-xs uppercase mr-2">Current Focus:</span>
+                                <span className="text-muted-foreground font-medium text-xs mr-2">Current Focus:</span>
                                 {mgr.focus}
                             </div>
                         </div>

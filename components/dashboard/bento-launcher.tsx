@@ -37,18 +37,18 @@ export function BentoLauncher({ items, columns = 3, compact = false }: BentoLaun
 
     // Ritchie "Pop" Color Cycle: 9 Distinct Colors
     const popColors = [
-        "bg-[oklch(0.6_0.2_250)] text-white border-2 border-black",    // 1. Blue (White text)
-        "bg-[oklch(0.9_0.05_350)] text-black border-2 border-black",   // 2. Pink (Black text)
-        "bg-[oklch(0.85_0.15_140)] text-black border-2 border-black",  // 3. Green (Black text)
-        "bg-[oklch(0.85_0.17_90)] text-black border-2 border-black",   // 4. Yellow (Black text)
-        "bg-[oklch(0.7_0.18_300)] text-white border-2 border-black",   // 5. Purple (White text)
-        "bg-[oklch(0.75_0.18_50)] text-black border-2 border-black",   // 6. Orange (Black text)
-        "bg-[oklch(0.65_0.22_25)] text-white border-2 border-black",   // 7. Red (White text)
-        "bg-[oklch(0.8_0.15_200)] text-black border-2 border-black",   // 8. Cyan (Black text)
-        "bg-[oklch(0.9_0.18_130)] text-black border-2 border-black"    // 9. Lime (Black text)
+        "bg-[oklch(0.6_0.2_250)] text-white border border-border",    // 1. Blue (White text)
+        "bg-[oklch(0.9_0.05_350)] text-black border border-border",   // 2. Pink (Black text)
+        "bg-[oklch(0.85_0.15_140)] text-black border border-border",  // 3. Green (Black text)
+        "bg-[oklch(0.85_0.17_90)] text-black border border-border",   // 4. Yellow (Black text)
+        "bg-[oklch(0.7_0.18_300)] text-white border border-border",   // 5. Purple (White text)
+        "bg-[oklch(0.75_0.18_50)] text-black border border-border",   // 6. Orange (Black text)
+        "bg-[oklch(0.65_0.22_25)] text-white border border-border",   // 7. Red (White text)
+        "bg-[oklch(0.8_0.15_200)] text-black border border-border",   // 8. Cyan (Black text)
+        "bg-[oklch(0.9_0.18_130)] text-black border border-border"    // 9. Lime (Black text)
     ]
 
-    const minimalStyle = "bg-white text-black border-2 border-black"
+    const minimalStyle = "bg-white text-black border border-border"
 
     return (
         <div className={cn(
@@ -103,9 +103,9 @@ export function BentoLauncher({ items, columns = 3, compact = false }: BentoLaun
                                         compact ? "p-2.5" : "p-3",
                                         !compact && isAnyRitchie ? "absolute -top-6 -right-6 m-4" : "", // Ritchie: Top-Right (with offset)
                                         isRitchiePop
-                                            ? "bg-white/20 backdrop-blur-sm p-2 rounded-full border-2 border-black/10" // Pop: Smaller Bubble
+                                            ? "bg-white/20 backdrop-blur-sm p-2 rounded-full border border-black/10" // Pop: Smaller Bubble
                                             : isRitchieMinimal
-                                                ? "bg-black text-white p-2 rounded-full border-none shadow-none" // Minimal: Smaller Bubble (Only shows in Compact)
+                                                ? "bg-slate-900 text-white p-2 rounded-full border-none shadow-none" // Minimal: Smaller Bubble (Only shows in Compact)
                                                 : cn("bg-secondary", item.color) // Default
                                     )}>
                                         <item.icon className={cn(

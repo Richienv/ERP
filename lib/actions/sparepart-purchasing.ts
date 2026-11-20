@@ -115,6 +115,16 @@ export async function getSparepartLookup() {
             take: 20,
         }),
     ])
+    // Our own company names (documents issued by these are ours): settings first, then tenant, then env.
+    const [namesSetting, tenants] = await Promise.all([
+        prisma.systemSetting.findUnique({ where: { key: "company.names" }, select: { value: true } }).catch(() => null),
+        prisma.tenantConfig.findMany({ select: { tenantName: true }, take: 5 }).catch(() => [] as { tenantName: string }[]),
+    ])
+    const ourCompanies = Array.from(new Set([
+        ...(namesSetting?.value ?? "").split(","),
+        ...tenants.map((t) => t.tenantName),
+        ...(process.env.NEXT_PUBLIC_OUR_COMPANY_NAMES ?? "").split(","),
+    ].map((n) => n.trim()).filter((n) => n.length >= 3)))
     const latestRate: Record<string, { rate: number; date: string }> = {}
     for (const r of rates) {
         if (!latestRate[r.currency.code]) latestRate[r.currency.code] = { rate: num(r.middleRate), date: r.date.toISOString().slice(0, 10) }
@@ -134,6 +144,7 @@ export async function getSparepartLookup() {
         /** Where payments can come from; Bank BCA first, as the AP action defaults to it. */
         bankAccounts: [...bankAccounts].sort((a, b) => (a.code === SYS_ACCOUNTS.BANK_BCA ? -1 : b.code === SYS_ACCOUNTS.BANK_BCA ? 1 : a.code.localeCompare(b.code))),
         latestRate,
+        ourCompanies,
         canPost: hasRole(user, FINANCE_POSTING_ROLES),
         canPurchase: hasRole(user, PURCHASING_ROLES),
         canReceive: hasRole(user, RECEIVING_ROLES),
@@ -148,7 +159,8 @@ export type SparepartFilter = "all" | "unpaid" | "transit" | "incoming" | "done"
 
 type RawRow = {
     id: string
-    supplierInvoiceNo: string
+    supplierInvoiceNo: string | null
+    poDocumentNo: string | null
     invoiceDate: Date
     dueDate: Date | null
     currencyCode: string
@@ -217,7 +229,9 @@ function toListRow(r: RawRow) {
     })
     return {
         id: r.id,
-        supplierInvoiceNo: r.supplierInvoiceNo,
+        /** What people recognise this purchase by: the supplier's invoice, else our PO/CO number. */
+        supplierInvoiceNo: r.supplierInvoiceNo ?? r.poDocumentNo ?? "—",
+        poDocumentNo: r.poDocumentNo,
         invoiceDate: r.invoiceDate.toISOString(),
         dueDate: (r.billDueDate ?? r.dueDate)?.toISOString() ?? null,
         currencyCode: r.currencyCode,
@@ -263,7 +277,7 @@ export async function listSparepartPurchases(params: { cursor?: string | null; q
     const searchSql = q ? Prisma.sql`AND c."searchText" LIKE ${"%" + q + "%"}` : Prisma.empty
 
     const rowsPromise = prisma.$queryRaw<RawRow[]>`
-        SELECT c.id, c."supplierInvoiceNo", c."invoiceDate", c."dueDate", c."currencyCode",
+        SELECT c.id, c."supplierInvoiceNo", c."poDocumentNo", c."invoiceDate", c."dueDate", c."currencyCode",
                c."exchangeRate"::float8 AS "exchangeRate", c."totalOriginal"::float8 AS "totalOriginal",
                c."shippedAt", c."trackingNumber", c.eta, c."createdAt", c."parseMethod",
                po.id AS "poId", po.number AS "poNumber", po.status::text AS "poStatus",
@@ -391,7 +405,8 @@ export async function getSparepartPurchase(id: string) {
     })
     return {
         id: c.id,
-        supplierInvoiceNo: c.supplierInvoiceNo,
+        supplierInvoiceNo: c.supplierInvoiceNo ?? c.poDocumentNo ?? "—",
+        poDocumentNo: c.poDocumentNo,
         invoiceDate: c.invoiceDate.toISOString(),
         dueDate: (c.bill?.dueDate ?? c.dueDate)?.toISOString() ?? null,
         paymentTerms: c.paymentTerms,
@@ -487,6 +502,14 @@ export async function checkSupplierInvoiceDuplicate(input: { sha256?: string | n
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type SaveSupplierInvoiceInput = {
+    /** INVOICE (default): a supplier's invoice. PURCHASE_ORDER: our own PO/CO to the vendor (no bill yet). */
+    kind?: "INVOICE" | "PURCHASE_ORDER"
+    /** Attach this supplier invoice to a purchase that started from our PO/CO, instead of creating a new PO. */
+    attachToCaptureId?: string | null
+    /** Our PO/CO number as printed, when kind = PURCHASE_ORDER. */
+    poDocumentNo?: string | null
+    /** "MODEL UNIT" on the document (e.g. TRITON) — recorded as compatibility on new parts. */
+    modelUnit?: string | null
     supplier: { id?: string | null; name: string; npwp?: string | null; email?: string | null; phone?: string | null; address?: string | null }
     invoiceNo: string
     invoiceDate: string
@@ -519,7 +542,9 @@ export type SaveSupplierInvoiceInput = {
 type StepResult = { ok: boolean; error?: string; skipped?: string }
 
 export async function saveSupplierInvoice(input: SaveSupplierInvoiceInput) {
+    if (input.attachToCaptureId) return attachInvoiceToPurchase(input as SaveSupplierInvoiceInput & { attachToCaptureId: string })
     const t0 = performance.now()
+    const isPo = input.kind === "PURCHASE_ORDER"
     try {
         const user = await getAuthzUser()
         assertRole(user, PURCHASING_ROLES)
@@ -529,7 +554,7 @@ export async function saveSupplierInvoice(input: SaveSupplierInvoiceInput) {
         const dueDate = parseIsoDate(input.dueDate) ?? (invoiceDate ? new Date(invoiceDate.getTime() + 30 * 86400000) : null)
         const rate = input.currencyCode === "IDR" ? 1 : Number(input.exchangeRate)
         if (!input.supplier?.id && !input.supplier?.name?.trim()) return { success: false as const, error: "Supplier wajib diisi" }
-        if (!invoiceNo) return { success: false as const, error: "Nomor invoice supplier wajib diisi" }
+        if (!invoiceNo) return { success: false as const, error: isPo ? "Nomor PO/CO wajib diisi" : "Nomor invoice supplier wajib diisi" }
         if (!invoiceDate) return { success: false as const, error: "Tanggal invoice tidak valid" }
         if (!CURRENCIES.includes(input.currencyCode)) return { success: false as const, error: "Mata uang tidak didukung" }
         const badRate = rateProblem(rate, input.currencyCode)
@@ -600,10 +625,15 @@ export async function saveSupplierInvoice(input: SaveSupplierInvoiceInput) {
             }
 
             // 2. The same supplier invoice can never be entered twice.
-            const dup = await tx.supplierInvoiceCapture.findUnique({
-                where: { supplierId_supplierInvoiceNo: { supplierId, supplierInvoiceNo: invoiceNo } },
-                select: { id: true, purchaseOrder: { select: { number: true } } },
-            })
+            const dup = isPo
+                ? await tx.supplierInvoiceCapture.findFirst({
+                    where: { poDocumentNo: invoiceNo },
+                    select: { id: true, purchaseOrder: { select: { number: true } } },
+                })
+                : await tx.supplierInvoiceCapture.findUnique({
+                    where: { supplierId_supplierInvoiceNo: { supplierId, supplierInvoiceNo: invoiceNo } },
+                    select: { id: true, purchaseOrder: { select: { number: true } } },
+                })
             if (dup) throw new DuplicateInvoiceError(dup.id, dup.purchaseOrder.number, invoiceNo, supplierName)
 
             // 3. Products: one read for every code, one insert for every new part.
@@ -639,6 +669,7 @@ export async function saveSupplierInvoice(input: SaveSupplierInvoiceInput) {
                                 equipmentType: "spare_part",
                                 categoryId: cat.id,
                                 costPrice: idr.lines[i].unitPriceIdr,
+                                equipmentCompatibility: input.modelUnit?.trim() || null,
                             }
                         }),
                         select: { id: true, code: true },
@@ -654,15 +685,21 @@ export async function saveSupplierInvoice(input: SaveSupplierInvoiceInput) {
             //    paths (current month); skips numbers taken by the count-based "New PO" dialog.
             const now = new Date()
             const prefix = `PO-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`
-            let poNumber = await getNextDocNumber(tx, prefix, 4)
-            while (await tx.purchaseOrder.findUnique({ where: { number: poNumber }, select: { id: true } })) poNumber = await getNextDocNumber(tx, prefix, 4)
+            // Our own PO/CO keeps the number people already use ("CO24-03-0016") when it is free.
+            let poNumber = isPo && !(await tx.purchaseOrder.findUnique({ where: { number: invoiceNo }, select: { id: true } }))
+                ? invoiceNo
+                : await getNextDocNumber(tx, prefix, 4)
+            while (!isPo || poNumber !== invoiceNo) {
+                if (!(await tx.purchaseOrder.findUnique({ where: { number: poNumber }, select: { id: true } }))) break
+                poNumber = await getNextDocNumber(tx, prefix, 4)
+            }
             const po = await tx.purchaseOrder.create({
                 data: {
                     number: poNumber,
                     supplierId,
                     orderDate: invoiceDate,
                     sentToVendorAt: invoiceDate,
-                    status: "VENDOR_CONFIRMED",
+                    status: isPo ? "ORDERED" : "VENDOR_CONFIRMED",
                     taxMode: taxIdr > 0 ? "EXCLUSIVE" : "NON_PPN",
                     totalAmount: idr.subtotalIdr,
                     taxAmount: taxIdr,
@@ -685,16 +722,17 @@ export async function saveSupplierInvoice(input: SaveSupplierInvoiceInput) {
             await tx.purchaseOrderEvent.create({
                 data: {
                     purchaseOrderId: po.id,
-                    status: "VENDOR_CONFIRMED",
+                    status: isPo ? "ORDERED" : "VENDOR_CONFIRMED",
                     changedBy: user.id,
-                    action: "CAPTURE_SUPPLIER_INVOICE",
-                    notes: `Dicatat dari invoice supplier ${invoiceNo}`,
+                    action: isPo ? "CAPTURE_PURCHASE_ORDER" : "CAPTURE_SUPPLIER_INVOICE",
+                    notes: isPo ? `Dicatat dari ${input.poDocumentNo || invoiceNo}` : `Dicatat dari invoice supplier ${invoiceNo}`,
                     metadata: { source: "SPAREPART_INVOICE", supplierInvoiceNo: invoiceNo, currencyCode: input.currencyCode, exchangeRate: rate },
                 },
             })
 
             // 5. Bill (DRAFT) with the supplier's own lines and tax. Debit goes to GR/IR.
-            const bill = await tx.invoice.create({
+            //    Our own PO/CO has no bill yet: it comes when the supplier's invoice is attached.
+            const bill = isPo ? null : await tx.invoice.create({
                 data: {
                     number: `BILL-${po.number}`,
                     type: "INV_IN",
@@ -772,9 +810,10 @@ export async function saveSupplierInvoice(input: SaveSupplierInvoiceInput) {
                 data: {
                     line: LINE,
                     purchaseOrderId: po.id,
-                    billId: bill.id,
+                    billId: bill?.id ?? null,
                     supplierId,
-                    supplierInvoiceNo: invoiceNo,
+                    supplierInvoiceNo: isPo ? null : invoiceNo,
+                    poDocumentNo: isPo ? invoiceNo : null,
                     invoiceDate,
                     dueDate,
                     paymentTerms: input.paymentTerms || null,
@@ -805,7 +844,7 @@ export async function saveSupplierInvoice(input: SaveSupplierInvoiceInput) {
                         poNumber: po.number,
                         supplierName,
                         supplierInvoiceNo: invoiceNo,
-                        billNumber: bill.number,
+                        billNumber: bill?.number ?? null,
                         partCodes: input.lines.map((l) => l.partNo || l.newProduct?.code),
                         descriptions: input.lines.map((l) => l.description),
                     }),
@@ -814,7 +853,7 @@ export async function saveSupplierInvoice(input: SaveSupplierInvoiceInput) {
                 select: { id: true },
             })
 
-            if (file) {
+            if (file && bill) {
                 await tx.invoiceAttachment.create({
                     data: {
                         invoiceId: bill.id,
@@ -826,13 +865,15 @@ export async function saveSupplierInvoice(input: SaveSupplierInvoiceInput) {
                 })
             }
 
-            return { captureId: capture.id, poId: po.id, poNumber: po.number, billId: bill.id, billNumber: bill.number, supplierId }
+            return { captureId: capture.id, poId: po.id, poNumber: po.number, billId: bill?.id ?? null, billNumber: bill?.number ?? null, supplierId }
         }, { timeout: 60_000 })
         const coreMs = Math.round(performance.now() - t0)
 
         // Steps after commit. Each one reports back; none can undo the saved purchase.
         const steps: { post?: StepResult; pay?: StepResult; receive?: StepResult } = {}
-        if (hasRole(user, FINANCE_POSTING_ROLES)) {
+        if (!core.billId) {
+            steps.post = { ok: false, skipped: "Tagihan dicatat saat invoice supplier datang" }
+        } else if (hasRole(user, FINANCE_POSTING_ROLES)) {
             steps.post = await postBill(core.billId)
         } else {
             steps.post = { ok: false, skipped: "Menunggu finance untuk posting tagihan" }
@@ -930,8 +971,8 @@ async function payCapture(captureId: string, amountOriginal: number, method: "TR
             billId: c.billId,
             amount,
             method,
-            reference: c.supplierInvoiceNo,
-            notes: `Pembayaran invoice ${c.supplierInvoiceNo}${fx}`,
+            reference: c.supplierInvoiceNo ?? undefined,
+            notes: `Pembayaran invoice ${c.supplierInvoiceNo ?? ""}${fx}`,
             ...(bankAccountCode ? { bankAccountCode } : {}),
         })
         if (!r || (typeof r === "object" && "success" in r && !r.success)) return { ok: false, error: (r as { error?: string })?.error || "Pembayaran gagal" }
@@ -1044,4 +1085,258 @@ export async function receiveSparepartGoods(input: { id: string; warehouseId?: s
     }
     const r = await receiveCapture(input.id, input.warehouseId ?? null, input.lines ?? null)
     return r.ok ? { success: true, grnNumber: r.grnNumber } : { success: false, error: r.error }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// One import: references between documents
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** "PO24 - LVHO - 00344", "po24-lvho-00344" and "PO24LVHO00344" are the same reference. */
+function refKey(ref: string): string {
+    return ref.toUpperCase().replace(/[^A-Z0-9]/g, "")
+}
+
+/**
+ * Find the purchase a document refers to ("REFF PO", "Nomor PO", or the number on our own PO/CO).
+ * Returns its open lines so the screen can show what will be matched before anything is saved.
+ */
+export async function findPurchaseByReference(input: { ref: string }) {
+    await getAuthzUser()
+    const key = refKey(input.ref || "")
+    if (key.length < 5) return null
+    const hit = await prisma.$queryRaw<{ id: string }[]>`
+        SELECT c.id FROM supplier_invoice_captures c
+        JOIN purchase_orders po ON po.id = c."purchaseOrderId"
+        WHERE regexp_replace(upper(coalesce(c."poDocumentNo", '')), '[^A-Z0-9]', '', 'g') = ${key}
+           OR regexp_replace(upper(po.number), '[^A-Z0-9]', '', 'g') = ${key}
+        ORDER BY c."createdAt" DESC
+        LIMIT 1`
+    if (!hit[0]) return null
+    const c = await prisma.supplierInvoiceCapture.findUnique({
+        where: { id: hit[0].id },
+        select: {
+            id: true,
+            billId: true,
+            supplierInvoiceNo: true,
+            poDocumentNo: true,
+            supplier: { select: { id: true, name: true } },
+            purchaseOrder: {
+                select: {
+                    number: true,
+                    status: true,
+                    items: { select: { id: true, quantity: true, receivedQty: true, unitPrice: true, product: { select: { id: true, code: true, name: true } } } },
+                },
+            },
+        },
+    })
+    if (!c) return null
+    const skus = await prisma.supplierProduct.findMany({
+        where: { supplierId: c.supplier.id, productId: { in: c.purchaseOrder.items.map((i) => i.product.id) } },
+        select: { productId: true, skuCode: true },
+    })
+    const skuOf = new Map(skus.map((s) => [s.productId, s.skuCode]))
+    return {
+        captureId: c.id,
+        hasBill: !!c.billId,
+        supplierInvoiceNo: c.supplierInvoiceNo,
+        poDocumentNo: c.poDocumentNo,
+        poNumber: c.purchaseOrder.number,
+        poStatus: c.purchaseOrder.status,
+        supplier: c.supplier,
+        items: c.purchaseOrder.items.map((i) => ({
+            poItemId: i.id,
+            productId: i.product.id,
+            code: i.product.code,
+            sku: skuOf.get(i.product.id) ?? null,
+            name: i.product.name,
+            quantity: i.quantity,
+            receivedQty: i.receivedQty,
+            unitPriceIdr: num(i.unitPrice),
+        })),
+    }
+}
+
+export type PurchaseReference = NonNullable<Awaited<ReturnType<typeof findPurchaseByReference>>>
+
+/**
+ * The supplier's invoice for a purchase that started from our own PO/CO: the bill attaches to THAT
+ * PO (no second PO). Every invoice line must be one of the PO's parts. When nothing has been received
+ * yet, the PO prices follow the invoice, so GR/IR still nets to zero.
+ */
+async function attachInvoiceToPurchase(input: SaveSupplierInvoiceInput & { attachToCaptureId: string }) {
+    const t0 = performance.now()
+    try {
+        const user = await getAuthzUser()
+        assertRole(user, PURCHASING_ROLES)
+        const invoiceNo = (input.invoiceNo || "").trim()
+        const invoiceDate = parseIsoDate(input.invoiceDate)
+        const dueDate = parseIsoDate(input.dueDate) ?? (invoiceDate ? new Date(invoiceDate.getTime() + 30 * 86400000) : null)
+        const rate = input.currencyCode === "IDR" ? 1 : Number(input.exchangeRate)
+        if (!invoiceNo) return { success: false as const, error: "Nomor invoice supplier wajib diisi" }
+        if (!invoiceDate) return { success: false as const, error: "Tanggal invoice tidak valid" }
+        const badRate = rateProblem(rate, input.currencyCode)
+        if (badRate) return { success: false as const, error: badRate }
+        if (input.currencyCode !== "IDR" && input.taxOriginal > 0) return { success: false as const, error: "Invoice impor tidak boleh berisi PPN Masukan. PPN impor dicatat saat bea cukai." }
+        if (input.lines.some((l) => !l.productId)) return { success: false as const, error: "Semua barang di invoice harus cocok dengan barang di PO" }
+        const lineError = validateSaveLines(input.lines)
+        if (lineError) return { success: false as const, error: lineError }
+
+        let file: { name: string; type: string; size: number; sha256: string; storagePath: string } | null = null
+        if (input.file && INVOICE_FILE_TYPES[input.file.type]) {
+            file = { name: String(input.file.name).slice(0, 200), type: input.file.type, size: Number(input.file.size) || 0, sha256: input.file.sha256, storagePath: storagePathFor(input.file.sha256, input.file.type) }
+            if (!(await invoiceFileExists(file.storagePath))) file = null
+        }
+
+        const idr = toIdrLines(input.lines, rate)
+        const taxIdr = Math.round(input.taxOriginal * rate * 100) / 100
+        const totalIdr = Math.round((idr.subtotalIdr + taxIdr) * 100) / 100
+        const totalOriginal = Math.round((idr.subtotalOriginal + input.taxOriginal) * 100) / 100
+
+        const core = await withPrismaAuth(async (tx) => {
+            const c = await tx.supplierInvoiceCapture.findUnique({
+                where: { id: input.attachToCaptureId },
+                select: {
+                    id: true, billId: true, supplierId: true, poDocumentNo: true, searchText: true,
+                    supplier: { select: { name: true } },
+                    purchaseOrder: { select: { id: true, number: true, status: true, items: { select: { id: true, productId: true, receivedQty: true, quantity: true, unitPrice: true } } } },
+                },
+            })
+            if (!c) throw new Error("PO tidak ditemukan")
+            if (c.billId) throw new Error(`PO ${c.purchaseOrder.number} sudah punya tagihan`)
+            const dup = await tx.supplierInvoiceCapture.findUnique({
+                where: { supplierId_supplierInvoiceNo: { supplierId: c.supplierId, supplierInvoiceNo: invoiceNo } },
+                select: { id: true, purchaseOrder: { select: { number: true } } },
+            })
+            if (dup) throw new DuplicateInvoiceError(dup.id, dup.purchaseOrder.number, invoiceNo, c.supplier.name)
+
+            const itemByProduct = new Map(c.purchaseOrder.items.map((i) => [i.productId, i]))
+            const missing = input.lines.filter((l) => !itemByProduct.has(l.productId!))
+            if (missing.length) throw new Error(`${missing.length} barang di invoice tidak ada di PO ${c.purchaseOrder.number}: ${missing.map((m) => m.partNo || m.description).slice(0, 3).join(", ")}`)
+
+            // Nothing received yet → the PO follows the invoice prices (GR/IR then nets exactly).
+            const nothingReceived = c.purchaseOrder.items.every((i) => i.receivedQty === 0)
+            let poSubtotal = 0
+            if (nothingReceived) {
+                const newPrice = new Map<string, number>()
+                input.lines.forEach((line, i) => newPrice.set(line.productId!, idr.lines[i].unitPriceIdr))
+                for (const item of c.purchaseOrder.items) {
+                    const price = newPrice.get(item.productId) ?? num(item.unitPrice)
+                    const total = Math.round(price * item.quantity * 100) / 100
+                    poSubtotal += total
+                    if (newPrice.has(item.productId)) await tx.purchaseOrderItem.update({ where: { id: item.id }, data: { unitPrice: price, totalPrice: total } })
+                }
+                poSubtotal = Math.round(poSubtotal * 100) / 100
+            }
+
+            const bill = await tx.invoice.create({
+                data: {
+                    number: `BILL-${c.purchaseOrder.number}`,
+                    type: "INV_IN",
+                    supplierId: c.supplierId,
+                    purchaseOrderId: c.purchaseOrder.id,
+                    orderId: c.purchaseOrder.id,
+                    status: "DRAFT",
+                    issueDate: invoiceDate,
+                    dueDate: dueDate!,
+                    subtotal: idr.subtotalIdr,
+                    taxAmount: taxIdr,
+                    totalAmount: totalIdr,
+                    balanceDue: totalIdr,
+                    currencyCode: "IDR",
+                    exchangeRate: 1,
+                    amountInIDR: totalIdr,
+                    glAccountCode: SYS_ACCOUNTS.GR_IR_CLEARING,
+                    items: {
+                        createMany: {
+                            data: input.lines.map((line, i) => ({
+                                productId: line.productId!,
+                                description: [line.partNo, line.description].filter(Boolean).join(" — ").slice(0, 300),
+                                quantity: line.qty,
+                                unitPrice: idr.lines[i].unitPriceIdr,
+                                amount: idr.lines[i].totalIdr,
+                            })),
+                        },
+                    },
+                },
+                select: { id: true, number: true },
+            })
+            if (c.purchaseOrder.status === "ORDERED") {
+                await tx.purchaseOrder.update({ where: { id: c.purchaseOrder.id }, data: { previousStatus: "ORDERED", status: "VENDOR_CONFIRMED", taxMode: taxIdr > 0 ? "EXCLUSIVE" : "NON_PPN", ...(nothingReceived ? { totalAmount: poSubtotal, taxAmount: taxIdr, netAmount: Math.round((poSubtotal + taxIdr) * 100) / 100 } : {}) } })
+            }
+            await tx.purchaseOrderEvent.create({
+                data: {
+                    purchaseOrderId: c.purchaseOrder.id,
+                    status: c.purchaseOrder.status === "ORDERED" ? "VENDOR_CONFIRMED" : c.purchaseOrder.status,
+                    changedBy: user.id,
+                    action: "CAPTURE_SUPPLIER_INVOICE",
+                    notes: `Invoice supplier ${invoiceNo} ditempel ke ${c.poDocumentNo || c.purchaseOrder.number}`,
+                    metadata: { source: "SPAREPART_INVOICE", supplierInvoiceNo: invoiceNo, matchedLines: input.lines.length },
+                },
+            })
+            await tx.supplierInvoiceCapture.update({
+                where: { id: c.id },
+                data: {
+                    billId: bill.id,
+                    supplierInvoiceNo: invoiceNo,
+                    invoiceDate,
+                    dueDate,
+                    paymentTerms: input.paymentTerms || null,
+                    currencyCode: input.currencyCode,
+                    exchangeRate: rate,
+                    subtotalOriginal: idr.subtotalOriginal,
+                    taxOriginal: input.taxOriginal,
+                    totalOriginal,
+                    ...(file ? { fileName: file.name, fileType: file.type, fileSize: file.size, fileSha256: file.sha256, storagePath: file.storagePath } : {}),
+                    searchText: `${c.searchText} | ${invoiceNo.toLowerCase()} | ${bill.number.toLowerCase()}`.slice(0, 4000),
+                },
+            })
+            if (file) {
+                await tx.invoiceAttachment.create({ data: { invoiceId: bill.id, fileName: file.name, fileUrl: `/api/procurement/sparepart-invoices/${c.id}/file`, fileType: file.type, fileSize: file.size } })
+            }
+            return { captureId: c.id, poId: c.purchaseOrder.id, poNumber: c.purchaseOrder.number, billId: bill.id, billNumber: bill.number, supplierId: c.supplierId, priceAligned: nothingReceived }
+        }, { timeout: 60_000 })
+
+        const steps: { post?: StepResult; pay?: StepResult; receive?: StepResult } = {}
+        steps.post = hasRole(user, FINANCE_POSTING_ROLES) ? await postBill(core.billId) : { ok: false, skipped: "Menunggu finance untuk posting tagihan" }
+        const paid = Number(input.already?.paidOriginal || 0)
+        if (paid > 0) {
+            const bank = input.already?.bankAccountCode ?? null
+            steps.pay = steps.post.ok ? await payCapture(core.captureId, paid, methodForAccount(bank, input.already?.method), bank) : { ok: false, skipped: "Pembayaran dicatat setelah tagihan diposting" }
+        }
+        if (input.already?.receivedAll) steps.receive = await receiveCapture(core.captureId, input.already.warehouseId ?? null, null)
+        return { success: true as const, ...core, attached: true as const, steps, coreMs: Math.round(performance.now() - t0), totalMs: Math.round(performance.now() - t0) }
+    } catch (e) {
+        if (e instanceof DuplicateInvoiceError) return { success: false as const, code: "DUPLICATE" as const, existingId: e.existingId, error: e.message }
+        console.error("[attachInvoiceToPurchase]", e)
+        return { success: false as const, error: errorMessage(e) }
+    }
+}
+
+/**
+ * Goods arrived with a surat jalan: receive the referenced purchase's lines by part, in one go.
+ * Lines the PO does not have are reported, not guessed.
+ */
+export async function receiveByDeliveryNote(input: { captureId: string; deliveryNo?: string | null; warehouseId?: string | null; lines: { productId: string; qty: number }[] }) {
+    const user = await getAuthzUser()
+    try {
+        assertRole(user, RECEIVING_ROLES)
+    } catch {
+        return { success: false, error: "Tidak punya akses penerimaan barang" }
+    }
+    const c = await prisma.supplierInvoiceCapture.findUnique({
+        where: { id: input.captureId },
+        select: { purchaseOrder: { select: { number: true, items: { select: { id: true, productId: true, quantity: true, receivedQty: true } } } } },
+    })
+    if (!c) return { success: false, error: "PO tidak ditemukan" }
+    const byProduct = new Map(c.purchaseOrder.items.map((i) => [i.productId, i]))
+    const lines: { poItemId: string; qty: number }[] = []
+    const notInPo: string[] = []
+    for (const l of input.lines) {
+        const item = byProduct.get(l.productId)
+        if (!item) notInPo.push(l.productId)
+        else if (l.qty > 0) lines.push({ poItemId: item.id, qty: Math.min(l.qty, item.quantity - item.receivedQty) })
+    }
+    if (!lines.some((l) => l.qty > 0)) return { success: false, error: "Tidak ada barang di surat jalan yang masih ditunggu di PO ini" }
+    const r = await receiveCapture(input.captureId, input.warehouseId ?? null, lines)
+    return r.ok ? { success: true, grnNumber: r.grnNumber, received: lines.reduce((s, l) => s + l.qty, 0), notInPo: notInPo.length } : { success: false, error: r.error }
 }

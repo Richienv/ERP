@@ -43,7 +43,7 @@ export function ProcurementModules() {
     return (
         <section className="bg-zinc-50 p-6 rounded-3xl border border-black/10">
             <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
+                <h2 className="text-xl font-semibold tracking-tight flex items-center gap-2">
                     Module Shortcuts
                 </h2>
             </div>

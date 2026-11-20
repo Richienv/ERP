@@ -32,7 +32,7 @@ export function BulkActionsBar({
         "fixed bottom-6 left-1/2 -translate-x-1/2 z-50",
         "flex items-center gap-3 px-4 py-2.5",
         "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900",
-        "border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]",
+        "border border-border shadow-sm",
         "animate-in slide-in-from-bottom-4 fade-in duration-200",
         className
       )}
@@ -50,7 +50,7 @@ export function BulkActionsBar({
           variant="ghost"
           onClick={action.onClick}
           className={cn(
-            "h-8 px-3 text-xs font-medium rounded-none",
+            "h-8 px-3 text-xs font-medium rounded-md",
             action.variant === "destructive"
               ? "text-red-400 hover:text-red-300 hover:bg-red-950 dark:text-red-600 dark:hover:text-red-700 dark:hover:bg-red-50"
               : "text-zinc-300 hover:text-white hover:bg-zinc-800 dark:text-zinc-600 dark:hover:text-zinc-900 dark:hover:bg-zinc-200"

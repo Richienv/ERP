@@ -78,27 +78,27 @@ export function SheetsClient({ initialSheets, products }: Props) {
                 <div className="flex items-center gap-3">
                     <Link
                         href="/costing"
-                        className="p-2 border-2 border-black hover:bg-zinc-100 transition-colors"
+                        className="p-2 border border-border hover:bg-zinc-100 transition-colors"
                     >
                         <ArrowLeft className="h-4 w-4" />
                     </Link>
                     <div>
                         <div className="flex items-center gap-2">
-                            <h1 className="text-2xl font-black uppercase tracking-wider">
+                            <h1 className="text-2xl font-semibold  ">
                                 Daftar Cost Sheet
                             </h1>
-                            <span className="text-[9px] font-black px-2 py-0.5 bg-zinc-100 border-2 border-black">
+                            <span className="text-xs font-semibold px-2 py-0.5 bg-zinc-100 border border-border">
                                 {initialSheets.length}
                             </span>
                         </div>
-                        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">
+                        <p className="text-xs font-bold text-zinc-500 mt-1">
                             Kalkulasi biaya per produk garmen
                         </p>
                     </div>
                 </div>
                 <button
                     onClick={() => setCreateOpen(true)}
-                    className="flex items-center gap-1.5 px-3 py-2 border-2 border-black bg-black text-white font-black uppercase text-[10px] tracking-wider shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+                    className="flex items-center gap-1.5 px-3 py-2 border border-border bg-slate-900 text-white font-semibold text-xs shadow-sm hover:shadow-sm transition-all"
                 >
                     <Plus className="h-3.5 w-3.5" />
                     Buat Cost Sheet
@@ -106,10 +106,10 @@ export function SheetsClient({ initialSheets, products }: Props) {
             </div>
 
             {/* Filter Bar */}
-            <div className="bg-white border-2 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <div className="bg-white border border-border p-4 shadow-sm">
                 <div className="flex flex-col gap-3 md:flex-row md:items-end">
                     <div className="flex-1">
-                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
+                        <label className="text-xs font-semibold text-zinc-500 mb-1 block">
                             Cari
                         </label>
                         <div className="relative">
@@ -118,16 +118,16 @@ export function SheetsClient({ initialSheets, products }: Props) {
                                 placeholder="Nama produk, kode, nomor sheet..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                className="pl-9 border-2 border-black font-bold h-9 rounded-none"
+                                className="pl-9 border border-border font-bold h-9 rounded-md"
                             />
                         </div>
                     </div>
                     <div className="min-w-[160px]">
-                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
+                        <label className="text-xs font-semibold text-zinc-500 mb-1 block">
                             Status
                         </label>
                         <Select value={statusFilter} onValueChange={setStatusFilter}>
-                            <SelectTrigger className="border-2 border-black font-bold h-9 rounded-none">
+                            <SelectTrigger className="border border-border font-bold h-9 rounded-md">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -143,26 +143,26 @@ export function SheetsClient({ initialSheets, products }: Props) {
 
             {/* Table */}
             {filtered.length === 0 ? (
-                <div className="bg-white border-2 border-black p-8 text-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <div className="bg-white border border-border p-8 text-center shadow-sm">
                     <DollarSign className="h-8 w-8 mx-auto text-zinc-200 mb-2" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                    <span className="text-xs font-semibold text-zinc-400">
                         {search || statusFilter !== "all" ? "Tidak ada hasil yang cocok" : "Belum ada cost sheet"}
                     </span>
                 </div>
             ) : (
-                <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                <div className="bg-white border border-border shadow-sm overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full">
-                            <thead className="bg-zinc-100 border-b-2 border-black">
+                            <thead className="bg-zinc-100 border-b border-border">
                                 <tr>
-                                    <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">No.</th>
-                                    <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">Produk</th>
-                                    <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-center">Versi</th>
-                                    <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-center">Status</th>
-                                    <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-right">Total Biaya</th>
-                                    <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-right">Target Harga</th>
-                                    <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-right">Margin</th>
-                                    <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-center">Aksi</th>
+                                    <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">No.</th>
+                                    <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">Produk</th>
+                                    <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-center">Versi</th>
+                                    <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-center">Status</th>
+                                    <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-right">Total Biaya</th>
+                                    <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-right">Target Harga</th>
+                                    <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-right">Margin</th>
+                                    <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-center">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -176,14 +176,14 @@ export function SheetsClient({ initialSheets, products }: Props) {
                                             className="border-b border-zinc-200 last:border-b-0 hover:bg-zinc-50 cursor-pointer transition-colors"
                                             onClick={() => router.push(`/costing/sheets/${s.id}`)}
                                         >
-                                            <td className="px-3 py-2.5 text-xs font-black">{s.number}</td>
+                                            <td className="px-3 py-2.5 text-xs font-semibold">{s.number}</td>
                                             <td className="px-3 py-2.5">
                                                 <div className="text-xs font-bold">{s.productName}</div>
-                                                <div className="text-[9px] text-zinc-400 font-mono">{s.productCode}</div>
+                                                <div className="text-xs text-zinc-400 font-mono">{s.productCode}</div>
                                             </td>
                                             <td className="px-3 py-2.5 text-center text-xs font-bold">v{s.version}</td>
                                             <td className="px-3 py-2.5 text-center">
-                                                <span className={`text-[8px] font-black px-1.5 py-0.5 border ${costSheetStatusColors[s.status as CostSheetStatusType]}`}>
+                                                <span className={`text-xs font-semibold px-1.5 py-0.5 border ${costSheetStatusColors[s.status as CostSheetStatusType]}`}>
                                                     {costSheetStatusLabels[s.status as CostSheetStatusType]}
                                                 </span>
                                             </td>
@@ -200,7 +200,7 @@ export function SheetsClient({ initialSheets, products }: Props) {
                                                 <button
                                                     onClick={(e) => handleDuplicate(e, s.id)}
                                                     disabled={duplicating === s.id}
-                                                    className="p-1.5 border border-zinc-300 hover:border-black hover:bg-zinc-100 transition-colors"
+                                                    className="p-1.5 border border-zinc-300 hover:border-border hover:bg-zinc-100 transition-colors"
                                                     title="Duplikasi"
                                                 >
                                                     <Copy className="h-3 w-3" />

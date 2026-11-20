@@ -239,9 +239,9 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
         onOpenChange(v)
     }
 
-    const LABEL = "text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block"
-    const BTN_CANCEL = "border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none disabled:opacity-50"
-    const BTN_SUBMIT = "bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none gap-1.5 disabled:opacity-50 transition-colors"
+    const LABEL = "text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1 block"
+    const BTN_CANCEL = "border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold text-xs px-4 h-8 rounded-md disabled:opacity-50"
+    const BTN_SUBMIT = "bg-slate-900 text-white border border-border hover:bg-zinc-800 font-semibold text-xs px-5 h-8 rounded-md gap-1.5 disabled:opacity-50 transition-colors"
 
     return (
         <NBDialog open={open} onOpenChange={handleOpenChange} size="wide">
@@ -261,11 +261,11 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                             {/* Direction */}
                             <div>
                                 <label className={LABEL}>Arah</label>
-                                <div className="flex border border-black">
+                                <div className="flex border border-border">
                                     <button
                                         type="button"
                                         onClick={() => setBulkDirection("increase")}
-                                        className={`px-3 py-1.5 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest border-r border-black ${
+                                        className={`px-3 py-1.5 flex items-center gap-1 text-xs font-semibold   border-r border-border ${
                                             bulkDirection === "increase"
                                                 ? "bg-emerald-500 text-white"
                                                 : "bg-white hover:bg-zinc-50"
@@ -277,7 +277,7 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                                     <button
                                         type="button"
                                         onClick={() => setBulkDirection("decrease")}
-                                        className={`px-3 py-1.5 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest ${
+                                        className={`px-3 py-1.5 flex items-center gap-1 text-xs font-semibold   ${
                                             bulkDirection === "decrease"
                                                 ? "bg-red-500 text-white"
                                                 : "bg-white hover:bg-zinc-50"
@@ -292,13 +292,13 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                             {/* Mode */}
                             <div>
                                 <label className={LABEL}>Mode</label>
-                                <div className="flex border border-black">
+                                <div className="flex border border-border">
                                     <button
                                         type="button"
                                         onClick={() => setBulkMode("percent")}
-                                        className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border-r border-black ${
+                                        className={`px-3 py-1.5 text-xs font-semibold   border-r border-border ${
                                             bulkMode === "percent"
-                                                ? "bg-black text-white"
+                                                ? "bg-slate-900 text-white"
                                                 : "bg-white hover:bg-zinc-50"
                                         }`}
                                     >
@@ -307,9 +307,9 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                                     <button
                                         type="button"
                                         onClick={() => setBulkMode("fixed")}
-                                        className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${
+                                        className={`px-3 py-1.5 text-xs font-semibold   ${
                                             bulkMode === "fixed"
-                                                ? "bg-black text-white"
+                                                ? "bg-slate-900 text-white"
                                                 : "bg-white hover:bg-zinc-50"
                                         }`}
                                     >
@@ -321,13 +321,13 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                             {/* Target */}
                             <div>
                                 <label className={LABEL}>Target</label>
-                                <div className="flex border border-black">
+                                <div className="flex border border-border">
                                     <button
                                         type="button"
                                         onClick={() => setBulkTarget("both")}
-                                        className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border-r border-black ${
+                                        className={`px-3 py-1.5 text-xs font-semibold   border-r border-border ${
                                             bulkTarget === "both"
-                                                ? "bg-black text-white"
+                                                ? "bg-slate-900 text-white"
                                                 : "bg-white hover:bg-zinc-50"
                                         }`}
                                     >
@@ -336,9 +336,9 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                                     <button
                                         type="button"
                                         onClick={() => setBulkTarget("costPrice")}
-                                        className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border-r border-black ${
+                                        className={`px-3 py-1.5 text-xs font-semibold   border-r border-border ${
                                             bulkTarget === "costPrice"
-                                                ? "bg-black text-white"
+                                                ? "bg-slate-900 text-white"
                                                 : "bg-white hover:bg-zinc-50"
                                         }`}
                                     >
@@ -347,9 +347,9 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                                     <button
                                         type="button"
                                         onClick={() => setBulkTarget("sellingPrice")}
-                                        className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${
+                                        className={`px-3 py-1.5 text-xs font-semibold   ${
                                             bulkTarget === "sellingPrice"
-                                                ? "bg-black text-white"
+                                                ? "bg-slate-900 text-white"
                                                 : "bg-white hover:bg-zinc-50"
                                         }`}
                                     >
@@ -368,7 +368,7 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                                     value={bulkValue}
                                     onChange={(e) => setBulkValue(e.target.value)}
                                     placeholder={bulkMode === "percent" ? "10" : "5000"}
-                                    className="border border-zinc-300 rounded-none h-8 text-sm"
+                                    className="border border-zinc-300 rounded-md h-8 text-sm"
                                     min={0}
                                 />
                             </div>
@@ -391,7 +391,7 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Cari produk..."
-                            className="border border-zinc-300 rounded-none h-8 text-sm pl-9"
+                            className="border border-zinc-300 rounded-md h-8 text-sm pl-9"
                         />
                     </div>
 
@@ -406,10 +406,10 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                                             onCheckedChange={toggleAll}
                                         />
                                     </div>
-                                    <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500">Produk</div>
-                                    <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500">Kategori</div>
-                                    <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Harga Beli</div>
-                                    <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Harga Jual</div>
+                                    <div className="px-3 py-2 text-xs font-semibold text-zinc-500">Produk</div>
+                                    <div className="px-3 py-2 text-xs font-semibold text-zinc-500">Kategori</div>
+                                    <div className="px-3 py-2 text-xs font-semibold text-zinc-500 text-right">Harga Beli</div>
+                                    <div className="px-3 py-2 text-xs font-semibold text-zinc-500 text-right">Harga Jual</div>
                                 </div>
                             </div>
                             <ScrollArea className="max-h-[40vh]">
@@ -444,7 +444,7 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                                                 </div>
                                                 <div className="px-3 py-2">
                                                     <div className="font-bold text-sm">{product.name}</div>
-                                                    <div className="text-[10px] text-zinc-400 font-mono">{product.code}</div>
+                                                    <div className="text-xs text-zinc-400 font-mono">{product.code}</div>
                                                 </div>
                                                 <div className="px-3 py-2 text-zinc-500 text-xs">
                                                     {product.category?.name ?? "-"}
@@ -457,7 +457,7 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                                                             setProductPrice(product.id, "newCostPrice", e.target.value)
                                                         }
                                                         placeholder={String(getNum(product.costPrice))}
-                                                        className={`border border-zinc-300 rounded-none h-8 text-right text-xs ${
+                                                        className={`border border-zinc-300 rounded-md h-8 text-right text-xs ${
                                                             costChanged ? "border-amber-500 bg-amber-50" : ""
                                                         }`}
                                                     />
@@ -470,7 +470,7 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                                                             setProductPrice(product.id, "newSellingPrice", e.target.value)
                                                         }
                                                         placeholder={String(getNum(product.sellingPrice))}
-                                                        className={`border border-zinc-300 rounded-none h-8 text-right text-xs ${
+                                                        className={`border border-zinc-300 rounded-md h-8 text-right text-xs ${
                                                             sellChanged ? "border-amber-500 bg-amber-50" : ""
                                                         }`}
                                                     />
@@ -514,11 +514,11 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                         <div className="-mx-3 -mb-3">
                             <div className="bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-200">
                                 <div className="grid grid-cols-[1fr_140px_140px_140px_140px] items-center">
-                                    <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500">Produk</div>
-                                    <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Harga Beli Lama</div>
-                                    <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Harga Beli Baru</div>
-                                    <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Harga Jual Lama</div>
-                                    <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Harga Jual Baru</div>
+                                    <div className="px-3 py-2 text-xs font-semibold text-zinc-500">Produk</div>
+                                    <div className="px-3 py-2 text-xs font-semibold text-zinc-500 text-right">Harga Beli Lama</div>
+                                    <div className="px-3 py-2 text-xs font-semibold text-zinc-500 text-right">Harga Beli Baru</div>
+                                    <div className="px-3 py-2 text-xs font-semibold text-zinc-500 text-right">Harga Jual Lama</div>
+                                    <div className="px-3 py-2 text-xs font-semibold text-zinc-500 text-right">Harga Jual Baru</div>
                                 </div>
                             </div>
                             <ScrollArea className="max-h-[50vh]">
@@ -538,7 +538,7 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                                         >
                                             <div className="px-3 py-2">
                                                 <div className="font-bold text-sm">{product.name}</div>
-                                                <div className="text-[10px] text-zinc-400 font-mono">{product.code}</div>
+                                                <div className="text-xs text-zinc-400 font-mono">{product.code}</div>
                                             </div>
                                             <div className="px-3 py-2 text-right text-xs text-zinc-500">
                                                 {formatIDR(oldCost)}
@@ -547,7 +547,7 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                                                 <div>{formatIDR(newCost)}</div>
                                                 {costDiff !== 0 && (
                                                     <div
-                                                        className={`text-[10px] ${
+                                                        className={`text-xs ${
                                                             costDiff > 0 ? "text-emerald-600" : "text-red-600"
                                                         }`}
                                                     >
@@ -563,7 +563,7 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                                                 <div>{formatIDR(newSell)}</div>
                                                 {sellDiff !== 0 && (
                                                     <div
-                                                        className={`text-[10px] ${
+                                                        className={`text-xs ${
                                                             sellDiff > 0 ? "text-emerald-600" : "text-red-600"
                                                         }`}
                                                     >

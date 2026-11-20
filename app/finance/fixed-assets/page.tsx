@@ -74,12 +74,12 @@ export default function FixedAssetsPage() {
     })
     const { data: catData } = useFixedAssetCategories()
 
-    if (isLoading || !data) return <TablePageSkeleton accentColor="bg-orange-400" />
+    if (isLoading || !data) return <TablePageSkeleton accentColor="bg-blue-400" />
 
     const { assets, summary } = data
 
     const kpis = [
-        { label: "Total Aset", value: String(summary.totalAssets), dot: "bg-orange-500" },
+        { label: "Total Aset", value: String(summary.totalAssets), dot: "bg-blue-500" },
         { label: "Aktif", value: String(summary.activeCount), dot: "bg-emerald-500" },
         { label: "Harga Perolehan", value: formatCurrency(summary.totalCost), dot: "bg-zinc-400" },
         { label: "Akum. Penyusutan", value: formatCurrency(summary.totalAccDep), dot: "bg-amber-500" },
@@ -95,14 +95,14 @@ export default function FixedAssetsPage() {
                 {/* Row 1: Title + Actions */}
                 <div className={`px-5 py-3.5 flex items-center justify-between ${NB.pageRowBorder}`}>
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-orange-500 flex items-center justify-center">
+                        <div className="w-9 h-9 bg-blue-500 flex items-center justify-center">
                             <Building className="h-4.5 w-4.5 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-base font-black uppercase tracking-wider text-zinc-900 dark:text-white">
+                            <h1 className="text-base font-semibold text-zinc-900 dark:text-white">
                                 Daftar Aset Tetap
                             </h1>
-                            <p className="text-zinc-400 text-[11px] font-medium">
+                            <p className="text-zinc-400 text-xs font-medium">
                                 Kelola aset tetap perusahaan dan penyusutannya
                             </p>
                         </div>
@@ -181,7 +181,7 @@ export default function FixedAssetsPage() {
                             label="Status"
                             hideLabel
                             triggerClassName={NB.filterDropdown}
-                            triggerActiveClassName={NB.filterDropdown.replace("border-zinc-300 dark:border-zinc-700", "border-orange-400 dark:border-orange-500") + " bg-orange-50/50 dark:bg-orange-950/20"}
+                            triggerActiveClassName={NB.filterDropdown.replace("border-zinc-300 dark:border-zinc-700", "border-blue-400 dark:border-blue-500") + " bg-blue-50/50 dark:bg-blue-950/20"}
                             options={[
                                 { value: "ACTIVE", label: "Aktif" },
                                 { value: "FULLY_DEPRECIATED", label: "Disusutkan Penuh" },
@@ -196,13 +196,13 @@ export default function FixedAssetsPage() {
                             label="Kategori"
                             hideLabel
                             triggerClassName={NB.filterDropdown.replace("border-r-0", "")}
-                            triggerActiveClassName={NB.filterDropdown.replace("border-r-0", "").replace("border-zinc-300 dark:border-zinc-700", "border-orange-400 dark:border-orange-500") + " bg-orange-50/50 dark:bg-orange-950/20"}
+                            triggerActiveClassName={NB.filterDropdown.replace("border-r-0", "").replace("border-zinc-300 dark:border-zinc-700", "border-blue-400 dark:border-blue-500") + " bg-blue-50/50 dark:bg-blue-950/20"}
                             options={(catData?.categories || []).map((c: any) => ({ value: c.id, label: c.name }))}
                             selected={categoryFilter ? [categoryFilter] : []}
                             onChange={(vals) => setCategoryFilter(vals[0] || "")}
                         />
                     </div>
-                    <span className="hidden md:inline text-[11px] font-medium text-zinc-400">
+                    <span className="hidden md:inline text-xs font-medium text-zinc-400">
                         <span className="font-mono font-bold text-zinc-600 dark:text-zinc-300">{assets.length}</span> aset
                     </span>
                 </div>
@@ -214,9 +214,9 @@ export default function FixedAssetsPage() {
                 style={{ minHeight: 400 }}
             >
                 {/* Black header */}
-                <div className="hidden md:grid grid-cols-[100px_1fr_120px_140px_140px_140px_100px_110px_160px] gap-2 px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black">
+                <div className="hidden md:grid grid-cols-[100px_1fr_120px_140px_140px_140px_100px_110px_160px] gap-2 px-5 py-2.5 bg-slate-900 dark:bg-zinc-950 border-b border-border">
                     {["Kode", "Nama Aset", "Kategori", "Harga Perolehan", "Akum. Penyusutan", "Nilai Buku", "Metode", "Status", "Aksi"].map((h) => (
-                        <span key={h} className="text-xs font-black uppercase tracking-widest text-zinc-400">{h}</span>
+                        <span key={h} className="text-xs font-semibold text-zinc-400">{h}</span>
                     ))}
                 </div>
 
@@ -229,7 +229,7 @@ export default function FixedAssetsPage() {
                             transition={{ type: "spring" as const, stiffness: 300, damping: 25 }}
                             className="flex flex-col items-center justify-center py-16 text-zinc-400"
                         >
-                            <div className="w-16 h-16 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
+                            <div className="w-16 h-16 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
                                 <Building className="h-7 w-7 text-zinc-200 dark:text-zinc-700" />
                             </div>
                             <span className="text-sm font-bold">Belum ada aset tetap</span>
@@ -242,23 +242,23 @@ export default function FixedAssetsPage() {
                                 return (
                                     <div
                                         key={asset.id}
-                                        className={`grid grid-cols-1 md:grid-cols-[100px_1fr_120px_140px_140px_140px_100px_110px_160px] gap-2 px-5 py-3 items-center transition-all hover:bg-orange-50/50 dark:hover:bg-orange-950/10 ${
+                                        className={`grid grid-cols-1 md:grid-cols-[100px_1fr_120px_140px_140px_140px_100px_110px_160px] gap-2 px-5 py-3 items-center transition-all hover:bg-blue-50/50 dark:hover:bg-blue-950/10 ${
                                             idx % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/60 dark:bg-zinc-800/20"
                                         }`}
                                     >
-                                        <span className="font-mono text-sm font-black text-orange-600 dark:text-orange-400">{asset.assetCode}</span>
+                                        <span className="font-mono text-sm font-semibold text-blue-600 dark:text-blue-400">{asset.assetCode}</span>
                                         <div>
                                             <span className="text-sm font-bold text-zinc-900 dark:text-white">{asset.name}</span>
                                             {asset.serialNumber && (
-                                                <span className="text-[9px] text-zinc-400 font-mono block">SN: {asset.serialNumber}</span>
+                                                <span className="text-xs text-zinc-400 font-mono block">SN: {asset.serialNumber}</span>
                                             )}
                                         </div>
                                         <span className="text-xs font-medium text-zinc-500">{asset.category?.name}</span>
                                         <span className="font-mono font-bold text-sm text-zinc-900 dark:text-white">{formatCurrency(Number(asset.purchaseCost))}</span>
                                         <span className="font-mono font-bold text-sm text-amber-600">{formatCurrency(Number(asset.accumulatedDepreciation))}</span>
                                         <span className="font-mono font-bold text-sm text-indigo-600 dark:text-indigo-400">{formatCurrency(Number(asset.netBookValue))}</span>
-                                        <span className="text-[10px] font-medium text-zinc-500">{methodLabels[asset.depreciationMethod]}</span>
-                                        <span className={`inline-flex items-center w-fit text-[9px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-none ${status.color}`}>
+                                        <span className="text-xs font-medium text-zinc-500">{methodLabels[asset.depreciationMethod]}</span>
+                                        <span className={`inline-flex items-center w-fit text-xs font-semibold px-2 py-0.5 border rounded-md ${status.color}`}>
                                             {status.label}
                                         </span>
                                         <div className="flex items-center gap-1">
@@ -269,7 +269,7 @@ export default function FixedAssetsPage() {
                                                     disabled={syncingId === asset.id}
                                                     onClick={() => handleSyncToCOA(asset.id, asset.name)}
                                                     title="Posting saldo awal aset ini ke Chart of Accounts"
-                                                    className="h-7 px-2 flex items-center gap-1 text-[9px] font-black uppercase border border-orange-400 text-orange-600 bg-orange-50 hover:bg-orange-100 transition-colors rounded-none disabled:opacity-50"
+                                                    className="h-7 px-2 flex items-center gap-1 text-xs font-semibold border border-blue-400 text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors rounded-md disabled:opacity-50"
                                                 >
                                                     {syncingId === asset.id ? (
                                                         <Loader2 className="h-3 w-3 animate-spin" />
@@ -291,7 +291,7 @@ export default function FixedAssetsPage() {
                                                         location: asset.location,
                                                         department: asset.department,
                                                     })}
-                                                    className="h-7 px-2 flex items-center gap-1 text-[9px] font-black uppercase border border-zinc-300 dark:border-zinc-600 text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:border-zinc-400 transition-colors rounded-none"
+                                                    className="h-7 px-2 flex items-center gap-1 text-xs font-semibold border border-zinc-300 dark:border-zinc-600 text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:border-zinc-400 transition-colors rounded-md"
                                                 >
                                                     <ArrowRightLeft className="h-3 w-3" /> Aksi
                                                 </motion.button>

@@ -7,9 +7,9 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
-  --font-heading: var(--font-outfit);
+  --font-heading: var(--font-geist-sans);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-serif: var(--font-outfit);
+  --font-serif: var(--font-geist-sans);
 
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -56,53 +56,53 @@
 }
 
 :root {
-  /* Minimalist Zinc - Light Mode */
-  --radius: 0.75rem;
+  /* Integra Pro — light. Calm surfaces, one deep-blue brand, readable for 40–60+ eyes. */
+  --radius: 0.5rem;
 
-  --background: oklch(0.985 0.002 247.839);
-  --foreground: oklch(0.13 0.02 260);
+  --background: oklch(0.975 0.004 255);      /* light grey canvas (like SAP/Accurate) */
+  --foreground: oklch(0.22 0.03 260);        /* near-black ink, softer than pure black */
 
-  /* Clean White/Gray Cards */
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.13 0.02 260);
+  --card-foreground: oklch(0.22 0.03 260);
 
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.13 0.02 260);
+  --popover-foreground: oklch(0.22 0.03 260);
 
-  /* Neutral Slate/Zinc Primary */
-  --primary: oklch(0.25 0.02 260);
-  --primary-foreground: oklch(0.985 0 0);
+  /* Brand: deep blue (Tailwind blue-700 family) */
+  --primary: oklch(0.49 0.2 262);
+  --primary-foreground: oklch(0.99 0 0);
 
-  --secondary: oklch(0.95 0.02 260);
-  --secondary-foreground: oklch(0.25 0.05 260);
+  --secondary: oklch(0.955 0.012 255);
+  --secondary-foreground: oklch(0.3 0.04 260);
 
-  --muted: oklch(0.95 0.02 260);
-  --muted-foreground: oklch(0.5 0.02 260);
+  --muted: oklch(0.955 0.008 255);
+  --muted-foreground: oklch(0.46 0.03 260);   /* AA on white */
 
-  --accent: oklch(0.95 0.02 260);
-  --accent-foreground: oklch(0.25 0.05 260);
+  --accent: oklch(0.95 0.025 255);
+  --accent-foreground: oklch(0.3 0.08 262);
 
-  --destructive: oklch(0.6 0.2 25);
+  --destructive: oklch(0.55 0.21 27);
 
-  --border: oklch(0.9 0.01 260);
-  --input: oklch(0.9 0.01 260);
-  --ring: oklch(0.25 0.02 260 / 0.5);
+  --border: oklch(0.9 0.008 255);
+  --input: oklch(0.86 0.01 255);
+  --ring: oklch(0.49 0.2 262 / 0.45);
 
-  /* Minimalist Charts (Monochrome/Subtle) */
-  --chart-1: oklch(0.25 0.02 260);
-  --chart-2: oklch(0.4 0.02 260);
-  --chart-3: oklch(0.55 0.02 260);
-  --chart-4: oklch(0.7 0.02 260);
-  --chart-5: oklch(0.85 0.02 260);
+  /* Charts: brand blue first, then distinguishable calm hues */
+  --chart-1: oklch(0.49 0.2 262);
+  --chart-2: oklch(0.62 0.14 200);
+  --chart-3: oklch(0.7 0.15 150);
+  --chart-4: oklch(0.75 0.15 75);
+  --chart-5: oklch(0.6 0.18 25);
 
-  --sidebar: oklch(0.985 0.002 247.839);
-  --sidebar-foreground: oklch(0.13 0.02 260);
-  --sidebar-primary: oklch(0.25 0.02 260);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.95 0.02 260);
-  --sidebar-accent-foreground: oklch(0.25 0.02 260);
-  --sidebar-border: oklch(0.9 0.01 260);
-  --sidebar-ring: oklch(0.25 0.02 260);
+  /* Sidebar: deep navy, like an SAP shell — always clearly "the menu" */
+  --sidebar: oklch(0.24 0.05 262);
+  --sidebar-foreground: oklch(0.93 0.01 255);
+  --sidebar-primary: oklch(0.62 0.17 255);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.31 0.06 262);
+  --sidebar-accent-foreground: oklch(0.99 0 0);
+  --sidebar-border: oklch(0.33 0.05 262);
+  --sidebar-ring: oklch(0.62 0.17 255);
 }
 
 .dark {
@@ -430,53 +430,8 @@
 }
 
 .ritchie-minimal {
-  /* Ritchie Minimal: Exact copy of Ritchie structure but for monochrome usage */
-  --background: oklch(1 0 0);
-  --foreground: oklch(0 0 0);
-  /* Pure Black */
-
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0 0 0);
-
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0 0 0);
-
-  --primary: oklch(0 0 0);
-  --primary-foreground: oklch(1 0 0);
-
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0 0 0);
-
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0 0 0);
-
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0 0 0);
-
-  --destructive: oklch(0.6 0.18 25);
-
-  --border: oklch(0 0 0);
-  --input: oklch(0 0 0);
-
-  --ring: oklch(0.6 0.2 250);
-
-  --radius: 1rem;
-
-  /* Standard Minimalist Charts */
-  --chart-1: oklch(0 0 0);
-  --chart-2: oklch(0.5 0 0);
-  --chart-3: oklch(0.8 0 0);
-  --chart-4: oklch(0.9 0 0);
-  --chart-5: oklch(0.95 0 0);
-
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0 0 0);
-  --sidebar-primary: oklch(0 0 0);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0 0 0);
-  --sidebar-border: oklch(0 0 0);
-  --sidebar-ring: oklch(0 0 0);
+  /* Kept so a saved "Ritchie Minimal" preference still loads: it now simply uses the
+     Integra Pro light tokens from :root (the old black-and-white overrides were removed). */
 }
 
 @layer base {
@@ -547,3 +502,19 @@ textarea.nb-input:not(:placeholder-shown) {
 .animate-inline-pending {
   animation: kri-inline-pending 1.1s ease-in-out infinite;
 }
+
+/* ── Integra Pro base ─────────────────────────────────────────────────────── */
+/* 17 px root: every rem-based size grows ~6% (text-xs ≈ 12.75 px, text-sm ≈ 14.9 px). */
+html {
+  font-size: 106.25%;
+}
+body {
+  font-feature-settings: "tnum" 1, "cv11" 1; /* aligned digits in tables and totals */
+  -webkit-font-smoothing: antialiased;
+}
+/* Clear keyboard focus for everyone, not only power users. */
+:where(button, a, input, select, textarea, [role="button"], [role="switch"]):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+

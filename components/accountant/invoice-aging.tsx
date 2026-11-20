@@ -20,7 +20,7 @@ export function InvoiceAging() {
             </CardHeader>
             <CardContent className="flex-1 p-6 space-y-6">
                 <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[9px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 border border-amber-300 px-2 py-0.5">Data Demo</span>
+                    <span className="text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-300 px-2 py-0.5">Data Demo</span>
                 </div>
                 {/* Invoice Table Mock */}
                 <div className="rounded-lg border overflow-hidden">

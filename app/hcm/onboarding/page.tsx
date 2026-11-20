@@ -149,7 +149,7 @@ function CreateTemplateDialog({
                                 className="border border-zinc-200 dark:border-zinc-700 p-3 space-y-2 relative"
                             >
                                 <div className="flex items-center justify-between mb-1">
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                                    <span className="text-xs font-semibold text-zinc-400">
                                         Tugas #{index + 1}
                                     </span>
                                     {tasks.length > 1 && (
@@ -197,7 +197,7 @@ function CreateTemplateDialog({
                     <Button
                         variant="outline"
                         size="sm"
-                        className="border-dashed border-2 text-xs font-bold uppercase w-full hover:bg-orange-50 hover:border-orange-300 rounded-none mt-3"
+                        className="border-dashed border text-xs font-bold w-full hover:bg-blue-50 hover:border-blue-300 rounded-md mt-3"
                         onClick={addTask}
                     >
                         <Plus className="h-3 w-3 mr-1" /> Tambah Tugas
@@ -406,7 +406,7 @@ export default function OnboardingPage() {
     }
 
     if (!data) {
-        return <TablePageSkeleton accentColor="bg-orange-400" />
+        return <TablePageSkeleton accentColor="bg-blue-400" />
     }
 
     const { templates } = data
@@ -431,7 +431,7 @@ export default function OnboardingPage() {
                             <ClipboardCheck className="h-4.5 w-4.5 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-base font-black uppercase tracking-wider text-zinc-900 dark:text-white">
+                            <h1 className="text-base font-semibold text-zinc-900 dark:text-white">
                                 Onboarding Karyawan
                             </h1>
                             <p className="text-zinc-400 text-xs font-medium">
@@ -499,9 +499,9 @@ export default function OnboardingPage() {
                                 setActiveTab(tab.key)
                                 if (tab.key === "karyawan") loadEmployees()
                             }}
-                            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-none transition-all ${
+                            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold   rounded-md transition-all ${
                                 activeTab === tab.key
-                                    ? "bg-black text-white dark:bg-white dark:text-black"
+                                    ? "bg-slate-900 text-white dark:bg-white dark:text-black"
                                     : "text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                             }`}
                         >
@@ -514,10 +514,10 @@ export default function OnboardingPage() {
 
             {/* ─── Tab Content ─── */}
             {activeTab === "template" ? (
-                    <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                    <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
                         {templates.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-16 text-zinc-400">
-                                <div className="w-16 h-16 border-2 border-dashed border-zinc-300 dark:border-zinc-700 flex items-center justify-center mb-4">
+                                <div className="w-16 h-16 border border-dashed border-zinc-300 dark:border-zinc-700 flex items-center justify-center mb-4">
                                     <ClipboardCheck className="h-7 w-7 text-zinc-300" />
                                 </div>
                                 <span className="text-sm font-bold">
@@ -544,15 +544,15 @@ export default function OnboardingPage() {
                                     }) => (
                                         <div
                                             key={t.id}
-                                            className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden"
+                                            className="border border-border shadow-sm overflow-hidden"
                                         >
                                             <div className="h-1 bg-zinc-300 dark:bg-zinc-600" />
                                             <div className="p-4">
                                                 <div className="flex items-center justify-between mb-2">
-                                                    <span className="text-xs font-black">
+                                                    <span className="text-xs font-semibold">
                                                         {t.name}
                                                     </span>
-                                                    <span className="text-xs font-black px-2 py-0.5 bg-zinc-100 border border-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:border-zinc-600 dark:text-zinc-300">
+                                                    <span className="text-xs font-semibold px-2 py-0.5 bg-zinc-100 border border-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:border-zinc-600 dark:text-zinc-300">
                                                         {t.taskCount} tugas
                                                     </span>
                                                 </div>
@@ -575,14 +575,14 @@ export default function OnboardingPage() {
                         )}
                     </div>
                 ) : (
-                    <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                    <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
                         <div className="p-5 space-y-4">
                             {/* Employee selector + Start button */}
                             <div className="flex items-end gap-3">
                                 <div className="flex-1">
                                     <label className={NB.label}>Pilih Karyawan</label>
                                     {employeesLoading ? (
-                                        <div className="h-10 border-2 border-zinc-200 bg-zinc-100 animate-pulse" />
+                                        <div className="h-10 border border-zinc-200 bg-zinc-100 animate-pulse" />
                                     ) : (
                                         <Select
                                             value={selectedEmployeeId}
@@ -631,7 +631,7 @@ export default function OnboardingPage() {
                             {onboardingLoading ? (
                                 <div className="flex items-center justify-center py-12 text-zinc-400">
                                     <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                                    <span className="text-xs font-bold uppercase tracking-widest">
+                                    <span className="text-xs font-bold  ">
                                         Memuat progress...
                                     </span>
                                 </div>

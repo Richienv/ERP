@@ -15,8 +15,8 @@ const savedQuestions = [
 
 export function OperationsCockpit() {
     return (
-        <Card className="bg-zinc-50 dark:bg-zinc-900 border-2 border-indigo-100 dark:border-indigo-900 overflow-hidden">
-            <CardHeader className="bg-white dark:bg-black border-b flex flex-row items-center justify-between py-3">
+        <Card className="bg-zinc-50 dark:bg-zinc-900 border border-indigo-100 dark:border-indigo-900 overflow-hidden">
+            <CardHeader className="bg-white dark:bg-slate-900 border-b flex flex-row items-center justify-between py-3">
                 <div className="flex items-center gap-2">
                     <div className="p-2 bg-indigo-600 rounded-lg text-white">
                         <Sparkles className="h-4 w-4" />
@@ -67,7 +67,7 @@ export function OperationsCockpit() {
                                     <li><strong>30%</strong> dari lembur (Overtime) di lini produksi 2 minggu terakhir.</li>
                                     <li><strong>15%</strong> diskon volume ke pelanggan <em>PT. Mitra Abadi</em>.</li>
                                 </ul>
-                                <div className="p-3 bg-zinc-50 dark:bg-black rounded border mt-2">
+                                <div className="p-3 bg-zinc-50 dark:bg-slate-900 rounded border mt-2">
                                     <p className="text-xs font-bold mb-2">Rekomendasi Tindakan:</p>
                                     <div className="flex gap-2">
                                         <Button size="sm" variant="outline" className="h-7 text-xs">Cek Laporan Lembur</Button>
@@ -79,7 +79,7 @@ export function OperationsCockpit() {
                     </ScrollArea>
 
                     {/* Input Area */}
-                    <div className="p-4 border-t bg-white dark:bg-black mt-auto">
+                    <div className="p-4 border-t bg-white dark:bg-slate-900 mt-auto">
                         <div className="relative">
                             <Input placeholder="Tanya tentang data produksi, keuangan, atau pelanggan..." className="pr-12" />
                             <Button size="icon" className="absolute right-1 top-1 h-8 w-8 bg-indigo-600 hover:bg-indigo-700">

@@ -41,8 +41,8 @@ export function AllocationEditor({ allocations, totalQty, stations, onChange }: 
     return (
         <div className="space-y-3">
             <div className="flex items-center justify-between">
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Alokasi Produksi</h4>
-                <div className="text-[10px] font-bold">
+                <h4 className="text-xs font-semibold text-zinc-500">Alokasi Produksi</h4>
+                <div className="text-xs font-bold">
                     <span className={remaining === 0 ? "text-emerald-600" : remaining < 0 ? "text-red-600" : "text-amber-600"}>
                         {allocated}/{totalQty} pcs
                     </span>
@@ -53,7 +53,7 @@ export function AllocationEditor({ allocations, totalQty, stations, onChange }: 
             {allocations.map((alloc, index) => (
                 <div key={index} className="flex items-center gap-2">
                     <Select value={alloc.stationId} onValueChange={(v) => updateAllocation(index, "stationId", v)}>
-                        <SelectTrigger className="h-8 text-xs border-zinc-200 rounded-none flex-1">
+                        <SelectTrigger className="h-8 text-xs border-zinc-200 rounded-md flex-1">
                             <SelectValue placeholder="Pilih work center..." />
                         </SelectTrigger>
                         <SelectContent>
@@ -68,17 +68,17 @@ export function AllocationEditor({ allocations, totalQty, stations, onChange }: 
                         type="number"
                         value={alloc.quantity}
                         onChange={(e) => updateAllocation(index, "quantity", parseInt(e.target.value) || 0)}
-                        className="h-8 w-20 text-xs font-mono border-zinc-200 rounded-none placeholder:text-zinc-300"
+                        className="h-8 w-20 text-xs font-mono border-zinc-200 rounded-md placeholder:text-zinc-300"
                         placeholder="0"
                     />
-                    <span className="text-[10px] font-bold text-zinc-400 shrink-0">pcs</span>
-                    <Button variant="ghost" size="sm" onClick={() => removeAllocation(index)} className="h-8 w-8 p-0 rounded-none">
+                    <span className="text-xs font-bold text-zinc-400 shrink-0">pcs</span>
+                    <Button variant="ghost" size="sm" onClick={() => removeAllocation(index)} className="h-8 w-8 p-0 rounded-md">
                         <Trash2 className="h-3.5 w-3.5 text-zinc-400 hover:text-red-500" />
                     </Button>
                 </div>
             ))}
 
-            <Button onClick={addAllocation} variant="outline" size="sm" className="h-7 text-[10px] font-bold rounded-none border-dashed w-full">
+            <Button onClick={addAllocation} variant="outline" size="sm" className="h-7 text-xs font-bold rounded-md border-dashed w-full">
                 <Plus className="mr-1 h-3 w-3" /> Tambah Alokasi
             </Button>
         </div>

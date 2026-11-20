@@ -172,7 +172,7 @@ export default function HCMPage() {
   const totalPresent = staffRows.filter((s) => s.status === "PRESENT" || s.status === "REMOTE").length
 
   return (
-    <div className="relative flex-1 min-h-screen space-y-6 bg-zinc-50/50 p-4 pt-6 dark:bg-black md:p-8">
+    <div className="relative flex-1 min-h-screen space-y-6 bg-zinc-50/50 p-4 pt-6 dark:bg-slate-900 md:p-8">
       <InlinePendingBar active={(!!data && isFetching) || (!!snapshot && snapshotFetching)} />
       <CommandPulse
         module="hcm"
@@ -270,7 +270,7 @@ export default function HCMPage() {
               <CardDescription>Kelola data kontrak, posisi, dan profil personal.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center justify-center rounded-lg border-2 border-dashed p-8 text-muted-foreground">
+              <div className="flex items-center justify-center rounded-lg border border-dashed p-8 text-muted-foreground">
                 <Users className="mb-4 h-12 w-12 opacity-20" />
                 <p>Kelola data lengkap pada menu Data Karyawan.</p>
               </div>

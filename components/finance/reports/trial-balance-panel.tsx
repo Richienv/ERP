@@ -42,24 +42,24 @@ export function TrialBalancePanel({ data, onReconcile }: TrialBalancePanelProps)
     : data.rows.filter((r) => Math.abs(r.difference) > 0.01)
 
   return (
-    <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white">
+    <div className="border border-border shadow-sm bg-white">
       {/* Collapsible Header */}
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between bg-black text-white px-4 py-3 hover:bg-zinc-800 transition-colors"
+        className="w-full flex items-center justify-between bg-slate-900 text-white px-4 py-3 hover:bg-zinc-800 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <span className="text-sm font-black uppercase tracking-wider">
+          <span className="text-sm font-semibold  ">
             Neraca Saldo (Trial Balance)
           </span>
           {data.mismatchCount > 0 && (
-            <Badge className="bg-red-500 text-white border-0 text-[10px] font-black">
+            <Badge className="bg-red-500 text-white border-0 text-xs font-semibold">
               {data.mismatchCount} selisih
             </Badge>
           )}
           {data.mismatchCount === 0 && (
-            <Badge className="bg-emerald-500 text-white border-0 text-[10px] font-black">
+            <Badge className="bg-emerald-500 text-white border-0 text-xs font-semibold">
               Seimbang
             </Badge>
           )}
@@ -79,9 +79,9 @@ export function TrialBalancePanel({ data, onReconcile }: TrialBalancePanelProps)
               variant="outline"
               size="sm"
               onClick={() => setShowAll(false)}
-              className={`rounded-none border-2 border-black text-xs font-black uppercase tracking-wider ${
+              className={`rounded-md border border-border text-xs font-semibold   ${
                 !showAll
-                  ? "bg-black text-white"
+                  ? "bg-slate-900 text-white"
                   : "bg-white text-black hover:bg-zinc-100"
               }`}
             >
@@ -91,9 +91,9 @@ export function TrialBalancePanel({ data, onReconcile }: TrialBalancePanelProps)
               variant="outline"
               size="sm"
               onClick={() => setShowAll(true)}
-              className={`rounded-none border-2 border-black text-xs font-black uppercase tracking-wider ${
+              className={`rounded-md border border-border text-xs font-semibold   ${
                 showAll
-                  ? "bg-black text-white"
+                  ? "bg-slate-900 text-white"
                   : "bg-white text-black hover:bg-zinc-100"
               }`}
             >
@@ -143,7 +143,7 @@ export function TrialBalancePanel({ data, onReconcile }: TrialBalancePanelProps)
                         <td className={NB.tableCell}>
                           <Badge
                             variant="outline"
-                            className="border-black text-[10px] font-bold rounded-none"
+                            className="border-border text-xs font-bold rounded-md"
                           >
                             {TYPE_LABELS[row.accountType] || row.accountType}
                           </Badge>
@@ -177,10 +177,10 @@ export function TrialBalancePanel({ data, onReconcile }: TrialBalancePanelProps)
                 </tbody>
                 {/* Footer Grand Totals */}
                 <tfoot>
-                  <tr className="border-t-2 border-black bg-zinc-100">
+                  <tr className="border-t border-border bg-zinc-100">
                     <td
                       colSpan={3}
-                      className={`${NB.tableCell} font-black uppercase text-xs tracking-wider`}
+                      className={`${NB.tableCell} font-semibold text-xs`}
                     >
                       Grand Total
                     </td>
@@ -193,11 +193,11 @@ export function TrialBalancePanel({ data, onReconcile }: TrialBalancePanelProps)
                     <td colSpan={2} />
                     <td className={`${NB.tableCell} text-right`}>
                       {data.isBalanced ? (
-                        <Badge className="bg-emerald-500 text-white border-0 text-[10px] font-black rounded-none">
+                        <Badge className="bg-emerald-500 text-white border-0 text-xs font-semibold rounded-md">
                           Seimbang
                         </Badge>
                       ) : (
-                        <Badge className="bg-red-500 text-white border-0 text-[10px] font-black rounded-none">
+                        <Badge className="bg-red-500 text-white border-0 text-xs font-semibold rounded-md">
                           Tidak Seimbang
                         </Badge>
                       )}

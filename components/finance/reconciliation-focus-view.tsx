@@ -143,8 +143,8 @@ const LAYER_CONFIG: Record<ReconDisplayLayer, {
         label: "POTENSI", headerIcon: CircleDot, headerBg: "bg-amber-50",
     },
     HAMPIR: {
-        icon: AlertCircle, bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-300",
-        label: "HAMPIR", headerIcon: AlertCircle, headerBg: "bg-orange-50",
+        icon: AlertCircle, bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-300",
+        label: "HAMPIR", headerIcon: AlertCircle, headerBg: "bg-blue-50",
     },
     BELUM: {
         icon: Circle, bg: "bg-zinc-50", text: "text-zinc-500", border: "border-zinc-200",
@@ -175,7 +175,7 @@ function TierBadge({ tier, score }: { tier: string | null; score?: number | null
     const layer = layerMap[tier] || "BELUM"
     const cfg = LAYER_CONFIG[layer]
     return (
-        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[7px] font-black border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[7px] font-semibold border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
             {cfg.label}
             {score != null && <span className="font-mono">{score >= 99 ? 100 : score}%</span>}
         </span>
@@ -204,7 +204,7 @@ function signalColor(value: number): string {
 function SignalBar({ signals, score }: { signals: MatchSignals; score: number }) {
   return (
     <div className="mt-2">
-      <div className="flex h-2 border border-black overflow-hidden">
+      <div className="flex h-2 border border-border overflow-hidden">
         {SIGNAL_LABELS.map(({ key, weight }) => (
           <div
             key={key}
@@ -218,7 +218,7 @@ function SignalBar({ signals, score }: { signals: MatchSignals; score: number })
         {SIGNAL_LABELS.map(({ key, label, weight }) => (
           <span
             key={key}
-            className="text-[6px] font-bold uppercase text-zinc-400 text-center truncate"
+            className="text-[6px] font-bold text-zinc-400 text-center truncate"
             style={{ width: `${weight}%` }}
           >
             {label}
@@ -236,7 +236,7 @@ function SignalBar({ signals, score }: { signals: MatchSignals; score: number })
 function DirectionChip({ amount }: { amount: number }) {
   const isInflow = amount >= 0
   return (
-    <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[8px] font-black border ${
+    <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs font-semibold border ${
       isInflow
         ? "bg-emerald-100 text-emerald-700 border-emerald-400"
         : "bg-red-100 text-red-700 border-red-400"
@@ -274,7 +274,7 @@ function HighlightedText({ text, matchedRefs }: { text: string; matchedRefs: str
       <>
         {parts.map((part, i) =>
           regex.test(part) ? (
-            <span key={i} className="bg-orange-100 border-b border-orange-400 font-bold text-orange-800 px-0.5">
+            <span key={i} className="bg-blue-100 border-b border-blue-400 font-bold text-blue-800 px-0.5">
               {part}
             </span>
           ) : (
@@ -343,8 +343,8 @@ function ZeroMatchDiagnostic({
   return (
     <div className="p-8 text-center space-y-3">
       <Icon className="h-6 w-6 mx-auto text-zinc-300 mb-2" />
-      <span className="text-[11px] font-bold text-zinc-500 block">Tidak ada jurnal yang cocok</span>
-      <p className="text-[10px] text-zinc-400 italic">{diagnostic.message}</p>
+      <span className="text-xs font-bold text-zinc-500 block">Tidak ada jurnal yang cocok</span>
+      <p className="text-xs text-zinc-400 italic">{diagnostic.message}</p>
     </div>
   )
 }
@@ -375,22 +375,22 @@ function ProgressHeader({
         <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 bg-orange-500 flex items-center justify-center">
+                    <div className="w-9 h-9 bg-blue-500 flex items-center justify-center">
                         <Landmark className="h-4.5 w-4.5 text-white" />
                     </div>
                     <div>
                         <div className="flex items-center gap-2.5 mb-0.5">
-                            <h2 className="text-base font-black tracking-tight text-zinc-900 dark:text-white">
+                            <h2 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-white">
                                 {detail.glAccountName}
                             </h2>
-                            <span className="text-[9px] font-mono font-bold text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 border border-zinc-200 dark:border-zinc-700">
+                            <span className="text-xs font-mono font-bold text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 border border-zinc-200 dark:border-zinc-700">
                                 {detail.glAccountCode}
                             </span>
-                            <span className={`text-[8px] font-black uppercase tracking-wider px-2 py-0.5 border ${statusColor}`}>
+                            <span className={`text-xs font-semibold px-2 py-0.5 border ${statusColor}`}>
                                 {statusLabel}
                             </span>
                         </div>
-                        <div className="flex items-center gap-4 text-[11px]">
+                        <div className="flex items-center gap-4 text-xs">
                             <span className="text-zinc-400 font-medium">
                                 Saldo Buku: <span className="font-mono font-bold text-zinc-700 dark:text-zinc-300">Rp {formatIDR(detail.glAccountBalance)}</span>
                             </span>
@@ -412,8 +412,8 @@ function ProgressHeader({
                         transition={{ duration: 0.5, ease: "easeOut" }}
                     />
                 </div>
-                <span className="text-sm font-black font-mono text-zinc-700 dark:text-zinc-300 shrink-0 w-24 text-right">
-                    {matchedCount}/{totalCount} <span className="text-[10px] font-bold text-zinc-400">selesai</span>
+                <span className="text-sm font-semibold font-mono text-zinc-700 dark:text-zinc-300 shrink-0 w-24 text-right">
+                    {matchedCount}/{totalCount} <span className="text-xs font-bold text-zinc-400">selesai</span>
                 </span>
             </div>
         </div>
@@ -456,13 +456,13 @@ function QueueItemRow({
             }`}
         >
             {isActive && (
-                <div className="absolute left-0 top-1.5 bottom-1.5 w-[3px] bg-orange-500 rounded-r" />
+                <div className="absolute left-0 top-1.5 bottom-1.5 w-[3px] bg-blue-500 rounded-r" />
             )}
             <button onClick={onSelect} className="w-full text-left flex items-center gap-2.5">
                 <Icon className={`h-3.5 w-3.5 shrink-0 ${cfg.text}`} />
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1.5">
-                        <span className={`text-[11px] font-medium truncate ${
+                        <span className={`text-xs font-medium truncate ${
                             layer === "CONFIRMED" ? "text-zinc-500 line-through" :
                             layer === "IGNORED" ? "text-zinc-400 italic" :
                             isActive ? "text-zinc-900 font-bold" :
@@ -472,7 +472,7 @@ function QueueItemRow({
                         </span>
                     </div>
                     <div className="flex items-center justify-between gap-1 mt-0.5">
-                        <span className={`text-[9px] font-mono ${
+                        <span className={`text-xs font-mono ${
                             item.bankAmount >= 0 ? "text-emerald-600" : "text-red-500"
                         }`}>
                             <span className="text-[7px]">{item.bankAmount >= 0 ? "\u25B2" : "\u25BC"}</span>{" "}
@@ -480,16 +480,16 @@ function QueueItemRow({
                         </span>
                         <div className="flex items-center gap-1">
                             {item.source === 'GL_AUTO' && (
-                                <span className="text-[7px] font-bold uppercase px-1 py-0.5 bg-blue-100 text-blue-700 border border-blue-300">
+                                <span className="text-[7px] font-bold px-1 py-0.5 bg-blue-100 text-blue-700 border border-blue-300">
                                     GL
                                 </span>
                             )}
                             {item.source === 'CSV_IMPORT' && (
-                                <span className="text-[7px] font-bold uppercase px-1 py-0.5 bg-zinc-100 text-zinc-500 border border-zinc-300">
+                                <span className="text-[7px] font-bold px-1 py-0.5 bg-zinc-100 text-zinc-500 border border-zinc-300">
                                     CSV
                                 </span>
                             )}
-                            <span className={`text-[7px] font-black px-1 py-0.5 border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+                            <span className={`text-[7px] font-semibold px-1 py-0.5 border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
                                 {cfg.label}
                                 {item.matchScore != null && layer !== "CONFIRMED" && layer !== "IGNORED" && (
                                     <span className="font-mono ml-0.5">{(item.matchScore ?? 0) >= 99 ? 100 : item.matchScore}%</span>
@@ -505,7 +505,7 @@ function QueueItemRow({
                         <button
                             onClick={(e) => { e.stopPropagation(); onConfirm() }}
                             disabled={isLoading}
-                            className="flex-1 text-[7px] font-bold uppercase px-1.5 py-1 bg-emerald-500 text-white border border-emerald-600 hover:bg-emerald-600 disabled:opacity-50"
+                            className="flex-1 text-[7px] font-bold px-1.5 py-1 bg-emerald-500 text-white border border-emerald-600 hover:bg-emerald-600 disabled:opacity-50"
                         >
                             {isLoading ? "..." : "Konfirmasi"}
                         </button>
@@ -514,7 +514,7 @@ function QueueItemRow({
                         <button
                             onClick={(e) => { e.stopPropagation(); onReject() }}
                             disabled={isLoading}
-                            className="flex-1 text-[7px] font-bold uppercase px-1.5 py-1 bg-white text-red-600 border border-red-300 hover:bg-red-50 disabled:opacity-50"
+                            className="flex-1 text-[7px] font-bold px-1.5 py-1 bg-white text-red-600 border border-red-300 hover:bg-red-50 disabled:opacity-50"
                         >
                             Tolak
                         </button>
@@ -523,7 +523,7 @@ function QueueItemRow({
                         <button
                             onClick={(e) => { e.stopPropagation(); onIgnore() }}
                             disabled={isLoading}
-                            className="flex-1 text-[7px] font-bold uppercase px-1.5 py-1 bg-white text-zinc-500 border border-zinc-300 hover:bg-zinc-50 disabled:opacity-50"
+                            className="flex-1 text-[7px] font-bold px-1.5 py-1 bg-white text-zinc-500 border border-zinc-300 hover:bg-zinc-50 disabled:opacity-50"
                         >
                             Abaikan
                         </button>
@@ -599,10 +599,10 @@ function QueueSidebar({
             {/* Header + progress */}
             <div className="px-3.5 py-2.5 border-b border-zinc-200 dark:border-zinc-700">
                 <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                    <span className="text-xs font-semibold text-zinc-500">
                         Rekonsiliasi
                     </span>
-                    <span className="text-[10px] font-mono font-bold text-zinc-400">
+                    <span className="text-xs font-mono font-bold text-zinc-400">
                         {confirmedCount}/{items.length}
                     </span>
                 </div>
@@ -620,7 +620,7 @@ function QueueSidebar({
                     <button
                         key={tab}
                         onClick={() => onFilterChange(tab)}
-                        className={`px-2 py-1 text-[8px] font-black uppercase tracking-wider whitespace-nowrap border transition-colors ${
+                        className={`px-2 py-1 text-xs font-semibold   whitespace-nowrap border transition-colors ${
                             activeFilter === tab
                                 ? "bg-zinc-900 text-white border-zinc-900"
                                 : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-400"
@@ -644,7 +644,7 @@ function QueueSidebar({
                                 <div className={`flex items-center justify-between px-2 py-1.5 ${layerCfg.headerBg} border-b border-zinc-200`}>
                                     <div className="flex items-center gap-1.5">
                                         <layerCfg.headerIcon className={`h-3.5 w-3.5 ${layerCfg.text}`} />
-                                        <span className={`text-[9px] font-black uppercase tracking-wider ${layerCfg.text}`}>
+                                        <span className={`text-xs font-semibold ${layerCfg.text}`}>
                                             {layerCfg.label} ({groupItems.length})
                                         </span>
                                     </div>
@@ -652,7 +652,7 @@ function QueueSidebar({
                                         <button
                                             onClick={onBulkConfirmCocok}
                                             disabled={!!actionLoading}
-                                            className="text-[7px] font-bold uppercase px-1.5 py-0.5 bg-emerald-600 text-white border border-emerald-700 hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                                            className="text-[7px] font-bold px-1.5 py-0.5 bg-emerald-600 text-white border border-emerald-700 hover:bg-emerald-700 disabled:opacity-50 transition-colors"
                                         >
                                             {actionLoading === "bulk-confirm" ? "..." : "Konfirmasi Semua"}
                                         </button>
@@ -705,25 +705,25 @@ function QueueSidebar({
 
 function BankLineCard({ item }: { item: ReconciliationItemData }) {
     return (
-        <div className="border-2 border-black bg-white dark:bg-zinc-900 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+        <div className="border border-border bg-white dark:bg-zinc-900 shadow-sm">
             <div className="bg-sky-500 px-4 py-2 flex items-center gap-2">
                 <Landmark className="h-3.5 w-3.5 text-white" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-white">
+                <span className="text-xs font-semibold text-white">
                     Laporan Bank
                 </span>
             </div>
             <div className="p-4 space-y-2.5">
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                     <div>
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400 block">Tanggal</span>
+                        <span className="text-xs font-bold text-zinc-400 block">Tanggal</span>
                         <span className="text-sm font-mono font-bold text-zinc-800 dark:text-zinc-200">
                             {item.bankDate ? formatDate(item.bankDate) : "-"}
                         </span>
                     </div>
                     <div>
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400 block">Jumlah</span>
+                        <span className="text-xs font-bold text-zinc-400 block">Jumlah</span>
                         <div className="flex items-center gap-2">
-                            <span className={`text-lg font-mono font-black ${
+                            <span className={`text-lg font-mono font-semibold ${
                                 item.bankAmount >= 0 ? "text-emerald-600" : "text-red-600"
                             }`}>
                                 Rp {formatIDR(Math.abs(item.bankAmount))}
@@ -733,14 +733,14 @@ function BankLineCard({ item }: { item: ReconciliationItemData }) {
                     </div>
                 </div>
                 <div>
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400 block">Keterangan</span>
+                    <span className="text-xs font-bold text-zinc-400 block">Keterangan</span>
                     <span className="text-sm font-bold text-zinc-800 dark:text-zinc-200">
                         {item.bankDescription || "-"}
                     </span>
                 </div>
                 {item.bankRef && (
                     <div>
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400 block">Referensi</span>
+                        <span className="text-xs font-bold text-zinc-400 block">Referensi</span>
                         <span className="text-xs font-mono text-zinc-600 dark:text-zinc-400">{item.bankRef}</span>
                     </div>
                 )}
@@ -829,22 +829,22 @@ function JournalSuggestions({
             <div className="px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between bg-zinc-50/80 dark:bg-zinc-800/30">
                 <div className="flex items-center gap-2">
                     <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-400">
+                    <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">
                         Pilih Jurnal yang Cocok
                     </span>
                 </div>
                 <div className="flex items-center gap-2">
                     {tieredMatches.auto.length > 0 && (
-                        <span className="text-[8px] font-black px-1.5 py-0.5 bg-emerald-100 text-emerald-700 border border-emerald-400">
+                        <span className="text-xs font-semibold px-1.5 py-0.5 bg-emerald-100 text-emerald-700 border border-emerald-400">
                             {tieredMatches.auto.length} AUTO
                         </span>
                     )}
                     {tieredMatches.potential.length > 0 && (
-                        <span className="text-[8px] font-black px-1.5 py-0.5 bg-amber-100 text-amber-700 border border-amber-400">
+                        <span className="text-xs font-semibold px-1.5 py-0.5 bg-amber-100 text-amber-700 border border-amber-400">
                             {tieredMatches.potential.length} POTENSI
                         </span>
                     )}
-                    <span className="text-[10px] font-mono font-bold text-zinc-400">
+                    <span className="text-xs font-mono font-bold text-zinc-400">
                         {totalFiltered} jurnal
                     </span>
                 </div>
@@ -854,12 +854,12 @@ function JournalSuggestions({
             <div className="px-4 py-2 border-b border-zinc-100 dark:border-zinc-800">
                 <div className="relative">
                     <Search className={`pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 transition-colors ${
-                        searchQuery ? "text-orange-500" : "text-zinc-400"
+                        searchQuery ? "text-blue-500" : "text-zinc-400"
                     }`} />
                     <input
-                        className={`w-full h-8 text-xs font-medium pl-8 pr-8 rounded-none outline-none transition-colors ${
+                        className={`w-full h-8 text-xs font-medium pl-8 pr-8 rounded-md outline-none transition-colors ${
                             searchQuery
-                                ? "border border-orange-400 bg-orange-50/50 dark:bg-orange-950/20"
+                                ? "border border-blue-400 bg-blue-50/50 dark:bg-blue-950/20"
                                 : "border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"
                         } placeholder:text-zinc-400 placeholder:font-normal`}
                         placeholder="Cari jurnal..."
@@ -907,7 +907,7 @@ function JournalSuggestions({
                         {searchQuery ? (
                             <div className="p-8 text-center space-y-3">
                                 <AlertCircle className="h-6 w-6 mx-auto text-zinc-300 mb-2" />
-                                <span className="text-[11px] font-bold text-zinc-500 block">
+                                <span className="text-xs font-bold text-zinc-500 block">
                                     Tidak ada jurnal untuk &quot;{searchQuery}&quot;
                                 </span>
                             </div>
@@ -921,7 +921,7 @@ function JournalSuggestions({
                             {onCreateJournalAndMatch && (
                                 <Button
                                     variant="outline"
-                                    className="h-8 text-[10px] font-black uppercase tracking-wider rounded-none border-2 border-amber-400 text-amber-700 bg-amber-50 hover:bg-amber-100 px-4"
+                                    className="h-8 text-xs font-semibold rounded-md border border-amber-400 text-amber-700 bg-amber-50 hover:bg-amber-100 px-4"
                                     onClick={() => {
                                         setShowInlineForm(true)
                                         setInlineDescription(currentItem.bankDescription || "")
@@ -937,7 +937,7 @@ function JournalSuggestions({
                     </div>
                 ) : totalFiltered === 0 ? (
                     <div className="p-4 text-center">
-                        <span className="text-[10px] font-bold text-zinc-400">Isi form di atas untuk membuat jurnal baru</span>
+                        <span className="text-xs font-bold text-zinc-400">Isi form di atas untuk membuat jurnal baru</span>
                     </div>
                 ) : (
                     <div>
@@ -946,10 +946,10 @@ function JournalSuggestions({
                             <div>
                                 <div className="px-4 py-2 bg-emerald-500 flex items-center gap-2">
                                     <CheckCircle2 className="h-3.5 w-3.5 text-white" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-white">
+                                    <span className="text-xs font-semibold text-white">
                                         Cocok Otomatis
                                     </span>
-                                    <span className="text-[9px] font-mono font-bold text-emerald-200 ml-auto">
+                                    <span className="text-xs font-mono font-bold text-emerald-200 ml-auto">
                                         {filteredAuto[0]?.score ?? 100}% kecocokan
                                     </span>
                                 </div>
@@ -971,10 +971,10 @@ function JournalSuggestions({
                                 {!searchQuery && (
                                     <div className="px-4 py-2 bg-amber-100 dark:bg-amber-900/30 border-b border-amber-300 dark:border-amber-700 flex items-center gap-2">
                                         <Sparkles className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">
+                                        <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
                                             Potensi Cocok
                                         </span>
-                                        <span className="text-[9px] font-mono font-bold text-amber-500 ml-auto">
+                                        <span className="text-xs font-mono font-bold text-amber-500 ml-auto">
                                             {filteredPotential.length} saran
                                         </span>
                                     </div>
@@ -998,10 +998,10 @@ function JournalSuggestions({
                                 {!searchQuery && (filteredAuto.length > 0 || filteredPotential.length > 0) && (
                                     <div className="px-4 py-2 bg-zinc-100 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700 flex items-center gap-2">
                                         <Search className="h-3.5 w-3.5 text-zinc-400" />
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                                        <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
                                             Pilih Manual
                                         </span>
-                                        <span className="text-[9px] font-mono font-bold text-zinc-400 ml-auto">
+                                        <span className="text-xs font-mono font-bold text-zinc-400 ml-auto">
                                             {filteredManual.length} jurnal
                                         </span>
                                     </div>
@@ -1010,10 +1010,10 @@ function JournalSuggestions({
                                 {!searchQuery && filteredAuto.length === 0 && filteredPotential.length === 0 && (
                                     <div className="px-4 py-2 bg-blue-50 dark:bg-blue-950/20 border-b border-blue-200 dark:border-blue-800 flex items-center gap-2">
                                         <Search className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" />
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400">
+                                        <span className="text-xs font-semibold text-blue-700 dark:text-blue-400">
                                             Pilih Manual
                                         </span>
-                                        <span className="text-[9px] text-blue-500 dark:text-blue-400 ml-2 font-medium">
+                                        <span className="text-xs text-blue-500 dark:text-blue-400 ml-2 font-medium">
                                             Tidak ada kecocokan otomatis. Pilih jurnal yang tepat.
                                         </span>
                                     </div>
@@ -1035,7 +1035,7 @@ function JournalSuggestions({
                         {onCreateJournalAndMatch && !showInlineForm && (
                             <div className="px-4 py-3 border-t border-zinc-200 dark:border-zinc-700">
                                 <button
-                                    className="flex items-center gap-1.5 text-[10px] font-bold text-amber-600 hover:text-amber-700 dark:text-amber-400 uppercase tracking-wider"
+                                    className="flex items-center gap-1.5 text-xs font-bold text-amber-600 hover:text-amber-700 dark:text-amber-400  "
                                     onClick={() => {
                                         setShowInlineForm(true)
                                         setInlineDescription(currentItem.bankDescription || "")
@@ -1073,23 +1073,23 @@ function AutoMatchCard({
         <button
             className={`w-full text-left px-4 py-3.5 transition-all duration-100 border-b border-emerald-200 dark:border-emerald-800 ${
                 isSelected
-                    ? "bg-emerald-100 dark:bg-emerald-950/30 border-l-[3px] border-l-emerald-600"
-                    : "bg-emerald-50/50 dark:bg-emerald-950/10 hover:bg-emerald-100/80 dark:hover:bg-emerald-950/20 border-l-[3px] border-l-transparent"
+                    ? "bg-emerald-100 dark:bg-emerald-950/30 border-l border-l-emerald-600"
+                    : "bg-emerald-50/50 dark:bg-emerald-950/10 hover:bg-emerald-100/80 dark:hover:bg-emerald-950/20 border-l border-l-transparent"
             }`}
             onClick={onSelect}
         >
             <div className="flex items-center justify-between gap-2 mb-1.5">
                 <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-[9px] font-mono text-emerald-500 shrink-0">
+                    <span className="text-xs font-mono text-emerald-500 shrink-0">
                         {formatDate(e.date)}
                     </span>
                     <TierBadge tier="AUTO" score={match.score} />
                 </div>
-                <span className={`text-sm font-mono font-black shrink-0 ${
+                <span className={`text-sm font-mono font-semibold shrink-0 ${
                     e.amount >= 0 ? "text-emerald-600" : "text-red-600"
                 }`}>
                     Rp {formatIDR(Math.abs(e.amount))}
-                    <span className="text-[8px] font-black ml-1 opacity-60">
+                    <span className="text-xs font-semibold ml-1 opacity-60">
                         {e.amount >= 0 ? "DR" : "CR"}
                     </span>
                 </span>
@@ -1098,18 +1098,18 @@ function AutoMatchCard({
                 <HighlightedText text={e.lineDescription || e.description || "-"} matchedRefs={match.matchedRefs} />
             </div>
             {e.reference && (
-                <div className="text-[9px] text-emerald-500 font-mono truncate mt-0.5">
+                <div className="text-xs text-emerald-500 font-mono truncate mt-0.5">
                     Ref: <HighlightedText text={e.reference} matchedRefs={match.matchedRefs} />
                 </div>
             )}
             <SignalBar signals={match.signals} score={match.score} />
             {isSelected ? (
-                <div className="mt-2 flex items-center gap-1.5 text-[9px] font-bold text-emerald-700">
+                <div className="mt-2 flex items-center gap-1.5 text-xs font-bold text-emerald-700">
                     <CheckCircle2 className="h-3 w-3" />
                     Dipilih — klik &quot;Cocokkan & Lanjut&quot;
                 </div>
             ) : (
-                <div className="mt-2 text-[9px] font-bold text-emerald-600 uppercase tracking-wider">
+                <div className="mt-2 text-xs font-bold text-emerald-600  ">
                     Klik untuk pilih → Cocokkan Sekarang
                 </div>
             )}
@@ -1137,16 +1137,16 @@ function MatchRow({
         <button
             className={`w-full text-left px-4 py-3 transition-all duration-100 ${
                 isSelected
-                    ? "bg-orange-50 dark:bg-orange-950/20 border-l-[3px] border-l-orange-500"
+                    ? "bg-blue-50 dark:bg-blue-950/20 border-l border-l-orange-500"
                     : isPotential
-                        ? "hover:bg-amber-50/50 dark:hover:bg-amber-950/10 border-l-[3px] border-l-amber-300"
-                        : "hover:bg-zinc-50 dark:hover:bg-zinc-800 border-l-[3px] border-l-transparent"
+                        ? "hover:bg-amber-50/50 dark:hover:bg-amber-950/10 border-l border-l-amber-300"
+                        : "hover:bg-zinc-50 dark:hover:bg-zinc-800 border-l border-l-transparent"
             }`}
             onClick={onSelect}
         >
             <div className="flex items-center justify-between gap-2 mb-1">
                 <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-[9px] font-mono text-zinc-400 shrink-0">
+                    <span className="text-xs font-mono text-zinc-400 shrink-0">
                         {formatDate(e.date)}
                     </span>
                     <TierBadge tier={match.tier} score={match.score} />
@@ -1155,7 +1155,7 @@ function MatchRow({
                     e.amount >= 0 ? "text-emerald-600" : "text-red-600"
                 }`}>
                     Rp {formatIDR(Math.abs(e.amount))}
-                    <span className="text-[8px] font-black ml-1 opacity-60">
+                    <span className="text-xs font-semibold ml-1 opacity-60">
                         {e.amount >= 0 ? "DR" : "CR"}
                     </span>
                 </span>
@@ -1164,26 +1164,26 @@ function MatchRow({
                 <HighlightedText text={e.lineDescription || e.description || "-"} matchedRefs={match.matchedRefs} />
             </div>
             {e.reference && (
-                <div className="text-[9px] text-zinc-400 font-mono truncate mt-0.5">
+                <div className="text-xs text-zinc-400 font-mono truncate mt-0.5">
                     Ref: <HighlightedText text={e.reference} matchedRefs={match.matchedRefs} />
                 </div>
             )}
             <SignalBar signals={match.signals} score={match.score} />
-            <div className="flex items-center gap-2.5 mt-1 text-[8px] text-zinc-400">
+            <div className="flex items-center gap-2.5 mt-1 text-xs text-zinc-400">
                 {match.amountDiff === 0 ? (
                     <span className="text-emerald-500 font-bold">Jumlah cocok</span>
                 ) : (
                     <span>Selisih <span className="font-mono font-bold text-zinc-500">Rp {formatIDR(Math.round(match.amountDiff))}</span></span>
                 )}
                 {match.matchedRefs.length > 0 && (
-                    <span className="text-orange-600 font-bold flex items-center gap-0.5">Ref <CircleCheck className="h-2.5 w-2.5" /></span>
+                    <span className="text-blue-600 font-bold flex items-center gap-0.5">Ref <CircleCheck className="h-2.5 w-2.5" /></span>
                 )}
                 {match.daysDiff > 0 && (
                     <span>{"\u00b1"}{match.daysDiff} hari</span>
                 )}
             </div>
             {isSelected && (
-                <div className="mt-2 flex items-center gap-1.5 text-[9px] font-bold text-orange-600">
+                <div className="mt-2 flex items-center gap-1.5 text-xs font-bold text-blue-600">
                     <CheckCircle2 className="h-3 w-3" />
                     Jurnal ini dipilih — klik &quot;Cocokkan & Lanjut&quot;
                 </div>
@@ -1234,11 +1234,11 @@ function InlineJournalForm({
     onClose: () => void
 }) {
     return (
-        <div className="border-b-2 border-amber-300 bg-amber-50/30 dark:bg-amber-950/10 p-4 space-y-3">
+        <div className="border-b border-amber-300 bg-amber-50/30 dark:bg-amber-950/10 p-4 space-y-3">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <Plus className="h-3.5 w-3.5 text-amber-600" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">
+                    <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
                         Buat Jurnal Umum Baru
                     </span>
                 </div>
@@ -1250,27 +1250,27 @@ function InlineJournalForm({
             <div className="space-y-2.5 bg-white dark:bg-zinc-900 border border-amber-200 dark:border-amber-800 p-3">
                 <div className="grid grid-cols-[140px_1fr] gap-2">
                     <div>
-                        <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block mb-1">Tanggal</label>
+                        <label className="text-xs font-bold text-zinc-500 block mb-1">Tanggal</label>
                         <input
                             type="date"
                             value={inlineDate}
                             onChange={(e) => setInlineDate(e.target.value)}
-                            className="w-full h-8 text-xs font-mono px-2 border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded-none outline-none focus:border-orange-400"
+                            className="w-full h-8 text-xs font-mono px-2 border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded-md outline-none focus:border-blue-400"
                         />
                     </div>
                     <div>
-                        <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block mb-1">Keterangan</label>
+                        <label className="text-xs font-bold text-zinc-500 block mb-1">Keterangan</label>
                         <input
                             value={inlineDescription}
                             onChange={(e) => setInlineDescription(e.target.value)}
                             placeholder="Keterangan jurnal..."
-                            className="w-full h-8 text-xs px-2 border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded-none outline-none focus:border-orange-400"
+                            className="w-full h-8 text-xs px-2 border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded-md outline-none focus:border-blue-400"
                         />
                     </div>
                 </div>
                 <div className="grid grid-cols-[140px_1fr] gap-2">
                     <div>
-                        <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block mb-1">Jumlah (IDR)</label>
+                        <label className="text-xs font-bold text-zinc-500 block mb-1">Jumlah (IDR)</label>
                         <div className={`h-8 flex items-center px-2 text-xs font-mono font-bold border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 ${
                             currentItem.bankAmount >= 0 ? "text-emerald-600" : "text-red-600"
                         }`}>
@@ -1278,22 +1278,22 @@ function InlineJournalForm({
                         </div>
                     </div>
                     <div>
-                        <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block mb-1">Referensi</label>
+                        <label className="text-xs font-bold text-zinc-500 block mb-1">Referensi</label>
                         <input
                             value={inlineRef}
                             onChange={(e) => setInlineRef(e.target.value)}
                             placeholder="REF-001"
-                            className="w-full h-8 text-xs font-mono px-2 border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded-none outline-none focus:border-orange-400"
+                            className="w-full h-8 text-xs font-mono px-2 border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded-md outline-none focus:border-blue-400"
                         />
                     </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                     <div>
-                        <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block mb-1">
+                        <label className="text-xs font-bold text-zinc-500 block mb-1">
                             Akun Debit <span className="text-red-500">*</span>
                         </label>
                         <Select value={inlineDebitCode} onValueChange={setInlineDebitCode}>
-                            <SelectTrigger className="h-8 text-xs rounded-none border-zinc-300 dark:border-zinc-600">
+                            <SelectTrigger className="h-8 text-xs rounded-md border-zinc-300 dark:border-zinc-600">
                                 <SelectValue placeholder="Pilih akun debit..." />
                             </SelectTrigger>
                             <SelectContent>
@@ -1306,7 +1306,7 @@ function InlineJournalForm({
                         </Select>
                     </div>
                     <div>
-                        <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block mb-1">
+                        <label className="text-xs font-bold text-zinc-500 block mb-1">
                             Akun Kredit
                         </label>
                         <div className="h-8 flex items-center px-2 text-xs font-mono border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
@@ -1317,13 +1317,13 @@ function InlineJournalForm({
                 <div className="flex items-center justify-end gap-2 pt-1">
                     <Button
                         variant="ghost"
-                        className="h-8 text-[10px] font-bold uppercase tracking-wider rounded-none px-3 text-zinc-500"
+                        className="h-8 text-xs font-bold rounded-md px-3 text-zinc-500"
                         onClick={onClose}
                     >
                         Batal
                     </Button>
                     <Button
-                        className="h-8 text-[10px] font-black uppercase tracking-wider rounded-none px-4 bg-orange-500 hover:bg-orange-600 text-white border-2 border-orange-600 disabled:opacity-40"
+                        className="h-8 text-xs font-semibold rounded-md px-4 bg-blue-500 hover:bg-blue-600 text-white border border-blue-600 disabled:opacity-40"
                         disabled={!inlineDebitCode || !inlineDescription.trim() || inlineSaving}
                         onClick={async () => {
                             if (!inlineDebitCode || !inlineDescription.trim()) return
@@ -1387,11 +1387,11 @@ function MatchedItemView({
     return (
         <div className="flex-1 flex flex-col items-center justify-center p-8">
             <div className="max-w-md text-center space-y-4">
-                <div className="w-14 h-14 mx-auto bg-emerald-100 dark:bg-emerald-900/30 border-2 border-emerald-300 dark:border-emerald-700 flex items-center justify-center">
+                <div className="w-14 h-14 mx-auto bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700 flex items-center justify-center">
                     <CheckCircle2 className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div>
-                    <h3 className="text-sm font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 mb-1">
+                    <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 mb-1">
                         Item Sudah Dicocokkan
                     </h3>
                     <p className="text-xs text-zinc-500">
@@ -1400,14 +1400,14 @@ function MatchedItemView({
                 </div>
                 {matchedEntry && (
                     <div className="border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/10 p-3 text-left">
-                        <span className="text-[9px] font-black uppercase tracking-wider text-emerald-600 block mb-1">
+                        <span className="text-xs font-semibold text-emerald-600 block mb-1">
                             Dicocokkan dengan:
                         </span>
                         <div className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
                             {matchedEntry.lineDescription || matchedEntry.description}
                         </div>
                         {matchedEntry.reference && (
-                            <div className="text-[9px] text-zinc-400 font-mono mt-0.5">Ref: {matchedEntry.reference}</div>
+                            <div className="text-xs text-zinc-400 font-mono mt-0.5">Ref: {matchedEntry.reference}</div>
                         )}
                         <div className={`text-sm font-mono font-bold mt-1 ${
                             matchedEntry.amount >= 0 ? "text-emerald-600" : "text-red-600"
@@ -1419,7 +1419,7 @@ function MatchedItemView({
                 {!isCompleted && (
                     <Button
                         variant="outline"
-                        className="border border-red-300 text-red-500 text-[10px] font-black uppercase h-8 px-4 rounded-none hover:bg-red-50"
+                        className="border border-red-300 text-red-500 text-xs font-semibold h-8 px-4 rounded-md hover:bg-red-50"
                         disabled={actionLoading === `unmatch-${item.id}`}
                         onClick={onUnmatch}
                     >
@@ -1473,11 +1473,11 @@ function CompletionScreen({
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
                 className="max-w-md text-center space-y-6"
             >
-                <div className="w-20 h-20 mx-auto bg-emerald-100 dark:bg-emerald-900/30 border-2 border-emerald-400 flex items-center justify-center">
+                <div className="w-20 h-20 mx-auto bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-400 flex items-center justify-center">
                     <Trophy className="h-10 w-10 text-emerald-600" />
                 </div>
                 <div>
-                    <h2 className="text-lg font-black uppercase tracking-wider text-zinc-900 dark:text-white mb-1">
+                    <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">
                         {isCompleted ? "Rekonsiliasi Selesai" : unmatchedCount === 0 ? "Semua Item Selesai!" : "Progres Rekonsiliasi"}
                     </h2>
                     <p className="text-xs text-zinc-500">
@@ -1492,21 +1492,21 @@ function CompletionScreen({
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 gap-3">
-                    <div className="border-2 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20 p-3">
-                        <span className="text-2xl font-black text-emerald-600 font-mono block">{matchedCount}</span>
-                        <span className="text-[9px] font-black uppercase tracking-wider text-emerald-600">Cocok</span>
+                    <div className="border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20 p-3">
+                        <span className="text-2xl font-semibold text-emerald-600 font-mono block">{matchedCount}</span>
+                        <span className="text-xs font-semibold text-emerald-600">Cocok</span>
                     </div>
-                    <div className={`border-2 p-3 ${
+                    <div className={`border p-3 ${
                         isBalanced
                             ? "border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20"
                             : "border-red-300 bg-red-50 dark:bg-red-950/20"
                     }`}>
-                        <span className={`text-2xl font-black font-mono block ${
+                        <span className={`text-2xl font-semibold font-mono block ${
                             isBalanced ? "text-emerald-600" : "text-red-600"
                         }`}>
                             {detail.bankStatementBalance != null ? `Rp ${formatIDR(Math.abs(diff))}` : "-"}
                         </span>
-                        <span className={`text-[9px] font-black uppercase tracking-wider ${
+                        <span className={`text-xs font-semibold   ${
                             isBalanced ? "text-emerald-600" : "text-red-600"
                         }`}>
                             Selisih
@@ -1529,7 +1529,7 @@ function CompletionScreen({
                     </Button>
                 )}
                 {!isCompleted && unmatchedCount === 0 && !isBalanced && detail.bankStatementBalance != null && (
-                    <p className="text-[10px] text-red-500 font-bold">
+                    <p className="text-xs text-red-500 font-bold">
                         Selisih Rp {formatIDR(Math.abs(diff))} — saldo buku dan bank belum seimbang
                     </p>
                 )}
@@ -1721,8 +1721,8 @@ export function ReconciliationFocusView({
                 )}
                 <div className="flex-1 flex flex-col items-center justify-center p-10 text-center">
                     <UploadCloud className="h-10 w-10 text-zinc-300 mb-3" />
-                    <h3 className="text-sm font-black uppercase tracking-wider mb-1">Belum Ada Data Bank</h3>
-                    <p className="text-[11px] text-zinc-400 max-w-xs">
+                    <h3 className="text-sm font-semibold mb-1">Belum Ada Data Bank</h3>
+                    <p className="text-xs text-zinc-400 max-w-xs">
                         Upload file mutasi bank (CSV/Excel) untuk memulai proses rekonsiliasi
                     </p>
                 </div>
@@ -1745,12 +1745,12 @@ export function ReconciliationFocusView({
                 <div className="px-5 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/20">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1 block">
+                            <label className="text-xs font-bold text-zinc-500 dark:text-zinc-400 mb-1 block">
                                 Saldo Bank Statement
                             </label>
                             <div className="relative">
                                 <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold pointer-events-none transition-colors ${
-                                    editBankStatementBalance ? "text-orange-500" : "text-zinc-400"
+                                    editBankStatementBalance ? "text-blue-500" : "text-zinc-400"
                                 }`}>Rp</span>
                                 <input
                                     inputMode="numeric"
@@ -1771,16 +1771,16 @@ export function ReconciliationFocusView({
                                         if (val === (detail.bankStatementBalance ?? 0)) return
                                         await onUpdateMeta({ bankStatementBalance: val })
                                     }}
-                                    className={`w-full pl-10 pr-3 h-9 font-mono font-bold text-sm rounded-none outline-none transition-colors ${
+                                    className={`w-full pl-10 pr-3 h-9 font-mono font-bold text-sm rounded-md outline-none transition-colors ${
                                         editBankStatementBalance
-                                            ? "border border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 text-zinc-900 dark:text-white"
+                                            ? "border border-blue-400 dark:border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 text-zinc-900 dark:text-white"
                                             : "border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white"
-                                    } placeholder:text-zinc-300 dark:placeholder:text-zinc-600 placeholder:font-normal focus:border-orange-400 focus:ring-1 focus:ring-orange-100 dark:focus:ring-orange-900/30`}
+                                    } placeholder:text-zinc-300 dark:placeholder:text-zinc-600 placeholder:font-normal focus:border-blue-400 focus:ring-1 focus:ring-blue-100 dark:focus:ring-blue-900/30`}
                                 />
                             </div>
                         </div>
                         <div>
-                            <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1 block">
+                            <label className="text-xs font-bold text-zinc-500 dark:text-zinc-400 mb-1 block">
                                 Catatan
                             </label>
                             <input
@@ -1791,9 +1791,9 @@ export function ReconciliationFocusView({
                                     if (editNotes === (detail.notes ?? "")) return
                                     await onUpdateMeta({ notes: editNotes })
                                 }}
-                                className={`w-full h-9 text-xs font-medium px-3 rounded-none transition-colors ${
+                                className={`w-full h-9 text-xs font-medium px-3 rounded-md transition-colors ${
                                     editNotes
-                                        ? "border border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20"
+                                        ? "border border-blue-400 dark:border-blue-500 bg-blue-50/50 dark:bg-blue-950/20"
                                         : "border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800"
                                 } placeholder:text-zinc-300 dark:placeholder:text-zinc-600 placeholder:font-normal`}
                             />
@@ -1832,7 +1832,7 @@ export function ReconciliationFocusView({
                     <Button
                         variant="outline"
                         size="sm"
-                        className="border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 text-[10px] font-bold uppercase tracking-wider h-9 px-3.5 rounded-none hover:bg-red-100 dark:hover:bg-red-950/50 hover:text-red-700 dark:hover:text-red-300 transition-colors disabled:opacity-40"
+                        className="border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 text-xs font-bold h-9 px-3.5 rounded-md hover:bg-red-100 dark:hover:bg-red-950/50 hover:text-red-700 dark:hover:text-red-300 transition-colors disabled:opacity-40"
                         disabled={actionLoading !== null || !allDone}
                         onClick={onClose}
                     >
@@ -1905,12 +1905,12 @@ export function ReconciliationFocusView({
                                     <button
                                         onClick={goPrev}
                                         disabled={currentIndex <= 0}
-                                        className="h-7 w-7 flex items-center justify-center border border-zinc-300 dark:border-zinc-700 rounded-none disabled:opacity-30 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                                        className="h-7 w-7 flex items-center justify-center border border-zinc-300 dark:border-zinc-700 rounded-md disabled:opacity-30 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
                                     >
                                         <ChevronLeft className="h-4 w-4" />
                                     </button>
                                     <div className="flex items-center gap-2">
-                                        <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500">
+                                        <span className="text-xs font-semibold text-zinc-500">
                                             Item {currentIndex + 1} dari {allItems.length}
                                         </span>
                                         {/* Dot indicators */}
@@ -1924,7 +1924,7 @@ export function ReconciliationFocusView({
                                                         onClick={() => goTo(idx)}
                                                         className={`h-2 transition-all rounded-full ${
                                                             isCurrent
-                                                                ? "w-5 bg-orange-500"
+                                                                ? "w-5 bg-blue-500"
                                                                 : isMatch
                                                                     ? "w-2 bg-emerald-500"
                                                                     : "w-2 bg-zinc-200 dark:bg-zinc-700"
@@ -1938,7 +1938,7 @@ export function ReconciliationFocusView({
                                     <button
                                         onClick={goNext}
                                         disabled={currentIndex >= allItems.length - 1}
-                                        className="h-7 w-7 flex items-center justify-center border border-zinc-300 dark:border-zinc-700 rounded-none disabled:opacity-30 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                                        className="h-7 w-7 flex items-center justify-center border border-zinc-300 dark:border-zinc-700 rounded-md disabled:opacity-30 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
                                     >
                                         <ChevronRight className="h-4 w-4" />
                                     </button>
@@ -1990,7 +1990,7 @@ export function ReconciliationFocusView({
                                                     <div className="border-t border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-5 py-3.5 flex items-center justify-between">
                                                         <Button
                                                             variant="outline"
-                                                            className="border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-[10px] font-bold uppercase tracking-wider h-9 px-4 rounded-none"
+                                                            className="border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-xs font-bold h-9 px-4 rounded-md"
                                                             onClick={goPrev}
                                                             disabled={currentIndex <= 0}
                                                         >
@@ -1998,12 +1998,12 @@ export function ReconciliationFocusView({
                                                         </Button>
                                                         <div className="flex items-center gap-3">
                                                             {selectedJournalId && (
-                                                                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                                                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                                                                     <CheckCircle2 className="h-3.5 w-3.5" /> Jurnal dipilih
                                                                 </span>
                                                             )}
                                                             <Button
-                                                                className="bg-orange-500 hover:bg-orange-600 text-white border-2 border-orange-600 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-[10px] tracking-wider px-5 h-9 rounded-none disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                className="bg-blue-500 hover:bg-blue-600 text-white border border-blue-600 shadow-sm hover:shadow-sm transition-all font-semibold text-xs px-5 h-9 rounded-md disabled:opacity-40 disabled:cursor-not-allowed"
                                                                 disabled={!selectedJournalId || actionLoading !== null}
                                                                 onClick={handleMatchAndNext}
                                                             >
@@ -2046,21 +2046,21 @@ function ParsedRowsPreview({
     actionLoading: string | null
 }) {
     return (
-        <div className="border-2 border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 p-4">
+        <div className="border border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 p-4">
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                     <div className="flex items-center justify-center h-7 w-7 bg-emerald-100 border border-emerald-300">
                         <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-700" />
                     </div>
                     <div>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 block">
+                        <span className="text-xs font-semibold text-emerald-700 block">
                             {rows.length} baris siap diimpor
                         </span>
                         <div className="flex items-center gap-3 mt-0.5">
-                            <span className="text-[9px] font-bold text-emerald-600">
+                            <span className="text-xs font-bold text-emerald-600">
                                 Masuk: Rp {formatIDR(rows.filter(r => r.amount > 0).reduce((s, r) => s + r.amount, 0))}
                             </span>
-                            <span className="text-[9px] font-bold text-red-600">
+                            <span className="text-xs font-bold text-red-600">
                                 Keluar: Rp {formatIDR(Math.abs(rows.filter(r => r.amount < 0).reduce((s, r) => s + r.amount, 0)))}
                             </span>
                         </div>
@@ -2070,7 +2070,7 @@ function ParsedRowsPreview({
                     <X className="h-3.5 w-3.5" />
                 </Button>
             </div>
-            <div className="max-h-24 overflow-y-auto text-[9px] font-mono text-zinc-600 dark:text-zinc-400 space-y-0.5 mb-3 bg-white dark:bg-zinc-900 p-2 border border-emerald-200 dark:border-emerald-800">
+            <div className="max-h-24 overflow-y-auto text-xs font-mono text-zinc-600 dark:text-zinc-400 space-y-0.5 mb-3 bg-white dark:bg-zinc-900 p-2 border border-emerald-200 dark:border-emerald-800">
                 {rows.slice(0, 5).map((r, i) => (
                     <div key={i} className="flex justify-between gap-2">
                         <span className="text-zinc-400 shrink-0">{r.date}</span>
@@ -2118,7 +2118,7 @@ function DropZone({
         <div
             className={`border border-dashed px-4 py-3 cursor-pointer transition-all duration-150 flex items-center gap-3 ${
                 dragging
-                    ? "border-orange-400 bg-orange-50/50 dark:bg-orange-950/20"
+                    ? "border-blue-400 bg-blue-50/50 dark:bg-blue-950/20"
                     : "border-zinc-300 dark:border-zinc-600 hover:border-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
             }`}
             onClick={() => fileInputRef.current?.click()}
@@ -2134,15 +2134,15 @@ function DropZone({
                 onChange={onFileChange}
             />
             <div className={`h-9 w-9 flex items-center justify-center border transition-colors shrink-0 ${
-                dragging ? "border-orange-300 bg-orange-100" : "border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
+                dragging ? "border-blue-300 bg-blue-100" : "border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
             }`}>
-                <UploadCloud className={`h-4 w-4 transition-colors ${dragging ? "text-orange-500" : "text-zinc-400"}`} />
+                <UploadCloud className={`h-4 w-4 transition-colors ${dragging ? "text-blue-500" : "text-zinc-400"}`} />
             </div>
             <div>
                 <div className="text-xs font-bold text-zinc-600 dark:text-zinc-300">
                     Seret file bank statement atau klik untuk upload
                 </div>
-                <div className="text-[9px] text-zinc-400">Format: CSV, Excel (.xlsx)</div>
+                <div className="text-xs text-zinc-400">Format: CSV, Excel (.xlsx)</div>
             </div>
         </div>
     )

@@ -34,12 +34,12 @@ export function OEEGauge({ oee, availability, performance, quality }: OEEGaugePr
     ]
 
     return (
-        <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] h-full flex flex-col">
+        <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm h-full flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-zinc-50 dark:bg-zinc-800">
                 <div className="flex items-center gap-2">
                     <Gauge className="h-4 w-4 text-zinc-500" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">OEE Hari Ini</span>
+                    <span className="text-xs font-semibold text-zinc-500">OEE Hari Ini</span>
                 </div>
                 <div className={`h-2 w-2 rounded-full ${status.bg}`} />
             </div>
@@ -69,27 +69,27 @@ export function OEEGauge({ oee, availability, performance, quality }: OEEGaugePr
 
                 {/* Center overlay */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ paddingTop: '8px' }}>
-                    <span className="text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">
+                    <span className="text-3xl font-semibold tracking-tighter text-zinc-900 dark:text-white">
                         {oee.toFixed(0)}%
                     </span>
-                    <span className={`text-[9px] font-black uppercase tracking-widest ${status.color}`}>
+                    <span className={`text-xs font-semibold ${status.color}`}>
                         {status.label}
                     </span>
                 </div>
             </div>
 
             {/* Breakdown */}
-            <div className="border-t-2 border-dashed border-zinc-200 px-4 py-2.5">
+            <div className="border-t border-dashed border-zinc-200 px-4 py-2.5">
                 <div className="grid grid-cols-3 gap-2">
                     {metrics.map((m) => (
                         <div key={m.label} className="text-center">
                             <div className="flex items-center justify-center gap-1 mb-0.5">
                                 <div className={`h-1.5 w-1.5 rounded-full ${m.color}`} />
-                                <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400">
+                                <span className="text-xs font-semibold text-zinc-400">
                                     {m.label.slice(0, 4)}
                                 </span>
                             </div>
-                            <span className="text-sm font-black text-zinc-900 dark:text-white">
+                            <span className="text-sm font-semibold text-zinc-900 dark:text-white">
                                 {m.value.toFixed(0)}%
                             </span>
                         </div>

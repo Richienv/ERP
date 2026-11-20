@@ -43,7 +43,7 @@ const dataProfit = [
 const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
         return (
-            <div className="bg-white dark:bg-zinc-950 border border-black p-3 rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <div className="bg-white dark:bg-zinc-950 border border-border p-3 rounded-lg shadow-sm">
                 <p className="text-sm font-bold mb-1">{label}</p>
                 <p className="text-sm font-mono">
                     {payload[0].value} M
@@ -98,7 +98,7 @@ export function FinancialCommandCenter() {
 
                 {/* KEY TAKEAWAY SECTION */}
                 <div>
-                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Key Takeaway</h4>
+                    <h4 className="text-xs font-bold text-muted-foreground mb-3">Key Takeaway</h4>
                     <p className="text-sm font-medium leading-relaxed max-w-[90%]">
                         {selectedMetric === "cash" && "Posisi kas stabil di atas ambang batas aman, namun Burn Rate harian perlu dipantau karena tren pengeluaran meningkat 15% minggu ini."}
                         {selectedMetric === "receivables" && "Penagihan piutang melambat di kategori 60-90 hari. Disarankan untuk segera menghubungi 3 klien prioritas utama."}
@@ -108,7 +108,7 @@ export function FinancialCommandCenter() {
                 </div>
 
                 {/* CHART CONTAINER - EXACT MATCH TO IMAGE (No Shadow on Container now, just Border) */}
-                <div className="rounded-3xl border border-black p-6 bg-white dark:bg-black relative mt-4">
+                <div className="rounded-3xl border border-border p-6 bg-white dark:bg-slate-900 relative mt-4">
                     {/* Floating Labels inside Chart Area logic could go here, for now using pure Recharts */}
 
                     <div className="h-[250px] w-full">
@@ -180,12 +180,12 @@ export function FinancialCommandCenter() {
     return (
         <>
             <div className="flex items-center gap-2 mb-2">
-                <span className="text-[9px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 border border-amber-300 px-2 py-0.5">Data Demo</span>
+                <span className="text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-300 px-2 py-0.5">Data Demo</span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {/* 1. CASH POSITION */}
                 <Card
-                    className="border-l-4 border-l-emerald-500 shadow-sm cursor-pointer hover:shadow-md transition-all hover:bg-zinc-50 dark:hover:bg-zinc-900/20 group"
+                    className="border-l border-l-emerald-500 shadow-sm cursor-pointer hover:shadow-md transition-all hover:bg-zinc-50 dark:hover:bg-zinc-900/20 group"
                     onClick={() => setSelectedMetric("cash")}
                 >
                     <CardHeader className="pb-2">
@@ -222,7 +222,7 @@ export function FinancialCommandCenter() {
 
                 {/* 2. RECEIVABLES */}
                 <Card
-                    className="border-l-4 border-l-amber-500 shadow-sm cursor-pointer hover:shadow-md transition-all hover:bg-zinc-50 dark:hover:bg-zinc-900/20 group"
+                    className="border-l border-l-amber-500 shadow-sm cursor-pointer hover:shadow-md transition-all hover:bg-zinc-50 dark:hover:bg-zinc-900/20 group"
                     onClick={() => setSelectedMetric("receivables")}
                 >
                     <CardHeader className="pb-2">
@@ -255,7 +255,7 @@ export function FinancialCommandCenter() {
 
                 {/* 3. PAYABLES */}
                 <Card
-                    className="border-l-4 border-l-red-500 shadow-sm cursor-pointer hover:shadow-md transition-all hover:bg-zinc-50 dark:hover:bg-zinc-900/20 group"
+                    className="border-l border-l-red-500 shadow-sm cursor-pointer hover:shadow-md transition-all hover:bg-zinc-50 dark:hover:bg-zinc-900/20 group"
                     onClick={() => setSelectedMetric("payables")}
                 >
                     <CardHeader className="pb-2">
@@ -288,7 +288,7 @@ export function FinancialCommandCenter() {
 
                 {/* 4. PROFITABILITY */}
                 <Card
-                    className="border-l-4 border-l-indigo-500 shadow-sm cursor-pointer hover:shadow-md transition-all hover:bg-zinc-50 dark:hover:bg-zinc-900/20 group"
+                    className="border-l border-l-indigo-500 shadow-sm cursor-pointer hover:shadow-md transition-all hover:bg-zinc-50 dark:hover:bg-zinc-900/20 group"
                     onClick={() => setSelectedMetric("profitability")}
                 >
                     <CardHeader className="pb-2">
@@ -320,7 +320,7 @@ export function FinancialCommandCenter() {
                         {/* HEADER */}
                         <div className="px-6 py-4 flex items-center justify-between border-b border-black/5">
                             <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 bg-black rounded-xl flex items-center justify-center text-white shadow-lg">
+                                <div className="h-10 w-10 bg-slate-900 rounded-xl flex items-center justify-center text-white shadow-lg">
                                     <Sparkles className="h-5 w-5" />
                                 </div>
                                 <div>
@@ -341,7 +341,7 @@ export function FinancialCommandCenter() {
                         {/* FOOTER INPUT */}
                         <div className="p-4 border-t border-black/5 bg-zinc-50/50 dark:bg-zinc-900/50">
                             <div className="flex flex-col gap-2">
-                                <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider ml-1">Tindak Lanjut</span>
+                                <span className="text-xs font-bold text-muted-foreground ml-1">Tindak Lanjut</span>
                                 <div className="relative">
                                     <Input
                                         placeholder="Tanyakan detail lebih lanjut (contoh: bandingkan dengan Q2)..."
@@ -351,7 +351,7 @@ export function FinancialCommandCenter() {
                                         <Button className="rounded-full px-4 h-9 bg-white text-black border border-black/10 hover:bg-zinc-50 shadow-sm" variant="ghost" onClick={() => toast.info("Fitur belum tersedia")}>
                                             <Send className="h-4 w-4" />
                                         </Button>
-                                        <Button className="rounded-full px-6 h-9 bg-black text-white hover:bg-zinc-800 shadow-md" onClick={() => setSelectedMetric(null)}>
+                                        <Button className="rounded-full px-6 h-9 bg-slate-900 text-white hover:bg-zinc-800 shadow-md" onClick={() => setSelectedMetric(null)}>
                                             Selesai
                                         </Button>
                                     </div>

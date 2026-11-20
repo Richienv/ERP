@@ -152,7 +152,7 @@ export function ProductQuickEditPopup({ open, onClose, taskType, onAllActioned }
                         <Link href={linkHref} onClick={onClose}>
                             <Button
                                 size="sm"
-                                className="h-8 px-4 rounded-none bg-black text-white text-[10px] font-black uppercase tracking-wider"
+                                className="h-8 px-4 rounded-md bg-slate-900 text-white text-xs font-semibold  "
                             >
                                 <ExternalLink className="h-3 w-3 mr-1.5" />
                                 Buka Halaman Customer
@@ -177,7 +177,7 @@ export function ProductQuickEditPopup({ open, onClose, taskType, onAllActioned }
                                         {product.missingFields.map((field) => (
                                             <span
                                                 key={field}
-                                                className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 border border-amber-300 bg-amber-50 text-amber-700"
+                                                className="inline-flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 border border-amber-300 bg-amber-50 text-amber-700"
                                             >
                                                 <AlertTriangle className="h-2.5 w-2.5" />
                                                 {FIELD_LABELS[field] || field}
@@ -198,7 +198,7 @@ export function ProductQuickEditPopup({ open, onClose, taskType, onAllActioned }
                                                 size="sm"
                                                 disabled={saving === product.id || !data.costPrice || Number(data.costPrice) <= 0}
                                                 onClick={() => handleSave(product)}
-                                                className="w-full h-7 px-3 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-wider"
+                                                className="w-full h-7 px-3 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold  "
                                             >
                                                 {saving === product.id ? (
                                                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -216,7 +216,7 @@ export function ProductQuickEditPopup({ open, onClose, taskType, onAllActioned }
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                className="w-full h-7 px-3 rounded-none border-zinc-300 text-zinc-700 text-[10px] font-black uppercase tracking-wider"
+                                                className="w-full h-7 px-3 rounded-md border-zinc-300 text-zinc-700 text-xs font-semibold  "
                                             >
                                                 <ExternalLink className="h-3 w-3 mr-1" />
                                                 Atur Kategori di Halaman Produk

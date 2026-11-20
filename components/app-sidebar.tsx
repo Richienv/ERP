@@ -7,6 +7,7 @@ import { useWorkflowConfig } from "@/components/workflow/workflow-config-context
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
+import { IntegraLogo } from "@/components/brand/integra-logo"
 import { useSidebarActions } from "@/hooks/use-sidebar-actions"
 import { useFilteredNav } from "@/hooks/use-filtered-nav"
 import { useInjectBadges } from "@/hooks/use-inject-badges"
@@ -19,26 +20,27 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-/** Isolated header — only re-renders when tenantBranding changes */
+/** Isolated header — only re-renders when tenantBranding changes.
+ *  Same height as the site header (h-14) so both bottom borders line up. */
 const SidebarBrand = React.memo(function SidebarBrand({ tenantName }: { tenantName: string }) {
   return (
-    <SidebarHeader className="pb-2">
+    <SidebarHeader className="h-14 shrink-0 justify-center border-b border-sidebar-border px-2 py-0">
       <SidebarMenu>
         <SidebarMenuItem>
           <Link
             href="/dashboard"
             data-slot="sidebar-menu-button"
             data-sidebar="menu-button"
-            className="flex items-center gap-2.5 px-3 py-2.5 mx-2 rounded-md border-2 border-zinc-900 dark:border-zinc-200 bg-zinc-900 dark:bg-zinc-100 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] transition-all duration-100 group-data-[collapsible=icon]:mx-0 group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:shadow-none"
+            title="Ke Dasbor"
+            className="flex min-w-0 items-center rounded-md px-2 py-1.5 outline-none transition-colors hover:bg-sidebar-accent/60 focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
           >
-            <div className="flex items-center justify-center h-7 w-7 rounded-sm bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600">
-              <span className="text-[10px] font-black text-zinc-900 dark:text-zinc-100 leading-none tracking-tight">
-                {tenantName ? tenantName.slice(0, 2).toUpperCase() : "EP"}
-              </span>
-            </div>
-            <span className="text-[13px] font-black text-white dark:text-zinc-900 tracking-tight group-data-[collapsible=icon]:hidden">
-              {tenantName || "Sistem ERP"}
-            </span>
+            <IntegraLogo
+              tone="sidebar"
+              caption="ERP"
+              subtitle={tenantName || undefined}
+              textClassName="group-data-[collapsible=icon]:hidden"
+            />
+            <span className="sr-only">, ke Dasbor</span>
           </Link>
         </SidebarMenuItem>
       </SidebarMenu>
@@ -57,13 +59,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarBrand tenantName={tenantBranding.tenantName || ""} />
-      <SidebarContent className="pt-1">
+      <SidebarContent className="pt-1 [scrollbar-color:var(--sidebar-border)_transparent] [scrollbar-width:thin]">
         <NavMain items={navWithBadges} />
         {!isStaff && filteredNavSecondary.length > 0 && (
           <NavSecondary items={filteredNavSecondary} className="mt-auto" />
         )}
       </SidebarContent>
-      <SidebarFooter className="p-0">
+      <SidebarFooter className="border-t border-sidebar-border p-2">
         <NavUser />
       </SidebarFooter>
     </Sidebar>

@@ -150,7 +150,7 @@ export function ShortageDialog({ workOrderId, open, onOpenChange, onPRCreated }:
                                                         setSelectedSuppliers((prev) => ({ ...prev, [item.materialId]: v }))
                                                     }
                                                 >
-                                                    <SelectTrigger className="h-8 w-40 rounded-none text-xs">
+                                                    <SelectTrigger className="h-8 w-40 rounded-md text-xs">
                                                         <SelectValue placeholder="Pilih..." />
                                                     </SelectTrigger>
                                                     <SelectContent>
@@ -168,7 +168,7 @@ export function ShortageDialog({ workOrderId, open, onOpenChange, onPRCreated }:
                                         <TableCell className="text-right">
                                             <Input
                                                 type="number"
-                                                className="h-8 w-20 text-right rounded-none text-xs"
+                                                className="h-8 w-20 text-right rounded-md text-xs"
                                                 value={orderQtys[item.materialId] ?? 0}
                                                 onChange={(e) =>
                                                     setOrderQtys((prev) => ({

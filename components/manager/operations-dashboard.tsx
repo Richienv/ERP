@@ -23,54 +23,54 @@ export function OperationsDashboard() {
         <div className="space-y-6">
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card className="bg-white dark:bg-black border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-xl">
+                <Card className="bg-white dark:bg-slate-900 border border-border shadow-sm rounded-xl">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-bold text-muted-foreground flex items-center justify-between uppercase tracking-wider">
+                        <CardTitle className="text-sm font-bold text-muted-foreground flex items-center justify-between  ">
                             Efisiensi Produksi
                             <TrendingUp className="h-4 w-4 text-black dark:text-white" />
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-black">87%</div>
+                        <div className="text-3xl font-semibold">87%</div>
                         <p className="text-xs text-muted-foreground mt-1 font-medium">Target: 85% <span className="text-emerald-600 font-bold">(+2%)</span></p>
                     </CardContent>
                 </Card>
 
-                <Card className="bg-white dark:bg-black border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-xl">
+                <Card className="bg-white dark:bg-slate-900 border border-border shadow-sm rounded-xl">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-bold text-muted-foreground flex items-center justify-between uppercase tracking-wider">
+                        <CardTitle className="text-sm font-bold text-muted-foreground flex items-center justify-between  ">
                             Order Tepat Waktu
                             <Clock className="h-4 w-4 text-black dark:text-white" />
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-black">23 / 28</div>
+                        <div className="text-3xl font-semibold">23 / 28</div>
                         <p className="text-xs text-muted-foreground mt-1 font-medium">5 Order Berisiko <span className="text-amber-600 font-bold">(Perlu Perhatian)</span></p>
                     </CardContent>
                 </Card>
 
-                <Card className="bg-white dark:bg-black border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-xl">
+                <Card className="bg-white dark:bg-slate-900 border border-border shadow-sm rounded-xl">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-bold text-muted-foreground flex items-center justify-between uppercase tracking-wider">
+                        <CardTitle className="text-sm font-bold text-muted-foreground flex items-center justify-between  ">
                             Tingkat Lolos QC
                             <CheckCircle2 className="h-4 w-4 text-black dark:text-white" />
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-black">94%</div>
+                        <div className="text-3xl font-semibold">94%</div>
                         <p className="text-xs text-muted-foreground mt-1 font-medium">Target: 95% <span className="text-red-600 font-bold">(-1%)</span></p>
                     </CardContent>
                 </Card>
 
-                <Card className="bg-white dark:bg-black border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-xl">
+                <Card className="bg-white dark:bg-slate-900 border border-border shadow-sm rounded-xl">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-bold text-muted-foreground flex items-center justify-between uppercase tracking-wider">
+                        <CardTitle className="text-sm font-bold text-muted-foreground flex items-center justify-between  ">
                             Staf Aktif
                             <Users className="h-4 w-4 text-black dark:text-white" />
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-black">142 / 150</div>
+                        <div className="text-3xl font-semibold">142 / 150</div>
                         <p className="text-xs text-muted-foreground mt-1 font-medium">8 Tidak Hadir <span className="text-muted-foreground font-bold">(Shift 1)</span></p>
                     </CardContent>
                 </Card>
@@ -86,20 +86,20 @@ function CriticalAlertsSection() {
     const [action, setAction] = useState<{ type: 'reject_order' | 'approve_rework' | 'outsource' | 'approve_repair', id: string } | null>(null)
 
     return (
-        <div className="border border-black bg-white dark:bg-black rounded-xl p-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+        <div className="border border-border bg-white dark:bg-slate-900 rounded-xl p-6 shadow-sm">
             <div className="flex items-center gap-3 mb-6 border-b border-black/10 pb-4">
-                <div className="h-8 w-8 bg-red-600 rounded flex items-center justify-center text-white border border-black shadow-sm">
+                <div className="h-8 w-8 bg-red-600 rounded flex items-center justify-center text-white border border-border shadow-sm">
                     <AlertCircle className="h-5 w-5 animate-pulse" />
                 </div>
-                <h3 className="font-black text-xl tracking-tight">PERINGATAN KRITIS <span className="text-muted-foreground font-normal text-sm ml-2">(Perlu Tindakan)</span></h3>
+                <h3 className="font-semibold text-xl tracking-tight">PERINGATAN KRITIS <span className="text-muted-foreground font-normal text-sm ml-2">(Perlu Tindakan)</span></h3>
             </div>
 
             <div className="space-y-4">
                 {/* Alert 1: Defect */}
-                <div className="bg-red-50 dark:bg-red-900/10 border border-black p-4 rounded-lg flex flex-col md:flex-row gap-4 items-start md:items-center justify-between hover:translate-x-1 transition-transform cursor-pointer">
+                <div className="bg-red-50 dark:bg-red-900/10 border border-border p-4 rounded-lg flex flex-col md:flex-row gap-4 items-start md:items-center justify-between hover:translate-x-1 transition-transform cursor-pointer">
                     <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                            <Badge className="bg-red-600 text-white border-black shadow-sm rounded-md">Cacat Besar</Badge>
+                            <Badge className="bg-red-600 text-white border-border shadow-sm rounded-md">Cacat Besar</Badge>
                             <span className="font-bold text-foreground">Order #SO-2026-0234 (Zara)</span>
                         </div>
                         <p className="text-sm text-foreground/80 font-medium pt-1">1.500 meter warna salah celup. Dampak: Rp 67,5jt potensi kerugian.</p>
@@ -109,16 +109,16 @@ function CriticalAlertsSection() {
                         </div>
                     </div>
                     <div className="flex gap-2">
-                        <Button onClick={() => setAction({ type: 'reject_order', id: 'SO-2026-0234' })} variant="outline" size="sm" className="bg-white border-black text-black hover:bg-black hover:text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all">Tolak Order</Button>
-                        <Button onClick={() => setAction({ type: 'approve_rework', id: 'SO-2026-0234' })} size="sm" className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] hover:translate-y-[1px] hover:shadow-none transition-all">Setujui Rework</Button>
+                        <Button onClick={() => setAction({ type: 'reject_order', id: 'SO-2026-0234' })} variant="outline" size="sm" className="bg-white border-border text-black hover:bg-slate-900 hover:text-white shadow-sm hover:shadow-none transition-all">Tolak Order</Button>
+                        <Button onClick={() => setAction({ type: 'approve_rework', id: 'SO-2026-0234' })} size="sm" className="bg-slate-900 text-white hover:bg-zinc-800 border border-border shadow-sm hover:shadow-none transition-all">Setujui Rework</Button>
                     </div>
                 </div>
 
                 {/* Alert 2: Breakdown */}
-                <div className="bg-amber-50 dark:bg-amber-900/10 border border-black p-4 rounded-lg flex flex-col md:flex-row gap-4 items-start md:items-center justify-between hover:translate-x-1 transition-transform cursor-pointer">
+                <div className="bg-amber-50 dark:bg-amber-900/10 border border-border p-4 rounded-lg flex flex-col md:flex-row gap-4 items-start md:items-center justify-between hover:translate-x-1 transition-transform cursor-pointer">
                     <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                            <Badge className="bg-amber-500 text-black border-black shadow-sm rounded-md hover:bg-amber-600">Mesin Rusak</Badge>
+                            <Badge className="bg-amber-500 text-black border-border shadow-sm rounded-md hover:bg-amber-600">Mesin Rusak</Badge>
                             <span className="font-bold text-foreground">Dyeing Machine #2</span>
                         </div>
                         <p className="text-sm text-foreground/80 font-medium pt-1">Berdampak pada 3 order (4.500m). Suku cadang dibutuhkan dari Singapura (Rp 45jt).</p>
@@ -128,8 +128,8 @@ function CriticalAlertsSection() {
                         </div>
                     </div>
                     <div className="flex gap-2">
-                        <Button onClick={() => setAction({ type: 'outsource', id: 'MAC-002' })} variant="outline" size="sm" className="bg-white border-black text-black hover:bg-black hover:text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all">Subkontrak</Button>
-                        <Button onClick={() => setAction({ type: 'approve_repair', id: 'MAC-002' })} size="sm" className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] hover:translate-y-[1px] hover:shadow-none transition-all">Setujui Perbaikan</Button>
+                        <Button onClick={() => setAction({ type: 'outsource', id: 'MAC-002' })} variant="outline" size="sm" className="bg-white border-border text-black hover:bg-slate-900 hover:text-white shadow-sm hover:shadow-none transition-all">Subkontrak</Button>
+                        <Button onClick={() => setAction({ type: 'approve_repair', id: 'MAC-002' })} size="sm" className="bg-slate-900 text-white hover:bg-zinc-800 border border-border shadow-sm hover:shadow-none transition-all">Setujui Perbaikan</Button>
                     </div>
                 </div>
             </div>
@@ -155,17 +155,17 @@ function ActionDialog({ action, open, onOpenChange }: { action: any; open: boole
                     description: "Tindakan ini akan membatalkan batch produksi dan memberitahu klien.",
                     content: (
                         <div className="space-y-4 pt-4">
-                            <div className="bg-red-50 p-4 rounded border-l-4 border-red-500 text-red-900 text-sm">
+                            <div className="bg-red-50 p-4 rounded border-l border-red-500 text-red-900 text-sm">
                                 <span className="font-bold block mb-1">Peringatan Dampak:</span>
                                 Menolak order ini akan mengakibatkan <strong>kerugian Rp 67,5jt</strong> dan potensi denda dari Zara.
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-xs font-black uppercase">Alasan Penolakan (Wajib)</Label>
-                                <Textarea placeholder="Jelaskan mengapa rework tidak memungkinkan..." className="border-black min-h-[100px]" />
+                                <Label className="text-xs font-semibold ">Alasan Penolakan (Wajib)</Label>
+                                <Textarea placeholder="Jelaskan mengapa rework tidak memungkinkan..." className="border-border min-h-[100px]" />
                             </div>
                         </div>
                     ),
-                    button: <Button className="bg-red-600 text-white border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] cursor-pointer hover:bg-red-700 font-bold w-full">KONFIRMASI PENOLAKAN</Button>,
+                    button: <Button className="bg-red-600 text-white border-border shadow-sm cursor-pointer hover:bg-red-700 font-bold w-full">KONFIRMASI PENOLAKAN</Button>,
                     headerClass: "bg-red-50 dark:bg-red-900/20"
                 }
             case 'approve_rework':
@@ -195,7 +195,7 @@ function ActionDialog({ action, open, onOpenChange }: { action: any; open: boole
                             </div>
                         </div>
                     ),
-                    button: <Button className="bg-black text-white border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] cursor-pointer hover:bg-zinc-800 font-bold w-full">OTORISASI REWORK</Button>,
+                    button: <Button className="bg-slate-900 text-white border-border shadow-sm cursor-pointer hover:bg-zinc-800 font-bold w-full">OTORISASI REWORK</Button>,
                     headerClass: "bg-emerald-50 dark:bg-emerald-900/20"
                 }
             case 'outsource':
@@ -205,9 +205,9 @@ function ActionDialog({ action, open, onOpenChange }: { action: any; open: boole
                     content: (
                         <div className="space-y-4 pt-4">
                             <div className="space-y-2">
-                                <Label className="text-xs font-black uppercase">Pilih Pabrik Mitra</Label>
+                                <Label className="text-xs font-semibold ">Pilih Pabrik Mitra</Label>
                                 <Select>
-                                    <SelectTrigger className="border-black"><SelectValue placeholder="Pilih Pabrik" /></SelectTrigger>
+                                    <SelectTrigger className="border-border"><SelectValue placeholder="Pilih Pabrik" /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="sr">PT. Sumber Rejeki (Cibubur)</SelectItem>
                                         <SelectItem value="gi">PT. Garment Indah (Bandung)</SelectItem>
@@ -215,15 +215,15 @@ function ActionDialog({ action, open, onOpenChange }: { action: any; open: boole
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-xs font-black uppercase">Biaya per Meter (Disepakati)</Label>
+                                <Label className="text-xs font-semibold ">Biaya per Meter (Disepakati)</Label>
                                 <div className="relative">
                                     <span className="absolute left-3 top-2.5 text-sm font-bold">Rp</span>
-                                    <Input placeholder="0" className="pl-9 border-black" />
+                                    <Input placeholder="0" className="pl-9 border-border" />
                                 </div>
                             </div>
                         </div>
                     ),
-                    button: <Button className="bg-black text-white border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] cursor-pointer hover:bg-zinc-800 font-bold w-full">BUAT KONTRAK SUBKONTRAK</Button>,
+                    button: <Button className="bg-slate-900 text-white border-border shadow-sm cursor-pointer hover:bg-zinc-800 font-bold w-full">BUAT KONTRAK SUBKONTRAK</Button>,
                     headerClass: "bg-amber-50 dark:bg-amber-900/20"
                 }
             case 'approve_repair':
@@ -232,22 +232,22 @@ function ActionDialog({ action, open, onOpenChange }: { action: any; open: boole
                     description: "Otorisasi pembelian suku cadang dari Singapura.",
                     content: (
                         <div className="space-y-4 pt-4">
-                            <div className="flex items-center gap-4 bg-orange-50 p-4 border border-orange-100 rounded-lg">
-                                <div className="h-10 w-10 flex-shrink-0 bg-orange-100 rounded-full flex items-center justify-center">
-                                    <AlertTriangle className="h-6 w-6 text-orange-600" />
+                            <div className="flex items-center gap-4 bg-blue-50 p-4 border border-blue-100 rounded-lg">
+                                <div className="h-10 w-10 flex-shrink-0 bg-blue-100 rounded-full flex items-center justify-center">
+                                    <AlertTriangle className="h-6 w-6 text-blue-600" />
                                 </div>
                                 <div className="space-y-1">
-                                    <h4 className="font-bold text-sm text-orange-800">Peringatan Melebihi Anggaran</h4>
-                                    <p className="text-xs text-orange-700">Biaya <strong>Rp 45jt</strong> melebihi anggaran perawatan bulanan. Disetujui otomatis oleh Direktur.</p>
+                                    <h4 className="font-bold text-sm text-blue-800">Peringatan Melebihi Anggaran</h4>
+                                    <p className="text-xs text-blue-700">Biaya <strong>Rp 45jt</strong> melebihi anggaran perawatan bulanan. Disetujui otomatis oleh Direktur.</p>
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-xs font-black uppercase">Catatan untuk Keuangan (Opsional)</Label>
-                                <Textarea placeholder="Alasan urgensi..." className="border-black h-20" />
+                                <Label className="text-xs font-semibold ">Catatan untuk Keuangan (Opsional)</Label>
+                                <Textarea placeholder="Alasan urgensi..." className="border-border h-20" />
                             </div>
                         </div>
                     ),
-                    button: <Button className="bg-black text-white border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] cursor-pointer hover:bg-zinc-800 font-bold w-full">SETUJUI PEMBELIAN (Rp 45jt)</Button>,
+                    button: <Button className="bg-slate-900 text-white border-border shadow-sm cursor-pointer hover:bg-zinc-800 font-bold w-full">SETUJUI PEMBELIAN (Rp 45jt)</Button>,
                     headerClass: "bg-blue-50 dark:bg-blue-900/20"
                 }
         }
@@ -257,9 +257,9 @@ function ActionDialog({ action, open, onOpenChange }: { action: any; open: boole
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-0 gap-0 bg-white">
-                <DialogHeader className={`p-6 border-b border-black ${headerClass}`}>
-                    <DialogTitle className="text-xl font-black uppercase leading-tight">{title}</DialogTitle>
+            <DialogContent className="sm:max-w-[500px] border-border shadow-sm p-0 gap-0 bg-white">
+                <DialogHeader className={`p-6 border-b border-border ${headerClass}`}>
+                    <DialogTitle className="text-xl font-semibold leading-tight">{title}</DialogTitle>
                     <DialogDescription className="text-black/60 font-medium">{description}</DialogDescription>
                 </DialogHeader>
 
@@ -267,8 +267,8 @@ function ActionDialog({ action, open, onOpenChange }: { action: any; open: boole
                     {content}
                 </div>
 
-                <DialogFooter className="p-4 border-t border-black bg-zinc-50 flex gap-2">
-                    <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1 border-black font-bold uppercase bg-white text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all">Batal</Button>
+                <DialogFooter className="p-4 border-t border-border bg-zinc-50 flex gap-2">
+                    <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1 border-border font-bold bg-white text-black shadow-sm hover:shadow-none transition-all">Batal</Button>
                     <div className="flex-1">{button}</div>
                 </DialogFooter>
             </DialogContent>

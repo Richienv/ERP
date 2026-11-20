@@ -286,18 +286,18 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {KIND_CARDS.map(card => {
                             const Icon = card.icon
-                            const hoverBg = card.color === "blue" ? "hover:bg-blue-50" : "hover:bg-orange-50"
-                            const textColor = card.color === "blue" ? "text-blue-600" : "text-orange-600"
-                            const barColor = card.color === "blue" ? "bg-blue-400" : "bg-orange-400"
+                            const hoverBg = card.color === "blue" ? "hover:bg-blue-50" : "hover:bg-blue-50"
+                            const textColor = card.color === "blue" ? "text-blue-600" : "text-blue-600"
+                            const barColor = card.color === "blue" ? "bg-blue-400" : "bg-blue-400"
                             return (
                                 <button
                                     key={card.kind}
                                     onClick={() => selectKind(card.kind)}
-                                    className={`border-2 border-black p-6 text-left transition-all ${hoverBg} shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]`}
+                                    className={`border border-border p-6 text-left transition-all ${hoverBg} shadow-sm hover:shadow-sm`}
                                 >
                                     <div className={`flex items-center gap-2 mb-2 ${textColor}`}>
                                         <Icon className="h-6 w-6" />
-                                        <span className="font-black text-base uppercase tracking-wide">{card.label}</span>
+                                        <span className="font-semibold text-base  ">{card.label}</span>
                                     </div>
                                     <p className="text-xs text-zinc-500 font-medium">{card.desc}</p>
                                     <div className={`h-1.5 mt-4 ${barColor} rounded-full`} />
@@ -322,19 +322,19 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
                         <NBSection icon={ClipboardList} title="Detail Nota">
                             {/* Party type toggle */}
                             <div>
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">Untuk <span className="text-red-500">*</span></label>
-                                <div className="flex gap-0 border-2 border-black w-fit">
+                                <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1 block">Untuk <span className="text-red-500">*</span></label>
+                                <div className="flex gap-0 border border-border w-fit">
                                     <button
                                         type="button"
                                         onClick={() => { setPartyType("customer"); setPartyId(""); setOriginalInvoiceId(""); setReasonCode("") }}
-                                        className={`px-5 py-2 text-xs font-black uppercase tracking-widest transition-colors ${partyType === "customer" ? "bg-black text-white" : "bg-white text-zinc-500 hover:bg-zinc-50"}`}
+                                        className={`px-5 py-2 text-xs font-semibold   transition-colors ${partyType === "customer" ? "bg-slate-900 text-white" : "bg-white text-zinc-500 hover:bg-zinc-50"}`}
                                     >
                                         Customer
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => { setPartyType("supplier"); setPartyId(""); setOriginalInvoiceId(""); setReasonCode("") }}
-                                        className={`px-5 py-2 text-xs font-black uppercase tracking-widest transition-colors border-l-2 border-black ${partyType === "supplier" ? "bg-black text-white" : "bg-white text-zinc-500 hover:bg-zinc-50"}`}
+                                        className={`px-5 py-2 text-xs font-semibold   transition-colors border-l border-border ${partyType === "supplier" ? "bg-slate-900 text-white" : "bg-white text-zinc-500 hover:bg-zinc-50"}`}
                                     >
                                         Supplier
                                     </button>
@@ -434,9 +434,9 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
                                     const linePPN = item.includePPN ? Math.round(lineAmount * 0.11) : 0
                                     const lineTotal = lineAmount + linePPN
                                     return (
-                                        <div key={item.id} className="border-2 border-black p-3 space-y-3">
+                                        <div key={item.id} className="border border-border p-3 space-y-3">
                                             <div className="flex items-center justify-between">
-                                                <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Item {idx + 1}</span>
+                                                <span className="text-xs font-semibold text-zinc-400">Item {idx + 1}</span>
                                                 {items.length > 1 && (
                                                     <button
                                                         onClick={() => removeItem(item.id)}
@@ -448,40 +448,40 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
                                             </div>
                                             {/* Description - full width */}
                                             <div>
-                                                <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1 block">Deskripsi</label>
+                                                <label className="text-xs font-semibold text-zinc-500 mb-1 block">Deskripsi</label>
                                                 <Input
                                                     value={item.description}
                                                     onChange={e => updateItem(item.id, "description", e.target.value)}
                                                     placeholder="Deskripsi item..."
-                                                    className="border-2 border-zinc-300 h-9 text-sm rounded-none placeholder:text-zinc-300"
+                                                    className="border border-zinc-300 h-9 text-sm rounded-md placeholder:text-zinc-300"
                                                 />
                                             </div>
                                             {/* Qty, Harga, PPN, Jumlah - row */}
                                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                                 <div>
-                                                    <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1 block">Qty</label>
+                                                    <label className="text-xs font-semibold text-zinc-500 mb-1 block">Qty</label>
                                                     <Input
                                                         type="number"
                                                         value={item.quantity || ""}
                                                         onChange={e => updateItem(item.id, "quantity", Number(e.target.value) || 0)}
                                                         placeholder="1"
                                                         min={1}
-                                                        className="border-2 border-zinc-300 h-9 text-sm font-mono text-right rounded-none placeholder:text-zinc-300"
+                                                        className="border border-zinc-300 h-9 text-sm font-mono text-right rounded-md placeholder:text-zinc-300"
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1 block">Harga Satuan</label>
+                                                    <label className="text-xs font-semibold text-zinc-500 mb-1 block">Harga Satuan</label>
                                                     <Input
                                                         type="number"
                                                         value={item.unitPrice || ""}
                                                         onChange={e => updateItem(item.id, "unitPrice", Number(e.target.value) || 0)}
                                                         placeholder="0"
                                                         min={0}
-                                                        className="border-2 border-zinc-300 h-9 text-sm font-mono text-right rounded-none placeholder:text-zinc-300"
+                                                        className="border border-zinc-300 h-9 text-sm font-mono text-right rounded-md placeholder:text-zinc-300"
                                                     />
                                                 </div>
                                                 <div className="flex flex-col">
-                                                    <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1 block">PPN 11%</label>
+                                                    <label className="text-xs font-semibold text-zinc-500 mb-1 block">PPN 11%</label>
                                                     <div className="flex items-center gap-2 h-9">
                                                         <input
                                                             type="checkbox"
@@ -493,9 +493,9 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
                                                     </div>
                                                 </div>
                                                 <div className="flex flex-col">
-                                                    <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1 block">Jumlah</label>
+                                                    <label className="text-xs font-semibold text-zinc-500 mb-1 block">Jumlah</label>
                                                     <div className="h-9 flex items-center justify-end">
-                                                        <span className="font-mono text-sm font-black">{formatIDR(lineTotal)}</span>
+                                                        <span className="font-mono text-sm font-semibold">{formatIDR(lineTotal)}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -507,14 +507,14 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
                             {/* Add item */}
                             <button
                                 onClick={addItem}
-                                className="mt-3 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-black transition-colors"
+                                className="mt-3 flex items-center gap-1 text-xs font-semibold text-zinc-500 hover:text-black transition-colors"
                             >
                                 <Plus className="h-3.5 w-3.5" /> Tambah Item
                             </button>
 
                             {/* Totals */}
                             <div className="mt-4 flex justify-end">
-                                <div className="w-64 space-y-1 border-t-2 border-black pt-3">
+                                <div className="w-64 space-y-1 border-t border-border pt-3">
                                     <div className="flex justify-between text-xs font-bold text-zinc-500">
                                         <span>Subtotal</span>
                                         <span className="font-mono">{formatIDR(subtotal)}</span>
@@ -523,7 +523,7 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
                                         <span>PPN (11%)</span>
                                         <span className="font-mono">{formatIDR(ppnTotal)}</span>
                                     </div>
-                                    <div className="flex justify-between text-sm font-black pt-1 border-t border-zinc-200">
+                                    <div className="flex justify-between text-sm font-semibold pt-1 border-t border-zinc-200">
                                         <span>TOTAL</span>
                                         <span className="font-mono">{formatIDR(total)}</span>
                                     </div>
@@ -541,14 +541,14 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
                         variant="outline"
                         onClick={() => handleOpenChange(false)}
                         disabled={!!submitting}
-                        className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none disabled:opacity-50"
+                        className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold text-xs px-4 h-8 rounded-md disabled:opacity-50"
                     >
                         Batal
                     </Button>
                     <Button
                         onClick={() => handleSubmit(false)}
                         disabled={!!submitting}
-                        className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none gap-1.5 disabled:opacity-50 transition-colors"
+                        className="bg-slate-900 text-white border border-border hover:bg-zinc-800 font-semibold text-xs px-5 h-8 rounded-md gap-1.5 disabled:opacity-50 transition-colors"
                     >
                         {submitting === "draft" ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -560,7 +560,7 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
                     <Button
                         onClick={() => handleSubmit(true)}
                         disabled={!!submitting}
-                        className="bg-emerald-700 text-white border border-emerald-800 hover:bg-emerald-800 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none gap-1.5 disabled:opacity-50 transition-colors"
+                        className="bg-emerald-700 text-white border border-emerald-800 hover:bg-emerald-800 font-semibold text-xs px-5 h-8 rounded-md gap-1.5 disabled:opacity-50 transition-colors"
                     >
                         {submitting === "post" ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />

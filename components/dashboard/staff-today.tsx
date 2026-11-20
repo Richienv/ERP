@@ -30,14 +30,14 @@ export function StaffToday({ totalStaff, presentCount, lateCount, attendanceRate
     const absentCount = totalStaff - presentCount
 
     return (
-        <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm">
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b-2 border-black">
+            <div className="flex items-center justify-between p-4 border-b border-border">
                 <div className="flex items-center gap-2">
                     <Users className="h-5 w-5" />
-                    <h3 className="text-sm font-black uppercase tracking-widest">Tim Hari Ini</h3>
+                    <h3 className="text-sm font-semibold  ">Tim Hari Ini</h3>
                     {attendanceRate > 0 && (
-                        <span className="text-[10px] font-black bg-emerald-100 text-emerald-700 border border-emerald-300 px-2 py-0.5 rounded-full">
+                        <span className="text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-300 px-2 py-0.5 rounded-full">
                             {attendanceRate}% hadir
                         </span>
                     )}
@@ -51,16 +51,16 @@ export function StaffToday({ totalStaff, presentCount, lateCount, attendanceRate
             </div>
 
             {/* Stats Row */}
-            <div className="grid grid-cols-4 border-b-2 border-black">
+            <div className="grid grid-cols-4 border-b border-border">
                 {[
                     { label: "Total Staf", value: totalStaff, color: "text-zinc-900" },
                     { label: "Hadir", value: presentCount, color: "text-emerald-600" },
                     { label: "Terlambat", value: lateCount, color: "text-amber-600" },
                     { label: "Absen", value: absentCount, color: "text-red-600" },
                 ].map((stat, i) => (
-                    <div key={stat.label} className={`p-3 text-center ${i < 3 ? "border-r-2 border-black" : ""}`}>
-                        <div className={`text-xl font-black ${stat.color} dark:text-white`}>{stat.value}</div>
-                        <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">{stat.label}</div>
+                    <div key={stat.label} className={`p-3 text-center ${i < 3 ? "border-r border-border" : ""}`}>
+                        <div className={`text-xl font-semibold ${stat.color} dark:text-white`}>{stat.value}</div>
+                        <div className="text-xs font-bold text-zinc-400  ">{stat.label}</div>
                     </div>
                 ))}
             </div>
@@ -71,12 +71,12 @@ export function StaffToday({ totalStaff, presentCount, lateCount, attendanceRate
                     <table className="w-full">
                         <thead>
                             <tr className="border-b border-zinc-200 dark:border-zinc-800">
-                                <th className="text-left text-[10px] font-black uppercase tracking-widest text-zinc-500 p-3">Nama</th>
-                                <th className="text-left text-[10px] font-black uppercase tracking-widest text-zinc-500 p-3 hidden md:table-cell">Posisi</th>
-                                <th className="text-left text-[10px] font-black uppercase tracking-widest text-zinc-500 p-3 hidden lg:table-cell">Departemen</th>
-                                <th className="text-center text-[10px] font-black uppercase tracking-widest text-zinc-500 p-3">Status</th>
-                                <th className="text-center text-[10px] font-black uppercase tracking-widest text-zinc-500 p-3 hidden md:table-cell">Check-in</th>
-                                <th className="text-left text-[10px] font-black uppercase tracking-widest text-zinc-500 p-3 hidden lg:table-cell">Tugas</th>
+                                <th className="text-left text-xs font-semibold text-zinc-500 p-3">Nama</th>
+                                <th className="text-left text-xs font-semibold text-zinc-500 p-3 hidden md:table-cell">Posisi</th>
+                                <th className="text-left text-xs font-semibold text-zinc-500 p-3 hidden lg:table-cell">Departemen</th>
+                                <th className="text-center text-xs font-semibold text-zinc-500 p-3">Status</th>
+                                <th className="text-center text-xs font-semibold text-zinc-500 p-3 hidden md:table-cell">Check-in</th>
+                                <th className="text-left text-xs font-semibold text-zinc-500 p-3 hidden lg:table-cell">Tugas</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -90,7 +90,7 @@ export function StaffToday({ totalStaff, presentCount, lateCount, attendanceRate
                                         <td className="p-3 text-sm text-zinc-600 dark:text-zinc-400 hidden md:table-cell">{emp.position || "-"}</td>
                                         <td className="p-3 text-sm text-zinc-600 dark:text-zinc-400 hidden lg:table-cell">{emp.department || "-"}</td>
                                         <td className="p-3 text-center">
-                                            <span className={`inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full border ${config.color}`}>
+                                            <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${config.color}`}>
                                                 {config.label}
                                             </span>
                                         </td>

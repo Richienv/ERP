@@ -31,7 +31,7 @@ export const STAGE_COLORS: Record<GarmentStage, { bg: string; text: string; acce
     SEWING: { bg: 'bg-blue-100', text: 'text-blue-700', accent: 'bg-blue-500' },
     FINISHING: { bg: 'bg-violet-100', text: 'text-violet-700', accent: 'bg-violet-500' },
     QC: { bg: 'bg-emerald-100', text: 'text-emerald-700', accent: 'bg-emerald-500' },
-    PACKING: { bg: 'bg-orange-100', text: 'text-orange-700', accent: 'bg-orange-500' },
+    PACKING: { bg: 'bg-blue-100', text: 'text-blue-700', accent: 'bg-blue-500' },
     DONE: { bg: 'bg-zinc-100', text: 'text-zinc-700', accent: 'bg-zinc-900' },
 }
 

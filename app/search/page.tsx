@@ -97,10 +97,10 @@ export default function SearchPage() {
         <div className="mf-page">
             {/* Header */}
             <div>
-                <h1 className="text-lg font-black uppercase tracking-widest flex items-center gap-2">
+                <h1 className="text-lg font-semibold flex items-center gap-2">
                     <Search className="h-6 w-6" /> Pencarian
                 </h1>
-                <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mt-1">
+                <p className="text-xs font-bold text-zinc-400 mt-1">
                     Cari produk, pelanggan, invoice, dan data lainnya
                 </p>
             </div>
@@ -113,14 +113,14 @@ export default function SearchPage() {
                         onChange={(e) => setQuery(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                         placeholder="Ketik nama produk, pelanggan, nomor invoice..."
-                        className="border-2 border-black rounded-none h-11 font-bold text-sm"
+                        className="border border-border rounded-md h-11 font-bold text-sm"
                         autoFocus
                     />
                 </div>
                 <Button
                     onClick={handleSearch}
                     disabled={searching || !query.trim()}
-                    className="bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all uppercase font-black tracking-widest text-xs rounded-none px-6 h-11"
+                    className="bg-slate-900 text-white hover:bg-zinc-800 border border-border shadow-sm hover:shadow-sm transition-all font-semibold text-xs rounded-md px-6 h-11"
                 >
                     {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4 mr-2" />}
                     {searching ? "Mencari..." : "Cari"}
@@ -136,12 +136,12 @@ export default function SearchPage() {
             )}
 
             {searched && !searching && totalResults === 0 && (
-                <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-8 text-center">
+                <div className="border border-border bg-white shadow-sm p-8 text-center">
                     <Search className="h-10 w-10 mx-auto text-zinc-300 mb-3" />
                     <p className="text-sm font-bold text-zinc-500">
                         Tidak ditemukan hasil untuk &ldquo;{query}&rdquo;
                     </p>
-                    <p className="text-[11px] text-zinc-400 mt-1">
+                    <p className="text-xs text-zinc-400 mt-1">
                         Coba kata kunci yang berbeda
                     </p>
                 </div>
@@ -149,7 +149,7 @@ export default function SearchPage() {
 
             {!searching && totalResults > 0 && (
                 <div className="space-y-6">
-                    <p className="text-[11px] font-black uppercase tracking-widest text-zinc-400">
+                    <p className="text-xs font-semibold text-zinc-400">
                         {totalResults} hasil ditemukan
                     </p>
 
@@ -161,15 +161,15 @@ export default function SearchPage() {
                         return (
                             <div key={module} className="space-y-2">
                                 <div className="flex items-center gap-2">
-                                    <div className={`p-1.5 border-2 border-black ${config.color}`}>
+                                    <div className={`p-1.5 border border-border ${config.color}`}>
                                         <Icon className="h-4 w-4" />
                                     </div>
-                                    <span className="text-[11px] font-black uppercase tracking-widest">
+                                    <span className="text-xs font-semibold  ">
                                         {config.label} ({items.length})
                                     </span>
                                 </div>
 
-                                <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] divide-y-2 divide-black">
+                                <div className="border border-border bg-white shadow-sm divide-y-2 divide-border">
                                     {items.map((item) => (
                                         <button
                                             key={item.id}
@@ -181,12 +181,12 @@ export default function SearchPage() {
                                                     {item.title}
                                                 </p>
                                                 {item.subtitle && (
-                                                    <p className="text-[11px] text-zinc-400 font-mono">
+                                                    <p className="text-xs text-zinc-400 font-mono">
                                                         {item.subtitle}
                                                     </p>
                                                 )}
                                             </div>
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300 group-hover:text-black transition-colors">
+                                            <span className="text-xs font-semibold text-zinc-300 group-hover:text-black transition-colors">
                                                 Buka &rarr;
                                             </span>
                                         </button>
@@ -200,12 +200,12 @@ export default function SearchPage() {
 
             {/* Empty State (before search) */}
             {!searched && !searching && (
-                <div className="border-2 border-dashed border-zinc-300 bg-zinc-50 p-12 text-center">
+                <div className="border border-dashed border-zinc-300 bg-zinc-50 p-12 text-center">
                     <Search className="h-12 w-12 mx-auto text-zinc-300 mb-4" />
                     <p className="text-sm font-bold text-zinc-400">
                         Mulai ketik untuk mencari data di seluruh modul
                     </p>
-                    <p className="text-[11px] text-zinc-300 mt-1">
+                    <p className="text-xs text-zinc-300 mt-1">
                         Produk, pelanggan, invoice, work order
                     </p>
                 </div>

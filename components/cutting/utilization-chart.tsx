@@ -28,10 +28,10 @@ export function UtilizationChart({
         : 0
 
     return (
-        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <div className="px-4 py-2.5 border-b-2 border-black bg-zinc-50 flex items-center gap-2">
+        <div className="bg-white border border-border shadow-sm">
+            <div className="px-4 py-2.5 border-b border-border bg-zinc-50 flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-zinc-500" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                <span className="text-xs font-semibold text-zinc-500">
                     Utilisasi & Efisiensi
                 </span>
             </div>
@@ -82,17 +82,17 @@ export function UtilizationChart({
                 {/* Summary */}
                 <div className="flex flex-col justify-center gap-1">
                     <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-bold text-zinc-400 uppercase">Layer</span>
-                        <span className="text-xs font-black">{totalLayers ?? 0}</span>
+                        <span className="text-xs font-bold text-zinc-400 ">Layer</span>
+                        <span className="text-xs font-semibold">{totalLayers ?? 0}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-bold text-zinc-400 uppercase">Kain (m)</span>
+                        <span className="text-xs font-bold text-zinc-400 ">Kain (m)</span>
                         <span className="text-xs font-mono font-bold">
                             {totalFabricMeters?.toFixed(1) ?? '0'}
                         </span>
                     </div>
                     <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-bold text-zinc-400 uppercase">Cacat</span>
+                        <span className="text-xs font-bold text-zinc-400 ">Cacat</span>
                         <span className="text-xs font-mono font-bold text-red-600">
                             {totalDefect.toLocaleString()}
                         </span>
@@ -118,7 +118,7 @@ function MetricGauge({
 
     return (
         <div className="text-center">
-            <div className="text-[8px] font-black uppercase tracking-widest text-zinc-400 mb-2">
+            <div className="text-xs font-semibold text-zinc-400 mb-2">
                 {label}
             </div>
             <div className="relative w-16 h-16 mx-auto mb-1">
@@ -144,10 +144,10 @@ function MetricGauge({
                     />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-sm font-black">{value}</span>
+                    <span className="text-sm font-semibold">{value}</span>
                 </div>
             </div>
-            <span className="text-[9px] font-bold text-zinc-400">{suffix}</span>
+            <span className="text-xs font-bold text-zinc-400">{suffix}</span>
         </div>
     )
 }

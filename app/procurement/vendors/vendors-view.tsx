@@ -92,7 +92,7 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
 
     const getVendorColor = (name: string) => {
         const colors = [
-            "bg-emerald-500", "bg-orange-500", "bg-amber-500",
+            "bg-emerald-500", "bg-blue-500", "bg-amber-500",
             "bg-zinc-700", "bg-zinc-500", "bg-rose-500"
         ]
         return colors[name.length % colors.length]
@@ -105,12 +105,12 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
         <div className="mf-page">
 
             {/* ═══ COMMAND HEADER ═══ */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+            <div className="border border-border shadow-sm overflow-hidden bg-white dark:bg-zinc-900">
                 <div className="px-4 md:px-6 py-4 flex flex-wrap items-center justify-between gap-3 border-l-[6px] border-l-zinc-800">
                     <div className="flex items-center gap-3">
                         <Building2 className="h-5 w-5 text-zinc-700 dark:text-zinc-300" />
                         <div>
-                            <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
+                            <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-white">
                                 Pemasok
                             </h1>
                             <p className="text-zinc-400 text-xs font-medium mt-0.5">
@@ -123,49 +123,49 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
             </div>
 
             {/* ═══ KPI PULSE STRIP ═══ */}
-            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+            <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                 <div className="grid grid-cols-2 md:grid-cols-4">
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
+                    <div className="relative p-4 md:p-5 border-r border-zinc-100 dark:border-zinc-800 border-b md:border-b-0">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-700" />
                         <div className="flex items-center gap-2 mb-2">
                             <Users className="h-4 w-4 text-zinc-400" />
-                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Total Vendor</span>
+                            <span className="text-xs font-semibold text-zinc-500">Total Vendor</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">{totalVendors}</div>
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-zinc-900 dark:text-white">{totalVendors}</div>
                         <div className="text-xs font-bold text-zinc-600 mt-1">Semua pemasok</div>
                     </div>
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
+                    <div className="relative p-4 md:p-5 border-r border-zinc-100 dark:border-zinc-800 border-b md:border-b-0">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <BadgeCheck className="h-4 w-4 text-zinc-400" />
-                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Vendor Aktif</span>
+                            <span className="text-xs font-semibold text-zinc-500">Vendor Aktif</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-emerald-600">{activeVendors}</div>
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-emerald-600">{activeVendors}</div>
                         <div className="text-xs font-bold text-emerald-600 mt-1">Dalam kerjasama</div>
                     </div>
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
+                    <div className="relative p-4 md:p-5 border-r border-zinc-100 dark:border-zinc-800">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-amber-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <ShoppingCart className="h-4 w-4 text-zinc-400" />
-                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Order Aktif</span>
+                            <span className="text-xs font-semibold text-zinc-500">Order Aktif</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-amber-600">{totalActiveOrders}</div>
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-amber-600">{totalActiveOrders}</div>
                         <div className="text-xs font-bold text-amber-600 mt-1">PO berjalan</div>
                     </div>
                     <div className="relative p-4 md:p-5">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <Star className="h-4 w-4 text-zinc-400" />
-                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Rata-rata Rating</span>
+                            <span className="text-xs font-semibold text-zinc-500">Rata-rata Rating</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-700 dark:text-zinc-200">{avgRating}</div>
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-zinc-700 dark:text-zinc-200">{avgRating}</div>
                         <div className="text-xs font-bold text-zinc-600 mt-1">Dari 5.0</div>
                     </div>
                 </div>
             </div>
 
             {/* ═══ SEARCH & FILTER BAR ═══ */}
-            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+            <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                 <div className="px-4 py-3 flex flex-wrap items-center gap-3">
                     <div className="relative w-full md:w-auto md:flex-1 md:max-w-lg">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
@@ -173,17 +173,17 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             placeholder="Cari nama vendor atau kode..."
-                            className="pl-9 border-2 border-black font-bold h-10 placeholder:text-zinc-400 rounded-none"
+                            className="pl-9 border border-border font-bold h-10 placeholder:text-zinc-400 rounded-md"
                         />
                     </div>
-                    <div className="flex border-2 border-black">
+                    <div className="flex border border-border">
                         {(["ALL", "ACTIVE", "INACTIVE"] as const).map((s) => (
                             <button
                                 key={s}
                                 onClick={() => setFilterStatus(s)}
-                                className={`px-3 py-2 text-xs font-black uppercase tracking-widest transition-all border-r border-black last:border-r-0 ${
+                                className={`px-3 py-2 text-xs font-semibold   transition-all border-r border-border last:border-r-0 ${
                                     filterStatus === s
-                                        ? "bg-black text-white"
+                                        ? "bg-slate-900 text-white"
                                         : "bg-white text-zinc-400 hover:bg-zinc-50"
                                 }`}
                             >
@@ -192,11 +192,11 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
                         ))}
                     </div>
                     {allCategories.length > 0 && (
-                        <div className="flex flex-wrap border-2 border-black">
+                        <div className="flex flex-wrap border border-border">
                             <button
                                 onClick={() => setFilterCategory("ALL")}
-                                className={`px-3 py-2 text-xs font-black uppercase tracking-widest transition-all border-r border-black ${
-                                    filterCategory === "ALL" ? "bg-black text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"
+                                className={`px-3 py-2 text-xs font-semibold   transition-all border-r border-border ${
+                                    filterCategory === "ALL" ? "bg-slate-900 text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"
                                 }`}
                             >
                                 Semua Kategori
@@ -205,8 +205,8 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
                                 <button
                                     key={cat.id}
                                     onClick={() => setFilterCategory(cat.id)}
-                                    className={`px-3 py-2 text-xs font-black uppercase tracking-widest transition-all border-r border-black last:border-r-0 ${
-                                        filterCategory === cat.id ? "bg-black text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"
+                                    className={`px-3 py-2 text-xs font-semibold   transition-all border-r border-border last:border-r-0 ${
+                                        filterCategory === cat.id ? "bg-slate-900 text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"
                                     }`}
                                 >
                                     {cat.name}
@@ -214,7 +214,7 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
                             ))}
                         </div>
                     )}
-                    <div className="text-xs font-black uppercase tracking-widest text-zinc-400 hidden md:block">
+                    <div className="text-xs font-semibold text-zinc-400 hidden md:block">
                         {filteredVendors.length} vendor
                     </div>
                 </div>
@@ -223,7 +223,7 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
             {/* ═══ VENDOR GRID ═══ */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
                 {filteredVendors.map((vendor) => (
-                    <div key={vendor.id} className={cn("group relative border-2 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all overflow-hidden flex flex-col cursor-pointer", vendor.isActive ? "bg-white dark:bg-zinc-900 border-black" : "bg-zinc-100 dark:bg-zinc-800 border-zinc-400 opacity-60")} onClick={() => setEditingVendor(vendor)}>
+                    <div key={vendor.id} className={cn("group relative border shadow-sm hover:shadow-sm transition-all overflow-hidden flex flex-col cursor-pointer", vendor.isActive ? "bg-white dark:bg-zinc-900 border-border" : "bg-zinc-100 dark:bg-zinc-800 border-zinc-400 opacity-60")} onClick={() => setEditingVendor(vendor)}>
                         {/* Color stripe */}
                         <div className={cn("h-1 w-full", getVendorColor(vendor.name))} />
 
@@ -239,21 +239,21 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
 
                         {/* Header */}
                         <div className="px-4 py-3 flex items-start gap-3">
-                            <Avatar className="h-10 w-10 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                                <AvatarFallback className="font-black bg-zinc-100 dark:bg-zinc-800 text-xs">{getInitials(vendor.name)}</AvatarFallback>
+                            <Avatar className="h-10 w-10 border border-border shadow-sm">
+                                <AvatarFallback className="font-semibold bg-zinc-100 dark:bg-zinc-800 text-xs">{getInitials(vendor.name)}</AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <Badge variant="outline" className="text-[9px] font-black uppercase border-black bg-zinc-50 dark:bg-zinc-800 tracking-widest">{vendor.code}</Badge>
+                                    <Badge variant="outline" className="text-xs font-semibold border-border bg-zinc-50 dark:bg-zinc-800">{vendor.code}</Badge>
                                     {vendor.paymentTerm && vendor.paymentTerm !== "CASH" && (
-                                        <Badge className="text-[9px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 border border-emerald-300 hover:bg-emerald-100">
+                                        <Badge className="text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-300 hover:bg-emerald-100">
                                             {vendor.paymentTerm.replace("_", " ")}
                                         </Badge>
                                     )}
                                     {vendor.rating >= 4 && <BadgeCheck className="h-3.5 w-3.5 text-emerald-500" />}
-                                    {!vendor.isActive && <span className="text-[9px] font-black uppercase tracking-widest text-red-500">Nonaktif</span>}
+                                    {!vendor.isActive && <span className="text-xs font-semibold text-red-500">Nonaktif</span>}
                                 </div>
-                                <h3 className="font-black text-sm uppercase mt-1 truncate leading-tight" title={vendor.name}>{vendor.name}</h3>
+                                <h3 className="font-semibold text-sm mt-1 truncate leading-tight" title={vendor.name}>{vendor.name}</h3>
                                 <div className="flex items-center gap-0.5 mt-1">
                                     {[...Array(5)].map((_, i) => (
                                         <Star key={i} className={cn("h-3 w-3", i < vendor.rating ? "fill-amber-400 text-amber-400" : "fill-zinc-200 text-zinc-200")} />
@@ -262,7 +262,7 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
                                 {vendor.categories && vendor.categories.length > 0 && (
                                     <div className="flex flex-wrap gap-1 mt-1.5">
                                         {vendor.categories.map(cat => (
-                                            <span key={cat.id} className="inline-flex items-center gap-0.5 px-1.5 py-0 bg-zinc-100 text-zinc-700 text-[9px] font-black uppercase tracking-wider border border-zinc-200">
+                                            <span key={cat.id} className="inline-flex items-center gap-0.5 px-1.5 py-0 bg-zinc-100 text-zinc-700 text-xs font-semibold border border-zinc-200">
                                                 <Tag className="h-2.5 w-2.5" />
                                                 {cat.name}
                                             </span>
@@ -290,12 +290,12 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
                                 <div className="flex items-center gap-2 text-zinc-500">
                                     <Building2 className="h-3 w-3 shrink-0" />
                                     <span className="truncate">{vendor.officePhone}</span>
-                                    <span className="text-[8px] font-black uppercase text-zinc-400">kantor</span>
+                                    <span className="text-xs font-semibold text-zinc-400">kantor</span>
                                 </div>
                             )}
                             {vendor.contactName && (
                                 <div className="flex items-center gap-2 text-zinc-500">
-                                    <span className="text-[9px] font-black bg-zinc-100 dark:bg-zinc-800 px-1 border border-black">PIC</span>
+                                    <span className="text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 px-1 border border-border">PIC</span>
                                     <span className="truncate">
                                         {vendor.contactTitle ? `${vendor.contactTitle} ` : ""}{vendor.contactName}
                                     </span>
@@ -305,7 +305,7 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
                                 <div className="flex items-center gap-2 text-zinc-500">
                                     <PhoneCall className="h-3 w-3 shrink-0" />
                                     <span className="truncate">{vendor.picPhone}</span>
-                                    <span className="text-[8px] font-black uppercase text-zinc-400">HP PIC</span>
+                                    <span className="text-xs font-semibold text-zinc-400">HP PIC</span>
                                 </div>
                             )}
                         </div>
@@ -314,12 +314,12 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
                         <div className="mt-auto">
                             <div className="px-4 py-3 grid grid-cols-2 gap-2">
                                 <div className="p-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
-                                    <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Total Orders</p>
-                                    <p className="text-lg font-black">{vendor.totalOrders}</p>
+                                    <p className="text-xs font-semibold text-zinc-500">Total Orders</p>
+                                    <p className="text-lg font-semibold">{vendor.totalOrders}</p>
                                 </div>
                                 <div className="p-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
-                                    <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Active Orders</p>
-                                    <p className="text-lg font-black">{vendor.activeOrders}</p>
+                                    <p className="text-xs font-semibold text-zinc-500">Active Orders</p>
+                                    <p className="text-lg font-semibold">{vendor.activeOrders}</p>
                                 </div>
                             </div>
 
@@ -342,9 +342,9 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
             )}
 
             {filteredVendors.length === 0 && (
-                <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 p-12 text-center">
+                <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 p-12 text-center">
                     <Building2 className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                    <p className="text-xs font-black uppercase tracking-widest text-zinc-400">Tidak ada vendor yang ditemukan</p>
+                    <p className="text-xs font-semibold text-zinc-400">Tidak ada vendor yang ditemukan</p>
                 </div>
             )}
         </div>

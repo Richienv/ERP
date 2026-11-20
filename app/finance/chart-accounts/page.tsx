@@ -323,14 +323,14 @@ export default function CoALedgerPage() {
                 {/* Row 1: Title + Actions */}
                 <div className="px-5 py-3.5 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800">
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-orange-500 flex items-center justify-center">
+                        <div className="w-9 h-9 bg-blue-500 flex items-center justify-center">
                             <BookOpen className="h-4.5 w-4.5 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-base font-black uppercase tracking-wider text-zinc-900 dark:text-white">
+                            <h1 className="text-base font-semibold text-zinc-900 dark:text-white">
                                 Chart of Accounts
                             </h1>
-                            <p className="text-zinc-400 text-[11px] font-medium">
+                            <p className="text-zinc-400 text-xs font-medium">
                                 Daftar akun & saldo berjalan
                             </p>
                         </div>
@@ -379,7 +379,7 @@ export default function CoALedgerPage() {
                                 }`}
                             />
                             <input
-                                className={`border border-r-0 font-medium h-9 w-[260px] text-xs rounded-none pl-9 pr-8 outline-none placeholder:text-zinc-300 transition-all ${
+                                className={`border border-r-0 font-medium h-9 w-[260px] text-xs rounded-md pl-9 pr-8 outline-none placeholder:text-zinc-300 transition-all ${
                                     search ? NB.inputActive : NB.inputEmpty
                                 }`}
                                 placeholder="Cari kode atau nama..."
@@ -400,9 +400,9 @@ export default function CoALedgerPage() {
                             <button
                                 key={s}
                                 onClick={() => setFilterType(s)}
-                                className={`h-9 px-3 text-[10px] font-black uppercase tracking-widest transition-all border border-r-0 last:border-r rounded-none ${
+                                className={`h-9 px-3 text-xs font-semibold   transition-all border border-r-0 last:border-r rounded-md ${
                                     filterType === s
-                                        ? "bg-black dark:bg-white text-white dark:text-black border-black dark:border-white"
+                                        ? "bg-slate-900 dark:bg-white text-white dark:text-black border-border dark:border-white"
                                         : "bg-white dark:bg-zinc-900 text-zinc-400 border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-600 dark:hover:text-zinc-300"
                                 }`}
                             >
@@ -410,7 +410,7 @@ export default function CoALedgerPage() {
                             </button>
                         ))}
                     </div>
-                    <span className="hidden md:inline text-[11px] font-medium text-zinc-400">
+                    <span className="hidden md:inline text-xs font-medium text-zinc-400">
                         <span className="font-mono font-bold text-zinc-600 dark:text-zinc-300">{filteredAccounts.length}</span> akun
                     </span>
                 </div>
@@ -418,16 +418,16 @@ export default function CoALedgerPage() {
 
             {/* ─── Account Table ─── */}
             <div
-                className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden"
+                className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden"
             >
                 {/* Table header */}
-                <div className="grid grid-cols-[100px_1fr_120px_120px_160px_80px] items-center px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black">
-                    <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Kode</span>
-                    <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Nama Akun</span>
-                    <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Tipe</span>
-                    <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Klasifikasi</span>
-                    <span className="text-xs font-black uppercase tracking-widest text-zinc-400 text-right">Saldo (IDR)</span>
-                    <span className="text-xs font-black uppercase tracking-widest text-zinc-400 text-center">Aksi</span>
+                <div className="grid grid-cols-[100px_1fr_120px_120px_160px_80px] items-center px-5 py-2.5 bg-slate-900 dark:bg-zinc-950 border-b border-border">
+                    <span className="text-xs font-semibold text-zinc-400">Kode</span>
+                    <span className="text-xs font-semibold text-zinc-400">Nama Akun</span>
+                    <span className="text-xs font-semibold text-zinc-400">Tipe</span>
+                    <span className="text-xs font-semibold text-zinc-400">Klasifikasi</span>
+                    <span className="text-xs font-semibold text-zinc-400 text-right">Saldo (IDR)</span>
+                    <span className="text-xs font-semibold text-zinc-400 text-center">Aksi</span>
                 </div>
 
                 {loading ? (
@@ -445,7 +445,7 @@ export default function CoALedgerPage() {
                     </div>
                 ) : filteredAccounts.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16 text-zinc-400">
-                        <div className="w-16 h-16 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
+                        <div className="w-16 h-16 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
                             <BookOpen className="h-7 w-7 text-zinc-200 dark:text-zinc-700" />
                         </div>
                         <span className="text-sm font-bold">Tidak ada akun ditemukan</span>
@@ -456,7 +456,7 @@ export default function CoALedgerPage() {
                         {filteredAccounts.map((acc) => (
                             <div
                                 key={acc.id}
-                                className="grid grid-cols-[100px_1fr_120px_120px_160px_80px] items-center px-5 py-2.5 hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                className="grid grid-cols-[100px_1fr_120px_120px_160px_80px] items-center px-5 py-2.5 hover:bg-blue-50/50 dark:hover:bg-blue-950/10 transition-colors"
                             >
                                 <span className="font-mono font-bold text-xs text-zinc-500">{acc.code}</span>
                                 <div className="flex items-center gap-2">
@@ -465,10 +465,10 @@ export default function CoALedgerPage() {
                                         <span title="Akun sistem"><Lock className="h-3 w-3 text-zinc-300 shrink-0" /></span>
                                     )}
                                 </div>
-                                <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 border w-fit ${typeBadgeColor[acc.type] || "border-zinc-200 bg-zinc-50 text-zinc-400"}`}>
+                                <span className={`text-xs font-semibold   px-1.5 py-0.5 border w-fit ${typeBadgeColor[acc.type] || "border-zinc-200 bg-zinc-50 text-zinc-400"}`}>
                                     {acc.type}
                                 </span>
-                                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                                <span className="text-xs font-bold text-zinc-400  ">
                                     {acc.subType && acc.subType !== "GENERAL" ? subTypeLabel(acc.subType) : "—"}
                                 </span>
                                 <span className={`text-right font-mono font-bold text-sm tracking-tight ${
@@ -479,7 +479,7 @@ export default function CoALedgerPage() {
                                 <div className="flex items-center justify-center gap-1">
                                     <button
                                         onClick={() => openEdit(acc)}
-                                        className="p-1.5 text-zinc-400 hover:text-orange-500 transition-colors"
+                                        className="p-1.5 text-zinc-400 hover:text-blue-500 transition-colors"
                                         title="Edit akun"
                                     >
                                         <Pencil className="h-3.5 w-3.5" />
@@ -504,7 +504,7 @@ export default function CoALedgerPage() {
 
                 {/* Footer */}
                 <div className="px-5 py-3 border-t border-zinc-200 dark:border-zinc-700 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">
                         {filteredAccounts.length} akun
                     </span>
                     <div />
@@ -522,7 +522,7 @@ export default function CoALedgerPage() {
                     <NBSection icon={Layers} title="Detail Akun">
                         {/* Account Type Selector */}
                         <div>
-                            <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1.5 block">
+                            <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1.5 block">
                                 Tipe Akun <span className="text-red-500">*</span>
                             </label>
                             <div className="grid grid-cols-5 gap-2">
@@ -533,15 +533,15 @@ export default function CoALedgerPage() {
                                         onClick={() => handleTypeChange(value)}
                                         className={`flex flex-col items-center gap-1.5 p-3 border transition-all ${
                                             newType === value
-                                                ? "border-orange-400 bg-orange-50/50 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)]"
+                                                ? "border-blue-400 bg-blue-50/50 shadow-sm"
                                                 : "border-zinc-200 bg-white hover:border-zinc-400 hover:bg-zinc-50"
                                         }`}
                                     >
-                                        <Icon className={`h-4 w-4 ${newType === value ? "text-orange-500" : "text-zinc-400"}`} />
-                                        <span className={`text-[9px] font-black uppercase tracking-widest ${newType === value ? "text-orange-600" : "text-zinc-400"}`}>
+                                        <Icon className={`h-4 w-4 ${newType === value ? "text-blue-500" : "text-zinc-400"}`} />
+                                        <span className={`text-xs font-semibold   ${newType === value ? "text-blue-600" : "text-zinc-400"}`}>
                                             {label}
                                         </span>
-                                        <span className={`text-[8px] font-mono ${newType === value ? "text-orange-400" : "text-zinc-300"}`}>
+                                        <span className={`text-xs font-mono ${newType === value ? "text-blue-400" : "text-zinc-300"}`}>
                                             {range}
                                         </span>
                                     </button>
@@ -559,7 +559,7 @@ export default function CoALedgerPage() {
                                     onChange={setNewCode}
                                     placeholder={String(TYPE_RANGES[newType][0])}
                                 />
-                                <p className="text-[9px] text-zinc-400 mt-0.5">Range: {TYPE_RANGES[newType][0]}–{TYPE_RANGES[newType][1]}</p>
+                                <p className="text-xs text-zinc-400 mt-0.5">Range: {TYPE_RANGES[newType][0]}–{TYPE_RANGES[newType][1]}</p>
                             </div>
 
                             <div className="col-span-2 relative" ref={suggestionsRef}>
@@ -583,7 +583,7 @@ export default function CoALedgerPage() {
                                                     setNewName(s)
                                                     setShowSuggestions(false)
                                                 }}
-                                                className="w-full text-left px-3 py-1.5 text-sm hover:bg-orange-50 transition-colors border-b border-zinc-100 last:border-b-0"
+                                                className="w-full text-left px-3 py-1.5 text-sm hover:bg-blue-50 transition-colors border-b border-zinc-100 last:border-b-0"
                                             >
                                                 {s}
                                             </button>
@@ -596,7 +596,7 @@ export default function CoALedgerPage() {
                         {/* Auto-detected classification preview */}
                         {newCode.trim() && (
                             <div className="flex items-center gap-2 px-3 py-2 border border-dashed border-zinc-300 bg-zinc-50 text-xs">
-                                <span className="text-zinc-400 font-bold uppercase text-[9px]">Klasifikasi otomatis:</span>
+                                <span className="text-zinc-400 font-bold text-xs">Klasifikasi otomatis:</span>
                                 <span className="font-bold text-zinc-600">
                                     {currentSubType && currentSubType !== "GENERAL" ? subTypeLabel(currentSubType) : newType}
                                 </span>
@@ -636,7 +636,7 @@ export default function CoALedgerPage() {
                     <NBSection icon={Layers} title="Detail Akun">
                         <div className="space-y-3">
                             <div>
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                                <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1 block">
                                     Kode Akun
                                 </label>
                                 <div className="h-8 flex items-center px-3 border border-zinc-200 bg-zinc-100 text-sm font-mono font-bold text-zinc-500">
@@ -680,7 +680,7 @@ export default function CoALedgerPage() {
                 <NBDialogBody>
                     {deleteTarget && (
                         <div className="space-y-3">
-                            <div className="flex items-center gap-3 p-4 border-2 border-red-200 bg-red-50">
+                            <div className="flex items-center gap-3 p-4 border border-red-200 bg-red-50">
                                 <AlertTriangle className="h-5 w-5 text-red-500 shrink-0" />
                                 <div>
                                     <p className="text-sm font-bold text-red-700">

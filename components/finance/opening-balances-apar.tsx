@@ -69,7 +69,7 @@ export function OpeningBalancesAPAR() {
         : "bg-zinc-50 dark:bg-zinc-800/40"
 
     return (
-        <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+        <div className="border border-border shadow-sm overflow-hidden bg-white dark:bg-zinc-900">
             {/* Accent bar — changes color with section */}
             <div className={`h-1 bg-gradient-to-r ${accentGradient}`} />
 
@@ -83,7 +83,7 @@ export function OpeningBalancesAPAR() {
                 <div className="flex items-center gap-0 shrink-0 ml-4">
                     <button
                         onClick={() => setActiveSection("AP")}
-                        className={`flex items-center gap-1 h-8 px-3 border text-xs font-black uppercase tracking-wider rounded-none transition-all border-r-0 ${
+                        className={`flex items-center gap-1 h-8 px-3 border text-xs font-semibold   rounded-md transition-all border-r-0 ${
                             activeSection === "AP"
                                 ? "bg-red-500 text-white border-red-600"
                                 : "bg-white dark:bg-zinc-900 text-zinc-500 border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50"
@@ -93,9 +93,9 @@ export function OpeningBalancesAPAR() {
                     </button>
                     <button
                         onClick={() => setActiveSection("AR")}
-                        className={`flex items-center gap-1 h-8 px-3 border text-xs font-black uppercase tracking-wider rounded-none transition-all ${
+                        className={`flex items-center gap-1 h-8 px-3 border text-xs font-semibold   rounded-md transition-all ${
                             activeSection === "AR"
-                                ? "bg-black text-white border-black dark:bg-white dark:text-black dark:border-white"
+                                ? "bg-slate-900 text-white border-border dark:bg-white dark:text-black dark:border-white"
                                 : "bg-white dark:bg-zinc-900 text-zinc-500 border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50"
                         }`}
                     >
@@ -105,12 +105,12 @@ export function OpeningBalancesAPAR() {
             </div>
 
             {/* Column Headers */}
-            <div className="grid grid-cols-[36px_1fr_1fr_150px_130px_36px] gap-0 bg-zinc-50 dark:bg-zinc-800/50 border-b-2 border-black">
-                <div className="px-2 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-400 text-center">#</div>
-                <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500">{partyLabel}</div>
-                <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500">No. Invoice</div>
-                <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Jumlah (IDR)</div>
-                <div className="px-2 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-1"><IconCalendar size={10} /> Jatuh Tempo</div>
+            <div className="grid grid-cols-[36px_1fr_1fr_150px_130px_36px] gap-0 bg-zinc-50 dark:bg-zinc-800/50 border-b border-border">
+                <div className="px-2 py-2 text-xs font-semibold text-zinc-400 text-center">#</div>
+                <div className="px-3 py-2 text-xs font-semibold text-zinc-500">{partyLabel}</div>
+                <div className="px-3 py-2 text-xs font-semibold text-zinc-500">No. Invoice</div>
+                <div className="px-3 py-2 text-xs font-semibold text-zinc-500 text-right">Jumlah (IDR)</div>
+                <div className="px-2 py-2 text-xs font-semibold text-zinc-500 flex items-center gap-1"><IconCalendar size={10} /> Jatuh Tempo</div>
                 <div />
             </div>
 
@@ -121,12 +121,12 @@ export function OpeningBalancesAPAR() {
                             key={idx}
                             className="grid grid-cols-[36px_1fr_1fr_150px_130px_36px] gap-0 items-center group hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors"
                         >
-                            <div className="px-2 py-2 text-[11px] text-zinc-300 font-black text-center">{idx + 1}</div>
+                            <div className="px-2 py-2 text-xs text-zinc-300 font-semibold text-center">{idx + 1}</div>
                             <div className="px-2 py-1.5">
                                 <select
                                     value={row.partyId}
                                     onChange={(e) => updateRow(idx, "partyId", e.target.value)}
-                                    className={`w-full h-8 text-xs font-bold border rounded-none px-2 transition-all ${
+                                    className={`w-full h-8 text-xs font-bold border rounded-md px-2 transition-all ${
                                         row.partyId ? NB.inputActive : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"
                                     }`}
                                     disabled={partiesLoading}
@@ -143,7 +143,7 @@ export function OpeningBalancesAPAR() {
                                     value={row.invoiceNumber}
                                     onChange={(e) => updateRow(idx, "invoiceNumber", e.target.value)}
                                     placeholder="INV-001..."
-                                    className={`w-full h-8 text-xs font-bold border rounded-none px-2 transition-all ${
+                                    className={`w-full h-8 text-xs font-bold border rounded-md px-2 transition-all ${
                                         row.invoiceNumber.trim() ? NB.inputActive : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"
                                     }`}
                                 />
@@ -154,7 +154,7 @@ export function OpeningBalancesAPAR() {
                                     value={row.amount || ""}
                                     onChange={(e) => updateRow(idx, "amount", Number(e.target.value) || 0)}
                                     placeholder="0"
-                                    className={`w-full h-8 text-xs font-mono font-bold text-right border rounded-none px-2 transition-all ${
+                                    className={`w-full h-8 text-xs font-mono font-bold text-right border rounded-md px-2 transition-all ${
                                         row.amount > 0 ? NB.inputActive : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-400"
                                     }`}
                                     min={0}
@@ -165,7 +165,7 @@ export function OpeningBalancesAPAR() {
                                     type="date"
                                     value={row.dueDate}
                                     onChange={(e) => updateRow(idx, "dueDate", e.target.value)}
-                                    className={`w-full h-8 text-xs font-bold border rounded-none px-2 transition-all ${
+                                    className={`w-full h-8 text-xs font-bold border rounded-md px-2 transition-all ${
                                         row.dueDate ? NB.inputActive : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"
                                     }`}
                                 />
@@ -184,17 +184,17 @@ export function OpeningBalancesAPAR() {
             </div>
 
             {/* Footer: Add Row + Total + Submit */}
-            <div className="px-5 py-3 flex items-center justify-between border-t-2 border-black">
+            <div className="px-5 py-3 flex items-center justify-between border-t border-border">
                 <button onClick={addRow} className={`${NB.toolbarBtn} flex items-center gap-1.5`}>
                     <IconPlus size={14} /> Tambah Baris
                 </button>
 
                 <div className="flex items-center gap-6">
                     <div className="text-right">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400 block">
+                        <span className="text-xs font-semibold text-zinc-400 block">
                             Total {activeSection === "AP" ? "Hutang" : "Piutang"}
                         </span>
-                        <span className={`text-lg font-black font-mono tabular-nums ${activeSection === "AP" ? "text-red-600" : "text-zinc-900 dark:text-white"}`}>
+                        <span className={`text-lg font-semibold font-mono tabular-nums ${activeSection === "AP" ? "text-red-600" : "text-zinc-900 dark:text-white"}`}>
                             {formatIDR(totalAmount)}
                         </span>
                     </div>

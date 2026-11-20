@@ -95,7 +95,7 @@ export function GlobalKPIs({ kpiData }: GlobalKPIsProps) {
                         href={metric.href}
                         className={`
                             group relative p-4 md:p-5 transition-all hover:bg-zinc-50 dark:hover:bg-zinc-800
-                            ${i < metrics.length - 1 ? "md:border-r-2 border-b-2 md:border-b-0 border-black" : ""}
+                            ${i < metrics.length - 1 ? "md:border-r border-b md:border-b-0 border-border" : ""}
                         `}
                     >
                         {/* Accent top line */}
@@ -106,14 +106,14 @@ export function GlobalKPIs({ kpiData }: GlobalKPIsProps) {
                             <span className="text-zinc-400 group-hover:text-black dark:group-hover:text-white transition-colors">
                                 {metric.icon}
                             </span>
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-black dark:group-hover:text-white transition-colors">
+                            <span className="text-xs font-semibold text-zinc-500 group-hover:text-black dark:group-hover:text-white transition-colors">
                                 {metric.label}
                             </span>
                         </div>
 
                         {/* Big Number */}
                         <div className="flex items-baseline gap-1">
-                            <span className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">
+                            <span className="text-2xl md:text-3xl font-semibold tracking-tighter text-zinc-900 dark:text-white">
                                 {metric.value}
                             </span>
                         </div>
@@ -122,7 +122,7 @@ export function GlobalKPIs({ kpiData }: GlobalKPIsProps) {
                         <div className="flex items-center gap-1 mt-1.5">
                             {metric.trend === "up" && <TrendingUp className="h-3 w-3 text-emerald-500" />}
                             {metric.trend === "down" && <TrendingDown className="h-3 w-3 text-rose-500" />}
-                            <span className={`text-[10px] font-bold tracking-wide ${metric.trend === "up" ? "text-emerald-600 dark:text-emerald-400" :
+                            <span className={`text-xs font-bold  ${metric.trend === "up" ? "text-emerald-600 dark:text-emerald-400" :
                                 metric.trend === "down" ? "text-rose-600 dark:text-rose-400" :
                                     "text-zinc-400"
                                 }`}>

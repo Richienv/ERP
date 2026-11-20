@@ -7,7 +7,7 @@ import { AlertOctagon, AlertTriangle, ArrowRight, CheckCircle2 } from "lucide-re
 
 export function ImpactAnalyzer() {
     return (
-        <Card className="border-blue-200 dark:border-blue-900 bg-white dark:bg-black">
+        <Card className="border-blue-200 dark:border-blue-900 bg-white dark:bg-slate-900">
             <CardHeader className="bg-blue-50 dark:bg-blue-950/20 border-b border-blue-100 dark:border-blue-900 pb-4">
                 <CardTitle className="text-base text-blue-950 dark:text-blue-100 flex items-center gap-2">
                     <AlertOctagon className="h-5 w-5 text-blue-600" />

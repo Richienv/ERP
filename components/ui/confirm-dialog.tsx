@@ -65,7 +65,7 @@ export function ConfirmDialog({
       <AlertDialogTrigger asChild>
         {trigger}
       </AlertDialogTrigger>
-      <AlertDialogContent className="rounded-none border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] max-w-md">
+      <AlertDialogContent className="rounded-md border border-border shadow-sm max-w-md">
         <AlertDialogHeader>
           <AlertDialogTitle className="text-lg font-bold">
             {title}
@@ -81,7 +81,7 @@ export function ConfirmDialog({
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder={reasonPlaceholder}
-              className="rounded-none border-2 border-zinc-300 focus:border-black resize-none placeholder:text-zinc-300"
+              className="rounded-md border border-zinc-300 focus:border-border resize-none placeholder:text-zinc-300"
               rows={3}
               disabled={loading}
             />
@@ -94,7 +94,7 @@ export function ConfirmDialog({
         <AlertDialogFooter className="gap-2">
           <AlertDialogCancel
             disabled={loading}
-            className="rounded-none border-2 border-zinc-300 hover:bg-zinc-50 font-medium"
+            className="rounded-md border border-zinc-300 hover:bg-zinc-50 font-medium"
           >
             {cancelLabel}
           </AlertDialogCancel>
@@ -104,10 +104,10 @@ export function ConfirmDialog({
               handleConfirm()
             }}
             disabled={loading || (withReason && reasonRequired && !reason.trim())}
-            className={`rounded-none border-2 font-semibold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${
+            className={`rounded-md border font-semibold shadow-sm ${
               isDestructive
                 ? "border-red-700 bg-red-600 text-white hover:bg-red-700"
-                : "border-black bg-zinc-900 text-white hover:bg-zinc-800"
+                : "border-border bg-zinc-900 text-white hover:bg-zinc-800"
             }`}
           >
             {loading && <IconLoader2 className="w-4 h-4 mr-2 animate-spin" />}

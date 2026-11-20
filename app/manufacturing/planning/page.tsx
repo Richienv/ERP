@@ -38,7 +38,7 @@ export default function PlanningPage() {
     return (
         <div className="mf-page">
             {/* Tab selector */}
-            <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+            <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
                 <div className="flex border-b-0">
                     {tabs.map((tab) => {
                         const Icon = tab.icon
@@ -47,7 +47,7 @@ export default function PlanningPage() {
                             <button
                                 key={tab.key}
                                 onClick={() => setActiveTab(tab.key)}
-                                className={`flex items-center gap-2 px-5 py-3 text-[11px] font-black uppercase tracking-widest transition-colors border-b-[3px] ${
+                                className={`flex items-center gap-2 px-5 py-3 text-xs font-semibold   transition-colors border-b ${
                                     isActive
                                         ? "border-b-indigo-500 text-indigo-700 bg-indigo-50/50 dark:bg-indigo-950/20"
                                         : "border-b-transparent text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-800/30"

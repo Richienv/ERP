@@ -56,7 +56,7 @@ export function VendorActions({ vendor }: VendorActionsProps) {
     }
 
     return (
-        <div className="pt-4 border-t border-black bg-zinc-50 flex gap-2 p-4 mt-auto">
+        <div className="pt-4 border-t border-border bg-zinc-50 flex gap-2 p-4 mt-auto">
             <VendorHistoryDialog
                 vendorId={vendor.id}
                 vendorName={vendor.name}
@@ -71,7 +71,7 @@ export function VendorActions({ vendor }: VendorActionsProps) {
             <Button
                 variant="ghost"
                 size="icon"
-                className="border border-transparent hover:border-black hover:bg-white"
+                className="border border-transparent hover:border-border hover:bg-white"
                 onClick={handleShare}
                 title="Share Vendor Info"
             >

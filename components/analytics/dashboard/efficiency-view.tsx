@@ -41,7 +41,7 @@ export function EfficiencyCockpit() {
             </Card>
 
             {/* Right: Bottleneck Analysis */}
-            <Card className="lg:col-span-1 border-l-4 border-l-red-500 shadow-sm bg-red-50/10">
+            <Card className="lg:col-span-1 border-l border-l-red-500 shadow-sm bg-red-50/10">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-red-700 dark:text-red-400">
                         <AlertTriangle className="h-5 w-5" />
@@ -61,7 +61,7 @@ export function EfficiencyCockpit() {
                     </div>
 
                     <div className="space-y-2">
-                        <h4 className="text-xs font-semibold uppercase text-muted-foreground">Top Downtime Reasons</h4>
+                        <h4 className="text-xs font-semibold text-muted-foreground">Top Downtime Reasons</h4>
                         <div className="flex justify-between text-sm border-b pb-1">
                             <span>Suhu Fluktuatif</span>
                             <span className="font-bold">14 jam</span>

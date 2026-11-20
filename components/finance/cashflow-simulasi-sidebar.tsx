@@ -70,11 +70,11 @@ export function CashflowSimulasiSidebar({
     }
 
     return (
-        <div className="w-[260px] shrink-0 border-r-2 border-black bg-zinc-50 flex flex-col h-full overflow-y-auto">
+        <div className="w-[260px] shrink-0 border-r border-border bg-zinc-50 flex flex-col h-full overflow-y-auto">
             {/* Skenario Section */}
             <div className="p-3 border-b border-zinc-200">
                 <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-xs font-bold uppercase tracking-wide text-zinc-500">Skenario</h3>
+                    <h3 className="text-xs font-bold text-zinc-500">Skenario</h3>
                     <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={handleCreate}>
                         <IconPlus size={14} />
                     </Button>
@@ -96,7 +96,7 @@ export function CashflowSimulasiSidebar({
                         >
                             <div className="flex-1 min-w-0">
                                 <div className="truncate">{s.name}</div>
-                                <div className="text-[10px] text-zinc-400">
+                                <div className="text-xs text-zinc-400">
                                     Net {formatCurrency(s.netFlow)}
                                 </div>
                             </div>
@@ -125,7 +125,7 @@ export function CashflowSimulasiSidebar({
 
             {/* Sumber Section */}
             <div className="p-3 flex-1">
-                <h3 className="text-xs font-bold uppercase tracking-wide text-zinc-500 mb-2">Sumber Data</h3>
+                <h3 className="text-xs font-bold text-zinc-500 mb-2">Sumber Data</h3>
                 <div className="space-y-1.5">
                     {ALL_SOURCES.map((source) => (
                         <label key={source} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-zinc-100 px-1.5 py-1 rounded">

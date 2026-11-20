@@ -62,17 +62,17 @@ export function PriceListsClient({ initialPriceLists }: PriceListsClientProps) {
     }
 
     return (
-        <div className="space-y-6 p-4 md:p-6 lg:p-8 pt-6 w-full min-h-screen bg-zinc-50/50 dark:bg-black">
+        <div className="space-y-6 p-4 md:p-6 lg:p-8 pt-6 w-full min-h-screen bg-zinc-50/50 dark:bg-slate-900">
 
             {/* ═══════════════════════════════════════════ */}
             {/* COMMAND HEADER                              */}
             {/* ═══════════════════════════════════════════ */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900 rounded-none">
+            <div className="border border-border shadow-sm overflow-hidden bg-white dark:bg-zinc-900 rounded-md">
                 <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-violet-500">
                     <div className="flex items-center gap-3">
                         <Tag className="h-6 w-6 text-violet-500" />
                         <div>
-                            <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
+                            <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-white">
                                 Daftar Harga
                             </h1>
                             <p className="text-zinc-600 text-xs font-bold mt-0.5">
@@ -85,14 +85,14 @@ export function PriceListsClient({ initialPriceLists }: PriceListsClientProps) {
                             variant="outline"
                             onClick={handleRefresh}
                             disabled={refreshing}
-                            className="h-9 border-2 border-black font-bold uppercase text-[10px] tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all rounded-none bg-white"
+                            className="h-9 border border-border font-bold text-xs shadow-sm hover:shadow-none transition-all rounded-md bg-white"
                         >
                             <RefreshCcw className={`mr-2 h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
                             Refresh
                         </Button>
                         <Button
                             asChild
-                            className="bg-black text-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all font-black uppercase tracking-wide text-[10px] px-4 h-9 rounded-none"
+                            className="bg-slate-900 text-white border border-border shadow-sm hover:shadow-none transition-all font-semibold text-xs px-4 h-9 rounded-md"
                         >
                             <Link href="/sales/pricelists/new">
                                 <Plus className="mr-2 h-4 w-4" />
@@ -106,35 +106,35 @@ export function PriceListsClient({ initialPriceLists }: PriceListsClientProps) {
             {/* ═══════════════════════════════════════════ */}
             {/* KPI PULSE STRIP                            */}
             {/* ═══════════════════════════════════════════ */}
-            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden rounded-none">
+            <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden rounded-md">
                 <div className="grid grid-cols-1 md:grid-cols-3">
                     {/* Active Price Lists */}
-                    <div className="relative p-4 md:p-5 md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800">
+                    <div className="relative p-4 md:p-5 md:border-r border-b md:border-b-0 border-zinc-100 dark:border-zinc-800">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-violet-500" />
                         <div className="flex items-center gap-2 mb-2">
                             <Tag className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Daftar Harga</span>
+                            <span className="text-xs font-semibold text-zinc-500">Daftar Harga</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-violet-600">
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-violet-600">
                             {initialPriceLists.length}
                         </div>
                         <div className="flex items-center gap-1.5 mt-1.5">
-                            <span className="text-[10px] font-bold text-violet-600 uppercase">{activeCount} Aktif</span>
+                            <span className="text-xs font-bold text-violet-600 ">{activeCount} Aktif</span>
                         </div>
                     </div>
 
                     {/* Total Price Items */}
-                    <div className="relative p-4 md:p-5 md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800">
+                    <div className="relative p-4 md:p-5 md:border-r border-b md:border-b-0 border-zinc-100 dark:border-zinc-800">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500" />
                         <div className="flex items-center gap-2 mb-2">
                             <Package className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Item Harga</span>
+                            <span className="text-xs font-semibold text-zinc-500">Item Harga</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-blue-600">
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-blue-600">
                             {totalProducts}
                         </div>
                         <div className="flex items-center gap-1 mt-1.5">
-                            <span className="text-[10px] font-bold text-blue-600 uppercase">Variasi Harga</span>
+                            <span className="text-xs font-bold text-blue-600 ">Variasi Harga</span>
                         </div>
                     </div>
 
@@ -143,13 +143,13 @@ export function PriceListsClient({ initialPriceLists }: PriceListsClientProps) {
                         <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-500" />
                         <div className="flex items-center gap-2 mb-2">
                             <Users className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Pelanggan</span>
+                            <span className="text-xs font-semibold text-zinc-500">Pelanggan</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-emerald-600">
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-emerald-600">
                             {totalCustomers}
                         </div>
                         <div className="flex items-center gap-1 mt-1.5">
-                            <span className="text-[10px] font-bold text-emerald-600 uppercase">Terhubung</span>
+                            <span className="text-xs font-bold text-emerald-600 ">Terhubung</span>
                         </div>
                     </div>
                 </div>
@@ -158,31 +158,31 @@ export function PriceListsClient({ initialPriceLists }: PriceListsClientProps) {
             {/* ═══════════════════════════════════════════ */}
             {/* TOOLBAR                                     */}
             {/* ═══════════════════════════════════════════ */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white rounded-none p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="border border-border shadow-sm bg-white rounded-md p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="relative flex-1 max-w-md">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                     <Input
                         placeholder="Cari nama atau kode..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="pl-9 border-2 border-black focus-visible:ring-0 font-bold h-10 rounded-none bg-zinc-50 focus:bg-white transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)]"
+                        className="pl-9 border border-border focus-visible:ring-0 font-bold h-10 rounded-md bg-zinc-50 focus:bg-white transition-all shadow-sm"
                     />
                 </div>
 
                 <div className="flex items-center gap-2">
                     <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
-                        <SelectTrigger className="w-[160px] border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[1px] font-bold uppercase text-[10px] tracking-wide rounded-none h-10 bg-white">
+                        <SelectTrigger className="w-[160px] border border-border shadow-sm hover:shadow-none font-bold text-xs rounded-md h-10 bg-white">
                             <SelectValue />
                         </SelectTrigger>
-                        <SelectContent className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-none">
-                            <SelectItem value="all" className="font-bold uppercase text-xs focus:bg-zinc-100 cursor-pointer">Semua Status</SelectItem>
-                            <SelectItem value="active" className="font-bold uppercase text-xs focus:bg-zinc-100 cursor-pointer">Aktif</SelectItem>
-                            <SelectItem value="inactive" className="font-bold uppercase text-xs focus:bg-zinc-100 cursor-pointer">Nonaktif</SelectItem>
+                        <SelectContent className="border border-border shadow-sm rounded-md">
+                            <SelectItem value="all" className="font-bold text-xs focus:bg-zinc-100 cursor-pointer">Semua Status</SelectItem>
+                            <SelectItem value="active" className="font-bold text-xs focus:bg-zinc-100 cursor-pointer">Aktif</SelectItem>
+                            <SelectItem value="inactive" className="font-bold text-xs focus:bg-zinc-100 cursor-pointer">Nonaktif</SelectItem>
                         </SelectContent>
                     </Select>
 
                     {search && (
-                        <Badge className="bg-black text-white border-2 border-black font-black uppercase text-[10px] tracking-wide px-3 h-10 rounded-none flex items-center">
+                        <Badge className="bg-slate-900 text-white border border-border font-semibold text-xs px-3 h-10 rounded-md flex items-center">
                             {filtered.length} ditemukan
                         </Badge>
                     )}

@@ -49,7 +49,7 @@ export default function MaterialDemandPage() {
         return rows
     }, [data?.rows, search, statusFilter])
 
-    if (isLoading || !data) return <TablePageSkeleton accentColor="bg-orange-400" />
+    if (isLoading || !data) return <TablePageSkeleton accentColor="bg-blue-400" />
 
     const kpi = data.kpi ?? { totalMaterials: 0, materialsInStock: 0, materialsOnOrder: 0, shortfallCount: 0 }
 
@@ -87,9 +87,9 @@ export default function MaterialDemandPage() {
     return (
         <div className="mf-page">
             {/* Header */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+            <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
                 <div className="px-6 py-4 border-l-[6px] border-l-orange-500">
-                    <h1 className="text-lg font-black tracking-tight">Kebutuhan Material</h1>
+                    <h1 className="text-lg font-semibold tracking-tight">Kebutuhan Material</h1>
                     <p className="text-xs text-zinc-500 mt-0.5">
                         Analisis kebutuhan material dari semua Work Order aktif (PLANNED & IN_PROGRESS)
                     </p>
@@ -103,15 +103,15 @@ export default function MaterialDemandPage() {
                     return (
                         <div
                             key={k.label}
-                            className={`border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${k.bg} overflow-hidden`}
+                            className={`border border-border shadow-sm ${k.bg} overflow-hidden`}
                         >
                             <div className={`px-4 py-3 border-l-[5px] ${k.accent}`}>
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                                        <p className="text-xs font-bold text-zinc-500">
                                             {k.label}
                                         </p>
-                                        <p className="text-2xl font-black mt-0.5">{formatNumber(k.value)}</p>
+                                        <p className="text-2xl font-semibold mt-0.5">{formatNumber(k.value)}</p>
                                     </div>
                                     <Icon className="h-8 w-8 text-zinc-300" stroke={1.5} />
                                 </div>
@@ -122,7 +122,7 @@ export default function MaterialDemandPage() {
             </div>
 
             {/* Filter bar */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 px-4 py-3">
+            <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 px-4 py-3">
                 <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
                     <div className="relative flex-1 max-w-lg">
                         <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
@@ -130,7 +130,7 @@ export default function MaterialDemandPage() {
                             placeholder="Cari material..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="pl-9 border-2 border-black placeholder:text-zinc-300"
+                            className="pl-9 border border-border placeholder:text-zinc-300"
                         />
                     </div>
                     <div className="flex gap-1.5">
@@ -143,9 +143,9 @@ export default function MaterialDemandPage() {
                             <button
                                 key={f.key}
                                 onClick={() => setStatusFilter(f.key)}
-                                className={`px-3 py-1.5 text-xs font-bold border-2 border-black transition-colors ${
+                                className={`px-3 py-1.5 text-xs font-bold border border-border transition-colors ${
                                     statusFilter === f.key
-                                        ? "bg-black text-white"
+                                        ? "bg-slate-900 text-white"
                                         : "bg-white text-black hover:bg-zinc-100 dark:bg-zinc-800 dark:text-white dark:hover:bg-zinc-700"
                                 }`}
                             >
@@ -157,20 +157,20 @@ export default function MaterialDemandPage() {
             </div>
 
             {/* Data Table */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+            <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
                 <div className="overflow-x-auto">
                     <Table>
                         <TableHeader>
-                            <TableRow className="border-b-2 border-black bg-zinc-50 dark:bg-zinc-800/50">
-                                <TableHead className="font-black text-[10px] uppercase tracking-widest">Kode</TableHead>
-                                <TableHead className="font-black text-[10px] uppercase tracking-widest">Nama Material</TableHead>
-                                <TableHead className="font-black text-[10px] uppercase tracking-widest">Satuan</TableHead>
-                                <TableHead className="font-black text-[10px] uppercase tracking-widest text-right">Dibutuhkan</TableHead>
-                                <TableHead className="font-black text-[10px] uppercase tracking-widest text-right">Stok</TableHead>
-                                <TableHead className="font-black text-[10px] uppercase tracking-widest text-right">Dalam Pesanan</TableHead>
-                                <TableHead className="font-black text-[10px] uppercase tracking-widest text-right">Kekurangan</TableHead>
-                                <TableHead className="font-black text-[10px] uppercase tracking-widest">Status</TableHead>
-                                <TableHead className="font-black text-[10px] uppercase tracking-widest">Work Order</TableHead>
+                            <TableRow className="border-b border-border bg-zinc-50 dark:bg-zinc-800/50">
+                                <TableHead className="font-semibold text-xs  ">Kode</TableHead>
+                                <TableHead className="font-semibold text-xs  ">Nama Material</TableHead>
+                                <TableHead className="font-semibold text-xs  ">Satuan</TableHead>
+                                <TableHead className="font-semibold text-xs text-right">Dibutuhkan</TableHead>
+                                <TableHead className="font-semibold text-xs text-right">Stok</TableHead>
+                                <TableHead className="font-semibold text-xs text-right">Dalam Pesanan</TableHead>
+                                <TableHead className="font-semibold text-xs text-right">Kekurangan</TableHead>
+                                <TableHead className="font-semibold text-xs  ">Status</TableHead>
+                                <TableHead className="font-semibold text-xs  ">Work Order</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -214,7 +214,7 @@ function MaterialDemandTableRow({ row }: { row: MaterialDemandRow }) {
                 )}
             </TableCell>
             <TableCell>
-                <Badge variant="outline" className={`text-[10px] font-bold border ${cfg.color}`}>
+                <Badge variant="outline" className={`text-xs font-bold border ${cfg.color}`}>
                     {cfg.label}
                 </Badge>
             </TableCell>
@@ -223,13 +223,13 @@ function MaterialDemandTableRow({ row }: { row: MaterialDemandRow }) {
                     {woNumbers.slice(0, 3).map((wo) => (
                         <span
                             key={wo}
-                            className="inline-block px-1.5 py-0.5 text-[10px] font-mono bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded"
+                            className="inline-block px-1.5 py-0.5 text-xs font-mono bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded"
                         >
                             {wo}
                         </span>
                     ))}
                     {woNumbers.length > 3 && (
-                        <span className="text-[10px] text-zinc-400">
+                        <span className="text-xs text-zinc-400">
                             +{woNumbers.length - 3}
                         </span>
                     )}

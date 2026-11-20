@@ -1,69 +1,146 @@
 "use client"
 
+import { useSyncExternalStore } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, SearchIcon } from "lucide-react"
+import { ArrowLeft, ChevronRight, SearchIcon } from "lucide-react"
 import { ModeToggle } from "@/components/mode-toggle"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { UserNav } from "@/components/user-nav"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useBreadcrumbs } from "@/hooks/use-breadcrumbs"
 import { NotificationCenter } from "@/components/notification-center"
+import { cn } from "@/lib/utils"
+
+/** "⌘" on Apple devices, "Ctrl" elsewhere. Server render (and first paint) uses "Ctrl". */
+function useShortcutKey() {
+  const isApple = useSyncExternalStore(
+    () => () => {},
+    () => /Mac|iPhone|iPad/.test(navigator.userAgent),
+    () => false,
+  )
+  return isApple ? "⌘" : "Ctrl"
+}
+
+/** Tooltip in Indonesian under a header control. */
+function HeaderTip({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="bottom" sideOffset={6} className="text-sm">
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+function openSearch() {
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))
+}
 
 export function SiteHeader() {
   const router = useRouter()
   const crumbs = useBreadcrumbs()
+  const mod = useShortcutKey()
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur-sm dark:bg-zinc-950/95 border-border/40 dark:border-zinc-800 shadow-sm z-30 relative">
-      <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
-        <SidebarTrigger className="mr-2 text-foreground" />
+    <header className="relative z-30 flex h-14 shrink-0 items-center border-b border-border bg-card">
+      <div className="flex w-full min-w-0 items-center gap-1 px-2 md:px-4 lg:px-6">
+        <HeaderTip label={`Tampilkan atau sembunyikan menu (${mod} B)`}>
+          <SidebarTrigger className="size-9 text-foreground [&_svg]:size-[18px]" />
+        </HeaderTip>
 
-        <Button variant="ghost" size="icon" className="mr-1 h-7 w-7" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
+        <HeaderTip label="Kembali ke halaman sebelumnya">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-9 text-foreground"
+            onClick={() => router.back()}
+            aria-label="Kembali"
+          >
+            <ArrowLeft className="size-[18px]" />
+          </Button>
+        </HeaderTip>
 
-        <Separator orientation="vertical" className="mx-1 h-4 bg-zinc-200 dark:bg-zinc-800" />
+        <Separator orientation="vertical" className="mx-1.5 bg-border data-[orientation=vertical]:h-5" />
 
-        {/* Breadcrumbs */}
-        <nav className="flex items-center gap-1 min-w-0 overflow-hidden">
-          {crumbs.map((crumb, i) => (
-            <span key={crumb.href} className="flex items-center gap-1 min-w-0">
-              {i > 0 && (
-                <span className="text-zinc-300 dark:text-zinc-600 text-xs shrink-0">/</span>
-              )}
-              {crumb.isCurrent ? (
-                <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
-                  {crumb.label}
-                </span>
-              ) : (
-                <Link
-                  href={crumb.href}
-                  className="text-sm text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors truncate"
-                >
-                  {crumb.label}
-                </Link>
-              )}
-            </span>
-          ))}
+        {/* Breadcrumbs: on phones only the current page is shown */}
+        <nav aria-label="Lokasi halaman" className="min-w-0 flex-1">
+          <ol className="flex min-w-0 items-center gap-1.5">
+            {crumbs.map((crumb, i) => (
+              <li
+                key={crumb.href}
+                className={cn("flex min-w-0 items-center gap-1.5", !crumb.isCurrent && "hidden md:flex")}
+              >
+                {i > 0 && (
+                  <ChevronRight
+                    aria-hidden
+                    className={cn("size-4 shrink-0 text-muted-foreground/70", crumb.isCurrent && "hidden md:block")}
+                  />
+                )}
+                {crumb.isCurrent ? (
+                  <span aria-current="page" className="truncate text-sm font-semibold text-foreground">
+                    {crumb.label}
+                  </span>
+                ) : (
+                  <Link
+                    href={crumb.href}
+                    className="truncate rounded-sm text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+                  >
+                    {crumb.label}
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ol>
         </nav>
 
-        <div className="ml-auto flex items-center gap-2">
-          <NotificationCenter />
+        <div className="ml-auto flex shrink-0 items-center gap-1 md:gap-1.5">
+          {/* Search: a labelled field on wide screens, an icon button on small ones */}
           <button
             type="button"
-            onClick={() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
-            className="hidden md:flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 transition-colors"
+            onClick={openSearch}
+            aria-keyshortcuts="Control+K Meta+K"
+            className="hidden h-9 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground lg:inline-flex lg:w-60 xl:w-72"
           >
-            <SearchIcon className="h-3 w-3" />
-            <span>Cari...</span>
-            <kbd className="pointer-events-none ml-1 inline-flex h-5 select-none items-center gap-0.5 rounded border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-1.5 font-mono text-[10px] font-medium">
-              <span className="text-xs">&#8984;</span>K
+            <SearchIcon aria-hidden className="size-4 shrink-0" />
+            <span className="flex-1 truncate text-left">Cari menu atau dokumen…</span>
+            <kbd className="pointer-events-none inline-flex h-6 select-none items-center gap-1 rounded border border-border bg-card px-1.5 font-sans text-xs font-medium text-muted-foreground">
+              {mod} K
             </kbd>
           </button>
-          <UserNav />
-          <ModeToggle />
+          <HeaderTip label={`Cari menu atau dokumen (${mod} K)`}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-9 text-foreground lg:hidden"
+              onClick={openSearch}
+              aria-label="Cari menu atau dokumen"
+            >
+              <SearchIcon className="size-[18px]" />
+            </Button>
+          </HeaderTip>
+
+          <HeaderTip label="Notifikasi">
+            <span className="inline-flex size-9 items-center justify-center rounded-md transition-colors hover:bg-accent">
+              <NotificationCenter />
+            </span>
+          </HeaderTip>
+
+          <HeaderTip label="Akun saya">
+            <span className="inline-flex">
+              <UserNav />
+            </span>
+          </HeaderTip>
+
+          {/* ModeToggle ships dark-glass styles; these keep it calm on the white bar. */}
+          <HeaderTip label="Ganti tampilan">
+            <span className="inline-flex [&>button]:size-9 [&>button]:border-border [&>button]:text-muted-foreground [&>button:hover]:bg-accent [&>button:hover]:text-foreground">
+              <ModeToggle />
+            </span>
+          </HeaderTip>
         </div>
       </div>
     </header>

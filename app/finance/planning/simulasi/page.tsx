@@ -90,7 +90,7 @@ export default function SimulasiPage() {
     if (isLoading || !data) return <CashflowSubpageSkeleton variant="simulasi" />
 
     return (
-        <div className="flex gap-0 border-2 border-black rounded-xl overflow-hidden mt-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" style={{ minHeight: "70vh" }}>
+        <div className="flex gap-0 border border-border rounded-xl overflow-hidden mt-4 shadow-sm" style={{ minHeight: "70vh" }}>
             <CashflowSimulasiSidebar
                 scenarios={scenarios}
                 activeScenarioId={activeScenarioId}

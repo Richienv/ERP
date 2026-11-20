@@ -26,9 +26,9 @@ export interface ApprovalBannerProps {
 
 const variants = {
   warning: {
-    border: "border-2 border-amber-300 dark:border-amber-700",
+    border: "border border-amber-300 dark:border-amber-700",
     bg: "bg-amber-50/50 dark:bg-amber-950/20",
-    shadow: "shadow-[3px_3px_0px_0px_rgba(217,119,6,0.3)]",
+    shadow: "shadow-sm",
     headerBg: "border-b border-amber-200 dark:border-amber-800",
     headerText: "text-amber-700 dark:text-amber-400",
     amountText: "text-amber-700 dark:text-amber-400",
@@ -37,9 +37,9 @@ const variants = {
     icon: AlertTriangle,
   },
   info: {
-    border: "border-2 border-zinc-300 dark:border-zinc-700",
+    border: "border border-zinc-300 dark:border-zinc-700",
     bg: "bg-zinc-50/50 dark:bg-zinc-900/20",
-    shadow: "shadow-[3px_3px_0px_0px_rgba(0,0,0,0.12)]",
+    shadow: "shadow-sm",
     headerBg: "border-b border-zinc-200 dark:border-zinc-800",
     headerText: "text-zinc-700 dark:text-zinc-300",
     amountText: "text-zinc-700 dark:text-zinc-300",
@@ -82,7 +82,7 @@ export function ApprovalBanner({
           <Icon className={cn("h-4 w-4", v.headerText)} />
           <span
             className={cn(
-              "text-xs font-black uppercase tracking-wider",
+              "text-xs font-semibold  ",
               v.headerText,
             )}
           >
@@ -123,7 +123,7 @@ export function ApprovalBanner({
             {/* Status badge */}
             <span
               className={cn(
-                "text-xs uppercase px-1.5 py-0.5 font-bold shrink-0",
+                "text-xs px-1.5 py-0.5 font-bold shrink-0",
                 v.badge,
               )}
             >
@@ -154,7 +154,7 @@ export function ApprovalBanner({
                   <button
                     type="button"
                     onClick={() => onApprove(item.id)}
-                    className="bg-emerald-600 text-white rounded-none h-7 text-xs font-black uppercase px-2.5 border-2 border-emerald-800 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] hover:bg-emerald-700 hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,0.2)] active:translate-y-[2px] active:shadow-none transition-all flex items-center gap-1"
+                    className="bg-emerald-600 text-white rounded-md h-7 text-xs font-semibold px-2.5 border border-emerald-800 shadow-sm hover:bg-emerald-700 hover:shadow-sm active:shadow-none transition-all flex items-center gap-1"
                   >
                     <Check className="h-3 w-3" /> Setujui
                   </button>
@@ -163,7 +163,7 @@ export function ApprovalBanner({
                   <button
                     type="button"
                     onClick={() => onReject(item.id)}
-                    className="text-red-700 border-2 border-red-700 rounded-none h-7 text-xs font-black uppercase px-2.5 bg-white dark:bg-transparent shadow-[2px_2px_0px_0px_rgba(198,40,40,0.2)] hover:bg-red-50 dark:hover:bg-red-950/20 hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(198,40,40,0.2)] active:translate-y-[2px] active:shadow-none transition-all flex items-center gap-1"
+                    className="text-red-700 border border-red-700 rounded-md h-7 text-xs font-semibold px-2.5 bg-white dark:bg-transparent shadow-sm hover:bg-red-50 dark:hover:bg-red-950/20 hover:shadow-sm active:shadow-none transition-all flex items-center gap-1"
                   >
                     <X className="h-3 w-3" /> Tolak
                   </button>

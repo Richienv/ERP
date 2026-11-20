@@ -162,16 +162,16 @@ export default function SalesDashboardPage() {
   ]
 
   return (
-    <div className="w-full bg-zinc-50 dark:bg-black font-sans min-h-[calc(100svh-theme(spacing.16))]">
+    <div className="w-full bg-zinc-50 dark:bg-slate-900 font-sans min-h-[calc(100svh-theme(spacing.16))]">
       <div className="flex flex-col gap-4 p-4 md:p-5 lg:p-6 min-h-[calc(100svh-theme(spacing.16))]">
 
         {/* Row 1: Header */}
         <div className="flex-none flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-lg font-black uppercase tracking-widest text-zinc-900 dark:text-white">
+            <h1 className="text-lg font-semibold text-zinc-900 dark:text-white">
               Penjualan & CRM
             </h1>
-            <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+            <p className="text-xs font-bold text-zinc-400  ">
               Monitor performa Sales, CRM pipeline, dan status eksekusi order
             </p>
           </div>
@@ -180,7 +180,7 @@ export default function SalesDashboardPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all font-bold text-xs uppercase tracking-wider rounded-none"
+                className="border border-border shadow-sm hover:shadow-none transition-all font-bold text-xs rounded-md"
               >
                 <FileText className="mr-1.5 h-3.5 w-3.5" />
                 Quotation
@@ -189,7 +189,7 @@ export default function SalesDashboardPage() {
             <Link href="/sales/orders/new">
               <Button
                 size="sm"
-                className="bg-black text-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all font-bold text-xs uppercase tracking-wider rounded-none"
+                className="bg-slate-900 text-white border border-border shadow-sm hover:shadow-none transition-all font-bold text-xs rounded-md"
               >
                 <Package className="mr-1.5 h-3.5 w-3.5" />
                 Sales Order
@@ -199,7 +199,7 @@ export default function SalesDashboardPage() {
         </div>
 
         {/* Row 2: KPI Strip */}
-        <div className="flex-none bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+        <div className="flex-none bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
           <div className="grid grid-cols-2 md:grid-cols-5">
             {kpis.map((kpi, i) => (
               <Link
@@ -207,7 +207,7 @@ export default function SalesDashboardPage() {
                 href={kpi.href}
                 className={`
                   group relative p-4 transition-all hover:bg-zinc-50 dark:hover:bg-zinc-800/50 active:scale-[0.98]
-                  ${i < kpis.length - 1 ? "md:border-r-2 border-b-2 md:border-b-0 border-black" : ""}
+                  ${i < kpis.length - 1 ? "md:border-r border-b md:border-b-0 border-border" : ""}
                 `}
               >
                 <div className="flex items-center justify-between mb-2">
@@ -215,16 +215,16 @@ export default function SalesDashboardPage() {
                     <span className="text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors">
                       {kpi.icon}
                     </span>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors">
+                    <span className="text-xs font-semibold text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors">
                       {kpi.label}
                     </span>
                   </div>
-                  <div className={`h-2 w-2 border border-black ${healthColor(kpi.health)}`} />
+                  <div className={`h-2 w-2 border border-border ${healthColor(kpi.health)}`} />
                 </div>
-                <p className="text-xl font-black tracking-tighter text-zinc-900 dark:text-white">
+                <p className="text-xl font-semibold tracking-tighter text-zinc-900 dark:text-white">
                   {kpi.value}
                 </p>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mt-0.5">
+                <p className="text-xs font-bold text-zinc-400 mt-0.5">
                   {kpi.detail}
                 </p>
               </Link>
@@ -237,17 +237,17 @@ export default function SalesDashboardPage() {
 
           {/* Recent Sales Orders */}
           <div className="md:col-span-7 min-h-0 overflow-hidden">
-            <div className="h-full flex flex-col bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-              <div className="flex-none flex items-center justify-between px-4 py-3 border-b-2 border-black">
+            <div className="h-full flex flex-col bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
+              <div className="flex-none flex items-center justify-between px-4 py-3 border-b border-border">
                 <div className="flex items-center gap-2">
                   <Package className="h-4 w-4 text-zinc-500" />
-                  <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                  <h3 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
                     Sales Order Terbaru
                   </h3>
                 </div>
                 <Link
                   href="/sales/orders"
-                  className="text-[10px] font-black uppercase tracking-wider text-zinc-400 hover:text-black dark:hover:text-white transition-colors flex items-center gap-1"
+                  className="text-xs font-semibold text-zinc-400 hover:text-black dark:hover:text-white transition-colors flex items-center gap-1"
                 >
                   Semua <ArrowRight className="h-3 w-3" />
                 </Link>
@@ -258,7 +258,7 @@ export default function SalesDashboardPage() {
                     <p className="text-sm text-zinc-400 font-medium">Belum ada sales order.</p>
                   </div>
                 ) : (
-                  <div className="divide-y-2 divide-black">
+                  <div className="divide-y-2 divide-border">
                     {(recentOrders ?? []).map((order: any) => (
                       <Link
                         key={order.id}
@@ -266,20 +266,20 @@ export default function SalesDashboardPage() {
                         className="flex items-center justify-between px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="h-2 w-2 bg-blue-500 border border-black flex-shrink-0" />
+                          <div className="h-2 w-2 bg-blue-500 border border-border flex-shrink-0" />
                           <div className="min-w-0">
-                            <p className="text-sm font-black uppercase tracking-wide truncate">
+                            <p className="text-sm font-semibold truncate">
                               {order.number}
                             </p>
-                            <p className="text-[10px] font-mono text-zinc-400 truncate">
+                            <p className="text-xs font-mono text-zinc-400 truncate">
                               {order.customer?.name} • {new Date(order.orderDate).toLocaleDateString("id-ID")}
                             </p>
                           </div>
                         </div>
                         <div className="text-right flex-shrink-0 ml-3">
-                          <p className="text-sm font-black">{formatIDR(toNumber(order.total))}</p>
+                          <p className="text-sm font-semibold">{formatIDR(toNumber(order.total))}</p>
                           <span className={`
-                            text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 border-2 border-black
+                            text-xs font-semibold   px-1.5 py-0.5 border border-border
                             ${order.status === "COMPLETED" ? "bg-emerald-100 text-emerald-800" :
                               order.status === "CANCELLED" ? "bg-red-100 text-red-800" :
                                 order.status === "CONFIRMED" ? "bg-blue-100 text-blue-800" :
@@ -299,17 +299,17 @@ export default function SalesDashboardPage() {
 
           {/* CRM Snapshot */}
           <div className="md:col-span-5 min-h-0 overflow-hidden">
-            <div className="h-full flex flex-col bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-              <div className="flex-none flex items-center justify-between px-4 py-3 border-b-2 border-black">
+            <div className="h-full flex flex-col bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
+              <div className="flex-none flex items-center justify-between px-4 py-3 border-b border-border">
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-zinc-500" />
-                  <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                  <h3 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
                     CRM Snapshot
                   </h3>
                 </div>
                 <Link
                   href="/sales/leads"
-                  className="text-[10px] font-black uppercase tracking-wider text-zinc-400 hover:text-black dark:hover:text-white transition-colors flex items-center gap-1"
+                  className="text-xs font-semibold text-zinc-400 hover:text-black dark:hover:text-white transition-colors flex items-center gap-1"
                 >
                   Detail <ArrowRight className="h-3 w-3" />
                 </Link>
@@ -317,17 +317,17 @@ export default function SalesDashboardPage() {
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {/* Leads Summary */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="border-2 border-black p-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Total Leads</p>
-                    <p className="text-2xl font-black">{totalLeads}</p>
-                    <p className="text-[10px] font-bold text-zinc-400 mt-0.5">
+                  <div className="border border-border p-3 shadow-sm">
+                    <p className="text-xs font-semibold text-zinc-400 mb-1">Total Leads</p>
+                    <p className="text-2xl font-semibold">{totalLeads}</p>
+                    <p className="text-xs font-bold text-zinc-400 mt-0.5">
                       Open: {formatIDR(openLeadValue)}
                     </p>
                   </div>
-                  <div className="border-2 border-black p-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Quotations</p>
-                    <p className="text-2xl font-black">{activeQuotes}</p>
-                    <p className="text-[10px] font-bold text-zinc-400 mt-0.5">
+                  <div className="border border-border p-3 shadow-sm">
+                    <p className="text-xs font-semibold text-zinc-400 mb-1">Quotations</p>
+                    <p className="text-2xl font-semibold">{activeQuotes}</p>
+                    <p className="text-xs font-bold text-zinc-400 mt-0.5">
                       Pipeline: {formatIDR(quotePipelineValue)}
                     </p>
                   </div>
@@ -335,7 +335,7 @@ export default function SalesDashboardPage() {
 
                 {/* Recent Quotations */}
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2 border-b border-black/10 pb-1">
+                  <p className="text-xs font-semibold text-zinc-400 mb-2 border-b border-black/10 pb-1">
                     Quotation Terbaru
                   </p>
                   {(recentQuotations ?? []).length === 0 ? (
@@ -350,10 +350,10 @@ export default function SalesDashboardPage() {
                         >
                           <div className="min-w-0">
                             <p className="text-xs font-bold truncate">{quote.number}</p>
-                            <p className="text-[10px] text-zinc-400 truncate">{quote.customer?.name}</p>
+                            <p className="text-xs text-zinc-400 truncate">{quote.customer?.name}</p>
                           </div>
                           <span className={`
-                            text-[9px] font-black uppercase px-1.5 py-0.5 flex-shrink-0 border bg-white border-black
+                            text-xs font-semibold  px-1.5 py-0.5 flex-shrink-0 border bg-white border-border
                             ${quote.status === "ACCEPTED" ? "text-emerald-700 bg-emerald-50" :
                               quote.status === "SENT" ? "text-blue-700 bg-blue-50" :
                                 quote.status === "REJECTED" ? "text-red-700 bg-red-50" :
@@ -374,7 +374,7 @@ export default function SalesDashboardPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all font-bold text-[10px] uppercase tracking-wider rounded-none"
+                      className="w-full border border-border shadow-sm hover:shadow-none transition-all font-bold text-xs rounded-md"
                     >
                       CRM Leads
                     </Button>
@@ -383,7 +383,7 @@ export default function SalesDashboardPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all font-bold text-[10px] uppercase tracking-wider rounded-none"
+                      className="w-full border border-border shadow-sm hover:shadow-none transition-all font-bold text-xs rounded-md"
                     >
                       Quotations
                     </Button>
@@ -396,24 +396,24 @@ export default function SalesDashboardPage() {
 
         {/* Row 4: Recent Invoices */}
         {(recentInvoices ?? []).length > 0 && (
-          <div className="flex-none bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b-2 border-black">
+          <div className="flex-none bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
               <div className="flex items-center gap-2">
                 <Receipt className="h-4 w-4 text-zinc-500" />
-                <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500">Invoice Terbaru</h3>
+                <h3 className="text-xs font-semibold text-zinc-500">Invoice Terbaru</h3>
               </div>
-              <Link href="/finance/invoices" className="text-[10px] font-black uppercase tracking-wider text-zinc-400 hover:text-black transition-colors flex items-center gap-1">
+              <Link href="/finance/invoices" className="text-xs font-semibold text-zinc-400 hover:text-black transition-colors flex items-center gap-1">
                 Semua <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-5 divide-y md:divide-y-0 md:divide-x-2 divide-black">
+            <div className="grid grid-cols-1 md:grid-cols-5 divide-y md:divide-y-0 md:divide-x-2 divide-border">
               {(recentInvoices ?? []).map((inv: any) => (
                 <Link key={inv.id} href="/finance/invoices" className="px-4 py-3 hover:bg-zinc-50 transition-colors">
-                  <p className="text-xs font-black uppercase">{inv.number}</p>
-                  <p className="text-[10px] text-zinc-400 truncate">{inv.customer?.name || "-"}</p>
+                  <p className="text-xs font-semibold ">{inv.number}</p>
+                  <p className="text-xs text-zinc-400 truncate">{inv.customer?.name || "-"}</p>
                   <div className="flex items-center justify-between mt-1.5">
-                    <span className="text-xs font-black">{formatIDR(toNumber(inv.totalAmount))}</span>
-                    <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 border border-black ${inv.status === "PAID" ? "bg-emerald-100 text-emerald-700" :
+                    <span className="text-xs font-semibold">{formatIDR(toNumber(inv.totalAmount))}</span>
+                    <span className={`text-xs font-semibold  px-1.5 py-0.5 border border-border ${inv.status === "PAID" ? "bg-emerald-100 text-emerald-700" :
                         inv.status === "ISSUED" ? "bg-blue-100 text-blue-700" :
                           inv.status === "OVERDUE" ? "bg-red-100 text-red-700" :
                             "bg-zinc-100 text-zinc-700"
@@ -430,11 +430,11 @@ export default function SalesDashboardPage() {
           {quickLinks.map((group) => (
             <div
               key={group.title}
-              className={`${group.bg} border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden`}
+              className={`${group.bg} border border-border shadow-sm overflow-hidden`}
             >
-              <div className={`${group.headerBg} px-4 py-2 border-b-2 border-black flex items-center gap-2`}>
+              <div className={`${group.headerBg} px-4 py-2 border-b border-border flex items-center gap-2`}>
                 <span className="text-white">{group.icon}</span>
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-white">
+                <h4 className="text-xs font-semibold text-white">
                   {group.title}
                 </h4>
               </div>
@@ -443,7 +443,7 @@ export default function SalesDashboardPage() {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 px-3 py-2.5 border-2 border-black ${group.linkBg} font-black text-xs uppercase tracking-wide transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,0.15)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] active:scale-[0.97] rounded-none`}
+                    className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 px-3 py-2.5 border border-border ${group.linkBg} font-semibold text-xs transition-all shadow-sm hover:shadow-none active:scale-[0.97] rounded-md`}
                   >
                     {link.icon}
                     <span className="truncate">{link.label}</span>

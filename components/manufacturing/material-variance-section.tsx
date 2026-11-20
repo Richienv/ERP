@@ -31,7 +31,7 @@ export function MaterialVarianceSection({ workOrderId }: MaterialVarianceSection
 
     if (isLoading) {
         return (
-            <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <Card className="border border-border shadow-sm">
                 <CardContent className="flex items-center justify-center py-12">
                     <IconLoader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                     <span className="ml-2 text-muted-foreground">Memuat data biaya material...</span>
@@ -42,7 +42,7 @@ export function MaterialVarianceSection({ workOrderId }: MaterialVarianceSection
 
     if (!data || data.lines.length === 0) {
         return (
-            <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <Card className="border border-border shadow-sm">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-base">
                         <IconChartBar className="h-5 w-5" />
@@ -57,7 +57,7 @@ export function MaterialVarianceSection({ workOrderId }: MaterialVarianceSection
     }
 
     return (
-        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <Card className="border border-border shadow-sm">
             <CardHeader>
                 <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2 text-base">
@@ -78,15 +78,15 @@ export function MaterialVarianceSection({ workOrderId }: MaterialVarianceSection
             <CardContent>
                 {/* Summary KPIs */}
                 <div className="grid grid-cols-3 gap-3 mb-4">
-                    <div className="rounded-lg border-2 border-black p-3 bg-blue-50">
+                    <div className="rounded-lg border border-border p-3 bg-blue-50">
                         <p className="text-xs text-muted-foreground">Biaya Rencana</p>
                         <p className="text-sm font-bold">{formatCurrency(data.totalPlannedCost)}</p>
                     </div>
-                    <div className="rounded-lg border-2 border-black p-3 bg-amber-50">
+                    <div className="rounded-lg border border-border p-3 bg-amber-50">
                         <p className="text-xs text-muted-foreground">Biaya Aktual</p>
                         <p className="text-sm font-bold">{formatCurrency(data.totalActualCost)}</p>
                     </div>
-                    <div className={`rounded-lg border-2 border-black p-3 ${data.totalCostVariance > 0 ? "bg-red-50" : "bg-green-50"}`}>
+                    <div className={`rounded-lg border border-border p-3 ${data.totalCostVariance > 0 ? "bg-red-50" : "bg-green-50"}`}>
                         <p className="text-xs text-muted-foreground">Selisih</p>
                         <p className="text-sm font-bold">{formatCurrency(data.totalCostVariance)}</p>
                     </div>

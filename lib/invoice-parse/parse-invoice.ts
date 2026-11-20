@@ -23,14 +23,14 @@ import type {
 // ── Column vocabulary ────────────────────────────────────────────────────────
 
 const COLUMN_VOCAB: Record<ColumnKey, string[]> = {
-    no: ["no", "nr", "item", "序号", "#"],
+    no: ["no", "n0", "nr", "item", "序号", "#"],
     partNo: [
         "oe number", "oe no", "oem no", "oem number", "part no", "part number", "parts no", "kode barang",
         "kode part", "kode", "item code", "code", "sku", "p n", "pn", "article no", "material no", "ref no",
         "零件号", "编号", "型号", "货号",
     ],
     description: [
-        "description of goods", "description", "nama barang", "nama item", "keterangan", "uraian",
+        "description of goods", "description", "material", "nama barang", "nama item", "keterangan", "uraian",
         "item description", "part name", "product name", "product", "goods", "barang", "nama", "commodity",
         "名称", "品名", "货物名称",
     ],
@@ -38,7 +38,7 @@ const COLUMN_VOCAB: Record<ColumnKey, string[]> = {
     unit: ["satuan", "unit", "uom", "sat", "单位"],
     unitPrice: ["unit price", "harga satuan", "harga", "price", "u price", "rate", "单价"],
     discount: ["discount", "disc", "diskon", "potongan", "折扣"],
-    amount: ["line total", "total price", "amount", "jumlah", "subtotal", "total", "nilai", "金额", "总价"],
+    amount: ["jumlah harga", "total harga", "line total", "total price", "amount", "jumlah", "subtotal", "total", "nilai", "金额", "总价"],
 }
 
 const VOCAB_ENTRIES: { phrase: string; column: ColumnKey }[] = Object.entries(COLUMN_VOCAB)
@@ -50,9 +50,9 @@ function columnFor(text: string, template?: SupplierTemplate): ColumnKey | null 
     if (!norm) return null
     const learned = template?.columnMap?.[norm]
     if (learned) return learned
-    for (const { phrase, column } of VOCAB_ENTRIES) {
-        if (norm === phrase || norm.startsWith(phrase + " ") || norm.endsWith(" " + phrase)) return column
-    }
+    for (const { phrase, column } of VOCAB_ENTRIES) if (norm === phrase) return column
+    for (const { phrase, column } of VOCAB_ENTRIES) if (norm.startsWith(phrase + " ")) return column
+    for (const { phrase, column } of VOCAB_ENTRIES) if (norm.endsWith(" " + phrase)) return column
     return null
 }
 
@@ -79,7 +79,7 @@ const TOTAL_LABELS: { key: "subtotal" | "tax" | "total"; phrases: string[] }[] =
     },
 ]
 
-const STOP_WORDS = /^(sub ?total|total|grand total|jumlah total|ppn|vat|dpp|terbilang|say total|say|合计|总计|小计|bank|catatan|notes?|remarks?)\b/i
+const STOP_WORDS = /^(sub ?total|total|grand total|jumlah total|jumlah\s*$|ppn|vat|dpp|terbilang|say total|say|keterangan\s*:?\s*$|合计|总计|小计|bank|catatan|notes?|remarks?)\b/i
 
 const TITLE_WORDS = /^(commercial invoice|proforma invoice|invoice|faktur( penjualan| pajak)?|nota|tagihan|bill|packing list|发票|形式发票)$/i
 const COMPANY_SUFFIX = /\b(co\.?,? ?ltd\.?|company|limited|ltd|inc|corp|pt\.?|cv\.?|ud\.?|toko|gmbh|llc|trading)\b|有限公司|公司/i
@@ -93,7 +93,7 @@ function labelRegex(phrase: string): RegExp {
         .split(" ")
         .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
         .join("[\\s.]*")
-    return new RegExp(`^\\s*${body}\\.?\\s*(?:\\([^)]*\\))?\\s*[:：#]?\\s*(.*)$`, "i")
+    return new RegExp(`^\\s*${body}\\.?\\s*\\*?\\s*(?:\\([^)]*\\))?\\s*[:：#]?\\s*\\*?\\s*(.*)$`, "i")
 }
 
 type Hit = { value: string; cell: Cell; label: string; viaNeighbour: boolean }
@@ -112,8 +112,11 @@ function findLabelled(lines: Line[], phrases: string[], accept: (v: string) => b
                 const inline = m[1].trim()
                 if (inline && accept(inline)) return { value: inline, cell, label: phrase, viaNeighbour: false }
                 if (inline) continue
-                const next = line.cells[ci + 1]
-                if (next && accept(next.text)) return { value: next.text, cell: next, label: phrase, viaNeighbour: true }
+                let ni = ci + 1
+                while (line.cells[ni] && /^[:：*\s]+$/.test(line.cells[ni].text)) ni++
+                const next = line.cells[ni]
+                const nextText = next?.text.replace(/^[:：*\s]+/, "").trim()
+                if (next && nextText && accept(nextText)) return { value: nextText, cell: next, label: phrase, viaNeighbour: true }
                 const below = lines[li + 1]
                 if (below && below.page === line.page) {
                     const under = below.cells.find((c) => c.x2 > cell.x - 2 && c.x < cell.x2 + 40)
@@ -150,6 +153,10 @@ function findHeader(lines: Line[], template?: SupplierTemplate): { index: number
     }
     if (!best) return null
     const cols = best.columns.sort((a, b) => a.x - b.x)
+    // "No | Material | Jumlah | Harga Satuan | Total Harga": with two amount-like headers and no qty,
+    // the left one ("Jumlah") is the quantity.
+    const amounts = cols.filter((c) => c.key === "amount")
+    if (amounts.length >= 2 && !cols.some((c) => c.key === "qty")) amounts[0].key = "qty"
     // Two header cells for the same key (e.g. "Total" twice) → keep the right-most for amount, left-most otherwise.
     const dedup: Column[] = []
     for (const col of cols) {
@@ -174,16 +181,25 @@ function assign(cells: Cell[], columns: Column[]): Partial<Record<ColumnKey, Cel
                 Math.abs((a.x + a.x2) / 2 - center) <= Math.abs((b.x + b.x2) / 2 - center) ? a : b,
             )
         }
+        // Words that landed under a number column (a name in an unlabelled Excel column) belong to the name.
+        const numericCol = col.key === "qty" || col.key === "unitPrice" || col.key === "amount" || col.key === "discount"
+        if (numericCol && /[A-Za-z]{3,}/.test(cell.text) && !looksNumeric(cell.text) && !UNIT_ONLY.test(cell.text.trim())) {
+            const desc = columns.find((c) => c.key === "description")
+            if (desc) col = desc
+        }
         ;(out[col.key] ||= []).push(cell)
     }
     return out
 }
+
+const UNIT_ONLY = /^(PCS|PC|PCE|SET|SETS|UNIT|UNITS|BOX|KG|EA|LOT|ROLL|BTL|LTR|PAIR|PRS|BH|BUAH|ASSY|PACK|PAK|DUS|BTG|LBR|MTR|M)\.?$/i
 
 const textOf = (cells?: Cell[]) => (cells || []).map((c) => c.text).join(" ").trim()
 
 type RawRow = { line: Line; parts: Partial<Record<ColumnKey, Cell[]>>; numeric: boolean; prefix: string[]; suffix: string[] }
 
 function readTable(lines: Line[], header: { index: number; columns: Column[] }, locale: NumberLocale) {
+    const quantitiesOnly = header.columns.some((c) => c.key === "qty") && !header.columns.some((c) => c.key === "unitPrice" || c.key === "amount")
     const rows: RawRow[] = []
     const textOnly: { line: Line; desc: string; part: string }[] = []
     const headerLine = lines[header.index]
@@ -225,24 +241,34 @@ function readTable(lines: Line[], header: { index: number; columns: Column[] }, 
         if (t.line.y < best.line.y) best.prefix.push(t.desc)
         else best.suffix.push(t.desc)
     }
-    return { rows, endIndex }
+    return { rows, endIndex, quantitiesOnly }
 }
 
 const PART_IN_DESC = /^([A-Z0-9]{2,}[-/]?[A-Z0-9]{2,}(?:\/[A-Z]+)?)\s+(.+)$/
 
-function toParsedLine(row: RawRow, locale: NumberLocale): ParsedLine {
+function toParsedLine(row: RawRow, locale: NumberLocale, quantitiesOnly = false): ParsedLine {
     const num = (k: ColumnKey) => {
         const t = textOf(row.parts[k])
-        return t ? parseAmount(t, locale) : null
+        const v = t ? parseAmount(t, locale) : null
+        return v === null ? null : Math.abs(v) // "(  200,000.00)" / "-Rp 100,000-" are Excel accounting formats
     }
     const issues: string[] = []
     let description = [...row.prefix, textOf(row.parts.description), ...row.suffix].filter(Boolean).join(" ").replace(/\s+/g, " ").trim()
+    // A right-aligned row number that drifted into the name column ("1 BALL JOINT …").
+    if (!textOf(row.parts.no)) description = description.replace(/^\d{1,3}\s+(?=\S)/, "")
     let partNo: string | null = textOf(row.parts.partNo) || null
     if (!partNo) {
         const m = description.match(PART_IN_DESC)
         if (m && /\d/.test(m[1])) {
             partNo = m[1]
             description = m[2]
+        } else {
+            // OE-style code anywhere after the name: letters AND digits, 5+ chars ("MN171660", "MR196837/ GUM-Z 1").
+            const tail = description.match(/^(.*?[A-Za-z].*?)\s+([A-Z0-9]*\d[A-Z0-9]*[A-Z][A-Z0-9]*|[A-Z][A-Z0-9]*\d[A-Z0-9]*)(\s*\/.*)?$/)
+            if (tail && tail[2].length >= 5 && /[A-Z]/.test(tail[2]) && /\d/.test(tail[2])) {
+                partNo = tail[2]
+                description = tail[1].trim()
+            }
         }
     }
     let qty = num("qty")
@@ -274,7 +300,13 @@ function toParsedLine(row: RawRow, locale: NumberLocale): ParsedLine {
     const factor = 1 - (discountPct || 0) / 100
 
     let confidence = 1
-    if (qty !== null && unitPrice !== null && amount !== null) {
+    if (quantitiesOnly) {
+        // Surat jalan: quantities are the whole story.
+        if (qty === null) {
+            confidence = 0.4
+            issues.push("Qty tidak terbaca")
+        }
+    } else if (qty !== null && unitPrice !== null && amount !== null) {
         const expected = qty * unitPrice * factor
         const diff = Math.abs(expected - amount)
         if (diff > Math.max(1, amount * 0.005)) {
@@ -316,7 +348,7 @@ function toParsedLine(row: RawRow, locale: NumberLocale): ParsedLine {
 
 // ── Headerless fallback (scans where the header row did not survive OCR) ───────
 
-const UNIT_WORD = /^(PCS|PC|PCE|SET|SETS|UNIT|UNITS|BOX|KG|EA|LOT|ROLL|BTL|LTR|PAIR|PRS|BH|BUAH)\.?$/i
+const UNIT_WORD = UNIT_ONLY
 const NOISE_CELL = /^[|[\]{}()_\-–—:;.,'"`~]+$/
 
 /**
@@ -492,8 +524,8 @@ export function parseInvoice(
     let parsedLines: ParsedLine[] = []
     let tableEnd = 0
     if (header) {
-        const { rows, endIndex } = readTable(lines, header, locale)
-        parsedLines = rows.map((r) => toParsedLine(r, locale))
+        const { rows, endIndex, quantitiesOnly } = readTable(lines, header, locale)
+        parsedLines = rows.map((r) => toParsedLine(r, locale, quantitiesOnly))
         tableEnd = endIndex
     }
     if (!parsedLines.length) {
@@ -510,7 +542,7 @@ export function parseInvoice(
             const text = line.cells[i].text
             const label = text.match(/^[^\d(]*[:：]\s*(.+)$/)
             const v = parseAmount(label ? label[1] : text, locale)
-            if (v !== null && !/%\s*$/.test(text.trim())) return { value: v, cell: line.cells[i] }
+            if (v !== null && !/%\s*$/.test(text.trim())) return { value: Math.abs(v), cell: line.cells[i] }
         }
         return null
     }
@@ -520,7 +552,9 @@ export function parseInvoice(
             const norm = normaliseLabel(line.cells[ci].text)
             if (!norm) continue
             for (const group of TOTAL_LABELS) {
-                const phrase = group.phrases.find((p) => norm === p || norm.startsWith(p + " ") || norm.startsWith(p))
+                const phrase = group.key === "subtotal" && norm === "jumlah"
+                    ? "jumlah"
+                    : group.phrases.find((p) => norm === p || norm.startsWith(p + " ") || norm.startsWith(p))
                 if (!phrase) continue
                 if (group.key === "total" && /^(sub ?total|jumlah sebelum)/.test(norm)) continue
                 if (group.key === "tax" && /terbilang|say/.test(norm)) continue

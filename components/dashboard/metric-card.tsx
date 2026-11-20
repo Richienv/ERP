@@ -37,18 +37,18 @@ export function MetricCard({
 
     const content = (
         <div className="flex flex-col gap-1 min-w-0">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 truncate">
+            <span className="text-xs font-bold text-zinc-400 dark:text-zinc-500 truncate">
                 {label}
             </span>
             <div className="flex items-baseline gap-1.5">
-                <span className={`text-lg font-black tracking-tight leading-none ${valueClass}`}>
+                <span className={`text-lg font-semibold tracking-tight leading-none ${valueClass}`}>
                     {displayValue}
                 </span>
                 {suffix && (
-                    <span className="text-[10px] font-medium text-zinc-400">{suffix}</span>
+                    <span className="text-xs font-medium text-zinc-400">{suffix}</span>
                 )}
                 {badge !== undefined && badge > 0 && (
-                    <span className={`ml-auto flex h-4 min-w-4 items-center justify-center rounded-full ${badgeColor} px-1 text-[9px] font-black text-white tabular-nums`}>
+                    <span className={`ml-auto flex h-4 min-w-4 items-center justify-center rounded-full ${badgeColor} px-1 text-xs font-semibold text-white tabular-nums`}>
                         {badge > 99 ? "99+" : badge}
                     </span>
                 )}

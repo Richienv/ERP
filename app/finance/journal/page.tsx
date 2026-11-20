@@ -154,14 +154,14 @@ export default function GeneralLedgerPage() {
                 {/* Row 1: Title + Actions */}
                 <div className={`px-5 py-3.5 flex items-center justify-between ${NB.pageRowBorder}`}>
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-orange-500 flex items-center justify-center">
+                        <div className="w-9 h-9 bg-blue-500 flex items-center justify-center">
                             <BookText className="h-4.5 w-4.5 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-base font-black uppercase tracking-wider text-zinc-900 dark:text-white">
+                            <h1 className="text-base font-semibold text-zinc-900 dark:text-white">
                                 Jurnal Umum
                             </h1>
-                            <p className="text-zinc-400 text-[11px] font-medium">
+                            <p className="text-zinc-400 text-xs font-medium">
                                 Catatan kronologis seluruh transaksi keuangan
                             </p>
                         </div>
@@ -207,7 +207,7 @@ export default function GeneralLedgerPage() {
                                 <span
                                     className={`w-2 h-2 ${
                                         kpi.color === "orange"
-                                            ? "bg-orange-500"
+                                            ? "bg-blue-500"
                                             : kpi.color === "zinc"
                                               ? "bg-zinc-400"
                                               : kpi.color === "emerald"
@@ -273,7 +273,7 @@ export default function GeneralLedgerPage() {
                                 }`}
                             />
                             <input
-                                className={`border border-r-0 font-medium h-9 w-[320px] text-xs rounded-none pl-9 pr-8 outline-none placeholder:text-zinc-400 transition-all ${
+                                className={`border border-r-0 font-medium h-9 w-[320px] text-xs rounded-md pl-9 pr-8 outline-none placeholder:text-zinc-400 transition-all ${
                                     searchText ? NB.inputActive : NB.inputEmpty
                                 }`}
                                 placeholder="Cari deskripsi, referensi, akun..."
@@ -294,7 +294,7 @@ export default function GeneralLedgerPage() {
                             label="Status"
                             hideLabel
                             triggerClassName={NB.filterDropdown}
-                            triggerActiveClassName="flex items-center gap-2 border border-orange-400 dark:border-orange-500 border-r-0 h-9 px-3 bg-orange-50/50 dark:bg-orange-950/20 text-xs font-medium min-w-[120px] justify-between transition-all rounded-none"
+                            triggerActiveClassName="flex items-center gap-2 border border-blue-400 dark:border-blue-500 border-r-0 h-9 px-3 bg-blue-50/50 dark:bg-blue-950/20 text-xs font-medium min-w-[120px] justify-between transition-all rounded-md"
                             options={[
                                 { value: "DRAFT", label: "Draft" },
                                 { value: "POSTED", label: "Posted" },
@@ -315,13 +315,13 @@ export default function GeneralLedgerPage() {
                             <Button
                                 variant="ghost"
                                 onClick={resetFilters}
-                                className="text-zinc-400 text-[10px] font-bold uppercase h-9 px-3 rounded-none hover:text-zinc-700 dark:hover:text-zinc-200 ml-1.5"
+                                className="text-zinc-400 text-xs font-bold h-9 px-3 rounded-md hover:text-zinc-700 dark:hover:text-zinc-200 ml-1.5"
                             >
                                 <RotateCcw className="h-3 w-3 mr-1" /> Reset
                             </Button>
                         )}
                     </div>
-                    <span className="hidden md:inline text-[11px] font-medium text-zinc-400">
+                    <span className="hidden md:inline text-xs font-medium text-zinc-400">
                         <span className="font-mono font-bold text-zinc-600 dark:text-zinc-300">
                             {filteredEntries.length}
                         </span>{" "}
@@ -383,15 +383,15 @@ export default function GeneralLedgerPage() {
 
             {/* ─── Journal Entries Table ─── */}
             <div
-                className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex flex-col"
+                className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden flex flex-col"
                 style={{ minHeight: 420 }}
             >
                 {/* Table Header — black bar */}
-                <div className="hidden md:grid grid-cols-[80px_1fr_140px_100px] gap-2 px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black">
+                <div className="hidden md:grid grid-cols-[80px_1fr_140px_100px] gap-2 px-5 py-2.5 bg-slate-900 dark:bg-zinc-950 border-b border-border">
                     {["Tanggal", "Deskripsi & Akun", "Jumlah", "Status"].map((h) => (
                         <span
                             key={h}
-                            className="text-xs font-black uppercase tracking-widest text-zinc-400"
+                            className="text-xs font-semibold text-zinc-400"
                         >
                             {h}
                         </span>
@@ -424,7 +424,7 @@ export default function GeneralLedgerPage() {
                             transition={{ type: "spring" as const, stiffness: 300, damping: 25 }}
                             className="flex-1 flex flex-col items-center justify-center py-16 text-zinc-400"
                         >
-                            <div className="w-16 h-16 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
+                            <div className="w-16 h-16 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
                                 <BookText className="h-7 w-7 text-zinc-200 dark:text-zinc-700" />
                             </div>
                             <span className="text-sm font-bold">Belum ada jurnal</span>
@@ -449,16 +449,16 @@ export default function GeneralLedgerPage() {
                                     <div
                                         key={entry.id}
                                         style={style}
-                                        className={`group/row transition-all duration-200 border-l-[3px] border-b border-zinc-100 dark:border-zinc-800 ${
+                                        className={`group/row transition-all duration-200 border-l border-b border-zinc-100 dark:border-zinc-800 ${
                                             isExpanded
                                                 ? isDraft
                                                     ? "border-l-amber-400 bg-amber-50/30 dark:bg-amber-950/10"
-                                                    : "border-l-orange-400 bg-orange-50/30 dark:bg-orange-950/10"
+                                                    : "border-l-orange-400 bg-blue-50/30 dark:bg-blue-950/10"
                                                 : isDraft
                                                     ? "border-l-amber-400 hover:bg-amber-50/40 dark:hover:bg-amber-950/10"
                                                     : entry.status === "VOID"
                                                         ? "border-l-red-300 hover:bg-red-50/30 dark:hover:bg-red-950/10"
-                                                        : "border-l-transparent hover:border-l-orange-400 hover:bg-orange-50/40 dark:hover:bg-orange-950/10"
+                                                        : "border-l-transparent hover:border-l-orange-400 hover:bg-blue-50/40 dark:hover:bg-blue-950/10"
                                         } ${
                                             idx % 2 === 0 && !isExpanded
                                                 ? "bg-white dark:bg-zinc-900"
@@ -475,17 +475,17 @@ export default function GeneralLedgerPage() {
                                                 isExpanded
                                                     ? isDraft
                                                         ? "border-amber-300 dark:border-amber-700 bg-amber-100 dark:bg-amber-900/30"
-                                                        : "border-orange-300 dark:border-orange-700 bg-orange-100 dark:bg-orange-900/20"
+                                                        : "border-blue-300 dark:border-blue-700 bg-blue-100 dark:bg-blue-900/20"
                                                     : isDraft
                                                         ? "border-zinc-200 dark:border-zinc-700 bg-amber-50 dark:bg-amber-950/20"
                                                         : "border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50"
                                             }`}>
-                                                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                                                <p className="text-xs font-semibold text-zinc-400">
                                                     {new Date(entry.date).toLocaleString("id-ID", {
                                                         month: "short",
                                                     })}
                                                 </p>
-                                                <p className="text-xl font-black text-zinc-900 dark:text-white leading-none">
+                                                <p className="text-xl font-semibold text-zinc-900 dark:text-white leading-none">
                                                     {new Date(entry.date).getDate()}
                                                 </p>
                                             </div>
@@ -493,15 +493,15 @@ export default function GeneralLedgerPage() {
                                             {/* Description + tags */}
                                             <div>
                                                 <div className="flex items-center gap-2 mb-0.5">
-                                                    <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 border border-zinc-200 dark:border-zinc-700 text-zinc-400 bg-zinc-50 dark:bg-zinc-800 font-mono">
+                                                    <span className="text-xs font-semibold px-1.5 py-0.5 border border-zinc-200 dark:border-zinc-700 text-zinc-400 bg-zinc-50 dark:bg-zinc-800 font-mono">
                                                         JE-{entry.id.substring(0, 8)}
                                                     </span>
                                                     {entry.reference && (
-                                                        <span className="text-[9px] font-bold px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 font-mono">
+                                                        <span className="text-xs font-bold px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 font-mono">
                                                             {entry.reference}
                                                         </span>
                                                     )}
-                                                    <span className="text-[10px] font-medium text-zinc-400">
+                                                    <span className="text-xs font-medium text-zinc-400">
                                                         {entry.lines.length} baris
                                                     </span>
                                                 </div>
@@ -512,7 +512,7 @@ export default function GeneralLedgerPage() {
 
                                             {/* Amount */}
                                             <div className="text-right">
-                                                <span className="font-mono font-black text-sm text-emerald-600 dark:text-emerald-400 tabular-nums">
+                                                <span className="font-mono font-semibold text-sm text-emerald-600 dark:text-emerald-400 tabular-nums">
                                                     {formatIDR(entry.totalDebit)}
                                                 </span>
                                             </div>
@@ -523,14 +523,14 @@ export default function GeneralLedgerPage() {
                                                 {isDraft && (
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); setEditEntry(entry) }}
-                                                        className="h-8 px-3 text-[10px] font-bold uppercase tracking-wider border-2 border-amber-400 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500 hover:text-white hover:border-amber-500 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,0.15)] hover:-translate-x-[0.5px] hover:-translate-y-[0.5px] active:translate-x-0 active:translate-y-0 active:shadow-none transition-all flex items-center gap-1.5"
+                                                        className="h-8 px-3 text-xs font-bold border border-amber-400 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500 hover:text-white hover:border-amber-500 shadow-sm hover:shadow-sm hover:-translate-x-[0.5px] hover:-translate-y-[0.5px] active:translate-x-0 active:translate-y-0 active:shadow-none transition-all flex items-center gap-1.5"
                                                     >
                                                         <Pencil className="h-3 w-3" /> Edit
                                                     </button>
                                                 )}
                                                 {/* Status badge */}
                                                 <span
-                                                    className={`inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wide px-2 py-1 border rounded-none ${
+                                                    className={`inline-flex items-center gap-1.5 text-xs font-semibold   px-2 py-1 border rounded-md ${
                                                         entry.status === "POSTED"
                                                             ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400"
                                                             : entry.status === "VOID"
@@ -566,7 +566,7 @@ export default function GeneralLedgerPage() {
                                                 <div className={`mx-5 mb-3 border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-800/50 overflow-hidden transition-opacity duration-200 ${isExpanded ? "opacity-100" : "opacity-0"}`}>
                                                     <table className="w-full text-xs">
                                                         <thead>
-                                                            <tr className="text-[10px] font-black uppercase tracking-widest text-zinc-400 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-100/80 dark:bg-zinc-800/80">
+                                                            <tr className="text-xs font-semibold text-zinc-400 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-100/80 dark:bg-zinc-800/80">
                                                                 <th className="text-left py-1.5 px-3 w-1/2">
                                                                     Akun
                                                                 </th>
@@ -583,7 +583,7 @@ export default function GeneralLedgerPage() {
                                                                     className="border-b border-zinc-100 dark:border-zinc-700 last:border-b-0"
                                                                 >
                                                                     <td className="py-1.5 px-3 font-sans font-medium text-zinc-700 dark:text-zinc-300">
-                                                                        <span className="text-zinc-400 font-mono text-[10px] mr-1.5">{item.account.code}</span>
+                                                                        <span className="text-zinc-400 font-mono text-xs mr-1.5">{item.account.code}</span>
                                                                         {item.account.name}
                                                                     </td>
                                                                     <td className={`py-1.5 px-3 text-right font-bold tabular-nums ${item.debit > 0 ? "text-emerald-700 dark:text-emerald-400" : "text-zinc-300 dark:text-zinc-600"}`}>
@@ -631,10 +631,10 @@ export default function GeneralLedgerPage() {
 
                 {/* Footer */}
                 <div className="px-5 py-3 border-t border-zinc-200 dark:border-zinc-700 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">
                         {filteredEntries.length} jurnal ditampilkan
                     </span>
-                    <span className="text-[10px] font-medium text-zinc-400">
+                    <span className="text-xs font-medium text-zinc-400">
                         Entri terakhir:{" "}
                         <span className="font-bold text-zinc-600 dark:text-zinc-300">
                             {latestEntry}

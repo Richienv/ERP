@@ -60,7 +60,7 @@ export function QualityManagement() {
 
                 {/* Recent Inspections List */}
                 <div className="space-y-3 flex-1">
-                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Inspeksi Terakhir</h4>
+                    <h4 className="text-xs font-medium text-muted-foreground  ">Inspeksi Terakhir</h4>
                     <div className="space-y-2">
                         {inspections.map((insp) => (
                             <div key={insp.id} className="flex items-center justify-between p-3 rounded-xl bg-secondary/20 hover:bg-secondary/40 transition-colors border border-border/50">
@@ -72,10 +72,10 @@ export function QualityManagement() {
                                     </div>
                                     <div>
                                         <p className="text-sm font-medium text-foreground truncate max-w-[120px]">{insp.item}</p>
-                                        <p className="text-[10px] text-muted-foreground">{insp.date} • {insp.inspector}</p>
+                                        <p className="text-xs text-muted-foreground">{insp.date} • {insp.inspector}</p>
                                     </div>
                                 </div>
-                                <Badge variant={insp.status === 'Lolos' ? 'secondary' : 'destructive'} className="text-[10px] h-5">
+                                <Badge variant={insp.status === 'Lolos' ? 'secondary' : 'destructive'} className="text-xs h-5">
                                     {insp.status}
                                 </Badge>
                             </div>

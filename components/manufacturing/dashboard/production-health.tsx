@@ -8,7 +8,7 @@ export function ProductionHealth() {
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             {/* Output Health */}
-            <Card className="border-l-4 border-l-emerald-500 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-emerald-50/50 dark:bg-emerald-950/10 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all">
+            <Card className="border-l border-l-emerald-500 border border-border shadow-sm bg-emerald-50/50 dark:bg-emerald-950/10 hover:shadow-sm transition-all">
                 <CardContent className="p-4 flex items-center justify-between">
                     <div>
                         <p className="text-sm font-medium text-muted-foreground">Output Hari Ini</p>
@@ -25,7 +25,7 @@ export function ProductionHealth() {
             </Card>
 
             {/* On-Time Delivery Health */}
-            <Card className="border-l-4 border-l-blue-500 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-blue-50/50 dark:bg-blue-950/10 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all">
+            <Card className="border-l border-l-blue-500 border border-border shadow-sm bg-blue-50/50 dark:bg-blue-950/10 hover:shadow-sm transition-all">
                 <CardContent className="p-4 flex items-center justify-between">
                     <div>
                         <p className="text-sm font-medium text-muted-foreground">On-Time Performance</p>
@@ -42,7 +42,7 @@ export function ProductionHealth() {
             </Card>
 
             {/* Quality Health */}
-            <Card className="border-l-4 border-l-orange-500 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-orange-50/50 dark:bg-orange-950/10 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all">
+            <Card className="border-l border-l-orange-500 border border-border shadow-sm bg-blue-50/50 dark:bg-blue-950/10 hover:shadow-sm transition-all">
                 <CardContent className="p-4 flex items-center justify-between">
                     <div>
                         <p className="text-sm font-medium text-muted-foreground">Kualitas (First Pass)</p>
@@ -54,8 +54,8 @@ export function ProductionHealth() {
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">Rework Cost: Rp 2.4jt hari ini</p>
                     </div>
-                    <div className="h-10 w-10 bg-orange-100 rounded-full flex items-center justify-center">
-                        <CheckCircle2 className="h-5 w-5 text-orange-600" />
+                    <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <CheckCircle2 className="h-5 w-5 text-blue-600" />
                     </div>
                 </CardContent>
             </Card>

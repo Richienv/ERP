@@ -33,16 +33,16 @@ export function WarehouseCard({
     const sc = statusColors[dockStatus]
 
     return (
-        <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all overflow-hidden">
+        <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm hover:shadow-sm transition-all overflow-hidden">
             {/* Header */}
-            <div className="px-3 py-2.5 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800 flex items-center justify-between">
+            <div className="px-3 py-2.5 border-b border-border bg-zinc-50 dark:bg-zinc-800 flex items-center justify-between">
                 <div className="min-w-0 flex-1">
-                    <div className="text-xs font-black uppercase tracking-tight text-zinc-900 dark:text-white truncate leading-tight">
+                    <div className="text-xs font-semibold tracking-tight text-zinc-900 dark:text-white truncate leading-tight">
                         {name}
                     </div>
-                    <div className="text-[9px] font-bold text-zinc-400 truncate mt-0.5">{manager}</div>
+                    <div className="text-xs font-bold text-zinc-400 truncate mt-0.5">{manager}</div>
                 </div>
-                <Badge className={`text-[8px] font-black uppercase px-1.5 py-0.5 border-0 shrink-0 ml-2 ${sc.bg}`}>
+                <Badge className={`text-xs font-semibold px-1.5 py-0.5 border-0 shrink-0 ml-2 ${sc.bg}`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${sc.dot} mr-1 inline-block`} />
                     {dockStatus}
                 </Badge>
@@ -52,10 +52,10 @@ export function WarehouseCard({
             <div className="px-3 py-2.5 space-y-2">
                 {/* Value */}
                 <div>
-                    <div className="text-[9px] font-black uppercase text-zinc-400 flex items-center gap-1">
+                    <div className="text-xs font-semibold text-zinc-400 flex items-center gap-1">
                         <Activity className="h-2.5 w-2.5" /> Value
                     </div>
-                    <div className="text-lg font-black text-zinc-900 dark:text-white tracking-tighter leading-tight">
+                    <div className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tighter leading-tight">
                         {formatCurrency(inventoryValue)}
                     </div>
                 </div>
@@ -63,16 +63,16 @@ export function WarehouseCard({
                 {/* Mini stats row */}
                 <div className="grid grid-cols-3 gap-1.5">
                     <div className="bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-1.5 text-center">
-                        <div className="text-sm font-black text-zinc-900 dark:text-white">{staffActive}</div>
-                        <div className="text-[8px] font-bold uppercase text-zinc-400">Staff</div>
+                        <div className="text-sm font-semibold text-zinc-900 dark:text-white">{staffActive}</div>
+                        <div className="text-xs font-bold text-zinc-400">Staff</div>
                     </div>
                     <div className="bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-1.5 text-center">
-                        <div className="text-sm font-black text-blue-600">{activePOs}</div>
-                        <div className="text-[8px] font-bold uppercase text-zinc-400">PO</div>
+                        <div className="text-sm font-semibold text-blue-600">{activePOs}</div>
+                        <div className="text-xs font-bold text-zinc-400">PO</div>
                     </div>
                     <div className="bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-1.5 text-center">
-                        <div className="text-sm font-black text-emerald-600">{activeTasks}</div>
-                        <div className="text-[8px] font-bold uppercase text-zinc-400">Task</div>
+                        <div className="text-sm font-semibold text-emerald-600">{activeTasks}</div>
+                        <div className="text-xs font-bold text-zinc-400">Task</div>
                     </div>
                 </div>
 
@@ -80,8 +80,8 @@ export function WarehouseCard({
                 {capacityPercent !== undefined && (
                     <div>
                         <div className="flex items-center justify-between mb-1">
-                            <span className="text-[8px] font-bold uppercase text-zinc-400">Kapasitas</span>
-                            <span className="text-[9px] font-black text-zinc-700">{capacityPercent}%</span>
+                            <span className="text-xs font-bold text-zinc-400">Kapasitas</span>
+                            <span className="text-xs font-semibold text-zinc-700">{capacityPercent}%</span>
                         </div>
                         <div className="w-full bg-zinc-200 h-1.5">
                             <div
@@ -94,7 +94,7 @@ export function WarehouseCard({
 
                 {/* Action */}
                 <Link href={`/inventory/warehouses/${id}`} className="block">
-                    <div className="w-full h-7 text-[9px] font-black uppercase bg-white dark:bg-zinc-900 text-zinc-600 border-2 border-black hover:bg-zinc-100 dark:hover:bg-zinc-800 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[1px] transition-all flex items-center justify-center gap-1">
+                    <div className="w-full h-7 text-xs font-semibold bg-white dark:bg-zinc-900 text-zinc-600 border border-border hover:bg-zinc-100 dark:hover:bg-zinc-800 shadow-sm hover:shadow-none transition-all flex items-center justify-center gap-1">
                         Detail <ArrowRight className="h-3 w-3" />
                     </div>
                 </Link>

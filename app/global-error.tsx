@@ -86,7 +86,7 @@ export default function GlobalError({
                             style={{
                                 fontSize: "1.5rem",
                                 fontWeight: 900,
-                                textTransform: "uppercase",
+                                textTransform: "none",
                                 letterSpacing: "0.05em",
                                 margin: "0 0 0.5rem",
                             }}
@@ -115,7 +115,7 @@ export default function GlobalError({
                                 boxShadow: "4px 4px 0px 0px rgba(0,0,0,0.3)",
                                 fontSize: "0.875rem",
                                 fontWeight: 900,
-                                textTransform: "uppercase",
+                                textTransform: "none",
                                 letterSpacing: "0.1em",
                                 cursor: "pointer",
                                 transition: "all 0.15s",
@@ -143,7 +143,7 @@ export default function GlobalError({
                                 boxShadow: "4px 4px 0px 0px rgba(0,0,0,1)",
                                 fontSize: "0.75rem",
                                 fontWeight: 700,
-                                textTransform: "uppercase",
+                                textTransform: "none",
                                 letterSpacing: "0.1em",
                                 cursor: "pointer",
                                 transition: "all 0.15s",

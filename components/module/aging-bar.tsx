@@ -26,10 +26,10 @@ export function AgingBar({ buckets, className, formatAmount }: AgingBarProps) {
       <div className={NB.kpiStrip}>
         {buckets.map((bucket) => (
           <div key={bucket.label} className={NB.kpiCell}>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+            <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">
               {bucket.label}
             </span>
-            <span className={`text-sm font-black font-mono ${bucket.color ?? "text-zinc-900 dark:text-white"}`}>
+            <span className={`text-sm font-semibold font-mono ${bucket.color ?? "text-zinc-900 dark:text-white"}`}>
               {fmt(bucket.amount)}
             </span>
           </div>

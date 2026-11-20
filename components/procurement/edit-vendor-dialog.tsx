@@ -256,7 +256,7 @@ export function EditVendorDialog({ vendor, open, onOpenChange }: EditVendorDialo
                                                     form.setValue("categoryIds", [...current, cat.id])
                                                 }
                                             }}
-                                            className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold border-2 transition-all ${
+                                            className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold border transition-all ${
                                                 selected
                                                     ? "border-violet-500 bg-violet-500 text-white"
                                                     : "border-zinc-200 bg-white text-zinc-600 hover:border-violet-300"
@@ -482,14 +482,14 @@ export function EditVendorDialog({ vendor, open, onOpenChange }: EditVendorDialo
                                 variant="outline"
                                 onClick={() => onOpenChange(false)}
                                 disabled={isSubmitting}
-                                className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none disabled:opacity-50"
+                                className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold text-xs px-4 h-8 rounded-md disabled:opacity-50"
                             >
                                 Batal
                             </Button>
                             <Button
                                 type="submit"
                                 disabled={isSubmitting}
-                                className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none gap-1.5 disabled:opacity-50 transition-colors"
+                                className="bg-slate-900 text-white border border-border hover:bg-zinc-800 font-semibold text-xs px-5 h-8 rounded-md gap-1.5 disabled:opacity-50 transition-colors"
                             >
                                 {isSubmitting ? (
                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />

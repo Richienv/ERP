@@ -241,12 +241,12 @@ export function ReportsView({ documents, documentsMeta, documentsQuery }: Report
     return (
         <div className="mf-page">
             {/* ═══ COMMAND HEADER ═══ */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+            <div className="border border-border shadow-sm overflow-hidden bg-white dark:bg-zinc-900">
                 <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-violet-400">
                     <div className="flex items-center gap-3">
                         <FileBarChart className="h-5 w-5 text-violet-500" />
                         <div>
-                            <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
+                            <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-white">
                                 Laporan Sistem
                             </h1>
                             <p className="text-zinc-400 text-xs font-medium mt-0.5">
@@ -258,60 +258,60 @@ export function ReportsView({ documents, documentsMeta, documentsQuery }: Report
             </div>
 
             {/* ═══ KPI PULSE STRIP ═══ */}
-            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+            <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                 <div className="grid grid-cols-2 md:grid-cols-4">
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
+                    <div className="relative p-4 md:p-5 border-r border-zinc-100 dark:border-zinc-800 border-b md:border-b-0">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-blue-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <FileText className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Purchase Order</span>
+                            <span className="text-xs font-semibold text-zinc-500">Purchase Order</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-blue-600">{documentsMeta.purchaseOrders.total}</div>
-                        <div className="text-[10px] font-bold text-blue-600 mt-1">Dokumen PO</div>
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-blue-600">{documentsMeta.purchaseOrders.total}</div>
+                        <div className="text-xs font-bold text-blue-600 mt-1">Dokumen PO</div>
                     </div>
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
+                    <div className="relative p-4 md:p-5 border-r border-zinc-100 dark:border-zinc-800 border-b md:border-b-0">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <Receipt className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Invoice</span>
+                            <span className="text-xs font-semibold text-zinc-500">Invoice</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-emerald-600">{documentsMeta.invoices.total}</div>
-                        <div className="text-[10px] font-bold text-emerald-600 mt-1">Dokumen Faktur</div>
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-emerald-600">{documentsMeta.invoices.total}</div>
+                        <div className="text-xs font-bold text-emerald-600 mt-1">Dokumen Faktur</div>
                     </div>
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
+                    <div className="relative p-4 md:p-5 border-r border-zinc-100 dark:border-zinc-800">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-amber-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <ClipboardCheck className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">SJ Masuk</span>
+                            <span className="text-xs font-semibold text-zinc-500">SJ Masuk</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-amber-600">{documentsMeta.goodsReceipts.total}</div>
-                        <div className="text-[10px] font-bold text-amber-600 mt-1">Penerimaan Barang</div>
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-amber-600">{documentsMeta.goodsReceipts.total}</div>
+                        <div className="text-xs font-bold text-amber-600 mt-1">Penerimaan Barang</div>
                     </div>
                     <div className="relative p-4 md:p-5">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-indigo-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <Banknote className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Payroll</span>
+                            <span className="text-xs font-semibold text-zinc-500">Payroll</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-indigo-600">{documentsMeta.payrollRuns.total}</div>
-                        <div className="text-[10px] font-bold text-indigo-600 mt-1">Periode Gaji</div>
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-indigo-600">{documentsMeta.payrollRuns.total}</div>
+                        <div className="text-xs font-bold text-indigo-600 mt-1">Periode Gaji</div>
                     </div>
                 </div>
             </div>
 
             {/* ═══ TAB BAR ═══ */}
-            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+            <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                 <div className="px-4 py-3 flex items-center gap-2 flex-wrap">
                     {tabs.map((tab) => (
                         <button
                             key={tab.key}
                             onClick={() => setActiveTab(tab.key)}
-                            className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all border-2 border-black flex items-center gap-1.5 ${
-                                activeTab === tab.key ? "bg-black text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"
+                            className={`px-3 py-2 text-xs font-semibold   transition-all border border-border flex items-center gap-1.5 ${
+                                activeTab === tab.key ? "bg-slate-900 text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"
                             }`}
                         >
                             {tab.label}
-                            <span className={`text-[9px] px-1.5 ${activeTab === tab.key ? "bg-white/20" : "bg-zinc-200"} rounded-full`}>
+                            <span className={`text-xs px-1.5 ${activeTab === tab.key ? "bg-white/20" : "bg-zinc-200"} rounded-full`}>
                                 {tab.count}
                             </span>
                         </button>
@@ -322,13 +322,13 @@ export function ReportsView({ documents, documentsMeta, documentsQuery }: Report
             {/* ═══ PO TAB ═══ */}
             {activeTab === "po" && (
                 <>
-                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                    <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                         <div className="px-4 py-3 flex items-center gap-3 flex-wrap">
                             <div className="relative flex-1 max-w-xs">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                                <Input placeholder="Cari No. PO atau vendor..." value={poSearch} onChange={e => setPoSearch(e.target.value)} className="pl-9 border-2 border-black font-bold h-10 placeholder:text-zinc-400 rounded-none" />
+                                <Input placeholder="Cari No. PO atau vendor..." value={poSearch} onChange={e => setPoSearch(e.target.value)} className="pl-9 border border-border font-bold h-10 placeholder:text-zinc-400 rounded-md" />
                             </div>
-                            <select value={poStatus} onChange={e => setPoStatus(e.target.value)} className="border-2 border-black h-10 px-3 text-xs font-bold bg-white rounded-none">
+                            <select value={poStatus} onChange={e => setPoStatus(e.target.value)} className="border border-border h-10 px-3 text-xs font-bold bg-white rounded-md">
                                 <option value="">Semua Status</option>
                                 <option value="PO_DRAFT">Draft</option>
                                 <option value="APPROVED">Approved</option>
@@ -336,27 +336,27 @@ export function ReportsView({ documents, documentsMeta, documentsQuery }: Report
                                 <option value="COMPLETED">Completed</option>
                                 <option value="CANCELLED">Cancelled</option>
                             </select>
-                            <input type="date" value={poFrom} onChange={e => setPoFrom(e.target.value)} className="border-2 border-black h-10 px-3 text-xs font-bold bg-white rounded-none" />
-                            <input type="date" value={poTo} onChange={e => setPoTo(e.target.value)} className="border-2 border-black h-10 px-3 text-xs font-bold bg-white rounded-none" />
-                            <Button onClick={() => applyPo()} className="border-2 border-black bg-black text-white font-black uppercase text-[10px] tracking-widest h-10 rounded-none shadow-[3px_3px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all">
+                            <input type="date" value={poFrom} onChange={e => setPoFrom(e.target.value)} className="border border-border h-10 px-3 text-xs font-bold bg-white rounded-md" />
+                            <input type="date" value={poTo} onChange={e => setPoTo(e.target.value)} className="border border-border h-10 px-3 text-xs font-bold bg-white rounded-md" />
+                            <Button onClick={() => applyPo()} className="border border-border bg-slate-900 text-white font-semibold text-xs h-10 rounded-md shadow-sm hover:shadow-none transition-all">
                                 Terapkan
                             </Button>
-                            <Button onClick={exportPoCsv} variant="outline" className="border-2 border-black font-black uppercase text-[10px] tracking-widest h-10 rounded-none ml-auto">
+                            <Button onClick={exportPoCsv} variant="outline" className="border border-border font-semibold text-xs h-10 rounded-md ml-auto">
                                 <Download className="h-3.5 w-3.5 mr-1.5" /> CSV
                             </Button>
                         </div>
                     </div>
-                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                    <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left">
-                                <thead className="bg-zinc-50 dark:bg-zinc-800 border-b-2 border-black">
+                                <thead className="bg-zinc-50 dark:bg-zinc-800 border-b border-border">
                                     <tr>
-                                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">No. PO</th>
-                                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Vendor</th>
-                                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Status</th>
-                                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Total</th>
-                                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Update</th>
-                                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Aksi</th>
+                                        <th className="h-10 px-4 text-xs font-semibold text-zinc-500">No. PO</th>
+                                        <th className="h-10 px-4 text-xs font-semibold text-zinc-500">Vendor</th>
+                                        <th className="h-10 px-4 text-xs font-semibold text-zinc-500">Status</th>
+                                        <th className="h-10 px-4 text-xs font-semibold text-zinc-500 text-right">Total</th>
+                                        <th className="h-10 px-4 text-xs font-semibold text-zinc-500">Update</th>
+                                        <th className="h-10 px-4 text-xs font-semibold text-zinc-500 text-right">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -365,13 +365,13 @@ export function ReportsView({ documents, documentsMeta, documentsQuery }: Report
                                             <td className="p-4 font-mono font-bold text-xs text-blue-600">{row.number}</td>
                                             <td className="p-4 font-bold text-xs text-zinc-900 dark:text-white">{row.partnerName || "-"}</td>
                                             <td className="p-4">
-                                                <span className={`px-1.5 py-0.5 text-[9px] font-black uppercase tracking-widest border rounded-sm ${getStatusColor(row.status)}`}>{row.status}</span>
+                                                <span className={`px-1.5 py-0.5 text-xs font-semibold border rounded-sm ${getStatusColor(row.status)}`}>{row.status}</span>
                                             </td>
-                                            <td className="p-4 text-right font-black text-xs">{formatCurrency(row.totalAmount)}</td>
+                                            <td className="p-4 text-right font-semibold text-xs">{formatCurrency(row.totalAmount)}</td>
                                             <td className="p-4 text-zinc-500 text-xs font-medium">{formatDateTime(row.updatedAt)}</td>
                                             <td className="p-4 text-right">
                                                 <a href={row.viewUrl} target="_blank" rel="noreferrer">
-                                                    <Button variant="outline" size="sm" className="border-2 border-black text-[10px] font-black uppercase tracking-widest h-7 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all">
+                                                    <Button variant="outline" size="sm" className="border border-border text-xs font-semibold h-7 shadow-sm hover:shadow-none transition-all">
                                                         <ExternalLink className="h-3 w-3 mr-1" /> PDF
                                                     </Button>
                                                 </a>
@@ -381,19 +381,19 @@ export function ReportsView({ documents, documentsMeta, documentsQuery }: Report
                                     {documents.purchaseOrders.length === 0 && (
                                         <tr><td colSpan={6} className="p-12 text-center">
                                             <FileText className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Belum ada dokumen PO</p>
+                                            <p className="text-xs font-semibold text-zinc-400">Belum ada dokumen PO</p>
                                         </td></tr>
                                     )}
                                 </tbody>
                             </table>
                         </div>
                     </div>
-                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] px-4 py-3 flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-zinc-500">Menampilkan {getRangeLabel(documentsMeta.purchaseOrders.total, poPage, documentsMeta.purchaseOrders.pageSize)} dari {documentsMeta.purchaseOrders.total} dokumen</span>
+                    <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm px-4 py-3 flex items-center justify-between">
+                        <span className="text-xs font-bold text-zinc-500">Menampilkan {getRangeLabel(documentsMeta.purchaseOrders.total, poPage, documentsMeta.purchaseOrders.pageSize)} dari {documentsMeta.purchaseOrders.total} dokumen</span>
                         <div className="flex items-center gap-2">
-                            <button onClick={() => applyPo(Math.max(1, poPage - 1))} disabled={poPage <= 1} className="border-2 border-black px-3 py-1.5 text-[10px] font-black uppercase disabled:opacity-30 bg-white hover:bg-zinc-50 transition-colors">Prev</button>
-                            <span className="text-[10px] font-black px-2">Hal {poPage}/{poTotalPages}</span>
-                            <button onClick={() => applyPo(Math.min(poTotalPages, poPage + 1))} disabled={poPage >= poTotalPages} className="border-2 border-black px-3 py-1.5 text-[10px] font-black uppercase disabled:opacity-30 bg-white hover:bg-zinc-50 transition-colors">Next</button>
+                            <button onClick={() => applyPo(Math.max(1, poPage - 1))} disabled={poPage <= 1} className="border border-border px-3 py-1.5 text-xs font-semibold disabled:opacity-30 bg-white hover:bg-zinc-50 transition-colors">Prev</button>
+                            <span className="text-xs font-semibold px-2">Hal {poPage}/{poTotalPages}</span>
+                            <button onClick={() => applyPo(Math.min(poTotalPages, poPage + 1))} disabled={poPage >= poTotalPages} className="border border-border px-3 py-1.5 text-xs font-semibold disabled:opacity-30 bg-white hover:bg-zinc-50 transition-colors">Next</button>
                         </div>
                     </div>
                 </>
@@ -402,13 +402,13 @@ export function ReportsView({ documents, documentsMeta, documentsQuery }: Report
             {/* ═══ INVOICE TAB ═══ */}
             {activeTab === "invoice" && (
                 <>
-                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                    <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                         <div className="px-4 py-3 flex items-center gap-3 flex-wrap">
                             <div className="relative flex-1 max-w-xs">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                                <Input placeholder="Cari No. Invoice atau partner..." value={invSearch} onChange={e => setInvSearch(e.target.value)} className="pl-9 border-2 border-black font-bold h-10 placeholder:text-zinc-400 rounded-none" />
+                                <Input placeholder="Cari No. Invoice atau partner..." value={invSearch} onChange={e => setInvSearch(e.target.value)} className="pl-9 border border-border font-bold h-10 placeholder:text-zinc-400 rounded-md" />
                             </div>
-                            <select value={invStatus} onChange={e => setInvStatus(e.target.value)} className="border-2 border-black h-10 px-3 text-xs font-bold bg-white rounded-none">
+                            <select value={invStatus} onChange={e => setInvStatus(e.target.value)} className="border border-border h-10 px-3 text-xs font-bold bg-white rounded-md">
                                 <option value="">Semua Status</option>
                                 <option value="DRAFT">Draft</option>
                                 <option value="ISSUED">Issued</option>
@@ -416,33 +416,33 @@ export function ReportsView({ documents, documentsMeta, documentsQuery }: Report
                                 <option value="OVERDUE">Overdue</option>
                                 <option value="VOID">Void</option>
                             </select>
-                            <select value={invType} onChange={e => setInvType(e.target.value)} className="border-2 border-black h-10 px-3 text-xs font-bold bg-white rounded-none">
+                            <select value={invType} onChange={e => setInvType(e.target.value)} className="border border-border h-10 px-3 text-xs font-bold bg-white rounded-md">
                                 <option value="">Semua Tipe</option>
                                 <option value="INV_OUT">Invoice (AR)</option>
                                 <option value="INV_IN">Bill (AP)</option>
                             </select>
-                            <input type="date" value={invFrom} onChange={e => setInvFrom(e.target.value)} className="border-2 border-black h-10 px-3 text-xs font-bold bg-white rounded-none" />
-                            <input type="date" value={invTo} onChange={e => setInvTo(e.target.value)} className="border-2 border-black h-10 px-3 text-xs font-bold bg-white rounded-none" />
-                            <Button onClick={() => applyInv()} className="border-2 border-black bg-black text-white font-black uppercase text-[10px] tracking-widest h-10 rounded-none shadow-[3px_3px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all">
+                            <input type="date" value={invFrom} onChange={e => setInvFrom(e.target.value)} className="border border-border h-10 px-3 text-xs font-bold bg-white rounded-md" />
+                            <input type="date" value={invTo} onChange={e => setInvTo(e.target.value)} className="border border-border h-10 px-3 text-xs font-bold bg-white rounded-md" />
+                            <Button onClick={() => applyInv()} className="border border-border bg-slate-900 text-white font-semibold text-xs h-10 rounded-md shadow-sm hover:shadow-none transition-all">
                                 Terapkan
                             </Button>
-                            <Button onClick={exportInvCsv} variant="outline" className="border-2 border-black font-black uppercase text-[10px] tracking-widest h-10 rounded-none ml-auto">
+                            <Button onClick={exportInvCsv} variant="outline" className="border border-border font-semibold text-xs h-10 rounded-md ml-auto">
                                 <Download className="h-3.5 w-3.5 mr-1.5" /> CSV
                             </Button>
                         </div>
                     </div>
-                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                    <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left">
-                                <thead className="bg-zinc-50 dark:bg-zinc-800 border-b-2 border-black">
+                                <thead className="bg-zinc-50 dark:bg-zinc-800 border-b border-border">
                                     <tr>
-                                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">No. Invoice</th>
-                                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Partner</th>
-                                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Tipe</th>
-                                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Status</th>
-                                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Total</th>
-                                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Update</th>
-                                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Aksi</th>
+                                        <th className="h-10 px-4 text-xs font-semibold text-zinc-500">No. Invoice</th>
+                                        <th className="h-10 px-4 text-xs font-semibold text-zinc-500">Partner</th>
+                                        <th className="h-10 px-4 text-xs font-semibold text-zinc-500">Tipe</th>
+                                        <th className="h-10 px-4 text-xs font-semibold text-zinc-500">Status</th>
+                                        <th className="h-10 px-4 text-xs font-semibold text-zinc-500 text-right">Total</th>
+                                        <th className="h-10 px-4 text-xs font-semibold text-zinc-500">Update</th>
+                                        <th className="h-10 px-4 text-xs font-semibold text-zinc-500 text-right">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -451,18 +451,18 @@ export function ReportsView({ documents, documentsMeta, documentsQuery }: Report
                                             <td className="p-4 font-mono font-bold text-xs text-emerald-600">{row.number}</td>
                                             <td className="p-4 font-bold text-xs text-zinc-900 dark:text-white">{row.partnerName || "-"}</td>
                                             <td className="p-4">
-                                                <span className={`px-1.5 py-0.5 text-[9px] font-black uppercase tracking-widest border rounded-sm ${row.type === 'INV_IN' ? 'bg-orange-50 text-orange-700 border-orange-300' : 'bg-cyan-50 text-cyan-700 border-cyan-300'}`}>
+                                                <span className={`px-1.5 py-0.5 text-xs font-semibold   border rounded-sm ${row.type === 'INV_IN' ? 'bg-blue-50 text-blue-700 border-blue-300' : 'bg-cyan-50 text-cyan-700 border-cyan-300'}`}>
                                                     {row.type === 'INV_IN' ? 'AP' : 'AR'}
                                                 </span>
                                             </td>
                                             <td className="p-4">
-                                                <span className={`px-1.5 py-0.5 text-[9px] font-black uppercase tracking-widest border rounded-sm ${getStatusColor(row.status)}`}>{row.status}</span>
+                                                <span className={`px-1.5 py-0.5 text-xs font-semibold border rounded-sm ${getStatusColor(row.status)}`}>{row.status}</span>
                                             </td>
-                                            <td className="p-4 text-right font-black text-xs">{formatCurrency(row.totalAmount)}</td>
+                                            <td className="p-4 text-right font-semibold text-xs">{formatCurrency(row.totalAmount)}</td>
                                             <td className="p-4 text-zinc-500 text-xs font-medium">{formatDateTime(row.updatedAt)}</td>
                                             <td className="p-4 text-right">
                                                 <a href={row.viewUrl} target="_blank" rel="noreferrer">
-                                                    <Button variant="outline" size="sm" className="border-2 border-black text-[10px] font-black uppercase tracking-widest h-7 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all">
+                                                    <Button variant="outline" size="sm" className="border border-border text-xs font-semibold h-7 shadow-sm hover:shadow-none transition-all">
                                                         <ExternalLink className="h-3 w-3 mr-1" /> Buka
                                                     </Button>
                                                 </a>
@@ -472,19 +472,19 @@ export function ReportsView({ documents, documentsMeta, documentsQuery }: Report
                                     {documents.invoices.length === 0 && (
                                         <tr><td colSpan={7} className="p-12 text-center">
                                             <Receipt className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Belum ada dokumen invoice</p>
+                                            <p className="text-xs font-semibold text-zinc-400">Belum ada dokumen invoice</p>
                                         </td></tr>
                                     )}
                                 </tbody>
                             </table>
                         </div>
                     </div>
-                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] px-4 py-3 flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-zinc-500">Menampilkan {getRangeLabel(documentsMeta.invoices.total, invPage, documentsMeta.invoices.pageSize)} dari {documentsMeta.invoices.total} dokumen</span>
+                    <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm px-4 py-3 flex items-center justify-between">
+                        <span className="text-xs font-bold text-zinc-500">Menampilkan {getRangeLabel(documentsMeta.invoices.total, invPage, documentsMeta.invoices.pageSize)} dari {documentsMeta.invoices.total} dokumen</span>
                         <div className="flex items-center gap-2">
-                            <button onClick={() => applyInv(Math.max(1, invPage - 1))} disabled={invPage <= 1} className="border-2 border-black px-3 py-1.5 text-[10px] font-black uppercase disabled:opacity-30 bg-white hover:bg-zinc-50 transition-colors">Prev</button>
-                            <span className="text-[10px] font-black px-2">Hal {invPage}/{invTotalPages}</span>
-                            <button onClick={() => applyInv(Math.min(invTotalPages, invPage + 1))} disabled={invPage >= invTotalPages} className="border-2 border-black px-3 py-1.5 text-[10px] font-black uppercase disabled:opacity-30 bg-white hover:bg-zinc-50 transition-colors">Next</button>
+                            <button onClick={() => applyInv(Math.max(1, invPage - 1))} disabled={invPage <= 1} className="border border-border px-3 py-1.5 text-xs font-semibold disabled:opacity-30 bg-white hover:bg-zinc-50 transition-colors">Prev</button>
+                            <span className="text-xs font-semibold px-2">Hal {invPage}/{invTotalPages}</span>
+                            <button onClick={() => applyInv(Math.min(invTotalPages, invPage + 1))} disabled={invPage >= invTotalPages} className="border border-border px-3 py-1.5 text-xs font-semibold disabled:opacity-30 bg-white hover:bg-zinc-50 transition-colors">Next</button>
                         </div>
                     </div>
                 </>
@@ -493,39 +493,39 @@ export function ReportsView({ documents, documentsMeta, documentsQuery }: Report
             {/* ═══ GRN TAB ═══ */}
             {activeTab === "grn" && (
                 <>
-                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                    <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                         <div className="px-4 py-3 flex items-center gap-3 flex-wrap">
                             <div className="relative flex-1 max-w-xs">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                                <Input placeholder="Cari No. SJ Masuk, PO, atau gudang..." value={grnSearch} onChange={e => setGrnSearch(e.target.value)} className="pl-9 border-2 border-black font-bold h-10 placeholder:text-zinc-400 rounded-none" />
+                                <Input placeholder="Cari No. SJ Masuk, PO, atau gudang..." value={grnSearch} onChange={e => setGrnSearch(e.target.value)} className="pl-9 border border-border font-bold h-10 placeholder:text-zinc-400 rounded-md" />
                             </div>
-                            <select value={grnStatus} onChange={e => setGrnStatus(e.target.value)} className="border-2 border-black h-10 px-3 text-xs font-bold bg-white rounded-none">
+                            <select value={grnStatus} onChange={e => setGrnStatus(e.target.value)} className="border border-border h-10 px-3 text-xs font-bold bg-white rounded-md">
                                 <option value="">Semua Status</option>
                                 <option value="DRAFT">Draft</option>
                                 <option value="ACCEPTED">Accepted</option>
                                 <option value="REJECTED">Rejected</option>
                             </select>
-                            <input type="date" value={grnFrom} onChange={e => setGrnFrom(e.target.value)} className="border-2 border-black h-10 px-3 text-xs font-bold bg-white rounded-none" />
-                            <input type="date" value={grnTo} onChange={e => setGrnTo(e.target.value)} className="border-2 border-black h-10 px-3 text-xs font-bold bg-white rounded-none" />
-                            <Button onClick={() => applyGrn()} className="border-2 border-black bg-black text-white font-black uppercase text-[10px] tracking-widest h-10 rounded-none shadow-[3px_3px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all">
+                            <input type="date" value={grnFrom} onChange={e => setGrnFrom(e.target.value)} className="border border-border h-10 px-3 text-xs font-bold bg-white rounded-md" />
+                            <input type="date" value={grnTo} onChange={e => setGrnTo(e.target.value)} className="border border-border h-10 px-3 text-xs font-bold bg-white rounded-md" />
+                            <Button onClick={() => applyGrn()} className="border border-border bg-slate-900 text-white font-semibold text-xs h-10 rounded-md shadow-sm hover:shadow-none transition-all">
                                 Terapkan
                             </Button>
-                            <Button onClick={exportGrnCsv} variant="outline" className="border-2 border-black font-black uppercase text-[10px] tracking-widest h-10 rounded-none ml-auto">
+                            <Button onClick={exportGrnCsv} variant="outline" className="border border-border font-semibold text-xs h-10 rounded-md ml-auto">
                                 <Download className="h-3.5 w-3.5 mr-1.5" /> CSV
                             </Button>
                         </div>
                     </div>
-                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                    <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left">
-                                <thead className="bg-zinc-50 dark:bg-zinc-800 border-b-2 border-black">
+                                <thead className="bg-zinc-50 dark:bg-zinc-800 border-b border-border">
                                     <tr>
-                                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">No. SJ Masuk</th>
-                                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">No. PO</th>
-                                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Gudang</th>
-                                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Status</th>
-                                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Update</th>
-                                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Aksi</th>
+                                        <th className="h-10 px-4 text-xs font-semibold text-zinc-500">No. SJ Masuk</th>
+                                        <th className="h-10 px-4 text-xs font-semibold text-zinc-500">No. PO</th>
+                                        <th className="h-10 px-4 text-xs font-semibold text-zinc-500">Gudang</th>
+                                        <th className="h-10 px-4 text-xs font-semibold text-zinc-500">Status</th>
+                                        <th className="h-10 px-4 text-xs font-semibold text-zinc-500">Update</th>
+                                        <th className="h-10 px-4 text-xs font-semibold text-zinc-500 text-right">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -535,12 +535,12 @@ export function ReportsView({ documents, documentsMeta, documentsQuery }: Report
                                             <td className="p-4 font-mono font-medium text-xs text-blue-600">{row.purchaseOrderNumber || "-"}</td>
                                             <td className="p-4 font-bold text-xs text-zinc-900 dark:text-white">{row.warehouse || "-"}</td>
                                             <td className="p-4">
-                                                <span className={`px-1.5 py-0.5 text-[9px] font-black uppercase tracking-widest border rounded-sm ${getStatusColor(row.status)}`}>{row.status}</span>
+                                                <span className={`px-1.5 py-0.5 text-xs font-semibold border rounded-sm ${getStatusColor(row.status)}`}>{row.status}</span>
                                             </td>
                                             <td className="p-4 text-zinc-500 text-xs font-medium">{formatDateTime(row.updatedAt)}</td>
                                             <td className="p-4 text-right">
                                                 <a href={row.viewUrl} target="_blank" rel="noreferrer">
-                                                    <Button variant="outline" size="sm" className="border-2 border-black text-[10px] font-black uppercase tracking-widest h-7 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all">
+                                                    <Button variant="outline" size="sm" className="border border-border text-xs font-semibold h-7 shadow-sm hover:shadow-none transition-all">
                                                         <ExternalLink className="h-3 w-3 mr-1" /> Buka
                                                     </Button>
                                                 </a>
@@ -550,19 +550,19 @@ export function ReportsView({ documents, documentsMeta, documentsQuery }: Report
                                     {documents.goodsReceipts.length === 0 && (
                                         <tr><td colSpan={6} className="p-12 text-center">
                                             <ClipboardCheck className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Belum ada dokumen penerimaan barang</p>
+                                            <p className="text-xs font-semibold text-zinc-400">Belum ada dokumen penerimaan barang</p>
                                         </td></tr>
                                     )}
                                 </tbody>
                             </table>
                         </div>
                     </div>
-                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] px-4 py-3 flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-zinc-500">Menampilkan {getRangeLabel(documentsMeta.goodsReceipts.total, grnPage, documentsMeta.goodsReceipts.pageSize)} dari {documentsMeta.goodsReceipts.total} dokumen</span>
+                    <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm px-4 py-3 flex items-center justify-between">
+                        <span className="text-xs font-bold text-zinc-500">Menampilkan {getRangeLabel(documentsMeta.goodsReceipts.total, grnPage, documentsMeta.goodsReceipts.pageSize)} dari {documentsMeta.goodsReceipts.total} dokumen</span>
                         <div className="flex items-center gap-2">
-                            <button onClick={() => applyGrn(Math.max(1, grnPage - 1))} disabled={grnPage <= 1} className="border-2 border-black px-3 py-1.5 text-[10px] font-black uppercase disabled:opacity-30 bg-white hover:bg-zinc-50 transition-colors">Prev</button>
-                            <span className="text-[10px] font-black px-2">Hal {grnPage}/{grnTotalPages}</span>
-                            <button onClick={() => applyGrn(Math.min(grnTotalPages, grnPage + 1))} disabled={grnPage >= grnTotalPages} className="border-2 border-black px-3 py-1.5 text-[10px] font-black uppercase disabled:opacity-30 bg-white hover:bg-zinc-50 transition-colors">Next</button>
+                            <button onClick={() => applyGrn(Math.max(1, grnPage - 1))} disabled={grnPage <= 1} className="border border-border px-3 py-1.5 text-xs font-semibold disabled:opacity-30 bg-white hover:bg-zinc-50 transition-colors">Prev</button>
+                            <span className="text-xs font-semibold px-2">Hal {grnPage}/{grnTotalPages}</span>
+                            <button onClick={() => applyGrn(Math.min(grnTotalPages, grnPage + 1))} disabled={grnPage >= grnTotalPages} className="border border-border px-3 py-1.5 text-xs font-semibold disabled:opacity-30 bg-white hover:bg-zinc-50 transition-colors">Next</button>
                         </div>
                     </div>
                 </>
@@ -571,37 +571,37 @@ export function ReportsView({ documents, documentsMeta, documentsQuery }: Report
             {/* ═══ PAYROLL TAB ═══ */}
             {activeTab === "payroll" && (
                 <>
-                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                    <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                         <div className="px-4 py-3 flex items-center gap-3 flex-wrap">
                             <div className="relative flex-1 max-w-xs">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                                <Input placeholder="Cari periode payroll..." value={paySearch} onChange={e => setPaySearch(e.target.value)} className="pl-9 border-2 border-black font-bold h-10 placeholder:text-zinc-400 rounded-none" />
+                                <Input placeholder="Cari periode payroll..." value={paySearch} onChange={e => setPaySearch(e.target.value)} className="pl-9 border border-border font-bold h-10 placeholder:text-zinc-400 rounded-md" />
                             </div>
-                            <select value={payStatus} onChange={e => setPayStatus(e.target.value)} className="border-2 border-black h-10 px-3 text-xs font-bold bg-white rounded-none">
+                            <select value={payStatus} onChange={e => setPayStatus(e.target.value)} className="border border-border h-10 px-3 text-xs font-bold bg-white rounded-md">
                                 <option value="">Semua Status</option>
                                 <option value="DRAFT">Draft</option>
                                 <option value="POSTED">Posted</option>
                                 <option value="PAID">Paid</option>
                             </select>
-                            <input type="date" value={payFrom} onChange={e => setPayFrom(e.target.value)} className="border-2 border-black h-10 px-3 text-xs font-bold bg-white rounded-none" />
-                            <input type="date" value={payTo} onChange={e => setPayTo(e.target.value)} className="border-2 border-black h-10 px-3 text-xs font-bold bg-white rounded-none" />
-                            <Button onClick={() => applyPay()} className="border-2 border-black bg-black text-white font-black uppercase text-[10px] tracking-widest h-10 rounded-none shadow-[3px_3px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all">
+                            <input type="date" value={payFrom} onChange={e => setPayFrom(e.target.value)} className="border border-border h-10 px-3 text-xs font-bold bg-white rounded-md" />
+                            <input type="date" value={payTo} onChange={e => setPayTo(e.target.value)} className="border border-border h-10 px-3 text-xs font-bold bg-white rounded-md" />
+                            <Button onClick={() => applyPay()} className="border border-border bg-slate-900 text-white font-semibold text-xs h-10 rounded-md shadow-sm hover:shadow-none transition-all">
                                 Terapkan
                             </Button>
-                            <Button onClick={exportPayCsv} variant="outline" className="border-2 border-black font-black uppercase text-[10px] tracking-widest h-10 rounded-none ml-auto">
+                            <Button onClick={exportPayCsv} variant="outline" className="border border-border font-semibold text-xs h-10 rounded-md ml-auto">
                                 <Download className="h-3.5 w-3.5 mr-1.5" /> CSV
                             </Button>
                         </div>
                     </div>
-                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                    <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left">
-                                <thead className="bg-zinc-50 dark:bg-zinc-800 border-b-2 border-black">
+                                <thead className="bg-zinc-50 dark:bg-zinc-800 border-b border-border">
                                     <tr>
-                                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Periode</th>
-                                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Status</th>
-                                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Update</th>
-                                        <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Aksi</th>
+                                        <th className="h-10 px-4 text-xs font-semibold text-zinc-500">Periode</th>
+                                        <th className="h-10 px-4 text-xs font-semibold text-zinc-500">Status</th>
+                                        <th className="h-10 px-4 text-xs font-semibold text-zinc-500">Update</th>
+                                        <th className="h-10 px-4 text-xs font-semibold text-zinc-500 text-right">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -609,12 +609,12 @@ export function ReportsView({ documents, documentsMeta, documentsQuery }: Report
                                         <tr key={row.id} className="group hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
                                             <td className="p-4 font-bold text-xs text-zinc-900 dark:text-white">{row.periodLabel || row.period}</td>
                                             <td className="p-4">
-                                                <span className={`px-1.5 py-0.5 text-[9px] font-black uppercase tracking-widest border rounded-sm ${getStatusColor(row.status)}`}>{row.status}</span>
+                                                <span className={`px-1.5 py-0.5 text-xs font-semibold border rounded-sm ${getStatusColor(row.status)}`}>{row.status}</span>
                                             </td>
                                             <td className="p-4 text-zinc-500 text-xs font-medium">{formatDateTime(row.updatedAt)}</td>
                                             <td className="p-4 text-right">
                                                 <a href={row.viewUrl} target="_blank" rel="noreferrer">
-                                                    <Button variant="outline" size="sm" className="border-2 border-black text-[10px] font-black uppercase tracking-widest h-7 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all">
+                                                    <Button variant="outline" size="sm" className="border border-border text-xs font-semibold h-7 shadow-sm hover:shadow-none transition-all">
                                                         <ExternalLink className="h-3 w-3 mr-1" /> PDF
                                                     </Button>
                                                 </a>
@@ -624,19 +624,19 @@ export function ReportsView({ documents, documentsMeta, documentsQuery }: Report
                                     {documents.payrollRuns.length === 0 && (
                                         <tr><td colSpan={4} className="p-12 text-center">
                                             <Banknote className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Belum ada dokumen payroll</p>
+                                            <p className="text-xs font-semibold text-zinc-400">Belum ada dokumen payroll</p>
                                         </td></tr>
                                     )}
                                 </tbody>
                             </table>
                         </div>
                     </div>
-                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] px-4 py-3 flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-zinc-500">Menampilkan {getRangeLabel(documentsMeta.payrollRuns.total, payPage, documentsMeta.payrollRuns.pageSize)} dari {documentsMeta.payrollRuns.total} dokumen</span>
+                    <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm px-4 py-3 flex items-center justify-between">
+                        <span className="text-xs font-bold text-zinc-500">Menampilkan {getRangeLabel(documentsMeta.payrollRuns.total, payPage, documentsMeta.payrollRuns.pageSize)} dari {documentsMeta.payrollRuns.total} dokumen</span>
                         <div className="flex items-center gap-2">
-                            <button onClick={() => applyPay(Math.max(1, payPage - 1))} disabled={payPage <= 1} className="border-2 border-black px-3 py-1.5 text-[10px] font-black uppercase disabled:opacity-30 bg-white hover:bg-zinc-50 transition-colors">Prev</button>
-                            <span className="text-[10px] font-black px-2">Hal {payPage}/{payTotalPages}</span>
-                            <button onClick={() => applyPay(Math.min(payTotalPages, payPage + 1))} disabled={payPage >= payTotalPages} className="border-2 border-black px-3 py-1.5 text-[10px] font-black uppercase disabled:opacity-30 bg-white hover:bg-zinc-50 transition-colors">Next</button>
+                            <button onClick={() => applyPay(Math.max(1, payPage - 1))} disabled={payPage <= 1} className="border border-border px-3 py-1.5 text-xs font-semibold disabled:opacity-30 bg-white hover:bg-zinc-50 transition-colors">Prev</button>
+                            <span className="text-xs font-semibold px-2">Hal {payPage}/{payTotalPages}</span>
+                            <button onClick={() => applyPay(Math.min(payTotalPages, payPage + 1))} disabled={payPage >= payTotalPages} className="border border-border px-3 py-1.5 text-xs font-semibold disabled:opacity-30 bg-white hover:bg-zinc-50 transition-colors">Next</button>
                         </div>
                     </div>
                 </>

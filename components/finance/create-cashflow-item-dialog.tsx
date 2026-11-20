@@ -212,14 +212,14 @@ export function CreateCashflowItemDialog({
                 <NBSection icon={Wallet} title="Arah & Rekening">
                     {/* Direction toggle — kept as custom widget */}
                     <div>
-                        <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                        <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1 block">
                             Arah
                         </label>
                         <div className="flex gap-0">
                             <button
                                 type="button"
                                 onClick={() => setDirection("IN")}
-                                className={`flex-1 border-2 border-black px-4 py-2 text-xs font-black uppercase tracking-wider transition-colors ${
+                                className={`flex-1 border border-border px-4 py-2 text-xs font-semibold   transition-colors ${
                                     direction === "IN"
                                         ? "bg-emerald-400 text-black"
                                         : "bg-white text-zinc-400 hover:bg-zinc-50"
@@ -230,7 +230,7 @@ export function CreateCashflowItemDialog({
                             <button
                                 type="button"
                                 onClick={() => setDirection("OUT")}
-                                className={`flex-1 border-2 border-black px-4 py-2 text-xs font-black uppercase tracking-wider transition-colors ${
+                                className={`flex-1 border border-border px-4 py-2 text-xs font-semibold   transition-colors ${
                                     direction === "OUT"
                                         ? "bg-red-400 text-black"
                                         : "bg-white text-zinc-400 hover:bg-zinc-50"
@@ -268,7 +268,7 @@ export function CreateCashflowItemDialog({
                     </div>
 
                     {isRecurring && (
-                        <div className="border-2 border-dashed border-zinc-300 p-4 space-y-3 bg-zinc-50">
+                        <div className="border border-dashed border-zinc-300 p-4 space-y-3 bg-zinc-50">
                             <NBSelect
                                 label="Pola"
                                 value={recurringPattern}
@@ -303,7 +303,7 @@ export function CreateCashflowItemDialog({
                                 variant="outline"
                                 onClick={handleDelete}
                                 disabled={deleting || submitting}
-                                className="border-2 border-red-500 text-red-600 font-black uppercase text-xs tracking-wider px-4 h-9 rounded-none hover:bg-red-50"
+                                className="border border-red-500 text-red-600 font-semibold text-xs px-4 h-9 rounded-md hover:bg-red-50"
                             >
                                 <IconTrash size={14} className="mr-1" />
                                 {deleting ? "Menghapus..." : "Hapus"}
@@ -316,7 +316,7 @@ export function CreateCashflowItemDialog({
                             variant="outline"
                             onClick={() => onOpenChange(false)}
                             disabled={submitting || deleting}
-                            className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none disabled:opacity-50"
+                            className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold text-xs px-4 h-8 rounded-md disabled:opacity-50"
                         >
                             Batal
                         </Button>
@@ -324,7 +324,7 @@ export function CreateCashflowItemDialog({
                             type="button"
                             onClick={handleSubmit}
                             disabled={submitting || deleting}
-                            className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none gap-1.5 disabled:opacity-50 transition-colors"
+                            className="bg-slate-900 text-white border border-border hover:bg-zinc-800 font-semibold text-xs px-5 h-8 rounded-md gap-1.5 disabled:opacity-50 transition-colors"
                         >
                             {submitting
                                 ? "Menyimpan..."

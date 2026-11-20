@@ -67,17 +67,17 @@ export function AiSearchCard() {
     };
 
     return (
-        <div className="h-full flex flex-col bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+        <div className="h-full flex flex-col bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
             {/* Header */}
-            <div className="flex-none flex items-center gap-3 px-4 py-3 border-b-2 border-black">
-                <div className="p-1.5 rounded-lg bg-black text-white">
+            <div className="flex-none flex items-center gap-3 px-4 py-3 border-b border-border">
+                <div className="p-1.5 rounded-lg bg-slate-900 text-white">
                     <Sparkles className="h-4 w-4" />
                 </div>
                 <div>
-                    <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-100">
+                    <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                         Tanya AI
                     </h3>
-                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Business Intelligence</p>
+                    <p className="text-xs font-bold text-zinc-500  ">Business Intelligence</p>
                 </div>
             </div>
 
@@ -94,11 +94,11 @@ export function AiSearchCard() {
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         placeholder="Contoh: Analisis tren penjualan..."
-                        className="w-full h-14 pl-12 pr-16 rounded-none bg-zinc-50 dark:bg-zinc-800 border-2 border-black text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:bg-amber-50 dark:focus:bg-zinc-900 transition-all text-sm font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                        className="w-full h-14 pl-12 pr-16 rounded-md bg-zinc-50 dark:bg-zinc-800 border border-border text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:bg-amber-50 dark:focus:bg-zinc-900 transition-all text-sm font-bold shadow-sm focus:shadow-sm"
                     />
                     <button
                         type="submit"
-                        className="absolute inset-y-2 right-2 aspect-square bg-black text-white flex items-center justify-center hover:bg-zinc-800 transition-colors w-10 h-10 cursor-pointer z-10"
+                        className="absolute inset-y-2 right-2 aspect-square bg-slate-900 text-white flex items-center justify-center hover:bg-zinc-800 transition-colors w-10 h-10 cursor-pointer z-10"
                     >
                         <ArrowRight className="h-5 w-5" />
                     </button>
@@ -106,14 +106,14 @@ export function AiSearchCard() {
                 <div className="flex gap-2 flex-wrap mt-2">
                     <Badge
                         variant="outline"
-                        className="cursor-pointer bg-white hover:bg-zinc-50 border-2 border-zinc-200 text-zinc-600 font-bold px-3 py-1 text-xs rounded-full transition-colors"
+                        className="cursor-pointer bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-600 font-bold px-3 py-1 text-xs rounded-full transition-colors"
                         onClick={() => handleSearch(undefined, "Analisis Penjualan Q1")}
                     >
                         📈 Analisis Penjualan
                     </Badge>
                     <Badge
                         variant="outline"
-                        className="cursor-pointer bg-white hover:bg-zinc-50 border-2 border-zinc-200 text-zinc-600 font-bold px-3 py-1 text-xs rounded-full transition-colors"
+                        className="cursor-pointer bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-600 font-bold px-3 py-1 text-xs rounded-full transition-colors"
                         onClick={() => handleSearch(undefined, "Stok Bahan Baku Menipis")}
                     >
                         ⚠️ Stok Menipis
@@ -148,8 +148,8 @@ export function AiSearchCard() {
                                     className="flex-1 flex flex-col items-center justify-center space-y-6"
                                 >
                                     <div className="relative h-24 w-24">
-                                        <div className="absolute inset-0 rounded-full border-4 border-secondary animate-pulse" />
-                                        <div className="absolute inset-0 rounded-full border-4 border-t-primary animate-spin duration-1000" />
+                                        <div className="absolute inset-0 rounded-full border border-secondary animate-pulse" />
+                                        <div className="absolute inset-0 rounded-full border border-t-primary animate-spin duration-1000" />
                                         <div className="absolute inset-0 flex items-center justify-center">
                                             <Sparkles className="h-8 w-8 text-primary animate-bounce" />
                                         </div>
@@ -172,7 +172,7 @@ export function AiSearchCard() {
                                     <div className="space-y-4">
                                         <div className="flex gap-4">
                                             <div className="flex-1 space-y-2">
-                                                <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Key Takeaway</h4>
+                                                <h4 className="text-sm font-medium text-muted-foreground  ">Key Takeaway</h4>
                                                 <p className="text-lg leading-relaxed font-medium">
                                                     {step === "comparison"
                                                         ? "Penjualan Q2 melonjak 35% dibandingkan Q1, didorong oleh ekspansi kategori 'Textile'. Profit margin meningkat 4.5%."
@@ -270,9 +270,9 @@ export function AiSearchCard() {
                                                             <div key={i} className="flex-1 h-full flex items-end group relative rounded-t-sm px-1">
                                                                 <div
                                                                     style={{ height: `${h}%` }}
-                                                                    className="w-full bg-white border-2 border-black rounded-xl relative shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 transition-all"
+                                                                    className="w-full bg-white border border-border rounded-xl relative shadow-sm hover:shadow-sm hover:-translate-y-1 transition-all"
                                                                 >
-                                                                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-white text-sm font-bold py-1.5 px-3 rounded-xl shadow-sm whitespace-nowrap z-10">
+                                                                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-sm font-bold py-1.5 px-3 rounded-xl shadow-sm whitespace-nowrap z-10">
                                                                         {h}%
                                                                     </div>
                                                                 </div>

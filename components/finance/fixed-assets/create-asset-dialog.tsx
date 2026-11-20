@@ -145,7 +145,7 @@ export function CreateAssetDialog({ open, onOpenChange }: Props) {
                             <button
                                 type="button"
                                 onClick={() => setCatDialogOpen(true)}
-                                className="absolute top-0 right-0 text-[10px] font-bold uppercase tracking-wider text-orange-600 hover:text-orange-700 flex items-center gap-0.5"
+                                className="absolute top-0 right-0 text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-0.5"
                             >
                                 <Plus className="h-3 w-3" />
                                 Buat Baru
@@ -463,7 +463,7 @@ function CreateCategoryDialog({ open, onOpenChange, onCreated }: CreateCategoryD
                             <SelectItem key={a.id} value={a.id}>{a.code} — {a.name}</SelectItem>
                         ))}
                     </NBSelect>
-                    <p className="text-[10px] text-zinc-500 leading-relaxed">
+                    <p className="text-xs text-zinc-500 leading-relaxed">
                         Pilihan COA di atas akan dipakai oleh semua aset di kategori ini saat posting jurnal registrasi &amp; penyusutan.
                         Setiap perubahan nilai aset akan tampil pada buku besar akun yang dipilih.
                     </p>

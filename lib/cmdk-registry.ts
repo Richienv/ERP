@@ -60,7 +60,7 @@ export const MODULE_META: Record<Module, { color: string; label: string }> = {
   dasbor:      { color: "bg-gray-100 text-gray-600",    label: "Dasbor" },
   inventori:   { color: "bg-blue-100 text-blue-600",    label: "Inventori" },
   penjualan:   { color: "bg-green-100 text-green-600",  label: "Penjualan" },
-  pengadaan:   { color: "bg-orange-100 text-orange-600", label: "Pengadaan" },
+  pengadaan:   { color: "bg-blue-100 text-blue-600", label: "Pengadaan" },
   keuangan:    { color: "bg-purple-100 text-purple-600", label: "Keuangan" },
   manufaktur:  { color: "bg-slate-100 text-slate-600",  label: "Manufaktur" },
   sdm:         { color: "bg-amber-100 text-amber-700",  label: "SDM" },

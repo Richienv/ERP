@@ -7,7 +7,7 @@ import { SubcontractorList } from "@/components/subcontract/subcontractor-list"
 export default function SubcontractRegistryPage() {
     const { data, isLoading } = useSubcontractRegistry()
 
-    if (isLoading || !data) return <TablePageSkeleton accentColor="bg-orange-400" />
+    if (isLoading || !data) return <TablePageSkeleton accentColor="bg-blue-400" />
 
     return (
         <div className="p-6 space-y-6">

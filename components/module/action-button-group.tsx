@@ -44,11 +44,11 @@ const ICON_MAP: Record<ActionIcon, React.ElementType> = {
 
 const LABELED_VARIANT_STYLES: Record<ActionVariant, string> = {
   default:
-    "bg-black text-white border-2 border-black shadow-[3px_3px_0px_0px_#000] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_#000] active:translate-y-[2px] active:shadow-none",
+    "bg-slate-900 text-white border border-border shadow-sm hover:shadow-sm active:shadow-none",
   primary:
-    "bg-[#2E7D32] text-white border-2 border-black shadow-[3px_3px_0px_0px_#000] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_#000] active:translate-y-[2px] active:shadow-none",
+    "bg-[#2E7D32] text-white border border-border shadow-sm hover:shadow-sm active:shadow-none",
   danger:
-    "bg-red-600 text-white border-2 border-black shadow-[3px_3px_0px_0px_#000] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_#000] active:translate-y-[2px] active:shadow-none",
+    "bg-red-600 text-white border border-border shadow-sm hover:shadow-sm active:shadow-none",
 }
 
 export function ActionButtonGroup({ actions, size = "sm", className }: ActionButtonGroupProps) {
@@ -68,7 +68,7 @@ export function ActionButtonGroup({ actions, size = "sm", className }: ActionBut
               disabled={action.disabled}
               title={action.tooltip}
               className={cn(
-                "inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-all",
+                "inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold transition-all",
                 LABELED_VARIANT_STYLES[action.variant ?? "primary"],
                 action.disabled && "opacity-50 cursor-not-allowed pointer-events-none"
               )}
@@ -87,7 +87,7 @@ export function ActionButtonGroup({ actions, size = "sm", className }: ActionBut
             disabled={action.disabled}
             title={action.tooltip}
             className={cn(
-              "flex items-center justify-center border border-gray-200 hover:border-black hover:bg-gray-50 transition-colors",
+              "flex items-center justify-center border border-gray-200 hover:border-border hover:bg-gray-50 transition-colors",
               size === "sm" ? "w-7 h-7" : "w-8 h-8",
               action.variant === "danger" && "hover:border-red-400 hover:bg-red-50 hover:text-red-600",
               action.disabled && "opacity-50 cursor-not-allowed pointer-events-none"

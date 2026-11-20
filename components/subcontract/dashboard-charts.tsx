@@ -25,7 +25,7 @@ export function StatusDistributionChart({ data }: StatusDistributionChartProps) 
     if (data.length === 0) {
         return (
             <div className="text-center py-6">
-                <span className="text-[9px] font-bold text-zinc-400">Belum ada data</span>
+                <span className="text-xs font-bold text-zinc-400">Belum ada data</span>
             </div>
         )
     }
@@ -61,8 +61,8 @@ export function StatusDistributionChart({ data }: StatusDistributionChartProps) 
                     </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
-                    <span className="text-lg font-black">{total}</span>
-                    <div className="text-[7px] font-bold text-zinc-400 uppercase">Total</div>
+                    <span className="text-lg font-semibold">{total}</span>
+                    <div className="text-[7px] font-bold text-zinc-400 ">Total</div>
                 </div>
             </div>
             <div className="flex-1 space-y-1">
@@ -72,8 +72,8 @@ export function StatusDistributionChart({ data }: StatusDistributionChartProps) 
                             className="w-2.5 h-2.5 shrink-0"
                             style={{ backgroundColor: d.color }}
                         />
-                        <span className="text-[9px] font-bold text-zinc-600 flex-1">{d.name}</span>
-                        <span className="text-[10px] font-black">{d.value}</span>
+                        <span className="text-xs font-bold text-zinc-600 flex-1">{d.name}</span>
+                        <span className="text-xs font-semibold">{d.value}</span>
                     </div>
                 ))}
             </div>
@@ -94,7 +94,7 @@ export function MaterialAtVendorTable({ data }: MaterialAtVendorTableProps) {
         return (
             <div className="text-center py-6">
                 <Package className="h-6 w-6 mx-auto text-zinc-200 mb-1" />
-                <span className="text-[9px] font-bold text-zinc-400">
+                <span className="text-xs font-bold text-zinc-400">
                     Tidak ada material di vendor
                 </span>
             </div>
@@ -106,13 +106,13 @@ export function MaterialAtVendorTable({ data }: MaterialAtVendorTableProps) {
             <table className="w-full">
                 <thead className="bg-zinc-50 border-b border-zinc-200">
                     <tr>
-                        <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">
+                        <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">
                             Mitra CMT
                         </th>
-                        <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">
+                        <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">
                             Produk
                         </th>
-                        <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-right">
+                        <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-right">
                             Qty
                         </th>
                     </tr>
@@ -122,7 +122,7 @@ export function MaterialAtVendorTable({ data }: MaterialAtVendorTableProps) {
                         <tr key={i} className="border-b border-zinc-200 last:border-b-0">
                             <td className="px-3 py-2 text-xs font-bold">{row.subcontractorName}</td>
                             <td className="px-3 py-2 text-xs font-bold text-zinc-500">{row.productName}</td>
-                            <td className="px-3 py-2 text-xs font-mono font-black text-right">
+                            <td className="px-3 py-2 text-xs font-mono font-semibold text-right">
                                 {row.qty.toLocaleString()}
                             </td>
                         </tr>

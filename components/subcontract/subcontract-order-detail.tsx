@@ -72,14 +72,14 @@ export function SubcontractOrderDetailView({ order, warehouses }: SubcontractOrd
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                <div className="px-4 py-3 border-b-2 border-black bg-zinc-50 flex items-center justify-between">
+            <div className="bg-white border border-border shadow-sm">
+                <div className="px-4 py-3 border-b border-border bg-zinc-50 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <ClipboardList className="h-4 w-4" />
-                        <span className="text-sm font-black">{order.number}</span>
+                        <span className="text-sm font-semibold">{order.number}</span>
                     </div>
                     <span
-                        className={`text-[9px] font-black px-2 py-0.5 border ${subcontractStatusColors[order.status]}`}
+                        className={`text-xs font-semibold px-2 py-0.5 border ${subcontractStatusColors[order.status]}`}
                     >
                         {subcontractStatusLabels[order.status]}
                     </span>
@@ -87,19 +87,19 @@ export function SubcontractOrderDetailView({ order, warehouses }: SubcontractOrd
 
                 <div className="px-4 py-3 grid grid-cols-2 md:grid-cols-5 gap-4">
                     <div>
-                        <div className="text-[9px] font-bold text-zinc-400 uppercase">
+                        <div className="text-xs font-bold text-zinc-400 ">
                             Subkontraktor
                         </div>
-                        <div className="text-xs font-black">{order.subcontractorName}</div>
+                        <div className="text-xs font-semibold">{order.subcontractorName}</div>
                     </div>
                     <div>
-                        <div className="text-[9px] font-bold text-zinc-400 uppercase">
+                        <div className="text-xs font-bold text-zinc-400 ">
                             Operasi
                         </div>
-                        <div className="text-xs font-black">{order.operation}</div>
+                        <div className="text-xs font-semibold">{order.operation}</div>
                     </div>
                     <div>
-                        <div className="text-[9px] font-bold text-zinc-400 uppercase">
+                        <div className="text-xs font-bold text-zinc-400 ">
                             Tanggal Kirim
                         </div>
                         <div className="text-xs font-bold">
@@ -107,7 +107,7 @@ export function SubcontractOrderDetailView({ order, warehouses }: SubcontractOrd
                         </div>
                     </div>
                     <div>
-                        <div className="text-[9px] font-bold text-zinc-400 uppercase">
+                        <div className="text-xs font-bold text-zinc-400 ">
                             Target Kembali
                         </div>
                         <div className="text-xs font-bold">
@@ -118,10 +118,10 @@ export function SubcontractOrderDetailView({ order, warehouses }: SubcontractOrd
                     </div>
                     {order.estimatedCost !== null && (
                         <div>
-                            <div className="text-[9px] font-bold text-zinc-400 uppercase">
+                            <div className="text-xs font-bold text-zinc-400 ">
                                 Estimasi Biaya
                             </div>
-                            <div className="text-xs font-black text-emerald-700 flex items-center gap-1">
+                            <div className="text-xs font-semibold text-emerald-700 flex items-center gap-1">
                                 <DollarSign className="h-3 w-3" />
                                 {formatCurrency(order.estimatedCost)}
                             </div>
@@ -132,7 +132,7 @@ export function SubcontractOrderDetailView({ order, warehouses }: SubcontractOrd
                 {/* Status transitions */}
                 {!terminal && nextStatuses.length > 0 && (
                     <div className="px-4 py-3 border-t border-zinc-200 flex items-center gap-2">
-                        <span className="text-[9px] font-bold text-zinc-400 uppercase">
+                        <span className="text-xs font-bold text-zinc-400 ">
                             Ubah status:
                         </span>
                         {nextStatuses.map((ns) => (
@@ -140,7 +140,7 @@ export function SubcontractOrderDetailView({ order, warehouses }: SubcontractOrd
                                 key={ns}
                                 onClick={() => handleStatusChange(ns)}
                                 disabled={loading}
-                                className={`flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-2.5 py-1 border-2 border-black rounded-none transition-all hover:translate-y-[1px] ${
+                                className={`flex items-center gap-1 text-xs font-semibold   px-2.5 py-1 border border-border rounded-md transition-all  ${
                                     ns === "SC_CANCELLED"
                                         ? "bg-red-50 text-red-700 hover:bg-red-100"
                                         : "bg-white hover:bg-zinc-100"
@@ -155,9 +155,9 @@ export function SubcontractOrderDetailView({ order, warehouses }: SubcontractOrd
             </div>
 
             {/* Items table */}
-            <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                <div className="px-4 py-2.5 border-b-2 border-black bg-zinc-50">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+            <div className="bg-white border border-border shadow-sm">
+                <div className="px-4 py-2.5 border-b border-border bg-zinc-50">
+                    <span className="text-xs font-semibold text-zinc-500">
                         Item Order
                     </span>
                 </div>
@@ -187,7 +187,7 @@ export function SubcontractOrderDetailView({ order, warehouses }: SubcontractOrd
             </div>
 
             {/* Shipments */}
-            <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4">
+            <div className="bg-white border border-border shadow-sm p-4">
                 <ShipmentTracking
                     orderId={order.id}
                     orderNumber={order.number}
@@ -231,7 +231,7 @@ function ItemRow({
         <tr className={NB.tableRow}>
             <td className={NB.tableCell}>
                 <div className="text-xs font-bold">{item.productName}</div>
-                <div className="text-[9px] text-zinc-400 font-mono">{item.productCode}</div>
+                <div className="text-xs text-zinc-400 font-mono">{item.productCode}</div>
             </td>
             <td className={`${NB.tableCell} text-right font-mono`}>
                 {item.issuedQty.toLocaleString()}
@@ -240,7 +240,7 @@ function ItemRow({
                 {editable ? (
                     <Input
                         type="number"
-                        className="border-2 border-black rounded-none h-7 w-20 text-right font-mono text-xs ml-auto"
+                        className="border border-border rounded-md h-7 w-20 text-right font-mono text-xs ml-auto"
                         value={returnedQty}
                         onChange={(e) => {
                             setReturnedQty(parseInt(e.target.value) || 0)
@@ -256,7 +256,7 @@ function ItemRow({
                 {editable ? (
                     <Input
                         type="number"
-                        className="border-2 border-black rounded-none h-7 w-20 text-right font-mono text-xs ml-auto"
+                        className="border border-border rounded-md h-7 w-20 text-right font-mono text-xs ml-auto"
                         value={defectQty}
                         onChange={(e) => {
                             setDefectQty(parseInt(e.target.value) || 0)

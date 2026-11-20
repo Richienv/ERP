@@ -167,22 +167,22 @@ export function QualityClient({ initialInspections, initialPendingQueue, initial
     const getResultBadge = (result: string) => {
         switch (result) {
             case 'Pass':
-                return <Badge className="bg-emerald-100 text-emerald-800 border-2 border-black rounded-none text-[10px] font-black uppercase"><CheckCircle className="h-3 w-3 mr-1" /> Lolos</Badge>;
+                return <Badge className="bg-emerald-100 text-emerald-800 border border-border rounded-md text-xs font-semibold "><CheckCircle className="h-3 w-3 mr-1" /> Lolos</Badge>;
             case 'Fail':
-                return <Badge className="bg-red-100 text-red-800 border-2 border-black rounded-none text-[10px] font-black uppercase"><XCircle className="h-3 w-3 mr-1" /> Gagal</Badge>;
+                return <Badge className="bg-red-100 text-red-800 border border-border rounded-md text-xs font-semibold "><XCircle className="h-3 w-3 mr-1" /> Gagal</Badge>;
             case 'Conditional':
-                return <Badge className="bg-amber-100 text-amber-800 border-2 border-black rounded-none text-[10px] font-black uppercase"><AlertTriangle className="h-3 w-3 mr-1" /> Bersyarat</Badge>;
+                return <Badge className="bg-amber-100 text-amber-800 border border-border rounded-md text-xs font-semibold "><AlertTriangle className="h-3 w-3 mr-1" /> Bersyarat</Badge>;
             default:
-                return <Badge className="border-2 border-black rounded-none text-[10px] font-black uppercase">{result}</Badge>;
+                return <Badge className="border border-border rounded-md text-xs font-semibold ">{result}</Badge>;
         }
     };
 
     const getSeverityColor = (severity: string) => {
         switch (severity.toUpperCase()) {
-            case 'CRITICAL': return 'bg-red-100 text-red-800 border-2 border-black';
-            case 'MAJOR': return 'bg-amber-100 text-amber-800 border-2 border-black';
-            case 'MINOR': return 'bg-zinc-100 text-zinc-700 border-2 border-black';
-            default: return 'bg-zinc-100 text-zinc-600 border-2 border-black';
+            case 'CRITICAL': return 'bg-red-100 text-red-800 border border-border';
+            case 'MAJOR': return 'bg-amber-100 text-amber-800 border border-border';
+            case 'MINOR': return 'bg-zinc-100 text-zinc-700 border border-border';
+            default: return 'bg-zinc-100 text-zinc-600 border border-border';
         }
     };
 
@@ -196,12 +196,12 @@ export function QualityClient({ initialInspections, initialPendingQueue, initial
     return (
         <div className="space-y-4">
             {/* ═══ COMMAND HEADER ═══ */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+            <div className="border border-border shadow-sm overflow-hidden bg-white dark:bg-zinc-900">
                 <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-emerald-400">
                     <div className="flex items-center gap-3">
                         <ClipboardCheck className="h-5 w-5 text-emerald-500" />
                         <div>
-                            <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
+                            <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-white">
                                 Kontrol Kualitas
                             </h1>
                             <p className="text-zinc-400 text-xs font-medium mt-0.5">
@@ -213,13 +213,13 @@ export function QualityClient({ initialInspections, initialPendingQueue, initial
                         <button
                             onClick={fetchInspections}
                             disabled={refreshing}
-                            className="h-9 w-9 flex items-center justify-center border-2 border-black bg-white hover:bg-zinc-50 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all"
+                            className="h-9 w-9 flex items-center justify-center border border-border bg-white hover:bg-zinc-50 shadow-sm active:shadow-none transition-all"
                         >
                             <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
                         </button>
                         <Button
                             variant="outline"
-                            className="border-2 border-black font-black uppercase text-[10px] tracking-widest h-9 px-4 rounded-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all"
+                            className="border border-border font-semibold text-xs h-9 px-4 rounded-md shadow-sm active:shadow-none transition-all"
                             onClick={() => {
                                 const cols = [
                                     { header: "Batch #", accessorKey: "batchNumber" },
@@ -249,7 +249,7 @@ export function QualityClient({ initialInspections, initialPendingQueue, initial
                             <Download className="mr-2 h-3.5 w-3.5" /> Export
                         </Button>
                         <Button
-                            className="bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all text-[10px] font-black uppercase tracking-widest h-9 px-4 rounded-none"
+                            className="bg-slate-900 text-white hover:bg-zinc-800 border border-border shadow-sm active:shadow-none transition-all text-xs font-semibold h-9 px-4 rounded-md"
                             onClick={() => setCreateOpen(true)}
                         >
                             <Plus className="mr-2 h-3.5 w-3.5" /> Inspeksi Baru
@@ -259,69 +259,69 @@ export function QualityClient({ initialInspections, initialPendingQueue, initial
             </div>
 
             {/* ═══ KPI PULSE STRIP ═══ */}
-            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+            <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                 <div className="grid grid-cols-2 md:grid-cols-4">
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
+                    <div className="relative p-4 md:p-5 border-r border-zinc-100 dark:border-zinc-800 border-b md:border-b-0">
                         <div className={`absolute top-0 left-0 right-0 h-1 ${summary.passRate >= 95 ? 'bg-emerald-400' : summary.passRate >= 80 ? 'bg-amber-400' : 'bg-red-400'}`} />
                         <div className="flex items-center gap-2 mb-2">
                             <CheckCircle className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Tingkat Lolos</span>
+                            <span className="text-xs font-semibold text-zinc-500">Tingkat Lolos</span>
                         </div>
-                        <div className={`text-2xl md:text-3xl font-black tracking-tighter ${summary.passRate >= 95 ? 'text-emerald-600' : summary.passRate >= 80 ? 'text-amber-600' : 'text-red-600'}`}>
+                        <div className={`text-2xl md:text-3xl font-semibold tracking-tighter ${summary.passRate >= 95 ? 'text-emerald-600' : summary.passRate >= 80 ? 'text-amber-600' : 'text-red-600'}`}>
                             {summary.passRate}%
                         </div>
-                        <div className="text-[10px] font-bold text-zinc-400 mt-1">Pass rate inspeksi</div>
+                        <div className="text-xs font-bold text-zinc-400 mt-1">Pass rate inspeksi</div>
                     </div>
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
+                    <div className="relative p-4 md:p-5 border-r border-zinc-100 dark:border-zinc-800 border-b md:border-b-0">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-red-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <XCircle className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Defect</span>
+                            <span className="text-xs font-semibold text-zinc-500">Total Defect</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-red-600">{summary.defectCount}</div>
-                        <div className="text-[10px] font-bold text-red-600 mt-1">Cacat ditemukan</div>
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-red-600">{summary.defectCount}</div>
+                        <div className="text-xs font-bold text-red-600 mt-1">Cacat ditemukan</div>
                     </div>
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
+                    <div className="relative p-4 md:p-5 border-r border-zinc-100 dark:border-zinc-800">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-amber-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <ClipboardCheck className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Menunggu</span>
+                            <span className="text-xs font-semibold text-zinc-500">Menunggu</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-amber-600">{summary.pendingCount}</div>
-                        <div className="text-[10px] font-bold text-amber-600 mt-1">Antrian inspeksi</div>
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-amber-600">{summary.pendingCount}</div>
+                        <div className="text-xs font-bold text-amber-600 mt-1">Antrian inspeksi</div>
                     </div>
                     <div className="relative p-4 md:p-5">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-blue-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <Microscope className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Hari Ini</span>
+                            <span className="text-xs font-semibold text-zinc-500">Hari Ini</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-blue-600">{summary.todayCount}</div>
-                        <div className="text-[10px] font-bold text-blue-600 mt-1">Inspeksi hari ini</div>
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-blue-600">{summary.todayCount}</div>
+                        <div className="text-xs font-bold text-blue-600 mt-1">Inspeksi hari ini</div>
                     </div>
                 </div>
             </div>
 
             {/* ═══ SEARCH & FILTER BAR ═══ */}
-            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+            <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                 <div className="px-4 py-3 flex items-center gap-3 flex-wrap">
                     <div className="relative flex-1 min-w-[200px] max-w-lg">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                         <Input
                             placeholder="Cari batch # atau produk..."
-                            className="pl-9 border-2 border-black font-bold h-10 placeholder:text-zinc-400 rounded-none"
+                            className="pl-9 border border-border font-bold h-10 placeholder:text-zinc-400 rounded-md"
                             value={searchQuery}
                             onChange={(e) => handleSearchChange(e.target.value)}
                         />
                     </div>
-                    <div className="flex border-2 border-black">
+                    <div className="flex border border-border">
                         {filterItems.map((f) => (
                             <button
                                 key={f.label}
                                 onClick={() => handleStatusFilter(f.key)}
-                                className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all border-r border-black last:border-r-0 ${
+                                className={`px-3 py-2 text-xs font-semibold   transition-all border-r border-border last:border-r-0 ${
                                     statusFilter === f.key
-                                        ? "bg-black text-white"
+                                        ? "bg-slate-900 text-white"
                                         : "bg-white text-zinc-400 hover:bg-zinc-50"
                                 }`}
                             >
@@ -334,13 +334,13 @@ export function QualityClient({ initialInspections, initialPendingQueue, initial
 
             {/* ═══ ERROR STATE ═══ */}
             {error && (
-                <div className="border-2 border-red-600 bg-red-50 shadow-[3px_3px_0px_0px_rgba(220,38,38,1)] overflow-hidden">
+                <div className="border border-red-600 bg-red-50 shadow-sm overflow-hidden">
                     <div className="p-4 flex items-center gap-3 text-red-700">
                         <AlertCircle className="h-5 w-5 flex-shrink-0" />
                         <span className="text-sm font-bold flex-1">{error}</span>
                         <button
                             onClick={fetchInspections}
-                            className="px-3 py-1.5 border-2 border-red-600 text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-colors"
+                            className="px-3 py-1.5 border border-red-600 text-xs font-semibold hover:bg-red-100 transition-colors"
                         >
                             Coba Lagi
                         </button>
@@ -350,17 +350,17 @@ export function QualityClient({ initialInspections, initialPendingQueue, initial
 
             {/* ═══ EMPTY STATE ═══ */}
             {inspections.length === 0 && pendingQueue.length === 0 && !error && (
-                <div className="border-2 border-dashed border-black bg-white dark:bg-zinc-900 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                <div className="border border-dashed border-border bg-white dark:bg-zinc-900 shadow-sm">
                     <div className="p-12 flex flex-col items-center justify-center text-center">
                         <ClipboardCheck className="h-12 w-12 text-zinc-300 mb-4" />
-                        <h3 className="text-sm font-black uppercase tracking-widest text-zinc-600">Belum ada inspeksi</h3>
+                        <h3 className="text-sm font-semibold text-zinc-600">Belum ada inspeksi</h3>
                         <p className="text-xs text-zinc-400 mt-1 font-medium">
                             {searchQuery || statusFilter
                                 ? 'Coba ubah pencarian atau filter.'
                                 : 'Buat inspeksi pertama untuk memulai.'}
                         </p>
                         <Button
-                            className="mt-4 bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all text-[10px] font-black uppercase tracking-widest rounded-none"
+                            className="mt-4 bg-slate-900 text-white hover:bg-zinc-800 border border-border shadow-sm active:shadow-none transition-all text-xs font-semibold rounded-md"
                             onClick={() => setCreateOpen(true)}
                         >
                             <Plus className="mr-2 h-3.5 w-3.5" /> Inspeksi Baru
@@ -371,23 +371,23 @@ export function QualityClient({ initialInspections, initialPendingQueue, initial
 
             {/* ═══ ANTRIAN INSPEKSI (PENDING QUEUE) ═══ */}
             {pendingQueue.length > 0 && (
-                <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
-                    <div className="px-4 py-3 border-b-2 border-black bg-amber-50 dark:bg-amber-950/30 border-l-[6px] border-l-amber-400">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-amber-900 dark:text-amber-300">
+                <div className="border border-border shadow-sm overflow-hidden bg-white dark:bg-zinc-900">
+                    <div className="px-4 py-3 border-b border-border bg-amber-50 dark:bg-amber-950/30 border-l-[6px] border-l-amber-400">
+                        <p className="text-xs font-semibold text-amber-900 dark:text-amber-300">
                             Antrian Inspeksi ({pendingQueue.length})
                         </p>
                         <p className="text-xs text-amber-700 dark:text-amber-400 font-medium mt-0.5">Work order yang belum memiliki hasil inspeksi QC</p>
                     </div>
                     <Table>
                         <TableHeader>
-                            <TableRow className="border-b-2 border-black bg-zinc-50 dark:bg-zinc-800">
-                                <TableHead className="font-black uppercase text-[10px] tracking-widest text-zinc-500">Work Order</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-widest text-zinc-500">Produk</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-widest text-zinc-500">Status</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-widest text-zinc-500">Prioritas</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-widest text-zinc-500 text-center">Qty Rencana</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-widest text-zinc-500">Mesin</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-widest text-zinc-500">Tenggat</TableHead>
+                            <TableRow className="border-b border-border bg-zinc-50 dark:bg-zinc-800">
+                                <TableHead className="font-semibold text-xs text-zinc-500">Work Order</TableHead>
+                                <TableHead className="font-semibold text-xs text-zinc-500">Produk</TableHead>
+                                <TableHead className="font-semibold text-xs text-zinc-500">Status</TableHead>
+                                <TableHead className="font-semibold text-xs text-zinc-500">Prioritas</TableHead>
+                                <TableHead className="font-semibold text-xs text-zinc-500 text-center">Qty Rencana</TableHead>
+                                <TableHead className="font-semibold text-xs text-zinc-500">Mesin</TableHead>
+                                <TableHead className="font-semibold text-xs text-zinc-500">Tenggat</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -401,12 +401,12 @@ export function QualityClient({ initialInspections, initialPendingQueue, initial
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        <Badge className="border-2 border-black rounded-none text-[10px] font-black uppercase bg-zinc-100 text-zinc-900">
+                                        <Badge className="border border-border rounded-md text-xs font-semibold bg-zinc-100 text-zinc-900">
                                             {wo.status.replace('_', ' ')}
                                         </Badge>
                                     </TableCell>
                                     <TableCell>
-                                        <Badge className="bg-zinc-100 text-zinc-900 border-2 border-black rounded-none text-[10px] font-black uppercase">
+                                        <Badge className="bg-zinc-100 text-zinc-900 border border-border rounded-md text-xs font-semibold ">
                                             {wo.priority}
                                         </Badge>
                                     </TableCell>
@@ -433,22 +433,22 @@ export function QualityClient({ initialInspections, initialPendingQueue, initial
 
             {/* ═══ TABEL INSPEKSI ═══ */}
             {inspections.length > 0 && (
-                <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
-                    <div className="flex items-center justify-between px-4 py-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                <div className="border border-border shadow-sm overflow-hidden bg-white dark:bg-zinc-900">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-zinc-50 dark:bg-zinc-800 text-xs font-semibold text-zinc-500">
                         <span>Hasil Inspeksi</span>
                         <span>{inspections.length} data</span>
                     </div>
                     <Table>
                         <TableHeader>
-                            <TableRow className="border-b-2 border-black bg-zinc-50 dark:bg-zinc-800">
-                                <TableHead className="font-black uppercase text-[10px] tracking-widest text-zinc-500">Batch #</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-widest text-zinc-500">Produk</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-widest text-zinc-500">Work Order</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-widest text-zinc-500">Inspektor</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-widest text-zinc-500">Hasil</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-widest text-zinc-500 text-center">Skor</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-widest text-zinc-500 text-center">Defect</TableHead>
-                                <TableHead className="font-black uppercase text-[10px] tracking-widest text-zinc-500">Tanggal</TableHead>
+                            <TableRow className="border-b border-border bg-zinc-50 dark:bg-zinc-800">
+                                <TableHead className="font-semibold text-xs text-zinc-500">Batch #</TableHead>
+                                <TableHead className="font-semibold text-xs text-zinc-500">Produk</TableHead>
+                                <TableHead className="font-semibold text-xs text-zinc-500">Work Order</TableHead>
+                                <TableHead className="font-semibold text-xs text-zinc-500">Inspektor</TableHead>
+                                <TableHead className="font-semibold text-xs text-zinc-500">Hasil</TableHead>
+                                <TableHead className="font-semibold text-xs text-zinc-500 text-center">Skor</TableHead>
+                                <TableHead className="font-semibold text-xs text-zinc-500 text-center">Defect</TableHead>
+                                <TableHead className="font-semibold text-xs text-zinc-500">Tanggal</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -473,7 +473,7 @@ export function QualityClient({ initialInspections, initialPendingQueue, initial
                                     </TableCell>
                                     <TableCell>{getResultBadge(insp.result)}</TableCell>
                                     <TableCell className="text-center">
-                                        <span className={`font-black text-sm ${insp.score >= 95 ? 'text-emerald-600' :
+                                        <span className={`font-semibold text-sm ${insp.score >= 95 ? 'text-emerald-600' :
                                                 insp.score >= 80 ? 'text-amber-600' : 'text-red-600'
                                             }`}>
                                             {insp.score}%
@@ -481,7 +481,7 @@ export function QualityClient({ initialInspections, initialPendingQueue, initial
                                     </TableCell>
                                     <TableCell className="text-center">
                                         {insp.defectCount > 0 ? (
-                                            <Badge className="bg-red-100 text-red-800 border-2 border-black rounded-none text-[10px] font-black">
+                                            <Badge className="bg-red-100 text-red-800 border border-border rounded-md text-xs font-semibold">
                                                 {insp.defectCount}
                                             </Badge>
                                         ) : (
@@ -500,9 +500,9 @@ export function QualityClient({ initialInspections, initialPendingQueue, initial
 
             {/* ═══ DETAIL INSPEKSI (SHEET) ═══ */}
             <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
-                <SheetContent className="sm:max-w-lg overflow-y-auto border-l-2 border-black rounded-none">
+                <SheetContent className="sm:max-w-lg overflow-y-auto border-l border-border rounded-md">
                     <SheetHeader>
-                        <SheetTitle className="flex items-center gap-2 font-black uppercase tracking-tight">
+                        <SheetTitle className="flex items-center gap-2 font-semibold tracking-tight">
                             <ClipboardCheck className="h-5 w-5" />
                             Detail Inspeksi
                         </SheetTitle>
@@ -512,9 +512,9 @@ export function QualityClient({ initialInspections, initialPendingQueue, initial
                     {selectedInspection && (
                         <div className="mt-6 space-y-6">
                             {/* Result & Score */}
-                            <div className="flex items-center justify-between p-4 border-2 border-black bg-zinc-50 dark:bg-zinc-800">
+                            <div className="flex items-center justify-between p-4 border border-border bg-zinc-50 dark:bg-zinc-800">
                                 {getResultBadge(selectedInspection.result)}
-                                <span className={`text-3xl font-black ${
+                                <span className={`text-3xl font-semibold ${
                                     selectedInspection.score >= 95 ? 'text-emerald-600' :
                                     selectedInspection.score >= 80 ? 'text-amber-600' : 'text-red-600'
                                 }`}>
@@ -524,21 +524,21 @@ export function QualityClient({ initialInspections, initialPendingQueue, initial
 
                             {/* Info Grid */}
                             <div className="grid grid-cols-2 gap-3">
-                                <div className="border-2 border-black p-3">
-                                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Produk</p>
+                                <div className="border border-border p-3">
+                                    <p className="text-xs font-semibold text-zinc-400  ">Produk</p>
                                     <p className="font-bold text-sm mt-1 text-zinc-900 dark:text-white">{selectedInspection.material.name}</p>
                                     <p className="text-xs text-zinc-400 font-mono">{selectedInspection.material.code}</p>
                                 </div>
-                                <div className="border-2 border-black p-3">
-                                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Inspektor</p>
+                                <div className="border border-border p-3">
+                                    <p className="text-xs font-semibold text-zinc-400  ">Inspektor</p>
                                     <p className="font-bold text-sm mt-1 text-zinc-900 dark:text-white">{selectedInspection.inspectorName}</p>
                                 </div>
-                                <div className="border-2 border-black p-3">
-                                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Work Order</p>
+                                <div className="border border-border p-3">
+                                    <p className="text-xs font-semibold text-zinc-400  ">Work Order</p>
                                     <p className="font-bold text-sm mt-1 font-mono text-zinc-900 dark:text-white">{selectedInspection.workOrder?.number || '-'}</p>
                                 </div>
-                                <div className="border-2 border-black p-3">
-                                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Tanggal</p>
+                                <div className="border border-border p-3">
+                                    <p className="text-xs font-semibold text-zinc-400  ">Tanggal</p>
                                     <p className="font-bold text-sm mt-1 text-zinc-900 dark:text-white">{formatDate(selectedInspection.inspectionDate)}</p>
                                 </div>
                             </div>
@@ -546,30 +546,30 @@ export function QualityClient({ initialInspections, initialPendingQueue, initial
                             {/* Notes */}
                             {selectedInspection.notes && (
                                 <div>
-                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Catatan</h4>
-                                    <p className="text-sm text-zinc-600 dark:text-zinc-300 bg-zinc-50 dark:bg-zinc-800 p-3 border-2 border-black">{selectedInspection.notes}</p>
+                                    <h4 className="text-xs font-semibold text-zinc-500 mb-2">Catatan</h4>
+                                    <p className="text-sm text-zinc-600 dark:text-zinc-300 bg-zinc-50 dark:bg-zinc-800 p-3 border border-border">{selectedInspection.notes}</p>
                                 </div>
                             )}
 
                             {/* Defects */}
                             <div>
-                                <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3">
+                                <h4 className="text-xs font-semibold text-zinc-500 mb-3">
                                     Defect ({selectedInspection.defectCount})
                                 </h4>
                                 {selectedInspection.defectCount === 0 ? (
-                                    <div className="text-center py-4 bg-emerald-50 dark:bg-emerald-950/30 border-2 border-black">
+                                    <div className="text-center py-4 bg-emerald-50 dark:bg-emerald-950/30 border border-border">
                                         <CheckCircle className="h-6 w-6 mx-auto text-emerald-500 mb-1" />
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Tidak ada defect</p>
+                                        <p className="text-xs font-semibold text-emerald-700">Tidak ada defect</p>
                                     </div>
                                 ) : selectedInspection.defects && selectedInspection.defects.length > 0 ? (
                                     <div className="space-y-2">
                                         {selectedInspection.defects.map((defect) => (
-                                            <div key={defect.id} className="p-3 bg-zinc-50 dark:bg-zinc-800 border-2 border-black">
+                                            <div key={defect.id} className="p-3 bg-zinc-50 dark:bg-zinc-800 border border-border">
                                                 <div className="flex items-center justify-between mb-1">
-                                                    <Badge className="text-[10px] font-black uppercase bg-zinc-200 text-zinc-800 border-2 border-black rounded-none">
+                                                    <Badge className="text-xs font-semibold bg-zinc-200 text-zinc-800 border border-border rounded-md">
                                                         {defect.type}
                                                     </Badge>
-                                                    <Badge className={`text-[10px] font-black uppercase rounded-none ${getSeverityColor(defect.severity)}`}>
+                                                    <Badge className={`text-xs font-semibold rounded-md ${getSeverityColor(defect.severity)}`}>
                                                         {defect.severity}
                                                     </Badge>
                                                 </div>

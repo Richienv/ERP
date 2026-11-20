@@ -30,17 +30,17 @@ export function ComplianceWarRoom({ vehicles }: { vehicles: VehicleExpiryFields[
                         )}
                     </div>
                     <div>
-                        <h2 className="text-sm font-black uppercase tracking-wider">Armada yang butuh tindakan</h2>
-                        <p className="text-[11px] text-zinc-500 mt-0.5">
+                        <h2 className="text-sm font-semibold  ">Armada yang butuh tindakan</h2>
+                        <p className="text-xs text-zinc-500 mt-0.5">
                             Ruang siaga dokumen: STNK, KIR, dan asuransi — habis tempo vs jatuh tempo ≤ 30 hari
                         </p>
                     </div>
                 </div>
                 <div className="text-right shrink-0">
-                    <div className={`text-2xl font-black ${hasAction ? "text-red-600" : "text-emerald-700"}`}>
+                    <div className={`text-2xl font-semibold ${hasAction ? "text-red-600" : "text-emerald-700"}`}>
                         {room.actionVehicleCount}
                     </div>
-                    <div className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                    <div className="text-xs font-bold text-zinc-500">
                         unit perlu tindakan
                     </div>
                 </div>
@@ -69,7 +69,7 @@ export function ComplianceWarRoom({ vehicles }: { vehicles: VehicleExpiryFields[
                 <div className="border-t border-zinc-200 bg-zinc-50/80 px-4 py-3">
                     <div className="flex items-center gap-2 mb-2">
                         <IconFileAlert className="w-3.5 h-3.5 text-zinc-500" />
-                        <span className="text-xs font-black uppercase tracking-wider text-zinc-600">
+                        <span className="text-xs font-semibold text-zinc-600">
                             Tanggal belum tercatat · {room.missingVehicleCount} unit
                         </span>
                     </div>
@@ -78,7 +78,7 @@ export function ComplianceWarRoom({ vehicles }: { vehicles: VehicleExpiryFields[
                             <Link
                                 key={row.id}
                                 href={`/fleet/${row.id}`}
-                                className="inline-flex items-center gap-1.5 border border-zinc-300 bg-white px-2 py-1 hover:border-orange-400 hover:bg-orange-50/50"
+                                className="inline-flex items-center gap-1.5 border border-zinc-300 bg-white px-2 py-1 hover:border-blue-400 hover:bg-blue-50/50"
                             >
                                 <span className="font-mono text-xs font-bold">{row.plateNumber}</span>
                                 <span className="text-xs text-zinc-500">
@@ -109,19 +109,19 @@ function BucketColumn({
     empty: string
 }) {
     const isOverdue = tone === "overdue"
-    const countColor = isOverdue ? "text-red-600" : "text-orange-700"
+    const countColor = isOverdue ? "text-red-600" : "text-blue-700"
     const bar = isOverdue ? "border-l-red-500" : "border-l-orange-500"
 
     return (
         <div className="min-w-0">
             <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-50/80 border-b border-zinc-200">
                 <div>
-                    <div className="text-xs font-black uppercase tracking-wider text-zinc-700">{title}</div>
+                    <div className="text-xs font-semibold text-zinc-700">{title}</div>
                     <div className="text-xs text-zinc-500">{hint}</div>
                 </div>
                 <div className="text-right">
-                    <span className={`text-xl font-black ${count > 0 ? countColor : "text-zinc-400"}`}>{count}</span>
-                    <span className="block text-xs font-bold uppercase tracking-wider text-zinc-400">plat</span>
+                    <span className={`text-xl font-semibold ${count > 0 ? countColor : "text-zinc-400"}`}>{count}</span>
+                    <span className="block text-xs font-bold text-zinc-400">plat</span>
                 </div>
             </div>
             {rows.length === 0 ? (
@@ -132,18 +132,18 @@ function BucketColumn({
                         <li key={row.id}>
                             <Link
                                 href={`/fleet/${row.id}`}
-                                className={`flex items-center justify-between gap-3 px-4 py-2.5 border-l-4 ${bar} hover:bg-orange-50/60`}
+                                className={`flex items-center justify-between gap-3 px-4 py-2.5 border-l ${bar} hover:bg-blue-50/60`}
                             >
                                 <div className="min-w-0">
-                                    <div className="font-mono text-sm font-black">{row.plateNumber}</div>
+                                    <div className="font-mono text-sm font-semibold">{row.plateNumber}</div>
                                     <div className="flex flex-wrap gap-1 mt-1">
                                         {row.docs.map((doc) => (
                                             <span
                                                 key={doc.kind}
-                                                className={`text-xs font-black uppercase tracking-widest px-1.5 py-0.5 border ${
+                                                className={`text-xs font-semibold   px-1.5 py-0.5 border ${
                                                     isOverdue
                                                         ? "bg-red-50 text-red-700 border-red-200"
-                                                        : "bg-orange-50 text-orange-800 border-orange-200"
+                                                        : "bg-blue-50 text-blue-800 border-blue-200"
                                                 }`}
                                             >
                                                 {doc.label}

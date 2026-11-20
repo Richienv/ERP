@@ -15,9 +15,9 @@ const COLORS = ['#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe'];
 
 export function ProductVariantWidget() {
     return (
-        <Card className="col-span-1 md:col-span-3 lg:col-span-3 h-full border border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-xl overflow-hidden">
-            <CardHeader className="border-b border-black bg-zinc-50 dark:bg-zinc-900 pb-3">
-                <CardTitle className="font-black uppercase tracking-wider text-xl">Top Produk</CardTitle>
+        <Card className="col-span-1 md:col-span-3 lg:col-span-3 h-full border border-border shadow-sm rounded-xl overflow-hidden">
+            <CardHeader className="border-b border-border bg-zinc-50 dark:bg-zinc-900 pb-3">
+                <CardTitle className="font-semibold text-xl">Top Produk</CardTitle>
                 <CardDescription className="font-medium text-black/60">Penjualan berdasarkan jenis bahan</CardDescription>
             </CardHeader>
             <CardContent className="p-6">
@@ -47,8 +47,8 @@ export function ProductVariantWidget() {
                         </PieChart>
                     </ResponsiveContainer>
                 </div>
-                <div className="text-center text-sm border-t border-black pt-4 mt-2">
-                    <span className="font-black text-blue-600 uppercase">Cotton Combed 30s</span> adalah produk terlaris bulan ini.
+                <div className="text-center text-sm border-t border-border pt-4 mt-2">
+                    <span className="font-semibold text-blue-600 ">Cotton Combed 30s</span> adalah produk terlaris bulan ini.
                 </div>
             </CardContent>
         </Card>

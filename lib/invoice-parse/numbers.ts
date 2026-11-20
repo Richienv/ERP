@@ -22,6 +22,8 @@ function numericCore(raw: string): string | null {
         s = s.slice(1).trim()
     }
     s = s.replace(/\s+/g, "")
+    s = s.replace(/-+$/, "") // "-Rp 100,000-" (Excel accounting format)
+    if (/^\(.*\)$/.test(s)) s = s.slice(1, -1)
     if (!/^\d[\d.,]*$/.test(s)) return null
     if (/[.,]$/.test(s)) s = s.slice(0, -1)
     return (negative ? "-" : "") + s

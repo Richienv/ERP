@@ -81,7 +81,7 @@ function sourceColor(source: string): string {
     if (source.includes("Penerimaan")) return "bg-emerald-50 border-emerald-200 text-emerald-600"
     if (source.includes("Pembayaran")) return "bg-amber-50 border-amber-200 text-amber-600"
     if (source.includes("Penggajian")) return "bg-pink-50 border-pink-200 text-pink-600"
-    if (source.includes("Operasional") || source.includes("Beban")) return "bg-orange-50 border-orange-200 text-orange-600"
+    if (source.includes("Operasional") || source.includes("Beban")) return "bg-blue-50 border-blue-200 text-blue-600"
     if (source.includes("Pendapatan")) return "bg-green-50 border-green-200 text-green-600"
     if (source.includes("Bahan")) return "bg-cyan-50 border-cyan-200 text-cyan-600"
     return "bg-zinc-50 border-zinc-200 text-zinc-500"
@@ -102,7 +102,7 @@ const ACCOUNT_TYPE_COLORS: Record<string, { bg: string; text: string; border: st
     LIABILITY: { bg: "bg-red-50", text: "text-red-700", border: "border-l-red-400" },
     EQUITY: { bg: "bg-purple-50", text: "text-purple-700", border: "border-l-purple-400" },
     REVENUE: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-l-emerald-400" },
-    EXPENSE: { bg: "bg-orange-50", text: "text-orange-700", border: "border-l-orange-400" },
+    EXPENSE: { bg: "bg-blue-50", text: "text-blue-700", border: "border-l-orange-400" },
 }
 
 const fmtDate = (d: string) =>
@@ -131,7 +131,7 @@ function ReferenceLink({
             <button
                 type="button"
                 onClick={() => router.push(`/finance/invoices?highlight=${invoiceId}`)}
-                className="text-[11px] font-mono text-blue-600 hover:text-blue-800 hover:underline px-3 py-1.5 truncate text-left cursor-pointer"
+                className="text-xs font-mono text-blue-600 hover:text-blue-800 hover:underline px-3 py-1.5 truncate text-left cursor-pointer"
                 title={`Buka invoice ${ref}`}
             >
                 {ref}
@@ -148,7 +148,7 @@ function ReferenceLink({
             <button
                 type="button"
                 onClick={() => router.push(dest)}
-                className="text-[11px] font-mono text-blue-600 hover:text-blue-800 hover:underline px-3 py-1.5 truncate text-left cursor-pointer"
+                className="text-xs font-mono text-blue-600 hover:text-blue-800 hover:underline px-3 py-1.5 truncate text-left cursor-pointer"
                 title={`${label} ${ref}`}
             >
                 {ref}
@@ -160,10 +160,10 @@ function ReferenceLink({
     if (sourceLink) {
         return (
             <span className="px-3 py-1.5 flex items-center gap-1.5">
-                <span className="text-[11px] font-mono text-zinc-500">{ref}</span>
+                <span className="text-xs font-mono text-zinc-500">{ref}</span>
                 <Link
                     href={sourceLink.href}
-                    className="text-[10px] text-orange-600 hover:text-orange-800 hover:underline font-bold whitespace-nowrap"
+                    className="text-xs text-blue-600 hover:text-blue-800 hover:underline font-bold whitespace-nowrap"
                     title={`Lihat ${sourceLink.label}`}
                 >
                     {sourceLink.label} &rarr;
@@ -171,7 +171,7 @@ function ReferenceLink({
             </span>
         )
     }
-    return <span className="text-[11px] font-mono text-zinc-300 px-3 py-1.5">-</span>
+    return <span className="text-xs font-mono text-zinc-300 px-3 py-1.5">-</span>
 }
 
 type GroupMode = "FLAT" | "ACCOUNT"
@@ -463,7 +463,7 @@ export default function AccountTransactionsPage() {
     const headers = ["Tanggal", "Sumber", "Deskripsi", "Referensi", "Debit", "Kredit", "Saldo Berjalan"]
 
     if (isLoading || !data) {
-        return <TablePageSkeleton accentColor="bg-orange-400" />
+        return <TablePageSkeleton accentColor="bg-blue-400" />
     }
 
     return (
@@ -476,14 +476,14 @@ export default function AccountTransactionsPage() {
                 {/* Row 1: Title + Actions */}
                 <div className={`px-5 py-3.5 flex items-center justify-between ${NB.pageRowBorder}`}>
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-orange-500 flex items-center justify-center">
+                        <div className="w-9 h-9 bg-blue-500 flex items-center justify-center">
                             <BookOpen className="h-4.5 w-4.5 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-base font-black uppercase tracking-wider text-zinc-900 dark:text-white">
+                            <h1 className="text-base font-semibold text-zinc-900 dark:text-white">
                                 Transaksi Akun
                             </h1>
-                            <p className="text-zinc-400 text-[11px] font-medium">
+                            <p className="text-zinc-400 text-xs font-medium">
                                 Periode {dateFrom ? fmtDate(dateFrom + "T00:00:00Z") : "\u2014"} s/d{" "}
                                 {dateTo ? fmtDate(dateTo + "T00:00:00Z") : "\u2014"}
                             </p>
@@ -542,7 +542,7 @@ export default function AccountTransactionsPage() {
                                 <span
                                     className={`w-2 h-2 ${
                                         kpi.color === "orange"
-                                            ? "bg-orange-500"
+                                            ? "bg-blue-500"
                                             : kpi.color === "emerald"
                                               ? "bg-emerald-500"
                                               : kpi.color === "red"
@@ -616,7 +616,7 @@ export default function AccountTransactionsPage() {
                                     }`}
                                 />
                                 <input
-                                    className={`border border-r-0 font-medium h-9 w-[280px] text-xs rounded-none pl-9 pr-8 outline-none placeholder:text-zinc-400 transition-all ${
+                                    className={`border border-r-0 font-medium h-9 w-[280px] text-xs rounded-md pl-9 pr-8 outline-none placeholder:text-zinc-400 transition-all ${
                                         searchText ? NB.inputActive : NB.inputEmpty
                                     }`}
                                     placeholder="Cari deskripsi, referensi, akun, nominal..."
@@ -637,7 +637,7 @@ export default function AccountTransactionsPage() {
                                 label="Akun"
                                 hideLabel
                                 triggerClassName={NB.filterDropdown}
-                                triggerActiveClassName="flex items-center gap-2 border border-orange-400 dark:border-orange-500 border-r-0 h-9 px-3 bg-orange-50/50 dark:bg-orange-950/20 text-xs font-medium min-w-[120px] justify-between transition-all rounded-none"
+                                triggerActiveClassName="flex items-center gap-2 border border-blue-400 dark:border-blue-500 border-r-0 h-9 px-3 bg-blue-50/50 dark:bg-blue-950/20 text-xs font-medium min-w-[120px] justify-between transition-all rounded-md"
                                 options={accounts.map((a) => ({
                                     value: a.code,
                                     label: `${a.code} \u2014 ${a.name}`,
@@ -650,7 +650,7 @@ export default function AccountTransactionsPage() {
                                 label="Tipe"
                                 hideLabel
                                 triggerClassName={NB.filterDropdown}
-                                triggerActiveClassName="flex items-center gap-2 border border-orange-400 dark:border-orange-500 border-r-0 h-9 px-3 bg-orange-50/50 dark:bg-orange-950/20 text-xs font-medium min-w-[120px] justify-between transition-all rounded-none"
+                                triggerActiveClassName="flex items-center gap-2 border border-blue-400 dark:border-blue-500 border-r-0 h-9 px-3 bg-blue-50/50 dark:bg-blue-950/20 text-xs font-medium min-w-[120px] justify-between transition-all rounded-md"
                                 options={[
                                     { value: "ASSET", label: "Aset" },
                                     { value: "LIABILITY", label: "Kewajiban" },
@@ -666,7 +666,7 @@ export default function AccountTransactionsPage() {
                                 label="Periode"
                                 hideLabel
                                 triggerClassName={NB.filterDropdown}
-                                triggerActiveClassName="flex items-center gap-2 border border-orange-400 dark:border-orange-500 border-r-0 h-9 px-3 bg-orange-50/50 dark:bg-orange-950/20 text-xs font-medium min-w-[120px] justify-between transition-all rounded-none"
+                                triggerActiveClassName="flex items-center gap-2 border border-blue-400 dark:border-blue-500 border-r-0 h-9 px-3 bg-blue-50/50 dark:bg-blue-950/20 text-xs font-medium min-w-[120px] justify-between transition-all rounded-md"
                                 options={[
                                     { value: "THIS_MONTH", label: "Bulan Ini" },
                                     { value: "LAST_MONTH", label: "Bulan Lalu" },
@@ -689,13 +689,13 @@ export default function AccountTransactionsPage() {
                                 <Button
                                     variant="ghost"
                                     onClick={resetFilters}
-                                    className="text-zinc-400 text-[10px] font-bold uppercase h-9 px-3 rounded-none hover:text-zinc-700 dark:hover:text-zinc-200 ml-1.5"
+                                    className="text-zinc-400 text-xs font-bold h-9 px-3 rounded-md hover:text-zinc-700 dark:hover:text-zinc-200 ml-1.5"
                                 >
                                     <RotateCcw className="h-3 w-3 mr-1" /> Reset
                                 </Button>
                             )}
                         </div>
-                        <span className="hidden md:inline text-[11px] font-medium text-zinc-400">
+                        <span className="hidden md:inline text-xs font-medium text-zinc-400">
                             <span className="font-mono font-bold text-zinc-600 dark:text-zinc-300">
                                 {filtered.length}
                             </span>{" "}
@@ -707,12 +707,12 @@ export default function AccountTransactionsPage() {
                     <div className="flex items-center gap-3 flex-wrap">
                         {/* Custom date inputs */}
                         <div className="flex items-center gap-1.5">
-                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                            <span className="text-xs font-semibold text-zinc-400">
                                 Dari
                             </span>
                             <input
                                 type="date"
-                                className={`border font-mono text-[11px] h-8 px-2 rounded-none outline-none transition-all ${
+                                className={`border font-mono text-xs h-8 px-2 rounded-md outline-none transition-all ${
                                     dateFrom && datePreset === "CUSTOM"
                                         ? NB.inputActive
                                         : NB.inputEmpty
@@ -723,12 +723,12 @@ export default function AccountTransactionsPage() {
                                     setDatePreset("CUSTOM")
                                 }}
                             />
-                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                            <span className="text-xs font-semibold text-zinc-400">
                                 s/d
                             </span>
                             <input
                                 type="date"
-                                className={`border font-mono text-[11px] h-8 px-2 rounded-none outline-none transition-all ${
+                                className={`border font-mono text-xs h-8 px-2 rounded-md outline-none transition-all ${
                                     dateTo && datePreset === "CUSTOM"
                                         ? NB.inputActive
                                         : NB.inputEmpty
@@ -742,12 +742,12 @@ export default function AccountTransactionsPage() {
                         </div>
                         {/* Amount range */}
                         <div className="flex items-center gap-1.5">
-                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                            <span className="text-xs font-semibold text-zinc-400">
                                 Nominal
                             </span>
                             <input
                                 type="number"
-                                className={`border font-mono text-[11px] h-8 w-[100px] px-2 rounded-none outline-none placeholder:text-zinc-300 transition-all ${
+                                className={`border font-mono text-xs h-8 w-[100px] px-2 rounded-md outline-none placeholder:text-zinc-300 transition-all ${
                                     amountMin ? NB.inputActive : NB.inputEmpty
                                 }`}
                                 placeholder="Min..."
@@ -757,7 +757,7 @@ export default function AccountTransactionsPage() {
                             <span className="text-zinc-400 text-xs">\u2014</span>
                             <input
                                 type="number"
-                                className={`border font-mono text-[11px] h-8 w-[100px] px-2 rounded-none outline-none placeholder:text-zinc-300 transition-all ${
+                                className={`border font-mono text-xs h-8 w-[100px] px-2 rounded-md outline-none placeholder:text-zinc-300 transition-all ${
                                     amountMax ? NB.inputActive : NB.inputEmpty
                                 }`}
                                 placeholder="Max..."
@@ -769,8 +769,8 @@ export default function AccountTransactionsPage() {
                         <CheckboxFilter
                             label="Tampilkan"
                             hideLabel
-                            triggerClassName="flex items-center gap-2 border border-zinc-300 dark:border-zinc-700 h-8 px-2.5 bg-white dark:bg-zinc-900 text-[11px] font-medium min-w-[100px] justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors rounded-none"
-                            triggerActiveClassName="flex items-center gap-2 border border-orange-400 dark:border-orange-500 h-8 px-2.5 bg-orange-50/50 dark:bg-orange-950/20 text-[11px] font-medium min-w-[100px] justify-between transition-all rounded-none"
+                            triggerClassName="flex items-center gap-2 border border-zinc-300 dark:border-zinc-700 h-8 px-2.5 bg-white dark:bg-zinc-900 text-xs font-medium min-w-[100px] justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors rounded-md"
+                            triggerActiveClassName="flex items-center gap-2 border border-blue-400 dark:border-blue-500 h-8 px-2.5 bg-blue-50/50 dark:bg-blue-950/20 text-xs font-medium min-w-[100px] justify-between transition-all rounded-md"
                             options={[
                                 { value: "WITH_TRANSACTIONS", label: "Hanya yang ada transaksi" },
                                 { value: "ALL", label: "Semua akun" },
@@ -786,7 +786,7 @@ export default function AccountTransactionsPage() {
             {groupMode === "ACCOUNT" && groupedByAccount ? (
                 /* ─── GROUPED BY ACCOUNT ─── */
                 <div
-                    className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-x-auto"
+                    className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-x-auto"
                 >
                     {groupedByAccount.length === 0 ? (
                         <motion.div
@@ -794,7 +794,7 @@ export default function AccountTransactionsPage() {
                             animate={{ opacity: 1, scale: 1 }}
                             className="flex flex-col items-center justify-center py-20 text-zinc-400"
                         >
-                            <div className="w-16 h-16 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
+                            <div className="w-16 h-16 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
                                 <BookOpen className="h-7 w-7 text-zinc-200 dark:text-zinc-700" />
                             </div>
                             <span className="text-sm font-bold">Tidak ada transaksi ditemukan</span>
@@ -820,22 +820,22 @@ export default function AccountTransactionsPage() {
                                         {/* Account Name Header */}
                                         <button
                                             onClick={() => toggleGroup(group.code)}
-                                            className={`w-full text-left px-4 py-2.5 border-b-2 border-black dark:border-zinc-700 border-l-[5px] ${colors.border} ${colors.bg} dark:bg-zinc-800/50 flex items-center gap-2 hover:brightness-95 dark:hover:brightness-110 transition-all`}
+                                            className={`w-full text-left px-4 py-2.5 border-b border-border dark:border-zinc-700 border-l-[5px] ${colors.border} ${colors.bg} dark:bg-zinc-800/50 flex items-center gap-2 hover:brightness-95 dark:hover:brightness-110 transition-all`}
                                         >
                                             {isCollapsed ? (
                                                 <ChevronRight className="h-3.5 w-3.5 text-zinc-400" />
                                             ) : (
                                                 <ChevronDown className="h-3.5 w-3.5 text-zinc-400" />
                                             )}
-                                            <span className="font-black text-sm text-zinc-900 dark:text-white">
+                                            <span className="font-semibold text-sm text-zinc-900 dark:text-white">
                                                 {group.name}
                                             </span>
                                             <span
-                                                className={`text-[10px] font-black uppercase tracking-wide px-1.5 py-0.5 border ${colors.bg} ${colors.text} dark:bg-transparent`}
+                                                className={`text-xs font-semibold px-1.5 py-0.5 border ${colors.bg} ${colors.text} dark:bg-transparent`}
                                             >
                                                 {group.code}
                                             </span>
-                                            <span className="text-[10px] font-mono text-zinc-400 ml-auto">
+                                            <span className="text-xs font-mono text-zinc-400 ml-auto">
                                                 {group.rows.length} transaksi
                                             </span>
                                         </button>
@@ -849,7 +849,7 @@ export default function AccountTransactionsPage() {
                                                     {headers.map((h) => (
                                                         <span
                                                             key={h}
-                                                            className="text-[9px] font-black uppercase tracking-widest text-zinc-400 px-3 py-1.5 last:text-right"
+                                                            className="text-xs font-semibold text-zinc-400 px-3 py-1.5 last:text-right"
                                                         >
                                                             {h}
                                                         </span>
@@ -862,7 +862,7 @@ export default function AccountTransactionsPage() {
                                                 >
                                                     <span className="px-3 py-1.5" />
                                                     <span
-                                                        className="text-[10px] font-bold text-zinc-500 italic px-3 py-1.5"
+                                                        className="text-xs font-bold text-zinc-500 italic px-3 py-1.5"
                                                         style={{ gridColumn: "2 / 5" }}
                                                     >
                                                         Saldo Awal
@@ -884,23 +884,23 @@ export default function AccountTransactionsPage() {
                                                     return (
                                                         <div
                                                             key={`${row.entryId}-${idx}`}
-                                                            className={`grid ${colTemplate} border-b border-zinc-100 dark:border-zinc-800 items-center hover:bg-orange-50/30 dark:hover:bg-orange-950/10 transition-colors ${
+                                                            className={`grid ${colTemplate} border-b border-zinc-100 dark:border-zinc-800 items-center hover:bg-blue-50/30 dark:hover:bg-blue-950/10 transition-colors ${
                                                                 idx % 2 !== 0
                                                                     ? "bg-zinc-50/30 dark:bg-zinc-800/20"
                                                                     : ""
                                                             }`}
                                                         >
-                                                            <span className="text-[11px] font-mono text-zinc-500 px-3 py-1.5">
+                                                            <span className="text-xs font-mono text-zinc-500 px-3 py-1.5">
                                                                 {fmtDate(row.date)}
                                                             </span>
                                                             <span className="px-3 py-1.5">
                                                                 <span
-                                                                    className={`text-[9px] font-black uppercase px-1.5 py-0.5 border inline-block ${srcColor}`}
+                                                                    className={`text-xs font-semibold px-1.5 py-0.5 border inline-block ${srcColor}`}
                                                                 >
                                                                     {row.source}
                                                                 </span>
                                                             </span>
-                                                            <span className="text-[11px] font-medium text-zinc-700 dark:text-zinc-300 px-3 py-1.5 truncate">
+                                                            <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300 px-3 py-1.5 truncate">
                                                                 {row.description}
                                                             </span>
                                                             <ReferenceLink
@@ -915,7 +915,7 @@ export default function AccountTransactionsPage() {
                                                                 }
                                                                 router={router}
                                                             />
-                                                            <span className="text-[11px] font-mono font-bold text-right px-3 py-1.5">
+                                                            <span className="text-xs font-mono font-bold text-right px-3 py-1.5">
                                                                 {row.debit > 0 ? (
                                                                     <span className="text-zinc-900 dark:text-zinc-100">
                                                                         {formatIDR(row.debit)}
@@ -926,7 +926,7 @@ export default function AccountTransactionsPage() {
                                                                     </span>
                                                                 )}
                                                             </span>
-                                                            <span className="text-[11px] font-mono font-bold text-right px-3 py-1.5">
+                                                            <span className="text-xs font-mono font-bold text-right px-3 py-1.5">
                                                                 {row.credit > 0 ? (
                                                                     <span className="text-zinc-900 dark:text-zinc-100">
                                                                         {formatIDR(row.credit)}
@@ -938,7 +938,7 @@ export default function AccountTransactionsPage() {
                                                                 )}
                                                             </span>
                                                             <span
-                                                                className={`text-[11px] font-mono font-bold text-right px-3 py-1.5 ${
+                                                                className={`text-xs font-mono font-bold text-right px-3 py-1.5 ${
                                                                     row.runningBalance < 0
                                                                         ? "text-amber-600 dark:text-amber-400"
                                                                         : "text-zinc-900 dark:text-zinc-100"
@@ -954,22 +954,22 @@ export default function AccountTransactionsPage() {
 
                                                 {/* Total Row */}
                                                 <div
-                                                    className={`grid ${colTemplate} bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-300 dark:border-zinc-700 font-black`}
+                                                    className={`grid ${colTemplate} bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-300 dark:border-zinc-700 font-semibold`}
                                                 >
                                                     <span
-                                                        className="text-[10px] uppercase tracking-widest text-zinc-500 px-3 py-2 truncate"
+                                                        className="text-xs text-zinc-500 px-3 py-2 truncate"
                                                         style={{ gridColumn: "1 / 5" }}
                                                     >
                                                         Total {group.name}
                                                     </span>
-                                                    <span className="text-[11px] font-mono text-right px-3 py-2 text-zinc-900 dark:text-zinc-100 truncate">
+                                                    <span className="text-xs font-mono text-right px-3 py-2 text-zinc-900 dark:text-zinc-100 truncate">
                                                         {formatIDR(groupDebit)}
                                                     </span>
-                                                    <span className="text-[11px] font-mono text-right px-3 py-2 text-zinc-900 dark:text-zinc-100 truncate">
+                                                    <span className="text-xs font-mono text-right px-3 py-2 text-zinc-900 dark:text-zinc-100 truncate">
                                                         {formatIDR(groupCredit)}
                                                     </span>
                                                     <span
-                                                        className={`text-[11px] font-mono text-right px-3 py-2 truncate ${
+                                                        className={`text-xs font-mono text-right px-3 py-2 truncate ${
                                                             closingBalance < 0
                                                                 ? "text-amber-600 dark:text-amber-400"
                                                                 : "text-zinc-900 dark:text-zinc-100"
@@ -983,22 +983,22 @@ export default function AccountTransactionsPage() {
 
                                                 {/* Closing Balance */}
                                                 <div
-                                                    className={`grid ${colTemplate} bg-zinc-50/70 dark:bg-zinc-800/30 border-b-2 border-zinc-300 dark:border-zinc-700`}
+                                                    className={`grid ${colTemplate} bg-zinc-50/70 dark:bg-zinc-800/30 border-b border-zinc-300 dark:border-zinc-700`}
                                                 >
                                                     <span
-                                                        className="text-[10px] font-bold text-zinc-500 italic px-3 py-1.5"
+                                                        className="text-xs font-bold text-zinc-500 italic px-3 py-1.5"
                                                         style={{ gridColumn: "1 / 5" }}
                                                     >
                                                         Saldo Akhir
                                                     </span>
-                                                    <span className="text-[11px] font-mono text-right px-3 py-1.5">
+                                                    <span className="text-xs font-mono text-right px-3 py-1.5">
                                                         {"\u2014"}
                                                     </span>
-                                                    <span className="text-[11px] font-mono text-right px-3 py-1.5">
+                                                    <span className="text-xs font-mono text-right px-3 py-1.5">
                                                         {"\u2014"}
                                                     </span>
                                                     <span
-                                                        className={`text-[11px] font-mono font-black text-right px-3 py-1.5 ${
+                                                        className={`text-xs font-mono font-semibold text-right px-3 py-1.5 ${
                                                             closingBalance < 0
                                                                 ? "text-amber-600 dark:text-amber-400"
                                                                 : "text-zinc-900 dark:text-zinc-100"
@@ -1018,15 +1018,15 @@ export default function AccountTransactionsPage() {
             ) : (
                 /* ─── FLAT CHRONOLOGICAL VIEW ─── */
                 <div
-                    className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-x-auto"
+                    className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-x-auto"
                 >
                     {/* Black header bar */}
-                    <div className="px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black flex items-center gap-2">
+                    <div className="px-5 py-2.5 bg-slate-900 dark:bg-zinc-950 border-b border-border flex items-center gap-2">
                         <BookOpen className="h-4 w-4 text-zinc-400" />
-                        <h3 className="text-xs font-black uppercase tracking-widest text-zinc-400">
+                        <h3 className="text-xs font-semibold text-zinc-400">
                             Jurnal Transaksi
                         </h3>
-                        <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 min-w-[20px] text-center">
+                        <span className="bg-blue-500 text-white text-xs font-semibold px-2 py-0.5 min-w-[20px] text-center">
                             {filtered.length}
                         </span>
                     </div>
@@ -1037,7 +1037,7 @@ export default function AccountTransactionsPage() {
                             animate={{ opacity: 1, scale: 1 }}
                             className="flex flex-col items-center justify-center py-16 text-zinc-400"
                         >
-                            <div className="w-16 h-16 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
+                            <div className="w-16 h-16 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
                                 <BookOpen className="h-7 w-7 text-zinc-200 dark:text-zinc-700" />
                             </div>
                             <span className="text-sm font-bold">Tidak ada transaksi ditemukan</span>
@@ -1051,7 +1051,7 @@ export default function AccountTransactionsPage() {
                                 {headers.map((h) => (
                                     <span
                                         key={h}
-                                        className="text-[9px] font-black uppercase tracking-widest text-zinc-400 px-3 py-1.5"
+                                        className="text-xs font-semibold text-zinc-400 px-3 py-1.5"
                                     >
                                         {h}
                                     </span>
@@ -1066,23 +1066,23 @@ export default function AccountTransactionsPage() {
                                     return (
                                         <div
                                             key={`${entry.id}-${li}`}
-                                            className={`grid ${colTemplate} border-b border-zinc-100 dark:border-zinc-800 items-center hover:bg-orange-50/30 dark:hover:bg-orange-950/10 transition-colors`}
+                                            className={`grid ${colTemplate} border-b border-zinc-100 dark:border-zinc-800 items-center hover:bg-blue-50/30 dark:hover:bg-blue-950/10 transition-colors`}
                                         >
-                                            <span className="text-[11px] font-mono text-zinc-500 px-3 py-1.5">
+                                            <span className="text-xs font-mono text-zinc-500 px-3 py-1.5">
                                                 {li === 0 ? fmtDate(entry.date) : ""}
                                             </span>
                                             <span className="px-3 py-1.5">
                                                 {li === 0 && (
                                                     <span
-                                                        className={`text-[9px] font-black uppercase px-1.5 py-0.5 border ${srcColor}`}
+                                                        className={`text-xs font-semibold px-1.5 py-0.5 border ${srcColor}`}
                                                     >
                                                         {source}
                                                     </span>
                                                 )}
                                             </span>
-                                            <span className="text-[11px] font-medium text-zinc-700 dark:text-zinc-300 px-3 py-1.5 truncate">
+                                            <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300 px-3 py-1.5 truncate">
                                                 {line.description || entry.description}
-                                                <span className="text-zinc-300 dark:text-zinc-600 ml-1.5 text-[9px]">
+                                                <span className="text-zinc-300 dark:text-zinc-600 ml-1.5 text-xs">
                                                     ({line.accountCode} {line.accountName})
                                                 </span>
                                             </span>
@@ -1102,7 +1102,7 @@ export default function AccountTransactionsPage() {
                                             ) : (
                                                 <span className="px-3 py-1.5" />
                                             )}
-                                            <span className="text-[11px] font-mono font-bold text-right px-3 py-1.5">
+                                            <span className="text-xs font-mono font-bold text-right px-3 py-1.5">
                                                 {line.debit > 0 ? (
                                                     formatIDR(line.debit)
                                                 ) : (
@@ -1111,7 +1111,7 @@ export default function AccountTransactionsPage() {
                                                     </span>
                                                 )}
                                             </span>
-                                            <span className="text-[11px] font-mono font-bold text-right px-3 py-1.5">
+                                            <span className="text-xs font-mono font-bold text-right px-3 py-1.5">
                                                 {line.credit > 0 ? (
                                                     <span className="text-zinc-900 dark:text-zinc-100">
                                                         {formatIDR(line.credit)}
@@ -1122,7 +1122,7 @@ export default function AccountTransactionsPage() {
                                                     </span>
                                                 )}
                                             </span>
-                                            <span className="text-[11px] font-mono text-right px-3 py-1.5 text-zinc-300 dark:text-zinc-600">
+                                            <span className="text-xs font-mono text-right px-3 py-1.5 text-zinc-300 dark:text-zinc-600">
                                                 {"\u2014"}
                                             </span>
                                         </div>

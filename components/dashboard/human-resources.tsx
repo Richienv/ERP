@@ -56,8 +56,8 @@ export function HumanResources() {
                         <h4 className="font-medium text-foreground">Kehadiran Hari Ini</h4>
                         <p className="text-xs text-muted-foreground">142 / 150 Staf Hadir (8 Absen)</p>
                         <div className="flex gap-2 mt-1 flex-wrap">
-                            <Badge variant="secondary" className="text-[10px] h-5 bg-emerald-500/10 text-emerald-600">Tepat Waktu: 135</Badge>
-                            <Badge variant="secondary" className="text-[10px] h-5 bg-orange-500/10 text-orange-600">Terlambat: 7</Badge>
+                            <Badge variant="secondary" className="text-xs h-5 bg-emerald-500/10 text-emerald-600">Tepat Waktu: 135</Badge>
+                            <Badge variant="secondary" className="text-xs h-5 bg-blue-500/10 text-blue-600">Terlambat: 7</Badge>
                         </div>
                     </div>
                 </div>
@@ -72,10 +72,10 @@ export function HumanResources() {
                         <Badge className="bg-indigo-500 text-white hover:bg-indigo-600">Aktif</Badge>
                     </div>
                     <div className="flex -space-x-3 overflow-hidden pl-2">
-                        <Avatar className="h-8 w-8 border-2 border-background"><AvatarFallback className="bg-pink-500 text-white text-[10px]">AD</AvatarFallback></Avatar>
-                        <Avatar className="h-8 w-8 border-2 border-background"><AvatarFallback className="bg-blue-500 text-white text-[10px]">TS</AvatarFallback></Avatar>
-                        <Avatar className="h-8 w-8 border-2 border-background"><AvatarFallback className="bg-emerald-500 text-white text-[10px]">RK</AvatarFallback></Avatar>
-                        <div className="h-8 w-8 rounded-full bg-secondary border-2 border-background flex items-center justify-center text-[10px] font-medium text-muted-foreground">+45</div>
+                        <Avatar className="h-8 w-8 border border-background"><AvatarFallback className="bg-pink-500 text-white text-xs">AD</AvatarFallback></Avatar>
+                        <Avatar className="h-8 w-8 border border-background"><AvatarFallback className="bg-blue-500 text-white text-xs">TS</AvatarFallback></Avatar>
+                        <Avatar className="h-8 w-8 border border-background"><AvatarFallback className="bg-emerald-500 text-white text-xs">RK</AvatarFallback></Avatar>
+                        <div className="h-8 w-8 rounded-full bg-secondary border border-background flex items-center justify-center text-xs font-medium text-muted-foreground">+45</div>
                     </div>
                 </div>
 
@@ -86,7 +86,7 @@ export function HumanResources() {
                             <FileText className="h-4 w-4 text-muted-foreground" />
                             Permintaan Izin / Cuti
                         </h4>
-                        <Badge variant="outline" className="text-[10px]">3 Pending</Badge>
+                        <Badge variant="outline" className="text-xs">3 Pending</Badge>
                     </div>
 
                     <ScrollArea className="flex-1 pr-3 -mr-3">
@@ -98,14 +98,14 @@ export function HumanResources() {
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="flex items-start gap-3">
                                                     <Avatar className="h-9 w-9 border border-border">
-                                                        <AvatarFallback className={`text-[10px] text-white ${req.color}`}>{req.avatar}</AvatarFallback>
+                                                        <AvatarFallback className={`text-xs text-white ${req.color}`}>{req.avatar}</AvatarFallback>
                                                     </Avatar>
                                                     <div>
                                                         <p className="text-sm font-medium text-foreground group-hover/item:text-indigo-500 transition-colors">{req.name}</p>
-                                                        <p className="text-[10px] text-muted-foreground">{req.role}</p>
+                                                        <p className="text-xs text-muted-foreground">{req.role}</p>
                                                         <div className="flex items-center gap-2 mt-1">
-                                                            <Badge variant="outline" className="text-[10px] h-5 bg-background">{req.type}</Badge>
-                                                            <span className="text-[10px] font-medium text-muted-foreground">{req.date}</span>
+                                                            <Badge variant="outline" className="text-xs h-5 bg-background">{req.type}</Badge>
+                                                            <span className="text-xs font-medium text-muted-foreground">{req.date}</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -165,10 +165,10 @@ export function HumanResources() {
                 {/* Training Summary Footer */}
                 <div className="pt-4 border-t border-border/50 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <Award className="h-4 w-4 text-orange-500" />
+                        <Award className="h-4 w-4 text-blue-500" />
                         <span className="text-xs text-muted-foreground">Pelatihan: <span className="font-medium text-foreground">5 Jatuh Tempo</span></span>
                     </div>
-                    <Badge variant="secondary" className="text-[10px] hover:bg-secondary cursor-pointer">Lihat Semua</Badge>
+                    <Badge variant="secondary" className="text-xs hover:bg-secondary cursor-pointer">Lihat Semua</Badge>
                 </div>
 
             </div>

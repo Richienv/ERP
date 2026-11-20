@@ -15,7 +15,7 @@ export function ProcurementPipeline() {
 
     const poSteps = [
         { label: "Draft PO", count: 1, color: "bg-zinc-200" },
-        { label: "Approval", count: 2, color: "bg-orange-200" },
+        { label: "Approval", count: 2, color: "bg-blue-200" },
         { label: "Terkonfirmasi", count: 8, color: "bg-blue-200" },
         { label: "Pengiriman", count: 4, color: "bg-purple-200" },
         { label: "Diterima", count: 12, color: "bg-green-200" }
@@ -23,7 +23,7 @@ export function ProcurementPipeline() {
 
     return (
         <div className="relative">
-            <Badge className="absolute -top-2 -right-2 z-10 bg-amber-100 text-amber-800 border border-amber-300 text-[8px] font-black uppercase tracking-widest rounded-none px-1.5 py-0.5">
+            <Badge className="absolute -top-2 -right-2 z-10 bg-amber-100 text-amber-800 border border-amber-300 text-xs font-semibold rounded-md px-1.5 py-0.5">
                 Data Demo
             </Badge>
         <Card className="col-span-1 md:col-span-3 lg:col-span-3 h-full">
@@ -70,12 +70,12 @@ export function ProcurementPipeline() {
                         {poSteps.map((step, index) => (
                             <div key={step.label} className="flex flex-col items-center gap-2 z-10 relative group">
                                 <div className={`
-                                h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all
+                                h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold border transition-all
                                 ${index < 3 ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-muted-foreground text-muted-foreground'}
                             `}>
                                     {step.count}
                                 </div>
-                                <span className="text-[10px] font-medium text-center max-w-[60px] leading-tight">{step.label}</span>
+                                <span className="text-xs font-medium text-center max-w-[60px] leading-tight">{step.label}</span>
                             </div>
                         ))}
                         {/* Connector Line */}

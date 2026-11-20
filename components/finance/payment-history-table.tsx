@@ -53,26 +53,26 @@ export function PaymentHistoryTable({
     const total = rows.reduce((sum, r) => sum + (r.amount ?? 0), 0)
 
     return (
-        <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+        <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
             {/* Header bar */}
             <div className="px-4 py-2 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700">
                 <div className="flex items-center gap-2">
                     <Clock className="h-3.5 w-3.5 text-zinc-400" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">{title}</span>
+                    <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">{title}</span>
                 </div>
-                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-0.5">
+                <span className="text-xs font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-0.5">
                     {rows.length}
                 </span>
             </div>
 
             {/* Table header */}
             <div className="hidden md:grid grid-cols-12 gap-2 px-4 py-1.5 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50/60 dark:bg-zinc-800/30">
-                <div className="col-span-2 text-[9px] font-black uppercase tracking-widest text-zinc-400">{documentLabel}</div>
-                <div className="col-span-3 text-[9px] font-black uppercase tracking-widest text-zinc-400">{counterpartyLabel}</div>
-                <div className="col-span-1 text-[9px] font-black uppercase tracking-widest text-zinc-400 text-center">Metode</div>
-                <div className="col-span-2 text-[9px] font-black uppercase tracking-widest text-zinc-400">Referensi</div>
-                <div className="col-span-2 text-[9px] font-black uppercase tracking-widest text-zinc-400 text-right">Jumlah</div>
-                <div className="col-span-2 text-[9px] font-black uppercase tracking-widest text-zinc-400 text-right">Tanggal</div>
+                <div className="col-span-2 text-xs font-semibold text-zinc-400">{documentLabel}</div>
+                <div className="col-span-3 text-xs font-semibold text-zinc-400">{counterpartyLabel}</div>
+                <div className="col-span-1 text-xs font-semibold text-zinc-400 text-center">Metode</div>
+                <div className="col-span-2 text-xs font-semibold text-zinc-400">Referensi</div>
+                <div className="col-span-2 text-xs font-semibold text-zinc-400 text-right">Jumlah</div>
+                <div className="col-span-2 text-xs font-semibold text-zinc-400 text-right">Tanggal</div>
             </div>
 
             {/* Table rows */}
@@ -86,7 +86,7 @@ export function PaymentHistoryTable({
                             onClick={() => onRowClick?.(row)}
                             className={`group w-full grid grid-cols-12 gap-2 px-4 py-2.5 border-b border-zinc-100 dark:border-zinc-800 items-center text-left transition-all duration-150 ${
                                 idx % 2 === 1 ? "bg-zinc-50/40 dark:bg-zinc-800/20" : ""
-                            } hover:bg-orange-50/40 dark:hover:bg-orange-950/15 hover:border-l-4 hover:border-l-orange-400 hover:pl-3 ${
+                            } hover:bg-blue-50/40 dark:hover:bg-blue-950/15 hover:border-l hover:border-l-orange-400 hover:pl-3 ${
                                 onRowClick ? "cursor-pointer" : "cursor-default"
                             }`}
                         >
@@ -106,7 +106,7 @@ export function PaymentHistoryTable({
 
                             {/* Method badge */}
                             <div className="col-span-1 flex justify-center">
-                                <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 border text-center whitespace-nowrap ${
+                                <span className={`text-xs font-bold   px-2 py-0.5 border text-center whitespace-nowrap ${
                                     METHOD_BADGE_STYLE[row.method] ?? METHOD_BADGE_DEFAULT
                                 }`}>
                                     {row.methodLabel ?? row.method}
@@ -115,7 +115,7 @@ export function PaymentHistoryTable({
 
                             {/* Reference */}
                             <div className="col-span-2 min-w-0">
-                                <span className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500 truncate block">
+                                <span className="font-mono text-xs text-zinc-400 dark:text-zinc-500 truncate block">
                                     {row.reference || "—"}
                                 </span>
                             </div>
@@ -129,11 +129,11 @@ export function PaymentHistoryTable({
 
                             {/* Date + Status */}
                             <div className="col-span-2 flex items-center justify-end gap-2">
-                                <span className="text-[10px] font-bold text-zinc-400 whitespace-nowrap">
+                                <span className="text-xs font-bold text-zinc-400 whitespace-nowrap">
                                     {new Date(row.date).toLocaleDateString("id-ID")}
                                 </span>
                                 {badge && (
-                                    <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 ${badge.cls}`}>
+                                    <span className={`text-xs font-semibold px-1.5 py-0.5 ${badge.cls}`}>
                                         {badge.label}
                                     </span>
                                 )}
@@ -145,11 +145,11 @@ export function PaymentHistoryTable({
 
             {/* Summary footer */}
             <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-zinc-50 dark:bg-zinc-800/50 border-t border-zinc-200 dark:border-zinc-700">
-                <div className="col-span-8 text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center">
+                <div className="col-span-8 text-xs font-semibold text-zinc-400 flex items-center">
                     Total {rows.length} pembayaran
                 </div>
                 <div className="col-span-2 text-right">
-                    <span className="font-mono font-black text-xs text-zinc-800 dark:text-zinc-100">
+                    <span className="font-mono font-semibold text-xs text-zinc-800 dark:text-zinc-100">
                         {formatIDR(total)}
                     </span>
                 </div>

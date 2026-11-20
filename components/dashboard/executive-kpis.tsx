@@ -102,9 +102,9 @@ export function ExecutiveKPIs({ procurement, inventory, hr, sales }: ExecutiveKP
                     recentPRs={procurement.recentPRs || []}
                 />
             ) : (
-                <Card className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] bg-white h-full">
-                    <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
-                        <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
+                <Card className="border border-border shadow-sm bg-white h-full">
+                    <CardHeader className="pb-2 border-b border-dashed border-zinc-200">
+                        <CardTitle className="text-xs font-semibold text-zinc-500 flex items-center justify-between">
                             <span className="flex items-center gap-2"><Truck className="h-4 w-4 text-blue-600" /> Pengadaan</span>
                             <Skeleton className="h-5 w-16" />
                         </CardTitle>
@@ -120,23 +120,23 @@ export function ExecutiveKPIs({ procurement, inventory, hr, sales }: ExecutiveKP
 
             {/* 2. GUDANG (Inventory) */}
             <Link href="/inventory">
-                <Card className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all bg-white cursor-pointer h-full">
-                    <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
-                        <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
+                <Card className="border border-border shadow-sm hover:shadow-sm transition-all bg-white cursor-pointer h-full">
+                    <CardHeader className="pb-2 border-b border-dashed border-zinc-200">
+                        <CardTitle className="text-xs font-semibold text-zinc-500 flex items-center justify-between">
                             <span className="flex items-center gap-2"><Package className="h-4 w-4 text-emerald-600" /> Gudang</span>
                             {!inventory ? <Skeleton className="h-5 w-16" /> : inventory.auditDate ? (
-                                <span className="text-[10px] bg-amber-100 text-amber-900 px-1 py-0.5 rounded font-black">AUDIT REQ</span>
+                                <span className="text-xs bg-amber-100 text-amber-900 px-1 py-0.5 rounded font-semibold">AUDIT REQ</span>
                             ) : null}
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="pt-4">
-                        <div className="text-3xl font-black tracking-tight">
+                        <div className="text-3xl font-semibold tracking-tight">
                             {inventory ? `Rp ${formatCompactNumber(inventory.deadStockValue || 0)}` : <Skeleton className="h-9 w-24" />}
                         </div>
                         <p className="text-xs font-bold text-zinc-400 mt-1 mb-4">Dead Stock Value (&gt;6 Mo)</p>
 
                         <div className="mb-4">
-                            <p className="text-[10px] font-bold text-zinc-400 mb-1 uppercase tracking-wider">Next Audit</p>
+                            <p className="text-xs font-bold text-zinc-400 mb-1  ">Next Audit</p>
                             {inventory ? (
                                 inventory.auditDate ? (
                                     <div className="text-xs font-bold">
@@ -149,7 +149,7 @@ export function ExecutiveKPIs({ procurement, inventory, hr, sales }: ExecutiveKP
                             ) : <Skeleton className="h-8 w-full" />}
                         </div>
 
-                        <Button size="sm" variant="outline" className="w-full text-xs font-black uppercase tracking-wider h-8 border-2 border-black hover:bg-zinc-50">
+                        <Button size="sm" variant="outline" className="w-full text-xs font-semibold h-8 border border-border hover:bg-zinc-50">
                             View Inventory
                         </Button>
                     </CardContent>
@@ -158,17 +158,17 @@ export function ExecutiveKPIs({ procurement, inventory, hr, sales }: ExecutiveKP
 
             {/* 3. PENJUALAN (Sales) */}
             <Link href="/sales/orders">
-                <Card className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all bg-white cursor-pointer h-full">
-                    <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
-                        <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
+                <Card className="border border-border shadow-sm hover:shadow-sm transition-all bg-white cursor-pointer h-full">
+                    <CardHeader className="pb-2 border-b border-dashed border-zinc-200">
+                        <CardTitle className="text-xs font-semibold text-zinc-500 flex items-center justify-between">
                             <span className="flex items-center gap-2"><ShoppingCart className="h-4 w-4 text-blue-600" /> Penjualan</span>
                             {sales ? (
-                                <span className="text-[10px] bg-blue-100 text-blue-900 px-1 py-0.5 rounded font-black">ACTIVE</span>
+                                <span className="text-xs bg-blue-100 text-blue-900 px-1 py-0.5 rounded font-semibold">ACTIVE</span>
                             ) : <Skeleton className="h-5 w-16" />}
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="pt-4">
-                        <div className="text-3xl font-black tracking-tight">{sales ? `Rp ${formatCompactNumber(sales.totalRevenue)}` : <Skeleton className="h-9 w-24" />}</div>
+                        <div className="text-3xl font-semibold tracking-tight">{sales ? `Rp ${formatCompactNumber(sales.totalRevenue)}` : <Skeleton className="h-9 w-24" />}</div>
                         <p className="text-xs font-bold text-zinc-400 mt-1 mb-4">Revenue (MTD)</p>
 
                         <div className="space-y-1 mb-4">
@@ -184,7 +184,7 @@ export function ExecutiveKPIs({ procurement, inventory, hr, sales }: ExecutiveKP
                             )}
                         </div>
 
-                        <Button size="sm" variant="outline" className="w-full text-xs font-black uppercase tracking-wider h-8 border-2 border-black hover:bg-zinc-50">
+                        <Button size="sm" variant="outline" className="w-full text-xs font-semibold h-8 border border-border hover:bg-zinc-50">
                             View Orders
                         </Button>
                     </CardContent>
@@ -193,24 +193,24 @@ export function ExecutiveKPIs({ procurement, inventory, hr, sales }: ExecutiveKP
 
             {/* 4. KARYAWAN (HR) */}
             <Link href="/hcm">
-                <Card className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all bg-white cursor-pointer h-full">
-                    <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
-                        <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
+                <Card className="border border-border shadow-sm hover:shadow-sm transition-all bg-white cursor-pointer h-full">
+                    <CardHeader className="pb-2 border-b border-dashed border-zinc-200">
+                        <CardTitle className="text-xs font-semibold text-zinc-500 flex items-center justify-between">
                             <span className="flex items-center gap-2"><Users className="h-4 w-4 text-purple-600" /> Karyawan</span>
                             {!hr ? <Skeleton className="h-5 w-16" /> : null}
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="pt-4">
-                        <div className="text-3xl font-black tracking-tight">{hr ? formatCompactNumber(hr.totalSalary) : <Skeleton className="h-9 w-24" />}</div>
+                        <div className="text-3xl font-semibold tracking-tight">{hr ? formatCompactNumber(hr.totalSalary) : <Skeleton className="h-9 w-24" />}</div>
                         <p className="text-xs font-bold text-zinc-400 mt-1 mb-4">Est. Gaji Bulan Ini</p>
 
                         <div className="grid grid-cols-2 gap-3 mb-4">
                             <div className="bg-blue-50 p-2 rounded border border-blue-100">
-                                <p className="text-[10px] font-black uppercase text-blue-700 mb-1">Cuti Pending</p>
-                                <div className="text-xl font-black text-blue-800">{hr ? hr.pendingLeaves : <Skeleton className="h-6 w-8" />}</div>
+                                <p className="text-xs font-semibold text-blue-700 mb-1">Cuti Pending</p>
+                                <div className="text-xl font-semibold text-blue-800">{hr ? hr.pendingLeaves : <Skeleton className="h-6 w-8" />}</div>
                             </div>
                             <div className="bg-red-50 p-2 rounded border border-red-100">
-                                <p className="text-[10px] font-black uppercase text-red-700 mb-1">Terlambat</p>
+                                <p className="text-xs font-semibold text-red-700 mb-1">Terlambat</p>
                                 {hr ? (
                                     hr.lateEmployees?.length ? (
                                         <ul className="text-xs font-bold text-red-800 space-y-0.5">
@@ -220,13 +220,13 @@ export function ExecutiveKPIs({ procurement, inventory, hr, sales }: ExecutiveKP
                                             {hr.lateEmployees.length > 2 && <li>+ {hr.lateEmployees.length - 2} more</li>}
                                         </ul>
                                     ) : (
-                                        <span className="text-[10px] text-zinc-500">None today</span>
+                                        <span className="text-xs text-zinc-500">None today</span>
                                     )
                                 ) : <Skeleton className="h-8 w-full" />}
                             </div>
                         </div>
 
-                        <Button size="sm" variant="outline" className="w-full text-xs font-black uppercase tracking-wider h-8 border-2 border-black hover:bg-purple-50">
+                        <Button size="sm" variant="outline" className="w-full text-xs font-semibold h-8 border border-border hover:bg-purple-50">
                             View HR
                         </Button>
                     </CardContent>

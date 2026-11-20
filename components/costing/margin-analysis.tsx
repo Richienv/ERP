@@ -31,10 +31,10 @@ export function MarginAnalysis({
     const costVariance = hasActuals ? calculateVariance(totalCost, actualTotal) : null
 
     return (
-        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <div className="px-4 py-2.5 border-b-2 border-black bg-zinc-50 flex items-center gap-2">
+        <div className="bg-white border border-border shadow-sm">
+            <div className="px-4 py-2.5 border-b border-border bg-zinc-50 flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-zinc-500" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                <span className="text-xs font-semibold text-zinc-500">
                     Analisis Margin
                 </span>
             </div>
@@ -42,24 +42,24 @@ export function MarginAnalysis({
             <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-4">
                 {/* Total Cost */}
                 <div>
-                    <div className="text-[9px] font-bold text-zinc-400 uppercase">Total Biaya</div>
-                    <div className="text-lg font-black font-mono">
+                    <div className="text-xs font-bold text-zinc-400 ">Total Biaya</div>
+                    <div className="text-lg font-semibold font-mono">
                         {totalCost.toLocaleString('id-ID')}
                     </div>
                 </div>
 
                 {/* Target Price */}
                 <div>
-                    <div className="text-[9px] font-bold text-zinc-400 uppercase">Target Harga</div>
-                    <div className="text-lg font-black font-mono">
+                    <div className="text-xs font-bold text-zinc-400 ">Target Harga</div>
+                    <div className="text-lg font-semibold font-mono">
                         {targetPrice ? targetPrice.toLocaleString('id-ID') : '—'}
                     </div>
                 </div>
 
                 {/* Current Margin */}
                 <div>
-                    <div className="text-[9px] font-bold text-zinc-400 uppercase">Margin Saat Ini</div>
-                    <div className={`text-lg font-black ${
+                    <div className="text-xs font-bold text-zinc-400 ">Margin Saat Ini</div>
+                    <div className={`text-lg font-semibold ${
                         currentMargin !== null
                             ? currentMargin >= (targetMargin ?? 0)
                                 ? 'text-emerald-600'
@@ -69,7 +69,7 @@ export function MarginAnalysis({
                         {currentMargin !== null ? `${currentMargin}%` : '—'}
                     </div>
                     {targetMargin !== null && (
-                        <div className="text-[9px] font-bold text-zinc-400">
+                        <div className="text-xs font-bold text-zinc-400">
                             Target: {targetMargin}%
                         </div>
                     )}
@@ -77,12 +77,12 @@ export function MarginAnalysis({
 
                 {/* Suggested Price */}
                 <div>
-                    <div className="text-[9px] font-bold text-zinc-400 uppercase">Harga Saran</div>
-                    <div className="text-lg font-black font-mono">
+                    <div className="text-xs font-bold text-zinc-400 ">Harga Saran</div>
+                    <div className="text-lg font-semibold font-mono">
                         {suggestedPrice ? suggestedPrice.toLocaleString('id-ID') : '—'}
                     </div>
                     {targetMargin !== null && (
-                        <div className="text-[9px] font-bold text-zinc-400">
+                        <div className="text-xs font-bold text-zinc-400">
                             Untuk margin {targetMargin}%
                         </div>
                     )}
@@ -93,10 +93,10 @@ export function MarginAnalysis({
             {costVariance && (
                 <div className="px-4 py-3 border-t border-zinc-200">
                     <div className="flex items-center gap-3">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                        <span className="text-xs font-semibold text-zinc-400">
                             Varians Biaya:
                         </span>
-                        <div className={`flex items-center gap-1 text-xs font-black ${
+                        <div className={`flex items-center gap-1 text-xs font-semibold ${
                             costVariance.direction === 'OVER'
                                 ? 'text-red-600'
                                 : costVariance.direction === 'UNDER'
@@ -111,7 +111,7 @@ export function MarginAnalysis({
                             </span>
                             <span>({costVariance.percentage}%)</span>
                         </div>
-                        <span className="text-[9px] font-bold text-zinc-400">
+                        <span className="text-xs font-bold text-zinc-400">
                             Aktual: {actualTotal.toLocaleString('id-ID')}
                         </span>
                     </div>

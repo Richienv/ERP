@@ -47,7 +47,7 @@ export default function PermissionsPage() {
 
     const handleSave = () => {
         toast.error("Matriks izin belum dapat disimpan. Fitur ini segera hadir.", {
-            className: "font-bold border-2 border-black",
+            className: "font-bold border border-border",
         })
     }
 
@@ -59,7 +59,7 @@ export default function PermissionsPage() {
             <div className="flex items-center justify-center h-96">
                 <div className="text-center space-y-2">
                     <Shield className="h-8 w-8 animate-pulse mx-auto" />
-                    <p className="text-sm font-bold text-zinc-500 uppercase tracking-wider">Memuat Izin...</p>
+                    <p className="text-sm font-bold text-zinc-500  ">Memuat Izin...</p>
                 </div>
             </div>
         )
@@ -72,7 +72,7 @@ export default function PermissionsPage() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-black uppercase tracking-tight flex items-center gap-2">
+                    <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
                         <Shield className="h-6 w-6" /> Matriks Izin
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">
@@ -81,7 +81,7 @@ export default function PermissionsPage() {
                 </div>
                 <Button
                     className={cn(
-                        "border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] font-black uppercase text-xs tracking-wider",
+                        "border border-border shadow-sm font-semibold text-xs",
                         "bg-zinc-200 text-zinc-500 cursor-not-allowed"
                     )}
                     onClick={handleSave}
@@ -92,25 +92,25 @@ export default function PermissionsPage() {
                 </Button>
             </div>
             {dirty && (
-                <p className="text-xs font-bold uppercase tracking-wider text-amber-600">
+                <p className="text-xs font-bold text-amber-600">
                     Perubahan di layar ini tidak tersimpan — penyimpanan segera hadir.
                 </p>
             )}
 
             {/* Permission Matrix Table */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white">
+            <div className="border border-border shadow-sm overflow-hidden bg-white">
                 <ScrollArea className="max-h-[70vh]">
                     <table className="w-full text-sm">
                         <thead className="sticky top-0 z-10">
-                            <tr className="bg-black text-white">
-                                <th className="text-left px-4 py-3 font-black uppercase tracking-wider text-xs border-r border-zinc-700 min-w-[200px]">
+                            <tr className="bg-slate-900 text-white">
+                                <th className="text-left px-4 py-3 font-semibold text-xs border-r border-zinc-700 min-w-[200px]">
                                     Modul
                                 </th>
                                 {roles.map(role => (
-                                    <th key={role.roleCode} className="px-3 py-3 text-center font-black uppercase tracking-wider text-[10px] border-r border-zinc-700 min-w-[100px]">
+                                    <th key={role.roleCode} className="px-3 py-3 text-center font-semibold text-xs border-r border-zinc-700 min-w-[100px]">
                                         <div>{role.roleName}</div>
                                         {role.isSystem && (
-                                            <Badge variant="outline" className="mt-1 text-[8px] border-zinc-600 text-zinc-400">
+                                            <Badge variant="outline" className="mt-1 text-xs border-zinc-600 text-zinc-400">
                                                 <Lock className="h-2 w-2 mr-0.5" /> Sistem
                                             </Badge>
                                         )}
@@ -121,10 +121,10 @@ export default function PermissionsPage() {
                         <tbody>
                             {groups.map(group => (
                                 <>
-                                    <tr key={`group-${group}`} className="bg-zinc-100 border-t-2 border-black">
+                                    <tr key={`group-${group}`} className="bg-zinc-100 border-t border-border">
                                         <td
                                             colSpan={roles.length + 1}
-                                            className="px-4 py-2 font-black uppercase tracking-widest text-[10px] text-zinc-500"
+                                            className="px-4 py-2 font-semibold text-xs text-zinc-500"
                                         >
                                             {group}
                                         </td>
@@ -145,7 +145,7 @@ export default function PermissionsPage() {
                                                             className={cn(
                                                                 "h-8 w-8 mx-auto flex items-center justify-center rounded transition-all",
                                                                 hasPermission
-                                                                    ? "bg-green-500 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]"
+                                                                    ? "bg-green-500 text-white shadow-sm"
                                                                     : "bg-zinc-200 text-zinc-400 hover:bg-zinc-300",
                                                                 isAdmin && "cursor-not-allowed opacity-80"
                                                             )}
@@ -165,7 +165,7 @@ export default function PermissionsPage() {
             </div>
 
             {/* Legend */}
-            <div className="flex items-center gap-6 text-xs text-zinc-500 font-bold uppercase tracking-wider">
+            <div className="flex items-center gap-6 text-xs text-zinc-500 font-bold  ">
                 <div className="flex items-center gap-2">
                     <div className="h-5 w-5 bg-green-500 rounded flex items-center justify-center"><Check className="h-3 w-3 text-white" /></div>
                     Diizinkan

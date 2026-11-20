@@ -41,7 +41,7 @@ export const FINANCE_POSTING_ROLES: readonly string[] = [
     "ROLE_ACCOUNTANT",
 ]
 
-/** Strip ROLE_ prefix and uppercase for comparison */
+/** Strip ROLE_ prefix and  for comparison */
 function normalizeRole(role: string): string {
     return (role || "").toUpperCase().replace(/^ROLE_/, '')
 }

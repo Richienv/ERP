@@ -71,17 +71,17 @@ export function StockTransferList({ transfers, warehouses, products }: StockTran
         <div className="space-y-4">
             {/* Summary */}
             <div className="grid grid-cols-4 gap-4">
-                <div className="border-2 border-black p-3 bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 block">Total Transfer</span>
-                    <span className="text-2xl font-black">{transfers.length}</span>
+                <div className="border border-border p-3 bg-white shadow-sm">
+                    <span className="text-xs font-semibold text-zinc-400 block">Total Transfer</span>
+                    <span className="text-2xl font-semibold">{transfers.length}</span>
                 </div>
-                <div className="border-2 border-black p-3 bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-amber-500 block">Menunggu Approval</span>
-                    <span className="text-2xl font-black text-amber-600">{pending}</span>
+                <div className="border border-border p-3 bg-white shadow-sm">
+                    <span className="text-xs font-semibold text-amber-500 block">Menunggu Approval</span>
+                    <span className="text-2xl font-semibold text-amber-600">{pending}</span>
                 </div>
-                <div className="border-2 border-black p-3 bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-violet-500 block">Dalam Perjalanan</span>
-                    <span className="text-2xl font-black text-violet-600">{inTransit}</span>
+                <div className="border border-border p-3 bg-white shadow-sm">
+                    <span className="text-xs font-semibold text-violet-500 block">Dalam Perjalanan</span>
+                    <span className="text-2xl font-semibold text-violet-600">{inTransit}</span>
                 </div>
                 <div className="flex items-center justify-center">
                     <CreateTransferDialog warehouses={warehouses} products={products} />
@@ -95,8 +95,8 @@ export function StockTransferList({ transfers, warehouses, products }: StockTran
                         key={f.value}
                         variant="outline"
                         size="sm"
-                        className={`h-8 text-[10px] font-black uppercase tracking-wider border-2 border-black rounded-none ${
-                            statusFilter === f.value ? 'bg-black text-white' : 'bg-white hover:bg-zinc-100'
+                        className={`h-8 text-xs font-semibold   border border-border rounded-md ${
+                            statusFilter === f.value ? 'bg-slate-900 text-white' : 'bg-white hover:bg-zinc-100'
                         }`}
                         onClick={() => setStatusFilter(f.value)}
                     >
@@ -107,24 +107,24 @@ export function StockTransferList({ transfers, warehouses, products }: StockTran
 
             {/* Transfer List */}
             {filtered.length === 0 ? (
-                <div className="border-2 border-dashed border-zinc-300 p-12 text-center">
+                <div className="border border-dashed border-zinc-300 p-12 text-center">
                     <ArrowRightLeft className="h-10 w-10 mx-auto text-zinc-300 mb-3" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">
+                    <span className="text-xs font-semibold text-zinc-400 block">
                         Belum ada transfer
                     </span>
                 </div>
             ) : (
-                <div className="border-2 border-black overflow-hidden">
+                <div className="border border-border overflow-hidden">
                     <table className="w-full">
-                        <thead className="bg-zinc-100 border-b-2 border-black">
+                        <thead className="bg-zinc-100 border-b border-border">
                             <tr>
-                                <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">No.</th>
-                                <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">Produk</th>
-                                <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-center">Dari → Ke</th>
-                                <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-center">Qty</th>
-                                <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-center">Status</th>
-                                <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">Peminta</th>
-                                <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-center">Aksi</th>
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">No.</th>
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">Produk</th>
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-center">Dari → Ke</th>
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-center">Qty</th>
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-center">Status</th>
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">Peminta</th>
+                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -135,10 +135,10 @@ export function StockTransferList({ transfers, warehouses, products }: StockTran
 
                                 return (
                                     <tr key={t.id} className="border-b border-zinc-100 last:border-b-0 hover:bg-zinc-50">
-                                        <td className="px-3 py-2 font-mono font-black text-xs">{t.number}</td>
+                                        <td className="px-3 py-2 font-mono font-semibold text-xs">{t.number}</td>
                                         <td className="px-3 py-2">
                                             <div className="text-xs font-bold">{t.productName}</div>
-                                            <div className="text-[10px] text-zinc-400 font-mono">{t.productCode}</div>
+                                            <div className="text-xs text-zinc-400 font-mono">{t.productCode}</div>
                                         </td>
                                         <td className="px-3 py-2 text-center">
                                             <div className="flex items-center justify-center gap-1 text-xs">
@@ -149,7 +149,7 @@ export function StockTransferList({ transfers, warehouses, products }: StockTran
                                         </td>
                                         <td className="px-3 py-2 text-center font-mono font-bold text-xs">{t.quantity}</td>
                                         <td className="px-3 py-2 text-center">
-                                            <span className={`text-[9px] font-black px-1.5 py-0.5 border ${colors.bg} ${colors.text}`}>
+                                            <span className={`text-xs font-semibold px-1.5 py-0.5 border ${colors.bg} ${colors.text}`}>
                                                 {TRANSFER_STATUS_LABELS[t.status]}
                                             </span>
                                         </td>
@@ -162,7 +162,7 @@ export function StockTransferList({ transfers, warehouses, products }: StockTran
                                                             key={nextStatus}
                                                             variant="outline"
                                                             size="sm"
-                                                            className="h-6 px-2 text-[9px] font-black uppercase border border-black rounded-none"
+                                                            className="h-6 px-2 text-xs font-semibold border border-border rounded-md"
                                                             disabled={transitioning === t.id}
                                                             onClick={() => handleTransition(t.id, nextStatus)}
                                                         >
@@ -175,7 +175,7 @@ export function StockTransferList({ transfers, warehouses, products }: StockTran
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
-                                                        className="h-6 px-2 text-[9px] font-black uppercase border border-red-300 text-red-600 rounded-none hover:bg-red-50"
+                                                        className="h-6 px-2 text-xs font-semibold border border-red-300 text-red-600 rounded-md hover:bg-red-50"
                                                         disabled={transitioning === t.id}
                                                         onClick={() => handleTransition(t.id, 'CANCELLED')}
                                                     >

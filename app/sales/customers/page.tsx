@@ -61,12 +61,12 @@ export default function CustomersPage() {
     <div className="mf-page min-h-screen">
 
       {/* COMMAND HEADER */}
-      <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900 rounded-none">
+      <div className="border border-border shadow-sm overflow-hidden bg-white dark:bg-zinc-900 rounded-md">
         <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-rose-500">
           <div className="flex items-center gap-3">
             <Users className="h-6 w-6 text-rose-500" />
             <div>
-              <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
+              <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-white">
                 Manajemen Pelanggan
               </h1>
               <p className="text-zinc-600 text-xs font-bold mt-0.5">
@@ -79,12 +79,12 @@ export default function CustomersPage() {
               variant="outline"
               onClick={() => refetch()}
               disabled={isFetching}
-              className="h-9 border-2 border-black font-bold uppercase text-[10px] tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all rounded-none bg-white"
+              className="h-9 border border-border font-bold text-xs shadow-sm hover:shadow-none transition-all rounded-md bg-white"
             >
               <RefreshCcw className={`mr-2 h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
               Refresh
             </Button>
-            <Button asChild className="h-9 bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] uppercase font-black text-[10px] tracking-wider hover:translate-y-[1px] hover:shadow-none transition-all rounded-none px-4">
+            <Button asChild className="h-9 bg-slate-900 text-white hover:bg-zinc-800 border border-border shadow-sm font-semibold text-xs hover:shadow-none transition-all rounded-md px-4">
               <Link href="/sales/customers/new">
                 <Plus className="mr-2 h-3.5 w-3.5" />
                 Pelanggan Baru
@@ -95,49 +95,49 @@ export default function CustomersPage() {
       </div>
 
       {/* KPI PULSE STRIP */}
-      <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden rounded-none">
+      <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden rounded-md">
         <div className="grid grid-cols-2 md:grid-cols-4">
-          <div className="relative p-4 md:p-5 md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800">
+          <div className="relative p-4 md:p-5 md:border-r border-b md:border-b-0 border-zinc-100 dark:border-zinc-800">
             <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-800" />
             <div className="flex items-center gap-2 mb-2">
               <Building2 className="h-4 w-4 text-zinc-400" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Pelanggan</span>
+              <span className="text-xs font-semibold text-zinc-500">Total Pelanggan</span>
             </div>
-            <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900">
+            <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-zinc-900">
               {filteredSummary.totalCustomers}
             </div>
             <div className="flex items-center gap-1.5 mt-1.5">
               <span className="bg-emerald-500 w-2 h-2 rounded-full inline-block animate-pulse" />
-              <span className="text-[10px] font-bold text-emerald-600 uppercase">{filteredSummary.activeCustomers} Aktif</span>
+              <span className="text-xs font-bold text-emerald-600 ">{filteredSummary.activeCustomers} Aktif</span>
             </div>
           </div>
 
-          <div className="relative p-4 md:p-5 md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800">
+          <div className="relative p-4 md:p-5 md:border-r border-b md:border-b-0 border-zinc-100 dark:border-zinc-800">
             <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500" />
             <div className="flex items-center gap-2 mb-2">
               <User className="h-4 w-4 text-zinc-400" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Prospek Baru</span>
+              <span className="text-xs font-semibold text-zinc-500">Prospek Baru</span>
             </div>
-            <div className="text-2xl md:text-3xl font-black tracking-tighter text-blue-600">
+            <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-blue-600">
               {filteredSummary.totalProspects}
             </div>
             <div className="flex items-center gap-1 mt-1.5">
               <IconTrendingUp className="h-3.5 w-3.5 text-blue-600" />
-              <span className="text-[10px] font-bold text-blue-600 uppercase">Pipeline Peluang</span>
+              <span className="text-xs font-bold text-blue-600 ">Pipeline Peluang</span>
             </div>
           </div>
 
-          <div className="relative p-4 md:p-5 md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800">
+          <div className="relative p-4 md:p-5 md:border-r border-b md:border-b-0 border-zinc-100 dark:border-zinc-800">
             <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500" />
             <div className="flex items-center gap-2 mb-2">
               <AlertCircle className="h-4 w-4 text-zinc-400" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Credit Watch</span>
+              <span className="text-xs font-semibold text-zinc-500">Credit Watch</span>
             </div>
-            <div className="text-2xl md:text-3xl font-black tracking-tighter text-amber-600">
+            <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-amber-600">
               {filteredSummary.creditWatch}
             </div>
             <div className="flex items-center gap-1 mt-1.5">
-              <span className="text-[10px] font-bold text-amber-600 uppercase">Perlu Monitoring</span>
+              <span className="text-xs font-bold text-amber-600 ">Perlu Monitoring</span>
             </div>
           </div>
 
@@ -145,23 +145,23 @@ export default function CustomersPage() {
             <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-500" />
             <div className="flex items-center gap-2 mb-2">
               <ShoppingBag className="h-4 w-4 text-zinc-400" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Revenue Basis</span>
+              <span className="text-xs font-semibold text-zinc-500">Revenue Basis</span>
             </div>
-            <div className="text-2xl md:text-3xl font-black tracking-tighter text-emerald-600">
+            <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-emerald-600">
               {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", notation: "compact", maximumFractionDigits: 1 }).format(filteredSummary.totalRevenue)}
             </div>
             <div className="flex items-center gap-1 mt-1.5">
-              <span className="text-[10px] font-bold text-zinc-400 uppercase">Akumulasi Order</span>
+              <span className="text-xs font-bold text-zinc-400 ">Akumulasi Order</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* MAIN CONTENT CONTAINER */}
-      <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white rounded-none flex flex-col min-h-[500px]">
-        <div className="p-4 border-b-2 border-black flex flex-col md:flex-row md:items-center justify-between gap-4 bg-zinc-50">
+      <div className="border border-border shadow-sm bg-white rounded-md flex flex-col min-h-[500px]">
+        <div className="p-4 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-4 bg-zinc-50">
           <div>
-            <h2 className="text-lg font-black uppercase tracking-tight">Customer Database</h2>
+            <h2 className="text-lg font-semibold tracking-tight">Customer Database</h2>
             <p className="text-xs font-bold text-zinc-500">Daftar lengkap pelanggan & distributor</p>
           </div>
 
@@ -172,30 +172,30 @@ export default function CustomersPage() {
                 placeholder="Cari pelanggan..."
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
-                className="pl-9 border-2 border-zinc-200 focus-visible:ring-0 focus-visible:border-black font-bold h-10 rounded-none bg-white transition-all"
+                className="pl-9 border border-zinc-200 focus-visible:ring-0 focus-visible:border-border font-bold h-10 rounded-md bg-white transition-all"
               />
             </div>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[1px] font-black uppercase text-[10px] tracking-wider h-10 px-4 rounded-none bg-white">
+                <Button variant="outline" className="border border-border shadow-sm hover:shadow-none font-semibold text-xs h-10 px-4 rounded-md bg-white">
                   <Filter className="mr-2 h-4 w-4" /> Filter
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-none min-w-[200px]">
-                <DropdownMenuLabel className="uppercase text-[10px] font-black tracking-widest text-zinc-500">Status</DropdownMenuLabel>
+              <DropdownMenuContent align="end" className="border border-border shadow-sm rounded-md min-w-[200px]">
+                <DropdownMenuLabel className="text-xs font-semibold text-zinc-500">Status</DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-zinc-200" />
-                <DropdownMenuItem onClick={() => setFilterStatus("all")} className="font-bold cursor-pointer focus:bg-zinc-100 rounded-none">Semua</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterStatus("active")} className="font-bold cursor-pointer focus:bg-zinc-100 rounded-none">Aktif</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterStatus("inactive")} className="font-bold cursor-pointer focus:bg-zinc-100 rounded-none">Nonaktif</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterStatus("prospect")} className="font-bold cursor-pointer focus:bg-zinc-100 rounded-none">Prospek</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilterStatus("all")} className="font-bold cursor-pointer focus:bg-zinc-100 rounded-md">Semua</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilterStatus("active")} className="font-bold cursor-pointer focus:bg-zinc-100 rounded-md">Aktif</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilterStatus("inactive")} className="font-bold cursor-pointer focus:bg-zinc-100 rounded-md">Nonaktif</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilterStatus("prospect")} className="font-bold cursor-pointer focus:bg-zinc-100 rounded-md">Prospek</DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-zinc-200" />
-                <DropdownMenuLabel className="uppercase text-[10px] font-black tracking-widest text-zinc-500">Tipe</DropdownMenuLabel>
+                <DropdownMenuLabel className="text-xs font-semibold text-zinc-500">Tipe</DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-zinc-200" />
-                <DropdownMenuItem onClick={() => setFilterType("all")} className="font-bold cursor-pointer focus:bg-zinc-100 rounded-none">Semua Tipe</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterType("COMPANY")} className="font-bold cursor-pointer focus:bg-zinc-100 rounded-none">Perusahaan</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterType("INDIVIDUAL")} className="font-bold cursor-pointer focus:bg-zinc-100 rounded-none">Perorangan</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterType("GOVERNMENT")} className="font-bold cursor-pointer focus:bg-zinc-100 rounded-none">Pemerintah</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilterType("all")} className="font-bold cursor-pointer focus:bg-zinc-100 rounded-md">Semua Tipe</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilterType("COMPANY")} className="font-bold cursor-pointer focus:bg-zinc-100 rounded-md">Perusahaan</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilterType("INDIVIDUAL")} className="font-bold cursor-pointer focus:bg-zinc-100 rounded-md">Perorangan</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilterType("GOVERNMENT")} className="font-bold cursor-pointer focus:bg-zinc-100 rounded-md">Pemerintah</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -203,15 +203,15 @@ export default function CustomersPage() {
 
         <div className="p-6 bg-zinc-100/30 flex-1">
           {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-zinc-300 bg-white rounded-none">
+            <div className="flex flex-col items-center justify-center py-20 border border-dashed border-zinc-300 bg-white rounded-md">
               <RefreshCcw className="h-10 w-10 text-zinc-300 animate-spin mb-4" />
               <p className="font-bold text-zinc-400">Memuat data pelanggan...</p>
             </div>
           ) : (
             <>
               {filteredCustomers.length === 0 ? (
-                <div className="text-center py-20 border-2 border-dashed border-zinc-300 bg-white rounded-none">
-                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-zinc-100 border-2 border-zinc-200 mb-4">
+                <div className="text-center py-20 border border-dashed border-zinc-300 bg-white rounded-md">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-zinc-100 border border-zinc-200 mb-4">
                     <User className="h-8 w-8 text-zinc-400" />
                   </div>
                   <p className="text-zinc-500 font-bold text-lg">Tidak ada pelanggan yang cocok.</p>
@@ -220,7 +220,7 @@ export default function CustomersPage() {
                     setSearchTerm("")
                     setFilterStatus("all")
                     setFilterType("all")
-                  }} className="mt-6 border-2 border-black font-bold uppercase text-[10px] tracking-wider rounded-none hover:bg-black hover:text-white">
+                  }} className="mt-6 border border-border font-bold text-xs rounded-md hover:bg-slate-900 hover:text-white">
                     Reset Filter
                   </Button>
                 </div>

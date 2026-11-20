@@ -136,7 +136,7 @@ export function NewPRDialog() {
         <>
             <button
                 onClick={() => setOpen(true)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-400 text-black border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black text-xs uppercase tracking-widest"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-400 text-black border border-border shadow-sm hover:shadow-sm transition-all font-semibold text-xs"
             >
                 <Plus className="h-4 w-4" />
                 Buat PR Baru
@@ -234,7 +234,7 @@ export function NewPRDialog() {
                                         />
                                     </div>
                                     <div className="w-24 space-y-1">
-                                        <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">Qty</label>
+                                        <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1 block">Qty</label>
                                         <Input
                                             type="number"
                                             min={1}
@@ -249,7 +249,7 @@ export function NewPRDialog() {
                                     <Button
                                         type="button"
                                         onClick={handleAddItem}
-                                        className="bg-black text-white hover:bg-zinc-800 border border-black text-[10px] font-black uppercase tracking-wide h-8 px-4 rounded-none transition-all"
+                                        className="bg-slate-900 text-white hover:bg-zinc-800 border border-border text-xs font-semibold h-8 px-4 rounded-md transition-all"
                                     >
                                         <Plus className="h-3.5 w-3.5 mr-1" /> Tambah
                                     </Button>
@@ -265,14 +265,14 @@ export function NewPRDialog() {
                                                     key={index}
                                                     className={`px-3 py-2.5 flex items-center gap-3 ${index % 2 === 0 ? "bg-white" : "bg-zinc-50/50"}`}
                                                 >
-                                                    <div className="flex-none w-6 h-6 bg-zinc-100 border border-zinc-300 text-zinc-600 flex items-center justify-center text-[10px] font-black">
+                                                    <div className="flex-none w-6 h-6 bg-zinc-100 border border-zinc-300 text-zinc-600 flex items-center justify-center text-xs font-semibold">
                                                         {index + 1}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="font-bold text-sm truncate">{(p as any)?.name}</div>
-                                                        <div className="text-[10px] font-mono text-zinc-400">{(p as any)?.code}</div>
+                                                        <div className="text-xs font-mono text-zinc-400">{(p as any)?.code}</div>
                                                     </div>
-                                                    <div className="h-7 bg-orange-50 border border-orange-300 flex items-center px-3 font-black text-xs font-mono text-orange-900">
+                                                    <div className="h-7 bg-blue-50 border border-blue-300 flex items-center px-3 font-semibold text-xs font-mono text-blue-900">
                                                         {item.quantity} {(p as any)?.unit}
                                                     </div>
                                                     <button
@@ -287,7 +287,7 @@ export function NewPRDialog() {
                                         })}
                                     </div>
                                 ) : (
-                                    <div className="text-center py-6 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                                    <div className="text-center py-6 text-zinc-400 text-xs font-bold  ">
                                         Belum ada item ditambahkan
                                     </div>
                                 )}

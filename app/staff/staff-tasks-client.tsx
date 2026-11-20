@@ -100,10 +100,10 @@ export function StaffTasksClient({ tasks: initialTasks, employee }: StaffTasksCl
         <div className="space-y-6">
             {/* Header */}
             <div>
-                <h1 className="text-xl font-black uppercase tracking-wider">
+                <h1 className="text-xl font-semibold  ">
                     Halo, {employee.name}
                 </h1>
-                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                <p className="text-xs font-bold text-zinc-500  ">
                     {SHIFT_LABELS[employee.shiftType || ""] || employee.position} — {today}
                 </p>
             </div>
@@ -117,17 +117,17 @@ export function StaffTasksClient({ tasks: initialTasks, employee }: StaffTasksCl
                         <button
                             key={tab.key}
                             onClick={() => setActiveTab(tab.key)}
-                            className={`flex items-center gap-1.5 px-4 py-2.5 border-2 border-black text-[10px] font-black uppercase tracking-wider transition-all shrink-0 ${
+                            className={`flex items-center gap-1.5 px-4 py-2.5 border border-border text-xs font-semibold   transition-all shrink-0 ${
                                 isActive
-                                    ? `${tab.color} shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]`
+                                    ? `${tab.color} shadow-sm`
                                     : "bg-white hover:bg-zinc-50"
                             }`}
                         >
                             <Icon className="h-3.5 w-3.5" />
                             {tab.label}
                             {tabCounts[tab.key] > 0 && (
-                                <span className={`ml-1 px-1.5 py-0.5 text-[8px] font-black border border-black ${
-                                    isActive ? "bg-white text-black" : "bg-black text-white"
+                                <span className={`ml-1 px-1.5 py-0.5 text-xs font-semibold border border-border ${
+                                    isActive ? "bg-white text-black" : "bg-slate-900 text-white"
                                 }`}>
                                     {tabCounts[tab.key]}
                                 </span>
@@ -151,9 +151,9 @@ export function StaffTasksClient({ tasks: initialTasks, employee }: StaffTasksCl
                     ))}
                 </div>
             ) : (
-                <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-8 text-center">
+                <div className="bg-white border border-border shadow-sm p-8 text-center">
                     <ClipboardCheck className="h-8 w-8 mx-auto text-zinc-200 mb-2" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                    <span className="text-xs font-semibold text-zinc-400">
                         Tidak ada tugas aktif untuk kategori ini
                     </span>
                 </div>

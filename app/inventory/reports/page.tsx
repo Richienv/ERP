@@ -56,8 +56,8 @@ const reportCards = [
         title: "Valuasi Inventori",
         description: "Nilai aset persediaan saat ini",
         icon: DollarSign,
-        color: "bg-orange-500",
-        lightBg: "bg-orange-50",
+        color: "bg-blue-500",
+        lightBg: "bg-blue-50",
         href: "/inventory/stock",
     },
 ]
@@ -94,12 +94,12 @@ export default function InventoryReportsPage() {
             {/* ═══════════════════════════════════════════ */}
             {/* COMMAND HEADER                              */}
             {/* ═══════════════════════════════════════════ */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+            <div className="border border-border shadow-sm overflow-hidden bg-white dark:bg-zinc-900">
                 <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-orange-500">
                     <div className="flex items-center gap-3">
-                        <BarChart3 className="h-5 w-5 text-orange-500" />
+                        <BarChart3 className="h-5 w-5 text-blue-500" />
                         <div>
-                            <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
+                            <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-white">
                                 Laporan Inventori
                             </h1>
                             <p className="text-zinc-400 text-xs font-medium mt-0.5">
@@ -113,18 +113,18 @@ export default function InventoryReportsPage() {
             {/* ═══════════════════════════════════════════ */}
             {/* KPI PULSE STRIP                            */}
             {/* ═══════════════════════════════════════════ */}
-            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+            <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                 <div className="grid grid-cols-2 md:grid-cols-4">
                     {/* Total Produk */}
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
+                    <div className="relative p-4 md:p-5 border-r border-zinc-100 dark:border-zinc-800">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <Package className="h-4 w-4 text-zinc-400" />
-                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">
+                            <span className="text-xs font-semibold text-zinc-500">
                                 Total Produk
                             </span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-zinc-900 dark:text-white">
                             {kpis?.totalProduk ?? "—"}
                         </div>
                         <div className="flex items-center gap-1 mt-1.5">
@@ -133,15 +133,15 @@ export default function InventoryReportsPage() {
                     </div>
 
                     {/* Total Nilai */}
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-orange-500" />
+                    <div className="relative p-4 md:p-5 border-r border-zinc-100 dark:border-zinc-800">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500" />
                         <div className="flex items-center gap-2 mb-2">
                             <DollarSign className="h-4 w-4 text-zinc-400" />
-                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">
+                            <span className="text-xs font-semibold text-zinc-500">
                                 Total Nilai
                             </span>
                         </div>
-                        <div className="text-lg md:text-xl font-black tracking-tighter text-zinc-900 dark:text-white">
+                        <div className="text-lg md:text-xl font-semibold tracking-tighter text-zinc-900 dark:text-white">
                             {kpis ? formatIDR(kpis.totalNilai) : "—"}
                         </div>
                         <div className="flex items-center gap-1 mt-1.5">
@@ -150,15 +150,15 @@ export default function InventoryReportsPage() {
                     </div>
 
                     {/* Rata-rata Stok */}
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
+                    <div className="relative p-4 md:p-5 border-r border-zinc-100 dark:border-zinc-800">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <TrendingUp className="h-4 w-4 text-zinc-400" />
-                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">
+                            <span className="text-xs font-semibold text-zinc-500">
                                 Rata-rata Stok
                             </span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-zinc-900 dark:text-white">
                             {kpis?.rataStok ?? "—"}
                         </div>
                         <div className="flex items-center gap-1 mt-1.5">
@@ -171,11 +171,11 @@ export default function InventoryReportsPage() {
                         <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <Layers className="h-4 w-4 text-zinc-400" />
-                            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">
+                            <span className="text-xs font-semibold text-zinc-500">
                                 Gudang Aktif
                             </span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-zinc-900 dark:text-white">
                             {kpis?.gudangAktif ?? "—"}
                         </div>
                         <div className="flex items-center gap-1 mt-1.5">
@@ -195,7 +195,7 @@ export default function InventoryReportsPage() {
                         <Link
                             key={report.href}
                             href={report.href}
-                            className="group border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all bg-white dark:bg-zinc-900"
+                            className="group border border-border shadow-sm hover:shadow-sm transition-all bg-white dark:bg-zinc-900"
                         >
                             <div className="p-5 flex items-center gap-4">
                                 <div
@@ -204,7 +204,7 @@ export default function InventoryReportsPage() {
                                     <Icon className="h-6 w-6 text-white" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <h3 className="font-black uppercase tracking-tight text-zinc-900 dark:text-white text-sm">
+                                    <h3 className="font-semibold tracking-tight text-zinc-900 dark:text-white text-sm">
                                         {report.title}
                                     </h3>
                                     <p className="text-xs text-zinc-500 mt-0.5">

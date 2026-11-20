@@ -34,7 +34,7 @@ const simpleColumns: KanbanColumn[] = [
 
 export default function DemoKanban() {
     return (
-        <div className="bg-black min-h-screen p-8">
+        <div className="bg-slate-900 min-h-screen p-8">
             <div className="mx-auto max-w-6xl">
                 <div className="mb-10">
                     <h1 className="mb-2 text-3xl font-bold text-white font-serif">Task Board</h1>

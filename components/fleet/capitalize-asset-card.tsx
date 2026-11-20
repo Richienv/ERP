@@ -33,9 +33,9 @@ export function CapitalizeAssetCard({
 
     if (existingAsset) {
         return (
-            <div className="border-2 border-emerald-400 bg-emerald-50 p-4">
-                <div className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Sudah aset tetap</div>
-                <div className="text-lg font-black font-mono mt-1">{existingAsset.assetCode}</div>
+            <div className="border border-emerald-400 bg-emerald-50 p-4">
+                <div className="text-xs font-semibold text-emerald-700">Sudah aset tetap</div>
+                <div className="text-lg font-semibold font-mono mt-1">{existingAsset.assetCode}</div>
                 <div className="text-xs text-emerald-800 mt-1">NBV {formatIDR(existingAsset.netBookValue)}</div>
                 <Button
                     type="button"
@@ -77,10 +77,10 @@ export function CapitalizeAssetCard({
     }
 
     return (
-        <div className="border-2 border-black bg-white p-4 shadow-[3px_3px_0_0_#000]">
-            <div className="text-[10px] font-black uppercase tracking-widest text-orange-600">Kapitalisasi armada</div>
-            <h3 className="text-sm font-black uppercase mt-1">Jadikan aset tetap</h3>
-            <p className="text-[11px] text-zinc-500 mt-1">
+        <div className="border border-border bg-white p-4 shadow-sm">
+            <div className="text-xs font-semibold text-blue-600">Kapitalisasi armada</div>
+            <h3 className="text-sm font-semibold mt-1">Jadikan aset tetap</h3>
+            <p className="text-xs text-zinc-500 mt-1">
                 Operator wajib pilih sumber dana: saldo awal (migrasi), bank, atau tunai. Setelah diposting, unit ini masuk depresiasi bulanan.
             </p>
             {!open ? (

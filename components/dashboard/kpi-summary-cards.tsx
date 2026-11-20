@@ -55,7 +55,7 @@ const cards = [
         label: "PPN Bulan Ini",
         icon: Receipt,
         href: "/finance/reports",
-        accentColor: "bg-orange-400",
+        accentColor: "bg-blue-400",
         getValue: (p: KpiSummaryCardsProps) => p.ppnNet,
         getSub: (p: KpiSummaryCardsProps) => p.ppnNet >= 0 ? "PPN Keluaran > Masukan" : "PPN Masukan > Keluaran",
     },
@@ -71,18 +71,18 @@ export function KpiSummaryCards(props: KpiSummaryCardsProps) {
                     <Link
                         key={card.key}
                         href={card.href}
-                        className="group relative bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4 md:p-5 transition-all hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px]"
+                        className="group relative bg-white dark:bg-zinc-900 border border-border shadow-sm p-4 md:p-5 transition-all hover:shadow-sm  "
                     >
                         <div className={`absolute top-0 left-0 right-0 h-1 ${card.accentColor}`} />
 
                         <div className="flex items-center gap-2 mb-3">
                             <Icon className="h-4 w-4 text-zinc-400 group-hover:text-black dark:group-hover:text-white transition-colors" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-black dark:group-hover:text-white transition-colors">
+                            <span className="text-xs font-semibold text-zinc-500 group-hover:text-black dark:group-hover:text-white transition-colors">
                                 {card.label}
                             </span>
                         </div>
 
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-zinc-900 dark:text-white">
                             {value === 0 ? (
                                 <span className="text-zinc-300 dark:text-zinc-700 text-lg">Belum ada data</span>
                             ) : (
@@ -90,7 +90,7 @@ export function KpiSummaryCards(props: KpiSummaryCardsProps) {
                             )}
                         </div>
 
-                        <div className="text-[10px] font-bold text-zinc-400 mt-1 tracking-wide">
+                        <div className="text-xs font-bold text-zinc-400 mt-1 ">
                             {card.getSub(props)}
                         </div>
                     </Link>

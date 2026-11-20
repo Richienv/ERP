@@ -18,7 +18,7 @@ export default function NewRequestPage() {
             <div className="max-w-3xl mx-auto">
                 <Link
                     href="/procurement/requests"
-                    className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors mb-5"
+                    className="inline-flex items-center gap-2 text-xs font-semibold text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors mb-5"
                 >
                     <ArrowLeft className="h-4 w-4" />
                     Kembali ke Permintaan

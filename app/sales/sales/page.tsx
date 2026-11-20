@@ -37,12 +37,12 @@ export default function SalesStreamPage() {
         <div className="mf-page">
 
             {/* COMMAND HEADER */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+            <div className="border border-border shadow-sm overflow-hidden bg-white dark:bg-zinc-900">
                 <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-green-400">
                     <div className="flex items-center gap-3">
                         <DollarSign className="h-5 w-5 text-green-500" />
                         <div>
-                            <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
+                            <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-white">
                                 Penjualan
                             </h1>
                             <p className="text-zinc-400 text-xs font-medium mt-0.5">
@@ -51,7 +51,7 @@ export default function SalesStreamPage() {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button asChild className="bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider px-6 h-9 rounded-none">
+                        <Button asChild className="bg-slate-900 text-white border border-border shadow-sm hover:shadow-sm transition-all font-semibold text-xs px-6 h-9 rounded-md">
                             <Link href="/finance/invoices">
                                 <Receipt className="mr-2 h-4 w-4" /> Buat Invoice
                             </Link>
@@ -61,49 +61,49 @@ export default function SalesStreamPage() {
             </div>
 
             {/* KPI PULSE STRIP */}
-            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+            <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                 <div className="grid grid-cols-2 md:grid-cols-4">
                     {/* Total Revenue */}
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
+                    <div className="relative p-4 md:p-5 border-r border-zinc-100 dark:border-zinc-800 border-b md:border-b-0">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-green-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <TrendingUp className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Penjualan</span>
+                            <span className="text-xs font-semibold text-zinc-500">Total Penjualan</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-zinc-900 dark:text-white">
                             {formatRupiah(stats.totalRevenue)}
                         </div>
                     </div>
 
                     {/* Paid */}
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
+                    <div className="relative p-4 md:p-5 border-r border-zinc-100 dark:border-zinc-800 border-b md:border-b-0">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <Banknote className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Terbayar</span>
+                            <span className="text-xs font-semibold text-zinc-500">Terbayar</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-emerald-600">
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-emerald-600">
                             {formatRupiah(stats.paidAmount)}
                         </div>
                         <div className="flex items-center gap-1 mt-1.5">
-                            <span className="text-[10px] font-bold text-emerald-600">
+                            <span className="text-xs font-bold text-emerald-600">
                                 {stats.paidCount} invoice lunas
                             </span>
                         </div>
                     </div>
 
                     {/* Unpaid */}
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
+                    <div className="relative p-4 md:p-5 border-r border-zinc-100 dark:border-zinc-800">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-amber-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <DollarSign className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Belum Bayar (AR)</span>
+                            <span className="text-xs font-semibold text-zinc-500">Belum Bayar (AR)</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-amber-600">
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-amber-600">
                             {formatRupiah(stats.unpaidAmount)}
                         </div>
                         <div className="flex items-center gap-1 mt-1.5">
-                            <span className="text-[10px] font-bold text-amber-600">
+                            <span className="text-xs font-bold text-amber-600">
                                 {stats.unpaidCount} invoice terbuka
                             </span>
                         </div>
@@ -114,13 +114,13 @@ export default function SalesStreamPage() {
                         <div className="absolute top-0 left-0 right-0 h-1 bg-red-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <AlertCircle className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Jatuh Tempo</span>
+                            <span className="text-xs font-semibold text-zinc-500">Jatuh Tempo</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-red-600">
+                        <div className="text-2xl md:text-3xl font-semibold tracking-tighter text-red-600">
                             {formatRupiah(stats.overdueAmount)}
                         </div>
                         <div className="flex items-center gap-1 mt-1.5">
-                            <span className="text-[10px] font-bold text-red-600">
+                            <span className="text-xs font-bold text-red-600">
                                 {stats.overdueCount} perlu tindakan
                             </span>
                         </div>
@@ -129,14 +129,14 @@ export default function SalesStreamPage() {
             </div>
 
             {/* TRANSACTION TABLE */}
-            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+            <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
                 {/* Table Header */}
-                <div className="px-5 py-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800 flex items-center justify-between">
+                <div className="px-5 py-3 border-b border-border bg-zinc-50 dark:bg-zinc-800 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Receipt className="h-4 w-4 text-zinc-400" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Invoice Penjualan</span>
+                        <span className="text-xs font-semibold text-zinc-500">Invoice Penjualan</span>
                     </div>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                    <span className="text-xs font-semibold text-zinc-400">
                         {invoices.length} transaksi
                     </span>
                 </div>
@@ -153,7 +153,7 @@ export default function SalesStreamPage() {
                             >
                                 <div className="flex items-center gap-4">
                                     <div className={cn(
-                                        "h-10 w-10 border-2 border-black flex items-center justify-center font-black text-xs shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]",
+                                        "h-10 w-10 border border-border flex items-center justify-center font-semibold text-xs shadow-sm",
                                         displayStatus === 'PAID' ? "bg-emerald-100 text-emerald-700" :
                                             displayStatus === 'OVERDUE' ? "bg-red-100 text-red-700" : "bg-amber-50 text-amber-700"
                                     )}>
@@ -163,7 +163,7 @@ export default function SalesStreamPage() {
                                         <div className="font-bold text-sm leading-none text-zinc-900 dark:text-white">
                                             {inv.customerName}
                                         </div>
-                                        <div className="text-[10px] text-zinc-400 font-mono mt-1 tracking-wide">
+                                        <div className="text-xs text-zinc-400 font-mono mt-1 ">
                                             {inv.number} &bull; {new Date(inv.issueDate).toLocaleDateString("id-ID")}
                                         </div>
                                     </div>
@@ -171,11 +171,11 @@ export default function SalesStreamPage() {
 
                                 <div className="flex items-center gap-6">
                                     <div className="text-right">
-                                        <div className="font-black text-sm tracking-tight text-zinc-900 dark:text-white">
+                                        <div className="font-semibold text-sm tracking-tight text-zinc-900 dark:text-white">
                                             {formatRupiah(inv.totalAmount)}
                                         </div>
                                         <div className={cn(
-                                            "text-[10px] font-black uppercase tracking-widest mt-0.5",
+                                            "text-xs font-semibold mt-0.5",
                                             displayStatus === 'PAID' ? "text-emerald-600" :
                                                 displayStatus === 'OVERDUE' ? "text-red-600" : "text-amber-600"
                                         )}>
@@ -193,13 +193,13 @@ export default function SalesStreamPage() {
                 {invoices.length === 0 && (
                     <div className="p-12 text-center">
                         <Receipt className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Belum ada invoice penjualan</p>
+                        <p className="text-xs font-semibold text-zinc-400">Belum ada invoice penjualan</p>
                     </div>
                 )}
 
                 {/* Footer */}
-                <div className="px-5 py-3 bg-zinc-50 dark:bg-zinc-800 border-t-2 border-black text-center">
-                    <Button asChild variant="link" className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-black">
+                <div className="px-5 py-3 bg-zinc-50 dark:bg-zinc-800 border-t border-border text-center">
+                    <Button asChild variant="link" className="text-xs font-semibold text-zinc-400 hover:text-black">
                         <Link href="/finance/invoices">
                             Lihat Semua Transaksi <ArrowRight className="ml-1 h-3 w-3" />
                         </Link>

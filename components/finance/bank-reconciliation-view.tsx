@@ -598,22 +598,22 @@ export function BankReconciliationView({
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ type: "spring" as const, stiffness: 320, damping: 26 }}
-                className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900"
+                className="border border-border shadow-sm overflow-hidden bg-white dark:bg-zinc-900"
             >
                 {/* Orange accent bar */}
-                <div className="h-1 bg-gradient-to-r from-orange-500 via-amber-400 to-orange-500" />
+                <div className="h-1 bg-gradient-to-r from-blue-500 via-amber-400 to-blue-500" />
 
                 {/* Row 1: Title + Actions */}
                 <div className="px-5 py-3.5 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800">
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-orange-500 flex items-center justify-center">
+                        <div className="w-9 h-9 bg-blue-500 flex items-center justify-center">
                             <Landmark className="h-4.5 w-4.5 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-base font-black uppercase tracking-wider text-zinc-900 dark:text-white">
+                            <h1 className="text-base font-semibold text-zinc-900 dark:text-white">
                                 Rekonsiliasi Bank
                             </h1>
-                            <p className="text-zinc-400 text-[11px] font-medium">
+                            <p className="text-zinc-400 text-xs font-medium">
                                 Cocokkan mutasi bank dengan jurnal sistem
                             </p>
                         </div>
@@ -631,13 +631,13 @@ export function BankReconciliationView({
                                 <DialogTitle className={NB.title}>
                                     <Landmark className="h-5 w-5" /> Tambah Akun Bank
                                 </DialogTitle>
-                                <p className="text-zinc-400 text-[11px] font-bold mt-0.5">Daftarkan akun bank baru untuk rekonsiliasi</p>
+                                <p className="text-zinc-400 text-xs font-bold mt-0.5">Daftarkan akun bank baru untuk rekonsiliasi</p>
                             </DialogHeader>
                             <ScrollArea className="max-h-[70vh]">
                             <div className="p-6 space-y-5">
                                 {/* ── Section: Informasi Bank ─── */}
                                 <div>
-                                    <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3 flex items-center gap-1.5">
+                                    <h3 className="text-xs font-semibold text-zinc-500 mb-3 flex items-center gap-1.5">
                                         <Landmark className="h-3 w-3" /> Informasi Bank
                                     </h3>
                                     <div className="space-y-3">
@@ -655,11 +655,11 @@ export function BankReconciliationView({
                                                         setNewBankCode(v)
                                                     }}
                                                 />
-                                                <p className={`text-[9px] mt-0.5 font-bold ${newBankCode && !/^1\d{3}$/.test(newBankCode) ? "text-red-500" : "text-zinc-400"}`}>
+                                                <p className={`text-xs mt-0.5 font-bold ${newBankCode && !/^1\d{3}$/.test(newBankCode) ? "text-red-500" : "text-zinc-400"}`}>
                                                     {newBankCode && !/^1\d{3}$/.test(newBankCode) ? "Kode harus dalam range 1000–1999 (Akun Aset)" : "Range: 1000–1999 (Akun Aset)"}
                                                 </p>
                                                 {newBankCode && /^1\d{3}$/.test(newBankCode) && (
-                                                    <p className="text-[9px] mt-0.5 font-bold text-green-600">✓ Akan otomatis terhubung ke COA {newBankCode}</p>
+                                                    <p className="text-xs mt-0.5 font-bold text-green-600">✓ Akan otomatis terhubung ke COA {newBankCode}</p>
                                                 )}
                                             </div>
                                             <div className="col-span-2">
@@ -724,7 +724,7 @@ export function BankReconciliationView({
 
                                 {/* ── Section: Pengaturan ─── */}
                                 <div>
-                                    <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3 flex items-center gap-1.5">
+                                    <h3 className="text-xs font-semibold text-zinc-500 mb-3 flex items-center gap-1.5">
                                         <ArrowRightLeft className="h-3 w-3" /> Pengaturan
                                     </h3>
                                     <div className="space-y-3">
@@ -748,7 +748,7 @@ export function BankReconciliationView({
                                             <label className={NB.label}>Saldo Awal</label>
                                             <div className="relative">
                                                 <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold pointer-events-none transition-colors ${
-                                                    newBankBalance ? "text-orange-500" : "text-zinc-400"
+                                                    newBankBalance ? "text-blue-500" : "text-zinc-400"
                                                 }`}>Rp</span>
                                                 <input
                                                     inputMode="numeric"
@@ -764,11 +764,11 @@ export function BankReconciliationView({
                                                         if ((e.ctrlKey || e.metaKey) && ["a", "c", "v", "x"].includes(e.key.toLowerCase())) return
                                                         if (!/^\d$/.test(e.key)) e.preventDefault()
                                                     }}
-                                                    className={`w-full pl-10 pr-3 h-10 font-mono font-bold text-sm rounded-none outline-none transition-colors ${
+                                                    className={`w-full pl-10 pr-3 h-10 font-mono font-bold text-sm rounded-md outline-none transition-colors ${
                                                         newBankBalance
-                                                            ? "border-2 border-orange-400 bg-orange-50/50 text-zinc-900"
-                                                            : "border-2 border-zinc-300 bg-zinc-50/50 text-zinc-900"
-                                                    } placeholder:text-zinc-300 placeholder:font-normal focus:border-orange-400 focus:ring-2 focus:ring-orange-100`}
+                                                            ? "border border-blue-400 bg-blue-50/50 text-zinc-900"
+                                                            : "border border-zinc-300 bg-zinc-50/50 text-zinc-900"
+                                                    } placeholder:text-zinc-300 placeholder:font-normal focus:border-blue-400 focus:ring-2 focus:ring-blue-100`}
                                                 />
                                             </div>
                                         </div>
@@ -786,13 +786,13 @@ export function BankReconciliationView({
 
                                 {/* ── Section: Status ─── */}
                                 <div>
-                                    <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3">
+                                    <h3 className="text-xs font-semibold text-zinc-500 mb-3">
                                         Status
                                     </h3>
-                                    <div className="flex items-center justify-between border-2 border-zinc-200 px-4 py-3">
+                                    <div className="flex items-center justify-between border border-zinc-200 px-4 py-3">
                                         <div>
                                             <span className="text-sm font-bold text-zinc-700">Status Aktif</span>
-                                            <p className="text-[10px] text-zinc-400">Akun bank aktif dapat digunakan untuk rekonsiliasi</p>
+                                            <p className="text-xs text-zinc-400">Akun bank aktif dapat digunakan untuk rekonsiliasi</p>
                                         </div>
                                         <Switch checked={newBankIsActive} onCheckedChange={setNewBankIsActive} />
                                     </div>
@@ -800,16 +800,16 @@ export function BankReconciliationView({
 
                                 {/* Preview — only when code is valid (1000-1999) and bank name is set */}
                                 {(/^1\d{3}$/.test(newBankCode) && newBankName) && (
-                                    <div className="border-2 border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 space-y-1">
+                                    <div className="border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 space-y-1">
                                         <div className="flex items-center gap-3">
                                             <Landmark className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
-                                            <span className="font-mono font-bold text-[11px] text-zinc-500">{newBankCode || "—"}</span>
+                                            <span className="font-mono font-bold text-xs text-zinc-500">{newBankCode || "—"}</span>
                                             <span className="text-sm font-bold text-zinc-700 truncate">
                                                 {newBankName === "__lainnya__" ? "(Custom)" : newBankName}
                                             </span>
                                         </div>
                                         {newBankAccountNumber && (
-                                            <p className="text-[11px] text-zinc-500 pl-8">
+                                            <p className="text-xs text-zinc-500 pl-8">
                                                 Rek: <span className="font-mono font-bold">{newBankAccountNumber}</span>
                                                 {newBankAccountHolder && <> a.n. <span className="font-bold">{newBankAccountHolder}</span></>}
                                             </p>
@@ -929,18 +929,18 @@ export function BankReconciliationView({
                                                 onClick={() => setNewAccountId(a.id)}
                                                 className={`flex items-center gap-3 px-3.5 py-3 border text-left transition-all ${
                                                     newAccountId === a.id
-                                                        ? "border-orange-400 bg-orange-50/50 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)]"
+                                                        ? "border-blue-400 bg-blue-50/50 shadow-sm"
                                                         : "border-zinc-200 bg-white hover:border-zinc-400"
                                                 }`}
                                             >
-                                                <Landmark className={`h-4 w-4 shrink-0 ${newAccountId === a.id ? "text-orange-500" : "text-zinc-400"}`} />
+                                                <Landmark className={`h-4 w-4 shrink-0 ${newAccountId === a.id ? "text-blue-500" : "text-zinc-400"}`} />
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-1.5">
-                                                        <span className="font-mono text-[11px] text-zinc-500 font-bold">{a.code}</span>
+                                                        <span className="font-mono text-xs text-zinc-500 font-bold">{a.code}</span>
                                                         <span className="text-sm font-bold truncate">{a.name}</span>
                                                     </div>
                                                 </div>
-                                                <span className="font-mono text-[11px] font-bold text-emerald-600 shrink-0">
+                                                <span className="font-mono text-xs font-bold text-emerald-600 shrink-0">
                                                     Rp {a.balance.toLocaleString("id-ID")}
                                                 </span>
                                             </button>
@@ -949,10 +949,10 @@ export function BankReconciliationView({
                                 ) : (
                                     <div className="border border-dashed border-zinc-300 bg-zinc-50 p-5 text-center space-y-2">
                                         <Landmark className="h-5 w-5 text-zinc-300 mx-auto" />
-                                        <p className="text-[11px] text-zinc-400 font-bold">Belum ada akun bank</p>
+                                        <p className="text-xs text-zinc-400 font-bold">Belum ada akun bank</p>
                                         <Button
                                             variant="outline"
-                                            className="border-2 border-black text-[10px] font-black uppercase h-7 px-3 rounded-none"
+                                            className="border border-border text-xs font-semibold h-7 px-3 rounded-md"
                                             onClick={() => { setCreateOpen(false); setAddBankOpen(true) }}
                                         >
                                             <Plus className="h-3 w-3 mr-1" /> Tambah Akun Bank
@@ -986,7 +986,7 @@ export function BankReconciliationView({
                                             value={newStatementDate}
                                             onChange={setNewStatementDate}
                                         />
-                                        <p className="text-[9px] text-zinc-400 mt-0.5">Tanggal cetak mutasi bank</p>
+                                        <p className="text-xs text-zinc-400 mt-0.5">Tanggal cetak mutasi bank</p>
                                     </div>
                                 </div>
                             </NBSection>
@@ -997,7 +997,7 @@ export function BankReconciliationView({
                                 {newAccountId && (() => {
                                     const selectedBank = (bankAccounts || []).find(a => a.id === newAccountId)
                                     return selectedBank ? (
-                                        <p className="text-[11px] font-bold text-zinc-500">
+                                        <p className="text-xs font-bold text-zinc-500">
                                             Saldo buku: <span className="font-mono text-emerald-600">Rp {selectedBank.balance.toLocaleString("id-ID")}</span>
                                             <span className="text-zinc-400 font-medium ml-1">(referensi)</span>
                                         </p>
@@ -1008,7 +1008,7 @@ export function BankReconciliationView({
                                     value={newBankStatementBalance}
                                     onChange={setNewBankStatementBalance}
                                 />
-                                <p className="text-[9px] text-zinc-400 -mt-1">Ketik angka saja — format otomatis</p>
+                                <p className="text-xs text-zinc-400 -mt-1">Ketik angka saja — format otomatis</p>
                             </NBSection>
                         </NBDialogBody>
 
@@ -1027,7 +1027,7 @@ export function BankReconciliationView({
                 {/* Row 2: KPI Strip */}
                 <div className="flex items-center border-b border-zinc-200 dark:border-zinc-800 divide-x divide-zinc-200 dark:divide-zinc-800">
                     {[
-                        { label: "Semua", count: kpiAll, color: "orange", dot: "bg-orange-500" },
+                        { label: "Semua", count: kpiAll, color: "orange", dot: "bg-blue-500" },
                         { label: "Draft", count: kpiDraft, color: "zinc", dot: "bg-zinc-400" },
                         { label: "Dalam Proses", count: kpiInProgress, color: "amber", dot: "bg-amber-500" },
                         { label: "Selesai", count: kpiCompleted, color: "emerald", dot: "bg-emerald-500" },
@@ -1038,14 +1038,14 @@ export function BankReconciliationView({
                         >
                             <div className="flex items-center gap-1.5">
                                 <span className={`w-2 h-2 ${kpi.dot}`} />
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{kpi.label}</span>
+                                <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">{kpi.label}</span>
                             </div>
                             <motion.span
                                 key={kpi.count}
                                 initial={{ scale: 0.8, opacity: 0 }}
                                 animate={{ scale: 1, opacity: 1 }}
                                 transition={{ type: "spring" as const, stiffness: 400, damping: 20 }}
-                                className={`text-xl font-black ${
+                                className={`text-xl font-semibold ${
                                     kpi.color === "amber" && kpi.count > 0
                                         ? "text-amber-600 dark:text-amber-400"
                                         : "text-zinc-900 dark:text-white"
@@ -1064,13 +1064,13 @@ export function BankReconciliationView({
                         <div className="relative">
                             <Search
                                 className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 z-10 transition-colors ${
-                                    searchQuery ? "text-orange-500" : "text-zinc-500 dark:text-zinc-400"
+                                    searchQuery ? "text-blue-500" : "text-zinc-500 dark:text-zinc-400"
                                 }`}
                             />
                             <input
-                                className={`border border-r-0 font-medium h-9 w-[220px] text-xs rounded-none pl-9 pr-8 outline-none placeholder:text-zinc-400 transition-all ${
+                                className={`border border-r-0 font-medium h-9 w-[220px] text-xs rounded-md pl-9 pr-8 outline-none placeholder:text-zinc-400 transition-all ${
                                     searchQuery
-                                        ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 text-zinc-900 dark:text-white"
+                                        ? "border-blue-400 dark:border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 text-zinc-900 dark:text-white"
                                         : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
                                 }`}
                                 placeholder="Cari akun bank..."
@@ -1096,9 +1096,9 @@ export function BankReconciliationView({
                             <button
                                 key={f.key}
                                 onClick={() => setStatusFilter(f.key)}
-                                className={`h-9 px-3 text-[10px] font-black uppercase tracking-widest transition-all border ${idx < arr.length - 1 ? "border-r-0" : ""} rounded-none ${
+                                className={`h-9 px-3 text-xs font-semibold   transition-all border ${idx < arr.length - 1 ? "border-r-0" : ""} rounded-md ${
                                     statusFilter === f.key
-                                        ? "bg-black dark:bg-white text-white dark:text-black border-black dark:border-white"
+                                        ? "bg-slate-900 dark:bg-white text-white dark:text-black border-border dark:border-white"
                                         : "bg-white dark:bg-zinc-900 text-zinc-400 border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-600 dark:hover:text-zinc-300"
                                 }`}
                             >
@@ -1106,7 +1106,7 @@ export function BankReconciliationView({
                             </button>
                         ))}
                     </div>
-                    <span className="hidden md:inline text-[11px] font-medium text-zinc-400">
+                    <span className="hidden md:inline text-xs font-medium text-zinc-400">
                         <span className="font-mono font-bold text-zinc-600 dark:text-zinc-300">{filteredReconciliations.length}</span> sesi
                     </span>
                 </div>
@@ -1117,17 +1117,17 @@ export function BankReconciliationView({
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ type: "spring" as const, stiffness: 320, damping: 26, delay: 0.08 }}
-                className="border border-zinc-200 dark:border-zinc-700 shadow-sm bg-white dark:bg-zinc-900 overflow-hidden flex rounded-none"
+                className="border border-zinc-200 dark:border-zinc-700 shadow-sm bg-white dark:bg-zinc-900 overflow-hidden flex rounded-md"
                 style={{ minHeight: 520 }}
             >
                 {/* ── Sidebar: reconciliation list ─────────────────────────────── */}
                 <div className="w-80 shrink-0 border-r border-zinc-200 dark:border-zinc-700 flex flex-col bg-zinc-50/50 dark:bg-zinc-900/50">
                     {/* Sidebar header */}
                     <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                        <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
                             Sesi Rekonsiliasi
                         </span>
-                        <span className="text-[10px] font-mono font-bold text-zinc-400">
+                        <span className="text-xs font-mono font-bold text-zinc-400">
                             {filteredReconciliations.length}
                         </span>
                     </div>
@@ -1140,17 +1140,17 @@ export function BankReconciliationView({
                             <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 block mb-1">
                                 Belum ada rekonsiliasi
                             </span>
-                            <p className="text-[10px] text-zinc-400">Klik &quot;Rekonsiliasi Baru&quot; untuk memulai</p>
+                            <p className="text-xs text-zinc-400">Klik &quot;Rekonsiliasi Baru&quot; untuk memulai</p>
                         </div>
                     ) : filteredReconciliations.length === 0 ? (
                         <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
                             <Filter className="h-5 w-5 mx-auto text-zinc-300 dark:text-zinc-600 mb-3" />
-                            <span className="text-[10px] font-bold text-zinc-400 block mb-2">
+                            <span className="text-xs font-bold text-zinc-400 block mb-2">
                                 Tidak ada hasil untuk filter ini
                             </span>
                             <button
                                 onClick={() => { setSearchQuery(""); setStatusFilter("all") }}
-                                className="text-[9px] font-black text-orange-600 hover:underline uppercase"
+                                className="text-xs font-semibold text-blue-600 hover:underline "
                             >
                                 Reset Filter
                             </button>
@@ -1169,7 +1169,7 @@ export function BankReconciliationView({
                                     return (
                                         <button
                                             key={rec.id}
-                                            className={`w-full text-left rounded-none px-3.5 py-3 transition-all duration-150 group relative ${
+                                            className={`w-full text-left rounded-md px-3.5 py-3 transition-all duration-150 group relative ${
                                                 isSelected
                                                     ? "bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 shadow-sm"
                                                     : "bg-transparent border border-transparent hover:bg-white dark:hover:bg-zinc-800 hover:border-zinc-200 dark:hover:border-zinc-700"
@@ -1178,22 +1178,22 @@ export function BankReconciliationView({
                                         >
                                             {/* Selected indicator — left accent bar */}
                                             {isSelected && (
-                                                <div className="absolute left-0 top-2 bottom-2 w-[3px] bg-orange-500 rounded-r" />
+                                                <div className="absolute left-0 top-2 bottom-2 w-[3px] bg-blue-500 rounded-r" />
                                             )}
                                             {/* Row 1: Account name + status */}
                                             <div className="flex items-center justify-between gap-2 mb-1.5">
                                                 <div className="flex items-center gap-2 min-w-0">
-                                                    <Landmark className={`h-3.5 w-3.5 shrink-0 ${isSelected ? "text-orange-500" : "text-zinc-400 dark:text-zinc-500"}`} />
+                                                    <Landmark className={`h-3.5 w-3.5 shrink-0 ${isSelected ? "text-blue-500" : "text-zinc-400 dark:text-zinc-500"}`} />
                                                     <span className={`text-xs font-bold truncate ${isSelected ? "text-zinc-900 dark:text-white" : "text-zinc-700 dark:text-zinc-300"}`}>
                                                         {rec.glAccountName}
                                                     </span>
                                                 </div>
-                                                <span className={`text-[7px] font-black px-1.5 py-0.5 border shrink-0 uppercase tracking-wider ${statusCfg.bg} ${statusCfg.text} ${statusCfg.border}`}>
+                                                <span className={`text-[7px] font-semibold px-1.5 py-0.5 border shrink-0 ${statusCfg.bg} ${statusCfg.text} ${statusCfg.border}`}>
                                                     {statusCfg.label}
                                                 </span>
                                             </div>
                                             {/* Row 2: Period */}
-                                            <div className="text-[9px] text-zinc-400 font-medium ml-[22px] mb-2">
+                                            <div className="text-xs text-zinc-400 font-medium ml-[22px] mb-2">
                                                 {formatDate(rec.periodStart)} — {formatDate(rec.periodEnd)}
                                             </div>
                                             {/* Row 3: Progress bar + stats */}
@@ -1205,13 +1205,13 @@ export function BankReconciliationView({
                                                             style={{ width: `${Math.max(pct, 2)}%` }}
                                                         />
                                                     </div>
-                                                    <span className={`text-[9px] font-mono font-bold shrink-0 ${
+                                                    <span className={`text-xs font-mono font-bold shrink-0 ${
                                                         pct >= 80 ? "text-emerald-600" : pct >= 40 ? "text-amber-600" : "text-zinc-400"
                                                     }`}>
                                                         {Math.round(pct)}%
                                                     </span>
                                                 </div>
-                                                <div className="flex items-center gap-3 text-[9px] font-medium">
+                                                <div className="flex items-center gap-3 text-xs font-medium">
                                                     <span className="flex items-center gap-1">
                                                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                                                         <span className="text-zinc-500 dark:text-zinc-400">{rec.matchedCount} cocok</span>
@@ -1226,7 +1226,7 @@ export function BankReconciliationView({
                                             </div>
                                             {/* Loading indicator */}
                                             {detailLoading && isSelected && (
-                                                <div className="flex items-center gap-1.5 mt-2 ml-[22px] text-[9px] font-bold text-orange-600">
+                                                <div className="flex items-center gap-1.5 mt-2 ml-[22px] text-xs font-bold text-blue-600">
                                                     <Loader2 className="h-3 w-3 animate-spin" /> Memuat detail...
                                                 </div>
                                             )}
@@ -1243,8 +1243,8 @@ export function BankReconciliationView({
                     {detailLoading ? (
                         <div className="flex-1 flex items-center justify-center">
                             <div className="text-center space-y-3">
-                                <Loader2 className="h-8 w-8 animate-spin text-orange-400 mx-auto" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">
+                                <Loader2 className="h-8 w-8 animate-spin text-blue-400 mx-auto" />
+                                <span className="text-xs font-semibold text-zinc-400 block">
                                     Memuat detail rekonsiliasi...
                                 </span>
                             </div>
@@ -1370,13 +1370,13 @@ export function BankReconciliationView({
                         />
                     ) : (
                         /* Empty state — onboarding card */
-                        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-10">
+                        <div className="bg-white border border-border shadow-sm p-10">
                             <div className="max-w-md mx-auto text-center">
-                                <div className="flex items-center justify-center h-16 w-16 mx-auto bg-purple-50 border-2 border-purple-200 mb-5">
+                                <div className="flex items-center justify-center h-16 w-16 mx-auto bg-purple-50 border border-purple-200 mb-5">
                                     <Landmark className="h-8 w-8 text-purple-400" />
                                 </div>
-                                <h3 className="text-sm font-black uppercase tracking-widest mb-2">Pilih Rekonsiliasi</h3>
-                                <p className="text-[11px] text-zinc-400 font-medium mb-6">
+                                <h3 className="text-sm font-semibold mb-2">Pilih Rekonsiliasi</h3>
+                                <p className="text-xs text-zinc-400 font-medium mb-6">
                                     Pilih sesi di sebelah kiri, atau buat rekonsiliasi baru untuk memulai
                                 </p>
                                 {/* 3-step workflow guide */}
@@ -1388,12 +1388,12 @@ export function BankReconciliationView({
                                     ].map((s, i) => (
                                         <div key={s.step} className="flex items-center gap-3">
                                             <div className="flex items-center gap-2">
-                                                <div className="flex items-center justify-center h-8 w-8 bg-zinc-900 text-white text-[10px] font-black border-2 border-black">
+                                                <div className="flex items-center justify-center h-8 w-8 bg-zinc-900 text-white text-xs font-semibold border border-border">
                                                     {s.step}
                                                 </div>
                                                 <div>
-                                                    <div className="text-[10px] font-black uppercase">{s.label}</div>
-                                                    <div className="text-[9px] text-zinc-400">{s.desc}</div>
+                                                    <div className="text-xs font-semibold ">{s.label}</div>
+                                                    <div className="text-xs text-zinc-400">{s.desc}</div>
                                                 </div>
                                             </div>
                                             {i < 2 && <ArrowRight className="h-3.5 w-3.5 text-zinc-300 shrink-0" />}

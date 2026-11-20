@@ -14,7 +14,7 @@ const VENDOR_DATA = [
 export function VendorPerformanceWidget() {
     return (
         <div className="relative">
-            <Badge className="absolute -top-2 -right-2 z-10 bg-amber-100 text-amber-800 border border-amber-300 text-[8px] font-black uppercase tracking-widest rounded-none px-1.5 py-0.5">
+            <Badge className="absolute -top-2 -right-2 z-10 bg-amber-100 text-amber-800 border border-amber-300 text-xs font-semibold rounded-md px-1.5 py-0.5">
                 Data Demo
             </Badge>
         <Card className="col-span-1 md:col-span-3 lg:col-span-4 h-full">
@@ -42,7 +42,7 @@ export function VendorPerformanceWidget() {
                                     inline-flex items-center justify-center h-6 w-6 rounded-full text-xs font-bold
                                     ${vendor.rating === 'A' ? 'bg-emerald-100 text-emerald-700' :
                                             vendor.rating === 'B' ? 'bg-blue-100 text-blue-700' :
-                                                'bg-orange-100 text-orange-700'}
+                                                'bg-blue-100 text-blue-700'}
                                 `}>
                                         {vendor.rating}
                                     </span>

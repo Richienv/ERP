@@ -99,7 +99,7 @@ export default function EcommercePage() {
                                         <div>
                                             <div className="flex items-center gap-2">
                                                 <p className="font-medium text-sm">{order.id} • {order.customer}</p>
-                                                <Badge variant="outline" className="text-[10px]">{order.source}</Badge>
+                                                <Badge variant="outline" className="text-xs">{order.source}</Badge>
                                             </div>
                                             <p className="text-xs text-muted-foreground">{order.item}</p>
                                         </div>
@@ -110,7 +110,7 @@ export default function EcommercePage() {
                                             order.status === "Selesai" ? "default" :
                                                 order.status === "Perlu Dikirim" ? "destructive" :
                                                     "secondary"
-                                        } className="text-[10px] mt-1">
+                                        } className="text-xs mt-1">
                                             {order.status}
                                         </Badge>
                                     </div>
@@ -140,7 +140,7 @@ export default function EcommercePage() {
                         <Separator />
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-600 font-bold text-xs">SHP</div>
+                                <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-600 font-bold text-xs">SHP</div>
                                 <div>
                                     <p className="font-medium">Shopee</p>
                                     <p className="text-xs text-muted-foreground">Connected as TextileStore</p>

@@ -74,7 +74,7 @@ export function DCNoteDetailDialog({ noteId, open, onOpenChange }: DCNoteDetailD
                             <InfoCell label="Tipe" value={TYPE_LABELS[data.type] ?? data.type} />
                             <div>
                                 <p className={NB.label}>Status</p>
-                                <Badge variant="outline" className={`text-[9px] font-black uppercase rounded-none ${STATUS_STYLES[data.status] ?? ""}`}>
+                                <Badge variant="outline" className={`text-xs font-semibold  rounded-md ${STATUS_STYLES[data.status] ?? ""}`}>
                                     {data.status}
                                 </Badge>
                             </div>
@@ -86,25 +86,25 @@ export function DCNoteDetailDialog({ noteId, open, onOpenChange }: DCNoteDetailD
                         {/* Invoice Asal */}
                         <div className={NB.section}>
                             <div className={NB.sectionHead}>
-                                <Receipt className="h-3.5 w-3.5 text-orange-500" />
+                                <Receipt className="h-3.5 w-3.5 text-blue-500" />
                                 <span className={NB.sectionTitle}>Invoice Asal</span>
                             </div>
                             <div className={NB.sectionBody}>
                                 {data.originalInvoice ? (
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
-                                            <span className="font-mono font-black text-sm">{data.originalInvoice.number}</span>
-                                            <Badge variant="outline" className={`text-[9px] font-black uppercase rounded-none ${STATUS_STYLES[data.originalInvoice.status] ?? ""}`}>
+                                            <span className="font-mono font-semibold text-sm">{data.originalInvoice.number}</span>
+                                            <Badge variant="outline" className={`text-xs font-semibold  rounded-md ${STATUS_STYLES[data.originalInvoice.status] ?? ""}`}>
                                                 {data.originalInvoice.status}
                                             </Badge>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-400">Total Invoice</p>
-                                            <p className="font-mono font-black text-sm">{formatIDR(data.originalInvoice.totalAmount)}</p>
+                                            <p className="text-xs font-bold text-zinc-400">Total Invoice</p>
+                                            <p className="font-mono font-semibold text-sm">{formatIDR(data.originalInvoice.totalAmount)}</p>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-400">Sisa Tagihan</p>
-                                            <p className={`font-mono font-black text-sm ${data.originalInvoice.balanceDue > 0 ? "text-orange-600" : "text-emerald-600"}`}>
+                                            <p className="text-xs font-bold text-zinc-400">Sisa Tagihan</p>
+                                            <p className={`font-mono font-semibold text-sm ${data.originalInvoice.balanceDue > 0 ? "text-blue-600" : "text-emerald-600"}`}>
                                                 {formatIDR(data.originalInvoice.balanceDue)}
                                             </p>
                                         </div>
@@ -112,7 +112,7 @@ export function DCNoteDetailDialog({ noteId, open, onOpenChange }: DCNoteDetailD
                                             href={`/finance/invoices/${data.originalInvoice.id}`}
                                             target="_blank"
                                             rel="noreferrer"
-                                            className="flex items-center gap-1 text-[10px] font-bold uppercase text-blue-600 hover:underline"
+                                            className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:underline"
                                         >
                                             <ExternalLink className="h-3 w-3" /> Buka Invoice
                                         </a>
@@ -135,11 +135,11 @@ export function DCNoteDetailDialog({ noteId, open, onOpenChange }: DCNoteDetailD
                                 <table className="w-full text-sm">
                                     <thead>
                                         <tr className="border-b border-zinc-200 bg-zinc-50">
-                                            <th className="text-left px-3 py-2 text-[9px] font-black uppercase tracking-widest text-zinc-400">Deskripsi</th>
-                                            <th className="text-right px-3 py-2 text-[9px] font-black uppercase tracking-widest text-zinc-400">Qty</th>
-                                            <th className="text-right px-3 py-2 text-[9px] font-black uppercase tracking-widest text-zinc-400">Harga Satuan</th>
-                                            <th className="text-right px-3 py-2 text-[9px] font-black uppercase tracking-widest text-zinc-400">PPN</th>
-                                            <th className="text-right px-3 py-2 text-[9px] font-black uppercase tracking-widest text-zinc-400">Total</th>
+                                            <th className="text-left px-3 py-2 text-xs font-semibold text-zinc-400">Deskripsi</th>
+                                            <th className="text-right px-3 py-2 text-xs font-semibold text-zinc-400">Qty</th>
+                                            <th className="text-right px-3 py-2 text-xs font-semibold text-zinc-400">Harga Satuan</th>
+                                            <th className="text-right px-3 py-2 text-xs font-semibold text-zinc-400">PPN</th>
+                                            <th className="text-right px-3 py-2 text-xs font-semibold text-zinc-400">Total</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -154,22 +154,22 @@ export function DCNoteDetailDialog({ noteId, open, onOpenChange }: DCNoteDetailD
                                         ))}
                                     </tbody>
                                     <tfoot>
-                                        <tr className="border-t-2 border-black">
+                                        <tr className="border-t border-border">
                                             <td colSpan={3} />
-                                            <td className="px-3 py-2 text-right text-[9px] font-black uppercase tracking-widest text-zinc-400">Subtotal</td>
+                                            <td className="px-3 py-2 text-right text-xs font-semibold text-zinc-400">Subtotal</td>
                                             <td className="px-3 py-2 text-right font-mono font-bold">{formatIDR(data.subtotal)}</td>
                                         </tr>
                                         {data.ppnAmount > 0 && (
                                             <tr>
                                                 <td colSpan={3} />
-                                                <td className="px-3 py-1 text-right text-[9px] font-black uppercase tracking-widest text-zinc-400">PPN 11%</td>
+                                                <td className="px-3 py-1 text-right text-xs font-semibold text-zinc-400">PPN 11%</td>
                                                 <td className="px-3 py-1 text-right font-mono">{formatIDR(data.ppnAmount)}</td>
                                             </tr>
                                         )}
                                         <tr className="bg-zinc-50">
                                             <td colSpan={3} />
-                                            <td className="px-3 py-2 text-right text-[10px] font-black uppercase tracking-widest">Total</td>
-                                            <td className="px-3 py-2 text-right font-mono font-black text-base">{formatIDR(data.totalAmount)}</td>
+                                            <td className="px-3 py-2 text-right text-xs font-semibold  ">Total</td>
+                                            <td className="px-3 py-2 text-right font-mono font-semibold text-base">{formatIDR(data.totalAmount)}</td>
                                         </tr>
                                     </tfoot>
                                 </table>
@@ -183,16 +183,16 @@ export function DCNoteDetailDialog({ noteId, open, onOpenChange }: DCNoteDetailD
                                     <BookOpen className="h-3.5 w-3.5 text-zinc-400" />
                                     <span className={NB.sectionTitle}>Jurnal</span>
                                     <span className={`${NB.sectionHint} font-mono`}>{data.journalEntry.reference || data.journalEntry.id.slice(0, 8)}</span>
-                                    <Badge variant="outline" className={`ml-2 text-[8px] font-black uppercase rounded-none ${data.journalEntry.status === "POSTED" ? "border-blue-300 text-blue-600" : "border-zinc-300 text-zinc-500"}`}>
+                                    <Badge variant="outline" className={`ml-2 text-xs font-semibold  rounded-md ${data.journalEntry.status === "POSTED" ? "border-blue-300 text-blue-600" : "border-zinc-300 text-zinc-500"}`}>
                                         {data.journalEntry.status}
                                     </Badge>
                                 </div>
                                 <table className="w-full text-xs">
                                     <thead>
                                         <tr className="border-b border-zinc-200 bg-zinc-50">
-                                            <th className="text-left px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-zinc-400">Akun</th>
-                                            <th className="text-right px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-zinc-400">Debit</th>
-                                            <th className="text-right px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-zinc-400">Kredit</th>
+                                            <th className="text-left px-3 py-1.5 text-xs font-semibold text-zinc-400">Akun</th>
+                                            <th className="text-right px-3 py-1.5 text-xs font-semibold text-zinc-400">Debit</th>
+                                            <th className="text-right px-3 py-1.5 text-xs font-semibold text-zinc-400">Kredit</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -208,12 +208,12 @@ export function DCNoteDetailDialog({ noteId, open, onOpenChange }: DCNoteDetailD
                                         ))}
                                     </tbody>
                                     <tfoot>
-                                        <tr className="border-t-2 border-black bg-zinc-50">
-                                            <td className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-zinc-400">Total</td>
-                                            <td className="px-3 py-1.5 text-right font-mono font-black">
+                                        <tr className="border-t border-border bg-zinc-50">
+                                            <td className="px-3 py-1.5 text-xs font-semibold text-zinc-400">Total</td>
+                                            <td className="px-3 py-1.5 text-right font-mono font-semibold">
                                                 {formatIDR(data.journalEntry.lines.reduce((s, l) => s + l.debit, 0))}
                                             </td>
-                                            <td className="px-3 py-1.5 text-right font-mono font-black text-zinc-500">
+                                            <td className="px-3 py-1.5 text-right font-mono font-semibold text-zinc-500">
                                                 {formatIDR(data.journalEntry.lines.reduce((s, l) => s + l.credit, 0))}
                                             </td>
                                         </tr>

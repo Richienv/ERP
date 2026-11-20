@@ -12,7 +12,7 @@ export default function SubcontractOrderDetailPage() {
     const { data, isLoading } = useSubcontractOrderDetail(id)
 
     if (isLoading || !data || !data.order) {
-        return <CardPageSkeleton accentColor="bg-orange-400" />
+        return <CardPageSkeleton accentColor="bg-blue-400" />
     }
 
     return (
@@ -20,7 +20,7 @@ export default function SubcontractOrderDetailPage() {
             <div className="flex items-center gap-3">
                 <Link
                     href="/subcontract/orders"
-                    className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-zinc-500 hover:text-black transition-colors"
+                    className="flex items-center gap-1 text-xs font-semibold text-zinc-500 hover:text-black transition-colors"
                 >
                     <ArrowLeft className="h-3.5 w-3.5" />
                     Kembali
@@ -28,7 +28,7 @@ export default function SubcontractOrderDetailPage() {
                 <div className="w-px h-4 bg-zinc-300" />
                 <div className="flex items-center gap-2">
                     <ClipboardList className="h-5 w-5" />
-                    <h1 className="text-sm font-black uppercase tracking-widest">
+                    <h1 className="text-sm font-semibold  ">
                         Detail Order Subkontrak
                     </h1>
                 </div>

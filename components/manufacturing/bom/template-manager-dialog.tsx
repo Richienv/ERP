@@ -105,13 +105,13 @@ export function TemplateManagerDialog({ open, onClose, onApply }: Props) {
                         <div key={t.id} className="border border-zinc-200 p-3 flex items-start gap-3 hover:border-zinc-400 transition-colors">
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1.5">
-                                    <span className="text-sm font-black truncate">{t.name}</span>
+                                    <span className="text-sm font-semibold truncate">{t.name}</span>
                                     {t.isBuiltIn && <span title="Template bawaan"><Lock className="h-3 w-3 text-zinc-400 shrink-0" /></span>}
                                 </div>
-                                {t.description && <p className="text-[10px] text-zinc-400 mt-0.5">{t.description}</p>}
+                                {t.description && <p className="text-xs text-zinc-400 mt-0.5">{t.description}</p>}
                                 <div className="flex flex-wrap gap-1 mt-1.5">
                                     {t.stepsJson.map((type, i) => (
-                                        <span key={i} className="text-[9px] font-bold bg-zinc-100 border border-zinc-200 px-1.5 py-0.5 text-zinc-600">
+                                        <span key={i} className="text-xs font-bold bg-zinc-100 border border-zinc-200 px-1.5 py-0.5 text-zinc-600">
                                             {TYPE_LABELS[type] ?? type}
                                         </span>
                                     ))}
@@ -130,7 +130,7 @@ export function TemplateManagerDialog({ open, onClose, onApply }: Props) {
                                 <Button
                                     size="sm"
                                     onClick={() => { onApply(t.stepsJson); onClose() }}
-                                    className="h-7 px-3 text-[10px] font-bold bg-black hover:bg-zinc-800 rounded-none border border-black"
+                                    className="h-7 px-3 text-xs font-bold bg-slate-900 hover:bg-zinc-800 rounded-md border border-border"
                                 >
                                     Terapkan <ChevronRight className="h-3 w-3 ml-0.5" />
                                 </Button>
@@ -141,8 +141,8 @@ export function TemplateManagerDialog({ open, onClose, onApply }: Props) {
 
                 {/* Create new template */}
                 {creating ? (
-                    <div className="border border-orange-300 bg-orange-50 p-3 space-y-3">
-                        <p className="text-xs font-black uppercase text-orange-700">Template Baru</p>
+                    <div className="border border-blue-300 bg-blue-50 p-3 space-y-3">
+                        <p className="text-xs font-semibold text-blue-700">Template Baru</p>
                         <NBInput
                             label="Nama Template"
                             value={name}
@@ -156,7 +156,7 @@ export function TemplateManagerDialog({ open, onClose, onApply }: Props) {
                             placeholder="Keterangan singkat..."
                         />
                         <div>
-                            <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">
+                            <label className="text-xs font-bold text-zinc-600 mb-1 block">
                                 Urutan Proses
                             </label>
                             <div className="flex flex-wrap gap-1.5">
@@ -164,14 +164,14 @@ export function TemplateManagerDialog({ open, onClose, onApply }: Props) {
                                     <button
                                         key={type}
                                         onClick={() => toggleType(type)}
-                                        className={`text-[9px] font-bold px-2 py-1 border transition-all ${selectedTypes.includes(type) ? "bg-black text-white border-black" : "bg-white text-zinc-600 border-zinc-300 hover:border-zinc-500"}`}
+                                        className={`text-xs font-bold px-2 py-1 border transition-all ${selectedTypes.includes(type) ? "bg-slate-900 text-white border-border" : "bg-white text-zinc-600 border-zinc-300 hover:border-zinc-500"}`}
                                     >
                                         {TYPE_LABELS[type]}
                                     </button>
                                 ))}
                             </div>
                             {selectedTypes.length > 0 && (
-                                <p className="text-[9px] text-zinc-500 mt-1">
+                                <p className="text-xs text-zinc-500 mt-1">
                                     Urutan: {selectedTypes.map(t => TYPE_LABELS[t]).join(" → ")}
                                 </p>
                             )}
@@ -181,7 +181,7 @@ export function TemplateManagerDialog({ open, onClose, onApply }: Props) {
                                 size="sm"
                                 onClick={() => createMutation.mutate()}
                                 disabled={!name || selectedTypes.length === 0 || createMutation.isPending}
-                                className="h-7 text-[10px] font-bold bg-black hover:bg-zinc-800 rounded-none border border-black"
+                                className="h-7 text-xs font-bold bg-slate-900 hover:bg-zinc-800 rounded-md border border-border"
                             >
                                 {createMutation.isPending ? "Menyimpan..." : "Simpan Template"}
                             </Button>
@@ -189,7 +189,7 @@ export function TemplateManagerDialog({ open, onClose, onApply }: Props) {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => setCreating(false)}
-                                className="h-7 text-[10px] font-bold rounded-none border border-zinc-300"
+                                className="h-7 text-xs font-bold rounded-md border border-zinc-300"
                             >
                                 Batal
                             </Button>
@@ -200,7 +200,7 @@ export function TemplateManagerDialog({ open, onClose, onApply }: Props) {
                         variant="outline"
                         size="sm"
                         onClick={() => setCreating(true)}
-                        className="h-8 text-[10px] font-bold rounded-none border border-dashed border-zinc-400 hover:border-black w-full"
+                        className="h-8 text-xs font-bold rounded-md border border-dashed border-zinc-400 hover:border-border w-full"
                     >
                         <Plus className="h-3.5 w-3.5 mr-1.5" />
                         Buat Template Baru

@@ -172,7 +172,7 @@ export const navMain: SidebarNavItem[] = [
     title: "Pengadaan",
     url: "/procurement",
     icon: IconShoppingCart,
-    accentColor: "bg-orange-500",
+    accentColor: "bg-blue-500",
     moduleKey: "procurement",
     items: [
       { title: "Dashboard Pengadaan", url: "/procurement", icon: IconLayoutDashboard },
@@ -326,7 +326,7 @@ export function getManagerNav(): SidebarNavItem[] {
       title: "Pengadaan",
       url: "/procurement",
       icon: IconShoppingCart,
-      accentColor: "bg-orange-500",
+      accentColor: "bg-blue-500",
       items: navMain.find(i => i.url === "/procurement")?.items || [],
     },
   ]

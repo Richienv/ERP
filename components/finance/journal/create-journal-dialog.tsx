@@ -227,20 +227,20 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
                     <div className="grid grid-cols-3 gap-3">
                         {/* Date picker — Popover-based, keep as-is */}
                         <div>
-                            <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                            <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1 block">
                                 Tanggal <span className="text-red-500">*</span>
                             </label>
                             <Popover open={calOpen} onOpenChange={setCalOpen}>
                                 <PopoverTrigger asChild>
                                     <Button
                                         variant="outline"
-                                        className={`font-bold h-8 w-full justify-start text-left text-xs rounded-none border ${NB.inputActive}`}
+                                        className={`font-bold h-8 w-full justify-start text-left text-xs rounded-md border ${NB.inputActive}`}
                                     >
                                         <CalendarIcon className={`mr-2 h-3.5 w-3.5 ${NB.inputIconActive}`} />
                                         {format(date, "dd MMM yyyy", { locale: localeId })}
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0 border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" align="start">
+                                <PopoverContent className="w-auto p-0 border border-border rounded-md shadow-sm" align="start">
                                     <Calendar
                                         mode="single"
                                         selected={date}
@@ -255,16 +255,16 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
 
                         {/* Description */}
                         <div>
-                            <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                            <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1 block">
                                 Deskripsi <span className="text-red-500">*</span>
                             </label>
                             <Input
                                 value={desc}
                                 onChange={e => setDesc(e.target.value)}
                                 placeholder="Manual Adjustment..."
-                                className={`border font-medium h-8 text-sm rounded-none placeholder:text-zinc-400 placeholder:italic placeholder:font-normal transition-colors ${
+                                className={`border font-medium h-8 text-sm rounded-md placeholder:text-zinc-400 placeholder:italic placeholder:font-normal transition-colors ${
                                     desc
-                                        ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 text-zinc-900 dark:text-white"
+                                        ? "border-blue-400 dark:border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 text-zinc-900 dark:text-white"
                                         : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
                                 }`}
                             />
@@ -272,7 +272,7 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
 
                         {/* Journal Type + Generated Ref — native select, keep as-is */}
                         <div>
-                            <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">Tipe Jurnal</label>
+                            <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1 block">Tipe Jurnal</label>
                             <div className="flex gap-1.5">
                                 <select
                                     value={journalType}
@@ -285,9 +285,9 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
                                             setGeneratedRef("")
                                         }
                                     }}
-                                    className={`border font-medium h-8 text-[11px] rounded-none px-2 flex-1 transition-colors cursor-pointer ${
+                                    className={`border font-medium h-8 text-xs rounded-md px-2 flex-1 transition-colors cursor-pointer ${
                                         journalType
-                                            ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 text-zinc-900 dark:text-white font-bold"
+                                            ? "border-blue-400 dark:border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 text-zinc-900 dark:text-white font-bold"
                                             : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-400"
                                     }`}
                                 >
@@ -297,7 +297,7 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
                                     ))}
                                 </select>
                                 {generatedRef && (
-                                    <div className="flex items-center px-2 h-8 border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-[10px] font-mono font-bold text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
+                                    <div className="flex items-center px-2 h-8 border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-xs font-mono font-bold text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
                                         {generatedRef}
                                     </div>
                                 )}
@@ -310,24 +310,24 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
                 <div className="border border-zinc-200 dark:border-zinc-700">
                     <div className="bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700 flex items-center gap-2">
                         <BookText className="h-3.5 w-3.5 text-zinc-400" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Baris Jurnal</span>
-                        <span className="text-[10px] font-medium text-zinc-400 ml-auto">
+                        <span className="text-xs font-semibold text-zinc-500">Baris Jurnal</span>
+                        <span className="text-xs font-medium text-zinc-400 ml-auto">
                             {lines.length} baris
                         </span>
                     </div>
 
                     {/* Column headers */}
                     <div className={`grid grid-cols-[24px_1.3fr_1fr_100px_100px_28px] gap-1.5 px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700`}>
-                        <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400">#</div>
-                        <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Akun</div>
-                        <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Keterangan</div>
-                        <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400 text-right">
+                        <div className="text-xs font-semibold text-zinc-400">#</div>
+                        <div className="text-xs font-semibold text-zinc-400">Akun</div>
+                        <div className="text-xs font-semibold text-zinc-400">Keterangan</div>
+                        <div className="text-xs font-semibold text-zinc-400 text-right">
                             <span className="inline-flex items-center gap-1">
                                 <span className="w-1 h-1 bg-emerald-500 inline-block" />
                                 Debit
                             </span>
                         </div>
-                        <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400 text-right">
+                        <div className="text-xs font-semibold text-zinc-400 text-right">
                             <span className="inline-flex items-center gap-1">
                                 <span className="w-1 h-1 bg-red-500 inline-block" />
                                 Kredit
@@ -348,7 +348,7 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
                             >
                                 {/* Row number */}
                                 <div className="flex items-center justify-center">
-                                    <span className={`w-5 h-5 flex items-center justify-center text-[9px] font-black ${
+                                    <span className={`w-5 h-5 flex items-center justify-center text-xs font-semibold ${
                                         hasValue
                                             ? "bg-zinc-900 dark:bg-white text-white dark:text-black"
                                             : "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500"
@@ -366,7 +366,7 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
                                         placeholder="Cari akun..."
                                         searchPlaceholder="Ketik kode atau nama..."
                                         emptyMessage="Akun tidak ditemukan"
-                                        className={`h-7 text-[11px] ${line.accountId
+                                        className={`h-7 text-xs ${line.accountId
                                             ? "!border-orange-400 dark:!border-orange-500 !bg-orange-50/50 dark:!bg-orange-950/20"
                                             : "!border-zinc-200 dark:!border-zinc-700 !border"
                                         }`}
@@ -379,28 +379,28 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
                                         value={line.description}
                                         onChange={e => updateLine(i, { description: e.target.value })}
                                         placeholder="Opsional..."
-                                        className={`border h-7 text-[11px] font-medium rounded-none placeholder:text-zinc-300 ${
+                                        className={`border h-7 text-xs font-medium rounded-md placeholder:text-zinc-300 ${
                                             line.description
-                                                ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20"
+                                                ? "border-blue-400 dark:border-blue-500 bg-blue-50/50 dark:bg-blue-950/20"
                                                 : "border-zinc-200 dark:border-zinc-700"
                                         }`}
                                     />
                                 </div>
 
                                 {/* Debit */}
-                                <div className={`flex items-center border h-7 rounded-none transition-colors ${
+                                <div className={`flex items-center border h-7 rounded-md transition-colors ${
                                     (Number(line.debit) || 0) > 0
                                         ? "border-emerald-400 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-950/20"
                                         : "border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/30"
                                 }`}>
-                                    <span className={`pl-1.5 text-[9px] font-bold select-none ${
+                                    <span className={`pl-1.5 text-xs font-bold select-none ${
                                         (Number(line.debit) || 0) > 0 ? "text-emerald-500 dark:text-emerald-500" : "text-zinc-300 dark:text-zinc-600"
                                     }`}>Rp</span>
                                     <input
                                         type="text"
                                         inputMode="numeric"
                                         placeholder="0"
-                                        className={`w-full h-full bg-transparent text-right text-[11px] font-mono font-bold pr-1.5 pl-1 outline-none placeholder:text-zinc-300 placeholder:font-normal ${
+                                        className={`w-full h-full bg-transparent text-right text-xs font-mono font-bold pr-1.5 pl-1 outline-none placeholder:text-zinc-300 placeholder:font-normal ${
                                             (Number(line.debit) || 0) > 0 ? "text-emerald-700 dark:text-emerald-400" : ""
                                         }`}
                                         value={line.debit ? Number(line.debit).toLocaleString("id-ID") : ""}
@@ -412,19 +412,19 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
                                 </div>
 
                                 {/* Credit */}
-                                <div className={`flex items-center border h-7 rounded-none transition-colors ${
+                                <div className={`flex items-center border h-7 rounded-md transition-colors ${
                                     (Number(line.credit) || 0) > 0
                                         ? "border-red-400 dark:border-red-600 bg-red-50 dark:bg-red-950/20"
                                         : "border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/30"
                                 }`}>
-                                    <span className={`pl-1.5 text-[9px] font-bold select-none ${
+                                    <span className={`pl-1.5 text-xs font-bold select-none ${
                                         (Number(line.credit) || 0) > 0 ? "text-red-500 dark:text-red-500" : "text-zinc-300 dark:text-zinc-600"
                                     }`}>Rp</span>
                                     <input
                                         type="text"
                                         inputMode="numeric"
                                         placeholder="0"
-                                        className={`w-full h-full bg-transparent text-right text-[11px] font-mono font-bold pr-1.5 pl-1 outline-none placeholder:text-zinc-300 placeholder:font-normal ${
+                                        className={`w-full h-full bg-transparent text-right text-xs font-mono font-bold pr-1.5 pl-1 outline-none placeholder:text-zinc-300 placeholder:font-normal ${
                                             (Number(line.credit) || 0) > 0 ? "text-red-700 dark:text-red-400" : ""
                                         }`}
                                         value={line.credit ? Number(line.credit).toLocaleString("id-ID") : ""}
@@ -455,22 +455,22 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
                         <button
                             type="button"
                             onClick={handleAddLine}
-                            className="w-full py-1.5 text-[9px] font-black uppercase tracking-widest text-zinc-400 hover:text-black dark:hover:text-white border border-dashed border-zinc-200 dark:border-zinc-700 hover:border-black dark:hover:border-white transition-all flex items-center justify-center gap-1.5"
+                            className="w-full py-1.5 text-xs font-semibold text-zinc-400 hover:text-black dark:hover:text-white border border-dashed border-zinc-200 dark:border-zinc-700 hover:border-border dark:hover:border-white transition-all flex items-center justify-center gap-1.5"
                         >
                             <Plus className="h-2.5 w-2.5" /> Tambah Baris
                         </button>
                     </div>
 
                     {/* Totals row */}
-                    <div className="grid grid-cols-[24px_1.3fr_1fr_100px_100px_28px] gap-1.5 px-3 py-2 bg-zinc-100 dark:bg-zinc-800/80 border-t-2 border-black dark:border-white">
+                    <div className="grid grid-cols-[24px_1.3fr_1fr_100px_100px_28px] gap-1.5 px-3 py-2 bg-zinc-100 dark:bg-zinc-800/80 border-t border-border dark:border-white">
                         <div></div>
-                        <div className="text-[9px] font-black uppercase tracking-widest text-zinc-500 flex items-center col-span-2">
+                        <div className="text-xs font-semibold text-zinc-500 flex items-center col-span-2">
                             Total — {lines.filter(l => (Number(l.debit) || 0) > 0 || (Number(l.credit) || 0) > 0).length} baris aktif
                         </div>
-                        <div className="text-right font-mono font-black text-xs text-emerald-700 dark:text-emerald-400 tabular-nums">
+                        <div className="text-right font-mono font-semibold text-xs text-emerald-700 dark:text-emerald-400 tabular-nums">
                             {formatIDR(totalDebit)}
                         </div>
-                        <div className="text-right font-mono font-black text-xs text-red-700 dark:text-red-400 tabular-nums">
+                        <div className="text-right font-mono font-semibold text-xs text-red-700 dark:text-red-400 tabular-nums">
                             {formatIDR(totalCredit)}
                         </div>
                         <div></div>
@@ -479,7 +479,7 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
 
                 {/* ── Balance indicator — keep as-is ── */}
                 <div
-                    className={`flex items-center justify-between px-3 py-2 text-[9px] font-black uppercase tracking-widest border ${
+                    className={`flex items-center justify-between px-3 py-2 text-xs font-semibold   border ${
                         isBalanced
                             ? "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-400 border-emerald-300 dark:border-emerald-600"
                             : "bg-red-50 dark:bg-red-950/20 text-red-800 dark:text-red-400 border-red-300 dark:border-red-600"
@@ -493,7 +493,7 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
                         )}
                     </span>
                     {!isBalanced && (
-                        <span className="text-xs font-black tabular-nums">
+                        <span className="text-xs font-semibold tabular-nums">
                             Selisih {formatIDR(Math.abs(totalDebit - totalCredit))}
                         </span>
                     )}
@@ -502,7 +502,7 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
 
             {/* ── Custom footer with left-side totals ── */}
             <div className="border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2.5 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-[10px] text-zinc-400">
+                <div className="flex items-center gap-2 text-xs text-zinc-400">
                     <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">D: {formatIDR(totalDebit)}</span>
                     <span className="text-zinc-300 dark:text-zinc-600">|</span>
                     <span className="font-mono font-bold text-red-600 dark:text-red-400">K: {formatIDR(totalCredit)}</span>
@@ -512,7 +512,7 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
                         type="button"
                         variant="outline"
                         onClick={() => onOpenChange(false)}
-                        className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none"
+                        className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold text-xs px-4 h-8 rounded-md"
                     >
                         Batal
                     </Button>
@@ -520,9 +520,9 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
                         onClick={handleSave}
                         disabled={!isBalanced || !desc.trim() || posting}
                         className={`${isEditMode
-                            ? "bg-orange-500 text-white border border-orange-600 hover:bg-orange-600"
-                            : "bg-black text-white border border-black hover:bg-zinc-800"
-                        } font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none gap-1.5 disabled:opacity-40 transition-colors`}
+                            ? "bg-blue-500 text-white border border-blue-600 hover:bg-blue-600"
+                            : "bg-slate-900 text-white border border-border hover:bg-zinc-800"
+                        } font-semibold  text-xs  px-5 h-8 rounded-md gap-1.5 disabled:opacity-40 transition-colors`}
                     >
                         {posting ? (
                             isEditMode ? "Menyimpan..." : "Posting..."

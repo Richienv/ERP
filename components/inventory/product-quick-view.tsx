@@ -324,17 +324,17 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
         <>
             <NBDialog open={open} onOpenChange={onOpenChange} size="default">
                     {/* Header */}
-                    <DialogHeader className="bg-black text-white px-5 py-3">
+                    <DialogHeader className="bg-slate-900 text-white px-5 py-3">
                         <div className="flex items-center justify-between">
                             <div className="flex-1 min-w-0">
-                                <DialogTitle className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+                                <DialogTitle className="text-sm font-semibold text-white flex items-center gap-2">
                                     {loading ? "Memuat..." : product?.name || "Produk"}
                                 </DialogTitle>
                                 {product && (
                                     <div className="flex items-center gap-2 mt-1">
                                         <span className="font-mono text-xs text-zinc-400">{product.code}</span>
                                         {product.categoryName && (
-                                            <Badge className="bg-white/10 text-white border-white/20 text-[9px] font-bold">
+                                            <Badge className="bg-white/10 text-white border-white/20 text-xs font-bold">
                                                 {product.categoryName}
                                             </Badge>
                                         )}
@@ -365,10 +365,10 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                     </DialogHeader>
 
                     {/* Tab Bar */}
-                    <div className="flex border-b-2 border-black">
+                    <div className="flex border-b border-border">
                         <button
                             onClick={() => setTab("detail")}
-                            className={`flex-1 px-4 py-2.5 text-xs font-black uppercase tracking-widest transition-all border-r-2 border-black ${tab === "detail" ? "bg-black text-white" : "bg-white text-zinc-500 hover:bg-zinc-50"
+                            className={`flex-1 px-4 py-2.5 text-xs font-semibold   transition-all border-r border-border ${tab === "detail" ? "bg-slate-900 text-white" : "bg-white text-zinc-500 hover:bg-zinc-50"
                                 }`}
                         >
                             <Package className="h-3.5 w-3.5 inline mr-1.5" />
@@ -376,13 +376,13 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                         </button>
                         <button
                             onClick={() => setTab("movements")}
-                            className={`flex-1 px-4 py-2.5 text-xs font-black uppercase tracking-widest transition-all ${tab === "movements" ? "bg-black text-white" : "bg-white text-zinc-500 hover:bg-zinc-50"
+                            className={`flex-1 px-4 py-2.5 text-xs font-semibold   transition-all ${tab === "movements" ? "bg-slate-900 text-white" : "bg-white text-zinc-500 hover:bg-zinc-50"
                                 }`}
                         >
                             <History className="h-3.5 w-3.5 inline mr-1.5" />
                             Riwayat Stok
                             {movements.length > 0 && (
-                                <span className={`ml-1.5 inline-flex items-center justify-center px-1.5 h-4 text-[9px] font-black rounded-full ${tab === "movements" ? "bg-amber-400 text-black" : "bg-zinc-200 text-zinc-600"
+                                <span className={`ml-1.5 inline-flex items-center justify-center px-1.5 h-4 text-xs font-semibold rounded-full ${tab === "movements" ? "bg-amber-400 text-black" : "bg-zinc-200 text-zinc-600"
                                     }`}>
                                     {movements.length}
                                 </span>
@@ -408,34 +408,34 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                                     <div className="space-y-5">
                                         {/* Stock Summary Strip */}
                                         <div className="grid grid-cols-3 gap-2">
-                                            <div className="bg-zinc-50 border-2 border-black p-3 text-center">
-                                                <div className="text-[9px] font-black uppercase tracking-wider text-zinc-500">Total Stok</div>
-                                                <div className="text-xl font-black">{product.totalStock}</div>
-                                                <div className="text-[10px] text-zinc-400 font-bold">{product.unit}</div>
+                                            <div className="bg-zinc-50 border border-border p-3 text-center">
+                                                <div className="text-xs font-semibold text-zinc-500">Total Stok</div>
+                                                <div className="text-xl font-semibold">{product.totalStock}</div>
+                                                <div className="text-xs text-zinc-400 font-bold">{product.unit}</div>
                                             </div>
-                                            <div className="bg-zinc-50 border-2 border-black p-3 text-center">
-                                                <div className="text-[9px] font-black uppercase tracking-wider text-zinc-500">Min Stok</div>
-                                                <div className="text-xl font-black">{product.minStock}</div>
-                                                <div className="text-[10px] text-zinc-400 font-bold">{product.unit}</div>
+                                            <div className="bg-zinc-50 border border-border p-3 text-center">
+                                                <div className="text-xs font-semibold text-zinc-500">Min Stok</div>
+                                                <div className="text-xl font-semibold">{product.minStock}</div>
+                                                <div className="text-xs text-zinc-400 font-bold">{product.unit}</div>
                                             </div>
-                                            <div className="bg-zinc-50 border-2 border-black p-3 text-center">
-                                                <div className="text-[9px] font-black uppercase tracking-wider text-zinc-500">Gudang</div>
-                                                <div className="text-xl font-black">{product.stockLevels.length}</div>
-                                                <div className="text-[10px] text-zinc-400 font-bold">lokasi</div>
+                                            <div className="bg-zinc-50 border border-border p-3 text-center">
+                                                <div className="text-xs font-semibold text-zinc-500">Gudang</div>
+                                                <div className="text-xl font-semibold">{product.stockLevels.length}</div>
+                                                <div className="text-xs text-zinc-400 font-bold">lokasi</div>
                                             </div>
                                         </div>
 
                                         {/* Per-warehouse breakdown */}
                                         {product.stockLevels.length > 0 && (
-                                            <div className="border-2 border-black">
-                                                <div className="bg-zinc-100 px-3 py-2 border-b-2 border-black flex items-center gap-2">
+                                            <div className="border border-border">
+                                                <div className="bg-zinc-100 px-3 py-2 border-b border-border flex items-center gap-2">
                                                     <Warehouse className="h-3.5 w-3.5" />
-                                                    <span className="text-[10px] font-black uppercase tracking-widest">Distribusi Gudang</span>
+                                                    <span className="text-xs font-semibold  ">Distribusi Gudang</span>
                                                 </div>
                                                 {product.stockLevels.map((sl, i) => (
                                                     <div key={sl.warehouseId} className={`flex items-center justify-between px-3 py-2 ${i > 0 ? 'border-t border-zinc-200' : ''}`}>
                                                         <span className="text-sm font-bold">{sl.warehouseName}</span>
-                                                        <span className="font-mono font-black text-sm">{sl.quantity} {product.unit}</span>
+                                                        <span className="font-mono font-semibold text-sm">{sl.quantity} {product.unit}</span>
                                                     </div>
                                                 ))}
                                             </div>
@@ -443,24 +443,24 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
 
                                         {/* Editable Fields */}
                                         {editing ? (
-                                            <div className="space-y-4 border-2 border-amber-300 bg-amber-50/50 p-4">
+                                            <div className="space-y-4 border border-amber-300 bg-amber-50/50 p-4">
                                                 <div className="flex items-center gap-2 mb-2">
                                                     <Edit3 className="h-4 w-4 text-amber-600" />
-                                                    <span className="text-xs font-black uppercase tracking-widest text-amber-700">Mode Edit</span>
+                                                    <span className="text-xs font-semibold text-amber-700">Mode Edit</span>
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <div>
-                                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Nama Produk</label>
+                                                        <label className="text-xs font-semibold text-zinc-500">Nama Produk</label>
                                                         <Input
                                                             value={editForm.name || ""}
                                                             onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                                                            className="mt-1 border-2 border-black font-bold h-9"
+                                                            className="mt-1 border border-border font-bold h-9"
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Satuan</label>
+                                                        <label className="text-xs font-semibold text-zinc-500">Satuan</label>
                                                         <Select value={editForm.unit || "pcs"} onValueChange={v => setEditForm(f => ({ ...f, unit: v }))}>
-                                                            <SelectTrigger className="mt-1 border-2 border-black font-bold h-9">
+                                                            <SelectTrigger className="mt-1 border border-border font-bold h-9">
                                                                 <SelectValue />
                                                             </SelectTrigger>
                                                             <SelectContent>
@@ -470,25 +470,25 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                                                     </div>
                                                 </div>
                                                 <div>
-                                                    <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Deskripsi</label>
+                                                    <label className="text-xs font-semibold text-zinc-500">Deskripsi</label>
                                                     <Textarea
                                                         value={editForm.description || ""}
                                                         onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
-                                                        className="mt-1 border-2 border-black font-medium min-h-[60px]"
+                                                        className="mt-1 border border-border font-medium min-h-[60px]"
                                                     />
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <div>
-                                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500">HPP (Rp)</label>
+                                                        <label className="text-xs font-semibold text-zinc-500">HPP (Rp)</label>
                                                         <Input
                                                             type="number"
                                                             value={editForm.costPrice || 0}
                                                             onChange={e => setEditForm(f => ({ ...f, costPrice: parseFloat(e.target.value) || 0 }))}
-                                                            className="mt-1 border-2 border-black font-mono font-bold h-9"
+                                                            className="mt-1 border border-border font-mono font-bold h-9"
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Harga Jual (Rp, opsional)</label>
+                                                        <label className="text-xs font-semibold text-zinc-500">Harga Jual (Rp, opsional)</label>
                                                         <Input
                                                             type="number"
                                                             placeholder="Kosongkan jika belum ditentukan"
@@ -502,36 +502,36 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                                                                     setEditForm(f => ({ ...f, sellingPrice: Number.isNaN(parsed) ? null : parsed }))
                                                                 }
                                                             }}
-                                                            className="mt-1 border-2 border-black font-mono font-bold h-9"
+                                                            className="mt-1 border border-border font-mono font-bold h-9"
                                                         />
                                                     </div>
                                                 </div>
                                                 <div className="grid grid-cols-3 gap-3">
                                                     <div>
-                                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Min Stok</label>
+                                                        <label className="text-xs font-semibold text-zinc-500">Min Stok</label>
                                                         <Input
                                                             type="number"
                                                             value={editForm.minStock || 0}
                                                             onChange={e => setEditForm(f => ({ ...f, minStock: parseInt(e.target.value) || 0 }))}
-                                                            className="mt-1 border-2 border-black font-mono font-bold h-9"
+                                                            className="mt-1 border border-border font-mono font-bold h-9"
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Max Stok</label>
+                                                        <label className="text-xs font-semibold text-zinc-500">Max Stok</label>
                                                         <Input
                                                             type="number"
                                                             value={editForm.maxStock || 0}
                                                             onChange={e => setEditForm(f => ({ ...f, maxStock: parseInt(e.target.value) || 0 }))}
-                                                            className="mt-1 border-2 border-black font-mono font-bold h-9"
+                                                            className="mt-1 border border-border font-mono font-bold h-9"
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Reorder</label>
+                                                        <label className="text-xs font-semibold text-zinc-500">Reorder</label>
                                                         <Input
                                                             type="number"
                                                             value={editForm.reorderLevel || 0}
                                                             onChange={e => setEditForm(f => ({ ...f, reorderLevel: parseInt(e.target.value) || 0 }))}
-                                                            className="mt-1 border-2 border-black font-mono font-bold h-9"
+                                                            className="mt-1 border border-border font-mono font-bold h-9"
                                                         />
                                                     </div>
                                                 </div>
@@ -539,7 +539,7 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                                                     <Button
                                                         onClick={handleSave}
                                                         disabled={saving}
-                                                        className="flex-1 bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider"
+                                                        className="flex-1 bg-slate-900 text-white border border-border shadow-sm hover:shadow-sm transition-all font-semibold text-xs"
                                                     >
                                                         {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                                                         Simpan
@@ -547,7 +547,7 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                                                     <Button
                                                         variant="outline"
                                                         onClick={() => setEditing(false)}
-                                                        className="border-2 border-black font-black uppercase text-xs tracking-wider"
+                                                        className="border border-border font-semibold text-xs"
                                                     >
                                                         <X className="h-4 w-4 mr-1" /> Batal
                                                     </Button>
@@ -555,7 +555,7 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                                             </div>
                                         ) : (
                                             /* Read-only Detail */
-                                            <div className="border-2 border-black divide-y-2 divide-black">
+                                            <div className="border border-border divide-y-2 divide-border">
                                                 {[
                                                     { label: "Deskripsi", value: product.description || "-" },
                                                     { label: "HPP", value: `Rp ${(product.costPrice || 0).toLocaleString('id-ID')}` },
@@ -564,7 +564,7 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                                                     { label: "Barcode", value: product.barcode || "-" },
                                                 ].map(({ label, value }) => (
                                                     <div key={label} className="flex items-center px-3 py-2.5">
-                                                        <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500 w-32 flex-none">{label}</span>
+                                                        <span className="text-xs font-semibold text-zinc-500 w-32 flex-none">{label}</span>
                                                         <span className="text-sm font-bold text-zinc-900 flex-1">{value}</span>
                                                     </div>
                                                 ))}
@@ -573,7 +573,7 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
 
                                         {/* === PR CREATION SECTION === */}
                                         {!editing && (
-                                            <div className="border-2 border-violet-300 bg-violet-50/50 dark:bg-violet-950/10 overflow-hidden">
+                                            <div className="border border-violet-300 bg-violet-50/50 dark:bg-violet-950/10 overflow-hidden">
                                                 {!prFormOpen ? (
                                                     <button
                                                         onClick={() => {
@@ -588,22 +588,22 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                                                         className="w-full px-4 py-3 flex items-center justify-center gap-2 hover:bg-violet-100 dark:hover:bg-violet-950/20 transition-colors"
                                                     >
                                                         <ShoppingCart className="h-4 w-4 text-violet-600" />
-                                                        <span className="text-xs font-black uppercase tracking-widest text-violet-700">Buat Purchase Request</span>
+                                                        <span className="text-xs font-semibold text-violet-700">Buat Purchase Request</span>
                                                     </button>
                                                 ) : (
                                                     <div className="p-4 space-y-4">
                                                         <div className="flex items-center gap-2">
                                                             <ShoppingCart className="h-4 w-4 text-violet-600" />
-                                                            <span className="text-xs font-black uppercase tracking-widest text-violet-700">Buat Purchase Request</span>
+                                                            <span className="text-xs font-semibold text-violet-700">Buat Purchase Request</span>
                                                         </div>
 
                                                         <div className="grid grid-cols-2 gap-3">
                                                             <div>
-                                                                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Jumlah</label>
+                                                                <label className="text-xs font-semibold text-zinc-500 mb-1 block">Jumlah</label>
                                                                 <div className="relative">
                                                                     <Input
                                                                         type="number"
-                                                                        className="font-mono font-bold pl-8 border-2 border-black h-9"
+                                                                        className="font-mono font-bold pl-8 border border-border h-9"
                                                                         value={prForm.quantity}
                                                                         onChange={(e) => setPrForm(prev => ({ ...prev, quantity: e.target.value }))}
                                                                         placeholder="0"
@@ -612,9 +612,9 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                                                                 </div>
                                                             </div>
                                                             <div>
-                                                                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Gudang (opsional)</label>
+                                                                <label className="text-xs font-semibold text-zinc-500 mb-1 block">Gudang (opsional)</label>
                                                                 <Select value={prForm.warehouseId} onValueChange={(val) => setPrForm(prev => ({ ...prev, warehouseId: val }))}>
-                                                                    <SelectTrigger className="border-2 border-black font-bold h-9">
+                                                                    <SelectTrigger className="border border-border font-bold h-9">
                                                                         <SelectValue placeholder="Pilih gudang..." />
                                                                     </SelectTrigger>
                                                                     <SelectContent>
@@ -627,9 +627,9 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                                                         </div>
 
                                                         <div>
-                                                            <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Catatan / Alasan</label>
+                                                            <label className="text-xs font-semibold text-zinc-500 mb-1 block">Catatan / Alasan</label>
                                                             <Textarea
-                                                                className="border-2 border-black font-medium resize-none min-h-[50px]"
+                                                                className="border border-border font-medium resize-none min-h-[50px]"
                                                                 placeholder="Contoh: Pesanan pelanggan mendesak..."
                                                                 value={prForm.notes}
                                                                 onChange={(e) => setPrForm(prev => ({ ...prev, notes: e.target.value }))}
@@ -638,8 +638,8 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
 
                                                         {/* Cost estimation */}
                                                         {Number(product.costPrice || 0) > 0 && Number(prForm.quantity || 0) > 0 && (
-                                                            <div className="bg-blue-50 dark:bg-blue-950/20 border-2 border-blue-300 p-3 space-y-1.5">
-                                                                <div className="flex items-center gap-2 text-blue-800 dark:text-blue-400 font-black text-[9px] uppercase tracking-widest">
+                                                            <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-300 p-3 space-y-1.5">
+                                                                <div className="flex items-center gap-2 text-blue-800 dark:text-blue-400 font-semibold text-xs  ">
                                                                     <Calculator className="h-3.5 w-3.5" /> Estimasi Biaya
                                                                 </div>
                                                                 <div className="flex justify-between items-center text-xs font-medium">
@@ -650,7 +650,7 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                                                                     <span>PPN (11%)</span>
                                                                     <span className="font-mono font-bold">Rp {prTax.toLocaleString()}</span>
                                                                 </div>
-                                                                <div className="border-t border-blue-200 dark:border-blue-700 pt-1.5 flex justify-between items-center font-black text-sm">
+                                                                <div className="border-t border-blue-200 dark:border-blue-700 pt-1.5 flex justify-between items-center font-semibold text-sm">
                                                                     <span>Total Estimasi</span>
                                                                     <span className="font-mono">Rp {prTotalWithTax.toLocaleString()}</span>
                                                                 </div>
@@ -661,7 +661,7 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                                                             <Button
                                                                 onClick={handleQuickPR}
                                                                 disabled={prSubmitting}
-                                                                className="flex-1 bg-violet-600 hover:bg-violet-700 text-white border-2 border-violet-700 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider"
+                                                                className="flex-1 bg-violet-600 hover:bg-violet-700 text-white border border-violet-700 shadow-sm hover:shadow-sm transition-all font-semibold text-xs"
                                                             >
                                                                 {prSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ShoppingCart className="h-4 w-4 mr-2" />}
                                                                 Buat PR
@@ -669,7 +669,7 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                                                             <Button
                                                                 variant="outline"
                                                                 onClick={() => setPrFormOpen(false)}
-                                                                className="border-2 border-black font-black uppercase text-xs tracking-wider"
+                                                                className="border border-border font-semibold text-xs"
                                                             >
                                                                 <X className="h-4 w-4 mr-1" /> Batal
                                                             </Button>
@@ -685,23 +685,23 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                                 {tab === "movements" && (
                                     <div className="space-y-3">
                                         {enrichedMovements.length === 0 ? (
-                                            <div className="text-center py-12 border-2 border-dashed border-zinc-200">
+                                            <div className="text-center py-12 border border-dashed border-zinc-200">
                                                 <History className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                                                <p className="text-xs font-black uppercase text-zinc-400">Belum ada riwayat pergerakan</p>
+                                                <p className="text-xs font-semibold text-zinc-400">Belum ada riwayat pergerakan</p>
                                             </div>
                                         ) : (
                                             enrichedMovements.map((mv) => (
-                                                <div key={mv.id} className="border-2 border-black bg-white hover:bg-zinc-50 transition-colors">
+                                                <div key={mv.id} className="border border-border bg-white hover:bg-zinc-50 transition-colors">
                                                     <div className="flex items-start gap-3 p-3">
                                                         {/* Icon */}
                                                         <div className="flex-none mt-0.5">{getMovementIcon(mv.type)}</div>
                                                         {/* Content */}
                                                         <div className="flex-1 min-w-0">
                                                             <div className="flex items-center justify-between gap-2 mb-1">
-                                                                <Badge className={`text-[9px] font-black border ${getMovementColor(mv.type)}`}>
+                                                                <Badge className={`text-xs font-semibold border ${getMovementColor(mv.type)}`}>
                                                                     {getMovementLabel(mv.type)}
                                                                 </Badge>
-                                                                <span className="text-[10px] text-zinc-400 font-bold">
+                                                                <span className="text-xs text-zinc-400 font-bold">
                                                                     {new Date(mv.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                                                                 </span>
                                                             </div>
@@ -723,7 +723,7 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                                                             </div>
                                                             {/* Reference & entity */}
                                                             {(mv.reference || mv.entity || mv.notes) && (
-                                                                <div className="text-[10px] text-zinc-400 mt-0.5">
+                                                                <div className="text-xs text-zinc-400 mt-0.5">
                                                                     {mv.reference && <span className="font-mono">{mv.reference}</span>}
                                                                     {mv.entity && <span> &middot; {mv.entity}</span>}
                                                                     {mv.notes && !mv.reference && !mv.entity && <span>{mv.notes}</span>}
@@ -731,7 +731,7 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                                                             )}
                                                         </div>
                                                         {/* Qty */}
-                                                        <div className={`flex-none text-right font-mono font-black text-base ${mv.qty > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                        <div className={`flex-none text-right font-mono font-semibold text-base ${mv.qty > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                                                             {mv.qty > 0 ? '+' : ''}{mv.qty}
                                                         </div>
                                                     </div>
@@ -747,9 +747,9 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
 
             {/* Delete Confirmation */}
             <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                <AlertDialogContent className="border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none">
+                <AlertDialogContent className="border border-border shadow-sm rounded-md">
                     <AlertDialogHeader>
-                        <AlertDialogTitle className="font-black uppercase tracking-wide flex items-center gap-2">
+                        <AlertDialogTitle className="font-semibold flex items-center gap-2">
                             <AlertTriangle className="h-5 w-5 text-red-500" />
                             Hapus Produk?
                         </AlertDialogTitle>
@@ -759,10 +759,10 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel className="border-2 border-black font-bold">Batal</AlertDialogCancel>
+                        <AlertDialogCancel className="border border-border font-bold">Batal</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleDelete}
-                            className="bg-red-600 text-white border-2 border-red-700 font-black uppercase tracking-wider hover:bg-red-700"
+                            className="bg-red-600 text-white border border-red-700 font-semibold hover:bg-red-700"
                         >
                             <Trash2 className="h-4 w-4 mr-2" /> Hapus
                         </AlertDialogAction>

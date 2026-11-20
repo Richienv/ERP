@@ -158,7 +158,7 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
                 {/* ── Status + Print row ── */}
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Status</span>
+                        <span className="text-xs font-semibold text-zinc-500">Status</span>
                         <StatusBadge
                             status={grn.status}
                             variant={grn.status === "ACCEPTED" ? "approved" : grn.status === "INSPECTING" ? "production" : undefined}
@@ -182,28 +182,28 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
                         <div className="flex items-start gap-2">
                             <User className="h-4 w-4 text-zinc-400 mt-0.5" />
                             <div>
-                                <div className="text-[10px] uppercase text-zinc-500 font-bold">Vendor</div>
+                                <div className="text-xs text-zinc-500 font-bold">Vendor</div>
                                 <div className="font-bold">{grn.vendorName}</div>
                             </div>
                         </div>
                         <div className="flex items-start gap-2">
                             <Warehouse className="h-4 w-4 text-zinc-400 mt-0.5" />
                             <div>
-                                <div className="text-[10px] uppercase text-zinc-500 font-bold">Gudang</div>
+                                <div className="text-xs text-zinc-500 font-bold">Gudang</div>
                                 <div className="font-bold">{grn.warehouseName}</div>
                             </div>
                         </div>
                         <div className="flex items-start gap-2">
                             <Calendar className="h-4 w-4 text-zinc-400 mt-0.5" />
                             <div>
-                                <div className="text-[10px] uppercase text-zinc-500 font-bold">Tanggal</div>
+                                <div className="text-xs text-zinc-500 font-bold">Tanggal</div>
                                 <div className="font-medium">{new Date(grn.receivedDate).toLocaleDateString('id-ID')}</div>
                             </div>
                         </div>
                         <div className="flex items-start gap-2">
                             <User className="h-4 w-4 text-zinc-400 mt-0.5" />
                             <div>
-                                <div className="text-[10px] uppercase text-zinc-500 font-bold">Penerima</div>
+                                <div className="text-xs text-zinc-500 font-bold">Penerima</div>
                                 <div className="font-medium">{grn.receivedBy}</div>
                             </div>
                         </div>
@@ -211,18 +211,18 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
                 </NBSection>
 
                 {/* ── Summary KPI ── */}
-                <div className="grid grid-cols-3 gap-0 border-2 border-black overflow-hidden">
-                    <div className="p-3 text-center border-r-2 border-black">
-                        <div className="text-2xl font-black">{grn.itemCount}</div>
-                        <div className="text-[10px] uppercase text-zinc-500 font-bold">Items</div>
+                <div className="grid grid-cols-3 gap-0 border border-border overflow-hidden">
+                    <div className="p-3 text-center border-r border-border">
+                        <div className="text-2xl font-semibold">{grn.itemCount}</div>
+                        <div className="text-xs text-zinc-500 font-bold">Items</div>
                     </div>
-                    <div className="p-3 text-center bg-emerald-50/50 border-r-2 border-black">
-                        <div className="text-2xl font-black text-emerald-600">{grn.totalAccepted}</div>
-                        <div className="text-[10px] uppercase text-emerald-600 font-bold">Diterima</div>
+                    <div className="p-3 text-center bg-emerald-50/50 border-r border-border">
+                        <div className="text-2xl font-semibold text-emerald-600">{grn.totalAccepted}</div>
+                        <div className="text-xs text-emerald-600 font-bold">Diterima</div>
                     </div>
                     <div className="p-3 text-center bg-red-50/50">
-                        <div className="text-2xl font-black text-red-600">{grn.totalRejected}</div>
-                        <div className="text-[10px] uppercase text-red-600 font-bold">Ditolak</div>
+                        <div className="text-2xl font-semibold text-red-600">{grn.totalRejected}</div>
+                        <div className="text-xs text-red-600 font-bold">Ditolak</div>
                     </div>
                 </div>
 
@@ -243,7 +243,7 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
                                                 <span className="text-red-500 ml-1">(-{item.quantityRejected})</span>
                                             )}
                                         </div>
-                                        <div className="text-[10px] text-zinc-500">
+                                        <div className="text-xs text-zinc-500">
                                             dari {item.quantityReceived} diterima
                                         </div>
                                     </div>
@@ -269,7 +269,7 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
 
                 {/* ── Reject Mode ── */}
                 {rejectMode && (
-                    <div className="bg-red-50 dark:bg-red-950/20 p-4 border-2 border-red-300 dark:border-red-800 animate-in fade-in">
+                    <div className="bg-red-50 dark:bg-red-950/20 p-4 border border-red-300 dark:border-red-800 animate-in fade-in">
                         <NBTextarea
                             label="Alasan Penolakan"
                             required
@@ -289,7 +289,7 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
                                 type="button"
                                 onClick={handleReject}
                                 disabled={loading}
-                                className={"bg-red-600 text-white border-2 border-red-700 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-red-700 hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] active:translate-y-[4px] active:shadow-none transition-all font-black uppercase text-xs tracking-wider px-6 h-10 rounded-none flex items-center gap-1.5 disabled:opacity-50"}
+                                className={"bg-red-600 text-white border border-red-700 shadow-sm hover:bg-red-700 hover:shadow-sm active:shadow-none transition-all font-semibold text-xs px-6 h-10 rounded-md flex items-center gap-1.5 disabled:opacity-50"}
                             >
                                 {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                                 Konfirmasi Tolak
@@ -300,7 +300,7 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
 
                 {/* ── SoD Warning & Override ── */}
                 {sodMode && (
-                    <div className="bg-amber-50 dark:bg-amber-950/20 p-4 border-2 border-amber-300 dark:border-amber-800 animate-in fade-in">
+                    <div className="bg-amber-50 dark:bg-amber-950/20 p-4 border border-amber-300 dark:border-amber-800 animate-in fade-in">
                         <div className="flex items-start gap-3 mb-3">
                             <div className="p-2 bg-amber-100 dark:bg-amber-900/50 border border-amber-300">
                                 <AlertTriangle className="h-4 w-4 text-amber-600" />
@@ -344,7 +344,7 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
 
             {/* ── NB Footer — action buttons with full shadow/press animation ── */}
             {canProcess && !rejectMode && !sodMode && (
-                <div className="border-t-2 border-black bg-zinc-50 dark:bg-zinc-800/50 px-5 py-3 flex flex-col gap-2">
+                <div className="border-t border-border bg-zinc-50 dark:bg-zinc-800/50 px-5 py-3 flex flex-col gap-2">
                     <button
                         type="button"
                         onClick={handleAccept}
@@ -362,7 +362,7 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
                         type="button"
                         onClick={() => setRejectMode(true)}
                         disabled={loading}
-                        className={"w-full bg-red-600 text-white border-2 border-red-700 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-red-700 hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] active:translate-y-[4px] active:shadow-none transition-all font-black uppercase text-xs tracking-wider h-11 rounded-none flex items-center justify-center gap-2 disabled:opacity-50"}
+                        className={"w-full bg-red-600 text-white border border-red-700 shadow-sm hover:bg-red-700 hover:shadow-sm active:shadow-none transition-all font-semibold text-xs h-11 rounded-md flex items-center justify-center gap-2 disabled:opacity-50"}
                     >
                         <XCircle className="h-4 w-4" />
                         Tolak Surat Jalan
@@ -371,7 +371,7 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
             )}
 
             {!canProcess && (
-                <div className="border-t-2 border-black bg-zinc-50 dark:bg-zinc-800/50 px-5 py-3">
+                <div className="border-t border-border bg-zinc-50 dark:bg-zinc-800/50 px-5 py-3">
                     <button
                         type="button"
                         onClick={onClose}

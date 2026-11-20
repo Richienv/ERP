@@ -336,10 +336,10 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
             {/* ── Header ── */}
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h1 className="text-2xl font-black uppercase tracking-wider">
+                    <h1 className="text-2xl font-semibold  ">
                         Data Karyawan
                     </h1>
-                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">
+                    <p className="text-xs font-bold text-zinc-500 mt-1">
                         Kelola data master karyawan, informasi pribadi & kepegawaian
                     </p>
                 </div>
@@ -347,14 +347,14 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
                     <button
                         onClick={handleReload}
                         disabled={isPending}
-                        className="flex items-center gap-1.5 px-3 py-2 border-2 border-black bg-white text-black font-black uppercase text-[10px] tracking-wider shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+                        className="flex items-center gap-1.5 px-3 py-2 border border-border bg-white text-black font-semibold text-xs shadow-sm hover:shadow-sm transition-all"
                     >
                         <RefreshCw className={`h-3.5 w-3.5 ${isPending ? "animate-spin" : ""}`} />
                         Muat Ulang
                     </button>
                     <button
                         onClick={openCreateDialog}
-                        className="flex items-center gap-1.5 px-3 py-2 border-2 border-black bg-black text-white font-black uppercase text-[10px] tracking-wider shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+                        className="flex items-center gap-1.5 px-3 py-2 border border-border bg-slate-900 text-white font-semibold text-xs shadow-sm hover:shadow-sm transition-all"
                     >
                         <UserPlus className="h-3.5 w-3.5" />
                         Tambah Karyawan
@@ -372,10 +372,10 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
                             key={tab.key}
                             onClick={() => setActiveTab(tab.key)}
                             className={`
-                                flex items-center gap-1.5 px-3 py-2 border-2 border-black
-                                text-[10px] font-black uppercase tracking-wider transition-all
+                                flex items-center gap-1.5 px-3 py-2 border border-border
+                                text-xs font-semibold   transition-all
                                 ${isActive
-                                    ? `${tab.color} shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]`
+                                    ? `${tab.color} shadow-sm`
                                     : "bg-white text-zinc-500 hover:bg-zinc-50"
                                 }
                             `}
@@ -383,7 +383,7 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
                             <Icon className="h-3.5 w-3.5" />
                             {tab.label}
                             {tab.key === "list" && (
-                                <span className="ml-1 bg-black text-white text-[8px] px-1.5 py-0.5 font-mono">
+                                <span className="ml-1 bg-slate-900 text-white text-xs px-1.5 py-0.5 font-mono">
                                     {employees.length}
                                 </span>
                             )}
@@ -396,10 +396,10 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
             {activeTab === "list" && (
                 <div className="space-y-4">
                     {/* Filter bar */}
-                    <div className="bg-white border-2 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                    <div className="bg-white border border-border p-4 shadow-sm">
                         <div className="flex flex-col gap-3 md:flex-row md:items-end">
                             <div className="flex-1">
-                                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
+                                <label className="text-xs font-semibold text-zinc-500 mb-1 block">
                                     Cari Karyawan
                                 </label>
                                 <div className="relative">
@@ -408,16 +408,16 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
                                         placeholder="Nama, kode, email..."
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="pl-9 border-2 border-black font-bold h-9 rounded-none"
+                                        className="pl-9 border border-border font-bold h-9 rounded-md"
                                     />
                                 </div>
                             </div>
                             <div className="min-w-[160px]">
-                                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
+                                <label className="text-xs font-semibold text-zinc-500 mb-1 block">
                                     Departemen
                                 </label>
                                 <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-                                    <SelectTrigger className="border-2 border-black font-bold h-9 rounded-none">
+                                    <SelectTrigger className="border border-border font-bold h-9 rounded-md">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -429,11 +429,11 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
                                 </Select>
                             </div>
                             <div className="min-w-[140px]">
-                                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
+                                <label className="text-xs font-semibold text-zinc-500 mb-1 block">
                                     Status
                                 </label>
                                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                    <SelectTrigger className="border-2 border-black font-bold h-9 rounded-none">
+                                    <SelectTrigger className="border border-border font-bold h-9 rounded-md">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -450,8 +450,8 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
 
                     {/* Bulk action bar */}
                     {selectedIds.size > 0 && (
-                        <div className="bg-red-50 border-2 border-red-400 p-3 flex items-center justify-between shadow-[4px_4px_0px_0px_rgba(220,38,38,0.4)]">
-                            <span className="text-xs font-black uppercase tracking-wider text-red-700">
+                        <div className="bg-red-50 border border-red-400 p-3 flex items-center justify-between shadow-sm">
+                            <span className="text-xs font-semibold text-red-700">
                                 {selectedIds.size} karyawan dipilih
                             </span>
                             <button
@@ -462,7 +462,7 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
                                     }
                                     setConfirmOpen(true)
                                 }}
-                                className="flex items-center gap-1.5 px-3 py-1.5 border-2 border-red-600 bg-red-600 text-white font-black uppercase text-[10px] tracking-wider shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
+                                className="flex items-center gap-1.5 px-3 py-1.5 border border-red-600 bg-red-600 text-white font-semibold text-xs shadow-sm hover:shadow-sm transition-all"
                             >
                                 <Trash2 className="h-3 w-3" />
                                 Nonaktifkan Terpilih
@@ -471,12 +471,12 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
                     )}
 
                     {/* Employee table */}
-                    <div className="bg-white border-2 border-black overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                        <div className="px-4 py-2.5 border-b-2 border-black bg-zinc-50 flex items-center justify-between">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                    <div className="bg-white border border-border overflow-hidden shadow-sm">
+                        <div className="px-4 py-2.5 border-b border-border bg-zinc-50 flex items-center justify-between">
+                            <span className="text-xs font-semibold text-zinc-500">
                                 Daftar Karyawan
                             </span>
-                            <span className="text-[10px] font-bold text-zinc-400 font-mono">
+                            <span className="text-xs font-bold text-zinc-400 font-mono">
                                 {filteredEmployees.length} dari {employees.length}
                             </span>
                         </div>
@@ -484,7 +484,7 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
                         <div ref={shouldVirtualize ? scrollRef : undefined} className={`overflow-x-auto ${shouldVirtualize ? "max-h-[600px] overflow-y-auto" : ""}`}>
                             <table className="w-full">
                                 <thead className={shouldVirtualize ? "sticky top-0 z-10" : ""}>
-                                    <tr className="bg-zinc-100 border-b-2 border-black">
+                                    <tr className="bg-zinc-100 border-b border-border">
                                         <th className="text-left px-3 py-2 w-10">
                                             <button onClick={toggleSelectAll} className="text-zinc-500 hover:text-black">
                                                 {allVisibleSelected ? (
@@ -496,15 +496,15 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
                                                 )}
                                             </button>
                                         </th>
-                                        <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left px-3 py-2">Kode</th>
-                                        <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left px-3 py-2">Nama</th>
-                                        <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left px-3 py-2">Posisi</th>
-                                        <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left px-3 py-2">Departemen</th>
-                                        <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left px-3 py-2">Status</th>
-                                        <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left px-3 py-2">Tgl Masuk</th>
-                                        <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right px-3 py-2">Gaji Pokok</th>
-                                        <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-left px-3 py-2">Email</th>
-                                        <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-center px-3 py-2">Aksi</th>
+                                        <th className="text-xs font-semibold text-zinc-500 text-left px-3 py-2">Kode</th>
+                                        <th className="text-xs font-semibold text-zinc-500 text-left px-3 py-2">Nama</th>
+                                        <th className="text-xs font-semibold text-zinc-500 text-left px-3 py-2">Posisi</th>
+                                        <th className="text-xs font-semibold text-zinc-500 text-left px-3 py-2">Departemen</th>
+                                        <th className="text-xs font-semibold text-zinc-500 text-left px-3 py-2">Status</th>
+                                        <th className="text-xs font-semibold text-zinc-500 text-left px-3 py-2">Tgl Masuk</th>
+                                        <th className="text-xs font-semibold text-zinc-500 text-right px-3 py-2">Gaji Pokok</th>
+                                        <th className="text-xs font-semibold text-zinc-500 text-left px-3 py-2">Email</th>
+                                        <th className="text-xs font-semibold text-zinc-500 text-center px-3 py-2">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -558,7 +558,7 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
                                                         <td className="px-3 py-2 text-xs text-zinc-600">{emp.position}</td>
                                                         <td className="px-3 py-2 text-xs text-zinc-600">{emp.department}</td>
                                                         <td className="px-3 py-2">
-                                                            <span className={`inline-block text-[9px] font-bold px-2 py-0.5 border ${STATUS_BADGE[emp.status] || "bg-zinc-100 text-zinc-600 border-zinc-300"}`}>
+                                                            <span className={`inline-block text-xs font-bold px-2 py-0.5 border ${STATUS_BADGE[emp.status] || "bg-zinc-100 text-zinc-600 border-zinc-300"}`}>
                                                                 {STATUS_LABEL[emp.status] || emp.status}
                                                             </span>
                                                         </td>
@@ -573,7 +573,7 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
                                                             <div className="flex items-center justify-center gap-1">
                                                                 <button
                                                                     onClick={() => openEditDialog(emp)}
-                                                                    className="p-1.5 border border-zinc-300 hover:border-black hover:bg-zinc-100 transition-colors"
+                                                                    className="p-1.5 border border-zinc-300 hover:border-border hover:bg-zinc-100 transition-colors"
                                                                     title="Edit"
                                                                 >
                                                                     <Pencil className="h-3 w-3" />
@@ -620,7 +620,7 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
                                                     <td className="px-3 py-2 text-xs text-zinc-600">{emp.position}</td>
                                                     <td className="px-3 py-2 text-xs text-zinc-600">{emp.department}</td>
                                                     <td className="px-3 py-2">
-                                                        <span className={`inline-block text-[9px] font-bold px-2 py-0.5 border ${STATUS_BADGE[emp.status] || "bg-zinc-100 text-zinc-600 border-zinc-300"}`}>
+                                                        <span className={`inline-block text-xs font-bold px-2 py-0.5 border ${STATUS_BADGE[emp.status] || "bg-zinc-100 text-zinc-600 border-zinc-300"}`}>
                                                             {STATUS_LABEL[emp.status] || emp.status}
                                                         </span>
                                                     </td>
@@ -635,7 +635,7 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
                                                         <div className="flex items-center justify-center gap-1">
                                                             <button
                                                                 onClick={() => openEditDialog(emp)}
-                                                                className="p-1.5 border border-zinc-300 hover:border-black hover:bg-zinc-100 transition-colors"
+                                                                className="p-1.5 border border-zinc-300 hover:border-border hover:bg-zinc-100 transition-colors"
                                                                 title="Edit"
                                                             >
                                                                 <Pencil className="h-3 w-3" />
@@ -667,17 +667,17 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
                 <div className="space-y-4">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {[
-                            { label: "Total Karyawan", value: totalEmployees, color: "border-black" },
+                            { label: "Total Karyawan", value: totalEmployees, color: "border-border" },
                             { label: "Karyawan Aktif", value: activeCount, color: "border-emerald-500" },
                             { label: "Sedang Cuti", value: onLeaveCount, color: "border-amber-500" },
                             { label: "Non-Aktif / Terminasi", value: inactiveCount, color: "border-zinc-400" },
                         ].map((kpi) => (
                             <div
                                 key={kpi.label}
-                                className={`bg-white border-2 ${kpi.color} p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]`}
+                                className={`bg-white border ${kpi.color} p-4 shadow-sm`}
                             >
-                                <div className="text-3xl font-black">{kpi.value}</div>
-                                <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mt-1">
+                                <div className="text-3xl font-semibold">{kpi.value}</div>
+                                <div className="text-xs font-semibold text-zinc-500 mt-1">
                                     {kpi.label}
                                 </div>
                             </div>
@@ -685,9 +685,9 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
                     </div>
 
                     {/* Department breakdown */}
-                    <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                        <div className="px-4 py-2.5 border-b-2 border-black bg-zinc-50">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                    <div className="bg-white border border-border shadow-sm">
+                        <div className="px-4 py-2.5 border-b border-border bg-zinc-50">
+                            <span className="text-xs font-semibold text-zinc-500">
                                 Distribusi Per Departemen
                             </span>
                         </div>
@@ -699,18 +699,18 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
                                     <div key={dept} className="px-4 py-3 flex items-center justify-between">
                                         <div>
                                             <span className="text-sm font-bold">{dept}</span>
-                                            <span className="text-[9px] text-zinc-400 font-mono ml-2">
+                                            <span className="text-xs text-zinc-400 font-mono ml-2">
                                                 {deptActive} aktif
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-3">
                                             <div className="w-32 bg-zinc-100 h-2 border border-zinc-300">
                                                 <div
-                                                    className="h-full bg-black"
+                                                    className="h-full bg-slate-900"
                                                     style={{ width: `${totalEmployees > 0 ? (deptEmployees.length / totalEmployees) * 100 : 0}%` }}
                                                 />
                                             </div>
-                                            <span className="text-xs font-black font-mono w-8 text-right">
+                                            <span className="text-xs font-semibold font-mono w-8 text-right">
                                                 {deptEmployees.length}
                                             </span>
                                         </div>
@@ -724,8 +724,8 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
 
             {/* ── Tab: Laporan ── */}
             {activeTab === "reports" && (
-                <div className="bg-white border-2 border-black p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3">
+                <div className="bg-white border border-border p-6 shadow-sm">
+                    <div className="text-xs font-semibold text-zinc-500 mb-3">
                         Laporan Kepegawaian
                     </div>
                     <p className="text-sm text-zinc-600 font-medium">
@@ -785,7 +785,7 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
                     <NBSection icon={FileText} title="Data Kepegawaian">
                         <div className="grid gap-3 md:grid-cols-2">
                             <div>
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                                <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1 block">
                                     Departemen <span className="text-red-500">*</span>
                                 </label>
                                 <ComboboxWithCreate
@@ -803,7 +803,7 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
                                 />
                             </div>
                             <div>
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                                <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1 block">
                                     Posisi <span className="text-red-500">*</span>
                                 </label>
                                 <ComboboxWithCreate
@@ -875,7 +875,7 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
                             return (
                                 <div key={id} className="px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700 last:border-b-0 flex items-center justify-between">
                                     <span className="text-xs font-bold">{emp.name}</span>
-                                    <span className="text-[9px] font-mono text-zinc-400">{emp.employeeCode}</span>
+                                    <span className="text-xs font-mono text-zinc-400">{emp.employeeCode}</span>
                                 </div>
                             )
                         })}

@@ -7,7 +7,7 @@ import { FileCheck, Wrench, AlertTriangle, Calendar, Download } from "lucide-rea
 
 export function EquipmentTracker() {
     return (
-        <Card className="col-span-1 shadow-sm border-l-4 border-l-emerald-500">
+        <Card className="col-span-1 shadow-sm border-l border-l-emerald-500">
             <CardHeader className="pb-2">
                 <div className="flex justify-between">
                     <div>
@@ -21,7 +21,7 @@ export function EquipmentTracker() {
 
                 {/* Critical Alerts */}
                 <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
-                    <h4 className="text-xs font-bold text-amber-800 dark:text-amber-200 uppercase mb-2 flex items-center gap-1">
+                    <h4 className="text-xs font-bold text-amber-800 dark:text-amber-200 mb-2 flex items-center gap-1">
                         <AlertTriangle className="h-3 w-3" /> Upcoming Action
                     </h4>
                     <div className="flex justify-between items-center text-sm">
@@ -40,7 +40,7 @@ export function EquipmentTracker() {
                             </div>
                             <div>
                                 <div className="font-medium text-sm">Calibration Cert</div>
-                                <div className="text-[10px] text-muted-foreground">Valid until Jan 17, 2026</div>
+                                <div className="text-xs text-muted-foreground">Valid until Jan 17, 2026</div>
                             </div>
                         </div>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-indigo-600">
@@ -56,7 +56,7 @@ export function EquipmentTracker() {
                             </div>
                             <div>
                                 <div className="font-medium text-sm">Maintenance Log</div>
-                                <div className="text-[10px] text-muted-foreground">Last: Jan 3 (Oil Change)</div>
+                                <div className="text-xs text-muted-foreground">Last: Jan 3 (Oil Change)</div>
                             </div>
                         </div>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-indigo-600">

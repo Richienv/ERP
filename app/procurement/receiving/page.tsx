@@ -9,7 +9,7 @@ export default function ReceivingPage() {
     const { data, isFetching } = useReceiving()
 
     if (!data) {
-        return <TablePageSkeleton accentColor="bg-orange-400" />
+        return <TablePageSkeleton accentColor="bg-blue-400" />
     }
 
     return (

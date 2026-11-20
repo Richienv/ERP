@@ -112,7 +112,7 @@ export function ManualMovementDialog({ products, warehouses, userId = "system-us
     <>
       <Button
         onClick={() => setOpen(true)}
-        className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-4 h-8 rounded-none"
+        className="bg-slate-900 text-white border border-border hover:bg-zinc-800 font-semibold text-xs px-4 h-8 rounded-md"
       >
         <ArrowRightLeft className="mr-2 h-4 w-4" /> Manual Movement
       </Button>
@@ -129,11 +129,11 @@ export function ManualMovementDialog({ products, warehouses, userId = "system-us
           <NBSection icon={ArrowRightLeft} title="Tipe & Produk">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1 block">
                   Movement Type <span className="text-red-500">*</span>
                 </label>
                 <Select value={type} onValueChange={(val: any) => setType(val)}>
-                  <SelectTrigger className="h-8 text-sm rounded-none border border-zinc-300">
+                  <SelectTrigger className="h-8 text-sm rounded-md border border-zinc-300">
                     <SelectValue placeholder="Select Type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -161,7 +161,7 @@ export function ManualMovementDialog({ products, warehouses, userId = "system-us
                 </Select>
               </div>
               <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1 block">
                   Product <span className="text-red-500">*</span>
                 </label>
                 <ComboboxWithCreate

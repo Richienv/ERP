@@ -194,7 +194,7 @@ export function KanbanBoard({
                                             <span
                                                 key={label}
                                                 className={cn(
-                                                    "px-2 py-0.5 rounded-md text-[10px] uppercase tracking-wider font-semibold text-white/90 shadow-sm",
+                                                    "px-2 py-0.5 rounded-md text-xs font-semibold text-white/90 shadow-sm",
                                                     labelColors[label] || "bg-zinc-700"
                                                 )}
                                             >
@@ -219,7 +219,7 @@ export function KanbanBoard({
 
                                             {task.assignee && (
                                                 <div className="ml-auto flex items-center gap-1.5 rounded-full bg-zinc-100 dark:bg-zinc-900 px-2 py-1 border border-zinc-200 dark:border-zinc-800">
-                                                    <div className="h-4 w-4 bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-500 dark:text-indigo-300 rounded-full flex items-center justify-center text-[9px] font-bold">
+                                                    <div className="h-4 w-4 bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-500 dark:text-indigo-300 rounded-full flex items-center justify-center text-xs font-bold">
                                                         {task.assignee.charAt(0)}
                                                     </div>
                                                     <span className="font-medium text-zinc-700 dark:text-zinc-300">{task.assignee}</span>

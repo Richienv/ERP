@@ -112,7 +112,7 @@ export function CustomerRolodexCard({ customer }: CustomerRolodexCardProps) {
 
     return (
         <>
-        <Card className="group relative overflow-hidden border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all bg-white rounded-none flex flex-col justify-between">
+        <Card className="group relative overflow-hidden border border-border shadow-sm hover:shadow-sm transition-all bg-white rounded-md flex flex-col justify-between">
             {/* Top Stripe */}
             <div className={`absolute top-0 left-0 w-full h-1.5 ${tier.color.includes('bg-zinc-900') ? 'bg-zinc-900' : tier.color.includes('bg-amber') ? 'bg-amber-400' : 'bg-zinc-300'}`} />
 
@@ -120,24 +120,24 @@ export function CustomerRolodexCard({ customer }: CustomerRolodexCardProps) {
                 <div className="flex justify-between items-start">
                     <div className="space-y-1.5 w-full pr-8">
                         <div className="flex items-center gap-2">
-                            <Badge variant="outline" className={`text-[9px] font-black tracking-widest border-2 rounded-none px-1.5 h-5 ${tier.color}`}>
+                            <Badge variant="outline" className={`text-xs font-semibold border rounded-md px-1.5 h-5 ${tier.color}`}>
                                 {tier.label}
                             </Badge>
                             {customer.isProspect && (
-                                <Badge variant="outline" className="text-[9px] bg-blue-100 text-blue-800 border-2 border-blue-200 rounded-none px-1.5 h-5 font-bold tracking-wider">
+                                <Badge variant="outline" className="text-xs bg-blue-100 text-blue-800 border border-blue-200 rounded-md px-1.5 h-5 font-bold ">
                                     PROSPECT
                                 </Badge>
                             )}
                         </div>
-                        <h3 className="font-black text-lg uppercase leading-tight line-clamp-2 min-h-[3rem] group-hover:text-blue-600 transition-colors">
+                        <h3 className="font-semibold text-lg leading-tight line-clamp-2 min-h-[3rem] group-hover:text-blue-600 transition-colors">
                             {customer.name}
                         </h3>
                         <div className="flex flex-wrap items-center justify-between w-full gap-2">
-                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-500 font-mono bg-zinc-100 px-1.5 py-0.5 border border-zinc-200 border-dashed">
+                            <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-500 font-mono bg-zinc-100 px-1.5 py-0.5 border border-zinc-200 border-dashed">
                                 <Building2 className="h-3 w-3" />
                                 {customer.code}
                             </div>
-                            <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-zinc-400">
+                            <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-400">
                                 {customer.customerType === 'COMPANY' ? <Building2 className="h-3 w-3" /> : <User className="h-3 w-3" />}
                                 {customer.customerType}
                             </div>
@@ -147,18 +147,18 @@ export function CustomerRolodexCard({ customer }: CustomerRolodexCardProps) {
                     <div className="absolute top-4 right-2">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-black hover:text-white rounded-none">
+                                <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-slate-900 hover:text-white rounded-md">
                                     <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-none w-48">
-                                <DropdownMenuLabel className="font-black uppercase text-xs">Aksi Cepat</DropdownMenuLabel>
-                                <DropdownMenuSeparator className="bg-black" />
-                                <DropdownMenuItem asChild className="focus:bg-zinc-100 focus:font-bold cursor-pointer rounded-none">
+                            <DropdownMenuContent align="end" className="border border-border shadow-sm rounded-md w-48">
+                                <DropdownMenuLabel className="font-semibold text-xs">Aksi Cepat</DropdownMenuLabel>
+                                <DropdownMenuSeparator className="bg-slate-900" />
+                                <DropdownMenuItem asChild className="focus:bg-zinc-100 focus:font-bold cursor-pointer rounded-md">
                                     <Link href={`/sales/customers/${customer.id}`}>Lihat Profil</Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
-                                    className="focus:bg-zinc-100 focus:font-bold cursor-pointer rounded-none"
+                                    className="focus:bg-zinc-100 focus:font-bold cursor-pointer rounded-md"
                                     onSelect={() => setEditOpen(true)}
                                 >
                                     Edit Data
@@ -172,16 +172,16 @@ export function CustomerRolodexCard({ customer }: CustomerRolodexCardProps) {
             <CardContent className="p-4 pt-2 space-y-4">
                 {/* Key Metrics Grid */}
                 <div className="grid grid-cols-2 gap-3">
-                    <div className="p-2.5 border-2 border-zinc-100 bg-zinc-50/50">
-                        <p className="text-[9px] uppercase font-black tracking-wider text-zinc-400 mb-1">Total Revenue</p>
-                        <p className="font-black text-sm tracking-tight truncate" title={new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(customer.totalOrderValue)}>
+                    <div className="p-2.5 border border-zinc-100 bg-zinc-50/50">
+                        <p className="text-xs font-semibold text-zinc-400 mb-1">Total Revenue</p>
+                        <p className="font-semibold text-sm tracking-tight truncate" title={new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(customer.totalOrderValue)}>
                             {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', notation: 'compact' }).format(customer.totalOrderValue)}
                         </p>
                     </div>
-                    <div className="p-2.5 border-2 border-zinc-100 bg-zinc-50/50 relative overflow-hidden">
+                    <div className="p-2.5 border border-zinc-100 bg-zinc-50/50 relative overflow-hidden">
                         <div className={`absolute top-0 right-0 w-1.5 h-1.5 ${getStatusColor(customer.creditStatus)}`} />
-                        <p className="text-[9px] uppercase font-black tracking-wider text-zinc-400 mb-1">Credit Status</p>
-                        <p className="font-bold text-xs flex items-center gap-1.5 uppercase">
+                        <p className="text-xs font-semibold text-zinc-400 mb-1">Credit Status</p>
+                        <p className="font-bold text-xs flex items-center gap-1.5 ">
                             {customer.creditStatus === 'HOLD' && <AlertCircle className="h-3.5 w-3.5 text-red-500" />}
                             <span className={customer.creditStatus === 'HOLD' ? 'text-red-600' : 'text-zinc-900'}>
                                 {customer.creditStatus === 'GOOD' ? 'LANCAR' : customer.creditStatus}
@@ -191,7 +191,7 @@ export function CustomerRolodexCard({ customer }: CustomerRolodexCardProps) {
                 </div>
 
                 {/* Contact Info */}
-                <div className="space-y-2 text-xs border-t-2 border-dashed border-zinc-100 pt-3">
+                <div className="space-y-2 text-xs border-t border-dashed border-zinc-100 pt-3">
                     <div className="flex items-center gap-2.5 text-zinc-600 font-medium truncate" title={customer.city}>
                         <MapPin className="h-3.5 w-3.5 text-black shrink-0" />
                         <span className="truncate">{customer.city || "Kota belum diisi"}</span>
@@ -203,35 +203,35 @@ export function CustomerRolodexCard({ customer }: CustomerRolodexCardProps) {
                 </div>
 
                 {/* Next Action */}
-                <div className="border-2 border-black bg-zinc-50 p-2.5 space-y-2">
+                <div className="border border-border bg-zinc-50 p-2.5 space-y-2">
                     <div className="flex items-center gap-1.5">
                         <Sparkles className="h-3 w-3 text-amber-500 fill-amber-500" />
-                        <p className="text-[9px] uppercase font-black tracking-wider text-zinc-400">Recommendation</p>
+                        <p className="text-xs font-semibold text-zinc-400">Recommendation</p>
                     </div>
-                    <p className="text-[10px] font-bold leading-tight text-zinc-700 min-h-[2.5em] line-clamp-2">
+                    <p className="text-xs font-bold leading-tight text-zinc-700 min-h-[2.5em] line-clamp-2">
                         {nextAction.description}
                     </p>
-                    <Button asChild size="sm" className="h-7 w-full text-[9px] font-black uppercase bg-black text-white hover:bg-zinc-800 rounded-none tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-none hover:translate-y-[1px] transition-all">
+                    <Button asChild size="sm" className="h-7 w-full text-xs font-semibold bg-slate-900 text-white hover:bg-zinc-800 rounded-md shadow-sm hover:shadow-none transition-all">
                         <Link href={nextAction.href}>{nextAction.label}</Link>
                     </Button>
                 </div>
             </CardContent>
 
-            <CardFooter className="p-0 border-t-2 border-black divide-x-2 divide-black mt-auto">
+            <CardFooter className="p-0 border-t border-border divide-x-2 divide-border mt-auto">
                 <Button
                     variant="ghost"
-                    className="flex-1 h-9 rounded-none hover:bg-emerald-50 hover:text-emerald-700 text-[10px] font-black uppercase rounded-bl-none"
+                    className="flex-1 h-9 rounded-md hover:bg-emerald-50 hover:text-emerald-700 text-xs font-semibold rounded-bl-none"
                     onClick={handleWhatsappClick}
                     disabled={!buildWhatsappPhone(customer.phone || "")}
                 >
                     <MessageCircle className="h-3.5 w-3.5 mr-1.5" /> WA
                 </Button>
-                <Button asChild variant="ghost" className="flex-1 h-9 rounded-none hover:bg-blue-50 hover:text-blue-700 text-[10px] font-black uppercase">
+                <Button asChild variant="ghost" className="flex-1 h-9 rounded-md hover:bg-blue-50 hover:text-blue-700 text-xs font-semibold ">
                     <Link href={`/sales/quotations/new?customerId=${customer.id}`}>
                         <FileText className="h-3.5 w-3.5 mr-1.5" /> Quote
                     </Link>
                 </Button>
-                <Button asChild variant="ghost" className="flex-1 h-9 rounded-none hover:bg-zinc-900 hover:text-white text-[10px] font-black uppercase text-zinc-900 rounded-br-none hover:fill-white">
+                <Button asChild variant="ghost" className="flex-1 h-9 rounded-md hover:bg-zinc-900 hover:text-white text-xs font-semibold text-zinc-900 rounded-br-none hover:fill-white">
                     <Link href={`/sales/orders/new?customerId=${customer.id}`}>
                         <DollarSign className="h-3.5 w-3.5 mr-1.5" /> Order
                     </Link>

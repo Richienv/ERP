@@ -68,7 +68,7 @@ export function NotificationCenter() {
     if (counts.pendingApprovals > 0) {
       notifications.push({
         id: "pending-approvals",
-        icon: <IconChecklist className="w-4 h-4 text-orange-500" />,
+        icon: <IconChecklist className="w-4 h-4 text-blue-500" />,
         title: "Menunggu Approval",
         description: `${counts.pendingApprovals} PO perlu disetujui`,
         href: "/procurement/orders",
@@ -79,7 +79,7 @@ export function NotificationCenter() {
     if (counts.pendingPurchaseRequests > 0) {
       notifications.push({
         id: "pending-pr",
-        icon: <IconShoppingCart className="w-4 h-4 text-orange-500" />,
+        icon: <IconShoppingCart className="w-4 h-4 text-blue-500" />,
         title: "Purchase Request",
         description: `${counts.pendingPurchaseRequests} PR menunggu tindakan`,
         href: "/procurement/requests",
@@ -143,8 +143,8 @@ export function NotificationCenter() {
           <IconBell className="w-5 h-5" />
           {combinedCount > 0 && (
             <span
-              className={`absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-black text-white tabular-nums ${
-                hasCritical ? "bg-red-500" : "bg-orange-500"
+              className={`absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-xs font-semibold text-white tabular-nums ${
+                hasCritical ? "bg-red-500" : "bg-blue-500"
               }`}
             >
               {combinedCount > 99 ? "99+" : combinedCount}
@@ -155,7 +155,7 @@ export function NotificationCenter() {
       <PopoverContent
         align="end"
         sideOffset={8}
-        className="w-80 p-0 rounded-none border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+        className="w-80 p-0 rounded-md border border-border shadow-sm"
       >
         <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
           <h3 className="text-sm font-bold">Notifikasi</h3>
@@ -171,24 +171,24 @@ export function NotificationCenter() {
           <button
             type="button"
             onClick={() => setActiveTab("tugas")}
-            className={`flex-1 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors ${
+            className={`flex-1 py-2 text-xs font-bold   transition-colors ${
               activeTab === "tugas"
-                ? "border-b-2 border-black dark:border-white font-black text-zinc-900 dark:text-zinc-100"
+                ? "border-b border-border dark:border-white font-semibold text-zinc-900 dark:text-zinc-100"
                 : "text-zinc-400 hover:text-zinc-600"
             }`}
           >
-            Tugas {totalCount > 0 && <span className="ml-1 text-[9px] bg-zinc-200 dark:bg-zinc-700 px-1.5 py-0.5 rounded-full tabular-nums">{totalCount}</span>}
+            Tugas {totalCount > 0 && <span className="ml-1 text-xs bg-zinc-200 dark:bg-zinc-700 px-1.5 py-0.5 rounded-full tabular-nums">{totalCount}</span>}
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("flags")}
-            className={`flex-1 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors ${
+            className={`flex-1 py-2 text-xs font-bold   transition-colors ${
               activeTab === "flags"
-                ? "border-b-2 border-black dark:border-white font-black text-zinc-900 dark:text-zinc-100"
+                ? "border-b border-border dark:border-white font-semibold text-zinc-900 dark:text-zinc-100"
                 : "text-zinc-400 hover:text-zinc-600"
             }`}
           >
-            Flag CEO {flagCount > 0 && <span className="ml-1 text-[9px] bg-orange-100 dark:bg-orange-900/30 text-orange-600 px-1.5 py-0.5 rounded-full tabular-nums">{flagCount}</span>}
+            Flag CEO {flagCount > 0 && <span className="ml-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-600 px-1.5 py-0.5 rounded-full tabular-nums">{flagCount}</span>}
           </button>
         </div>
 
@@ -219,11 +219,11 @@ export function NotificationCenter() {
                       {item.description}
                     </p>
                   </div>
-                  <span className={`shrink-0 flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white tabular-nums ${
+                  <span className={`shrink-0 flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold text-white tabular-nums ${
                     item.severity === "critical"
                       ? "bg-red-500"
                       : item.severity === "warning"
-                      ? "bg-orange-500"
+                      ? "bg-blue-500"
                       : "bg-amber-500"
                   }`}>
                     {item.count}
@@ -243,24 +243,24 @@ export function NotificationCenter() {
                 <div
                   key={flag.id}
                   className={`px-4 py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-b-0 ${
-                    flag.status === "PENDING" ? "bg-orange-50/50 dark:bg-orange-950/10" : ""
+                    flag.status === "PENDING" ? "bg-blue-50/50 dark:bg-blue-950/10" : ""
                   }`}
                 >
                   <div className="flex items-start gap-2.5">
-                    <IconFlagFilled className="w-3.5 h-3.5 text-orange-500 mt-0.5 shrink-0" />
+                    <IconFlagFilled className="w-3.5 h-3.5 text-blue-500 mt-0.5 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 truncate">
                         {flag.title}
                       </p>
                       {flag.note && (
-                        <p className="text-[11px] italic text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
+                        <p className="text-xs italic text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
                           &ldquo;{flag.note}&rdquo;
                         </p>
                       )}
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] text-zinc-400 truncate">{flag.sourceLabel}</span>
-                        <span className="text-[10px] text-zinc-300">·</span>
-                        <span className="text-[10px] text-zinc-400">{timeAgo(flag.createdAt)}</span>
+                        <span className="text-xs text-zinc-400 truncate">{flag.sourceLabel}</span>
+                        <span className="text-xs text-zinc-300">·</span>
+                        <span className="text-xs text-zinc-400">{timeAgo(flag.createdAt)}</span>
                       </div>
                     </div>
                   </div>
@@ -270,7 +270,7 @@ export function NotificationCenter() {
                         type="button"
                         onClick={() => markRead.mutate(flag.id)}
                         disabled={markRead.isPending}
-                        className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                        className="flex items-center gap-1 px-2 py-1 text-xs font-bold text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                       >
                         <IconEye className="w-3 h-3" />
                         Dibaca
@@ -280,7 +280,7 @@ export function NotificationCenter() {
                       type="button"
                       onClick={() => markActed.mutate(flag.id)}
                       disabled={markActed.isPending}
-                      className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-emerald-600 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors"
+                      className="flex items-center gap-1 px-2 py-1 text-xs font-bold text-emerald-600 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors"
                     >
                       <IconCheck className="w-3 h-3" />
                       Selesai

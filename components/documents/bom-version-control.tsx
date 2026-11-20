@@ -86,17 +86,17 @@ export function BomVersionControl() {
                 </Table>
 
                 {/* Summary Footer */}
-                <div className="p-4 bg-zinc-50 dark:bg-black border-t flex justify-between items-center">
+                <div className="p-4 bg-zinc-50 dark:bg-slate-900 border-t flex justify-between items-center">
                     <div className="flex gap-4 text-sm">
                         <div className="flex flex-col">
-                            <span className="text-muted-foreground text-xs uppercase font-bold">Total Cost Impact</span>
+                            <span className="text-muted-foreground text-xs font-bold">Total Cost Impact</span>
                             <span className="text-red-600 font-bold flex items-center gap-1">
                                 <TrendingUp className="h-3 w-3" /> +8% Increase
                             </span>
                         </div>
                         <div className="h-8 w-px bg-border" />
                         <div className="flex flex-col">
-                            <span className="text-muted-foreground text-xs uppercase font-bold">Affected WIP</span>
+                            <span className="text-muted-foreground text-xs font-bold">Affected WIP</span>
                             <span className="font-medium">347 Units</span>
                         </div>
                     </div>

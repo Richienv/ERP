@@ -24,7 +24,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
                 headers: {
                     "Content-Type": contentTypeForPath(capture.storagePath),
                     "X-Content-Type-Options": "nosniff",
-                    "Content-Disposition": `inline; filename="${(capture.fileName || "invoice").replace(/[^\w.-]/g, "_")}"`,
+                    "Content-Disposition": `${/\.xlsx$/.test(capture.storagePath) ? "attachment" : "inline"}; filename="${(capture.fileName || "invoice").replace(/[^\w.-]/g, "_")}"`,
                     "Cache-Control": "private, max-age=3600",
                 },
             })

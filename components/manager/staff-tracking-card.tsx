@@ -33,13 +33,13 @@ export function StaffTrackingCard({ data }: StaffTrackingCardProps) {
 
     return (
         <Link href="/hcm" className="block h-full group hover:no-underline cursor-pointer">
-            <Card className="h-full flex flex-col border border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-xl overflow-hidden bg-white dark:bg-black hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all duration-200">
-                <CardHeader className="pb-3 border-b border-black bg-zinc-50 dark:bg-zinc-900 flex flex-row items-center justify-between">
-                    <CardTitle className="text-lg font-black uppercase tracking-wider flex items-center gap-2">
+            <Card className="h-full flex flex-col border border-border shadow-sm rounded-xl overflow-hidden bg-white dark:bg-slate-900 hover:shadow-sm transition-all duration-200">
+                <CardHeader className="pb-3 border-b border-border bg-zinc-50 dark:bg-zinc-900 flex flex-row items-center justify-between">
+                    <CardTitle className="text-lg font-semibold flex items-center gap-2">
                         <User className="h-5 w-5 text-blue-600" />
                         Aktivitas Terbaru
                     </CardTitle>
-                    <Badge variant="outline" className="bg-white text-black border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                    <Badge variant="outline" className="bg-white text-black border-border shadow-sm">
                         {staff.filter(s => s.status === "active" || s.status === "busy").length} Aktif
                     </Badge>
                 </CardHeader>
@@ -55,7 +55,7 @@ export function StaffTrackingCard({ data }: StaffTrackingCardProps) {
                                         <Avatar className="h-10 w-10 border">
                                             <AvatarFallback>{employee.avatar}</AvatarFallback>
                                         </Avatar>
-                                        <span className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background 
+                                        <span className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border border-background 
                                         ${employee.status === 'active' ? 'bg-emerald-500' :
                                                 employee.status === 'busy' ? 'bg-amber-500' :
                                                     'bg-slate-400'}`}
@@ -71,12 +71,12 @@ export function StaffTrackingCard({ data }: StaffTrackingCardProps) {
 
                                         <div className="flex items-center gap-2 pt-1">
                                             {employee.status === 'active' || employee.status === 'busy' ? (
-                                                <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-normal bg-blue-50 text-blue-700 hover:bg-blue-100">
+                                                <Badge variant="secondary" className="text-xs h-5 px-1.5 font-normal bg-blue-50 text-blue-700 hover:bg-blue-100">
                                                     <Activity className="h-3 w-3 mr-1" />
                                                     {employee.currentTask}
                                                 </Badge>
                                             ) : (
-                                                <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-normal bg-slate-100 text-slate-600">
+                                                <Badge variant="secondary" className="text-xs h-5 px-1.5 font-normal bg-slate-100 text-slate-600">
                                                     ⏸ {employee.currentTask}
                                                 </Badge>
                                             )}

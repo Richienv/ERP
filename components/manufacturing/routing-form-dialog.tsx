@@ -51,12 +51,12 @@ export function RoutingFormDialog({ open, onOpenChange, initialData, onSaved }: 
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      toast.error("Nama routing harus diisi", { className: "font-bold border-2 border-black rounded-none" });
+      toast.error("Nama routing harus diisi", { className: "font-bold border border-border rounded-md" });
       return;
     }
 
     if (!isEdit && !code.trim()) {
-      toast.error("Kode routing harus diisi", { className: "font-bold border-2 border-black rounded-none" });
+      toast.error("Kode routing harus diisi", { className: "font-bold border border-border rounded-md" });
       return;
     }
 
@@ -79,20 +79,20 @@ export function RoutingFormDialog({ open, onOpenChange, initialData, onSaved }: 
       const payload = await response.json();
       if (!payload.success) {
         toast.error(payload.error || "Gagal menyimpan routing", {
-          className: "font-bold border-2 border-black rounded-none"
+          className: "font-bold border border-border rounded-md"
         });
         return;
       }
 
       toast.success(isEdit ? "Routing berhasil diperbarui" : "Routing berhasil dibuat", {
-        className: "font-bold border-2 border-black rounded-none"
+        className: "font-bold border border-border rounded-md"
       });
       onOpenChange(false);
       queryClient.invalidateQueries({ queryKey: queryKeys.mfgRouting.all });
       if (onSaved) await onSaved();
     } catch (error) {
       console.error(error);
-      toast.error("Terjadi kesalahan jaringan", { className: "font-bold border-2 border-black rounded-none" });
+      toast.error("Terjadi kesalahan jaringan", { className: "font-bold border border-border rounded-md" });
     } finally {
       setSubmitting(false);
     }

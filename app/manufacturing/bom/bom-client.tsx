@@ -146,12 +146,12 @@ export function BOMListClient({ boms }: BOMListClientProps) {
     return (
         <div className="mf-page min-h-screen space-y-4">
             {/* HEADER */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white rounded-none">
+            <div className="border border-border shadow-sm overflow-hidden bg-white rounded-md">
                 <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-orange-500">
                     <div className="flex items-center gap-3">
-                        <Package className="h-6 w-6 text-orange-500" />
+                        <Package className="h-6 w-6 text-blue-500" />
                         <div>
-                            <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900">
+                            <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
                                 Production BOM
                             </h1>
                             <p className="text-zinc-600 text-xs font-bold mt-0.5">
@@ -163,13 +163,13 @@ export function BOMListClient({ boms }: BOMListClientProps) {
                         <Button
                             variant="outline"
                             onClick={() => queryClient.invalidateQueries({ queryKey: queryKeys.productionBom.all })}
-                            className="h-9 border-2 border-black font-bold uppercase text-[10px] tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all rounded-none bg-white"
+                            className="h-9 border border-border font-bold text-xs shadow-sm hover:shadow-none transition-all rounded-md bg-white"
                         >
                             <RefreshCcw className="mr-2 h-3.5 w-3.5" /> Refresh
                         </Button>
                         <Button
                             onClick={() => setCreateOpen(true)}
-                            className="h-9 bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] uppercase font-black text-[10px] tracking-wider hover:translate-y-[1px] hover:shadow-none transition-all rounded-none px-4"
+                            className="h-9 bg-slate-900 text-white hover:bg-zinc-800 border border-border shadow-sm font-semibold text-xs hover:shadow-none transition-all rounded-md px-4"
                         >
                             <Plus className="mr-2 h-3.5 w-3.5" /> Buat BOM Baru
                         </Button>
@@ -178,53 +178,53 @@ export function BOMListClient({ boms }: BOMListClientProps) {
             </div>
 
             {/* KPI STRIP */}
-            <div className="bg-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden rounded-none">
+            <div className="bg-white border border-border shadow-sm overflow-hidden rounded-md">
                 <div className="grid grid-cols-4">
-                    <div className="relative p-4 border-r-2 border-zinc-100">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-orange-500" />
-                        <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Total BOM</div>
-                        <div className="text-2xl font-black">{summary.total}</div>
+                    <div className="relative p-4 border-r border-zinc-100">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500" />
+                        <div className="text-xs font-semibold text-zinc-500 mb-1">Total BOM</div>
+                        <div className="text-2xl font-semibold">{summary.total}</div>
                     </div>
-                    <div className="relative p-4 border-r-2 border-zinc-100">
+                    <div className="relative p-4 border-r border-zinc-100">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-500" />
-                        <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Aktif</div>
-                        <div className="text-2xl font-black text-emerald-600">{summary.active}</div>
+                        <div className="text-xs font-semibold text-zinc-500 mb-1">Aktif</div>
+                        <div className="text-2xl font-semibold text-emerald-600">{summary.active}</div>
                     </div>
-                    <div className="relative p-4 border-r-2 border-zinc-100">
+                    <div className="relative p-4 border-r border-zinc-100">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500" />
-                        <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Legacy</div>
-                        <div className="text-2xl font-black text-amber-600">{summary.legacy}</div>
+                        <div className="text-xs font-semibold text-zinc-500 mb-1">Legacy</div>
+                        <div className="text-2xl font-semibold text-amber-600">{summary.legacy}</div>
                     </div>
                     <div className="relative p-4">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500" />
-                        <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Total Material</div>
-                        <div className="text-2xl font-black text-blue-600">{summary.totalMaterials}</div>
+                        <div className="text-xs font-semibold text-zinc-500 mb-1">Total Material</div>
+                        <div className="text-2xl font-semibold text-blue-600">{summary.totalMaterials}</div>
                     </div>
                 </div>
             </div>
 
             {/* SEARCH + GRID */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white rounded-none flex flex-col min-h-[400px]">
-                <div className="p-4 border-b-2 border-black flex items-center justify-between bg-zinc-50">
-                    <h2 className="text-lg font-black uppercase tracking-tight">Daftar BOM</h2>
+            <div className="border border-border shadow-sm bg-white rounded-md flex flex-col min-h-[400px]">
+                <div className="p-4 border-b border-border flex items-center justify-between bg-zinc-50">
+                    <h2 className="text-lg font-semibold tracking-tight">Daftar BOM</h2>
                     <div className="relative w-[320px]">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                         <Input
                             placeholder="Cari produk atau kode..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="pl-9 border-2 border-zinc-200 focus-visible:ring-0 focus-visible:border-black font-bold h-10 rounded-none bg-white"
+                            className="pl-9 border border-zinc-200 focus-visible:ring-0 focus-visible:border-border font-bold h-10 rounded-md bg-white"
                         />
                     </div>
                 </div>
 
                 <div className="p-6 bg-zinc-100/30 flex-1">
                     {filtered.length === 0 ? (
-                        <div className="text-center py-20 border-2 border-dashed border-zinc-300 bg-white rounded-none">
+                        <div className="text-center py-20 border border-dashed border-zinc-300 bg-white rounded-md">
                             <Package className="h-12 w-12 text-zinc-200 mx-auto mb-4" />
                             <p className="text-zinc-500 font-bold text-lg">Belum ada Production BOM</p>
                             <p className="text-zinc-400 text-sm mt-1">Buat BOM baru untuk memulai alur produksi</p>
-                            <Button onClick={() => setCreateOpen(true)} className="mt-4 bg-black text-white font-black uppercase text-[10px] rounded-none">
+                            <Button onClick={() => setCreateOpen(true)} className="mt-4 bg-slate-900 text-white font-semibold text-xs rounded-md">
                                 <Plus className="mr-2 h-3.5 w-3.5" /> Buat BOM Pertama
                             </Button>
                         </div>
@@ -238,13 +238,13 @@ export function BOMListClient({ boms }: BOMListClientProps) {
                                         key={bom.id}
                                         onMouseEnter={() => !isLegacy && handleCardHover(bom.id)}
                                         onClick={(e) => !isMigrating && handleCardClick(bom, e)}
-                                        className="block border-2 border-black bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all group cursor-pointer"
+                                        className="block border border-border bg-white shadow-sm hover:shadow-sm transition-all group cursor-pointer"
                                     >
                                         {/* Card header */}
-                                        <div className={`px-4 py-3 border-b-2 border-black flex items-center justify-between ${isLegacy ? 'bg-amber-50' : 'bg-orange-50'}`}>
+                                        <div className={`px-4 py-3 border-b border-border flex items-center justify-between ${isLegacy ? 'bg-amber-50' : 'bg-blue-50'}`}>
                                             <div className="min-w-0 flex-1">
-                                                <p className="font-black text-sm uppercase truncate">{bom.product?.name}</p>
-                                                <p className="text-[10px] font-mono font-bold text-zinc-400">{bom.product?.code}</p>
+                                                <p className="font-semibold text-sm truncate">{bom.product?.name}</p>
+                                                <p className="text-xs font-mono font-bold text-zinc-400">{bom.product?.code}</p>
                                             </div>
                                             <div className="flex items-center gap-2 shrink-0">
                                                 {!isLegacy && (
@@ -252,7 +252,7 @@ export function BOMListClient({ boms }: BOMListClientProps) {
                                                         <button
                                                             onClick={(e) => handleClone(bom.id, e)}
                                                             disabled={cloningId === bom.id}
-                                                            className="bg-white border-2 border-black text-[9px] font-black px-2 py-0.5 uppercase flex items-center gap-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            className="bg-white border border-border text-xs font-semibold px-2 py-0.5 flex items-center gap-1 shadow-sm hover:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                                             title="Duplikat BOM"
                                                         >
                                                             {cloningId === bom.id ? (
@@ -264,7 +264,7 @@ export function BOMListClient({ boms }: BOMListClientProps) {
                                                         <button
                                                             onClick={(e) => handleDelete(bom.id, bom.product?.name || '', e)}
                                                             disabled={deletingId === bom.id}
-                                                            className="bg-white border-2 border-red-400 text-red-500 text-[9px] font-black px-1.5 py-0.5 uppercase flex items-center shadow-[2px_2px_0px_0px_rgba(239,68,68,0.4)] hover:translate-y-[1px] hover:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            className="bg-white border border-red-400 text-red-500 text-xs font-semibold px-1.5 py-0.5 flex items-center shadow-sm hover:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                                             title="Hapus BOM"
                                                         >
                                                             {deletingId === bom.id ? (
@@ -276,15 +276,15 @@ export function BOMListClient({ boms }: BOMListClientProps) {
                                                     </>
                                                 )}
                                                 {isLegacy && (
-                                                    <span className="bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 flex items-center gap-1">
+                                                    <span className="bg-amber-500 text-white text-xs font-semibold px-2 py-0.5 flex items-center gap-1">
                                                         <ArchiveRestore className="h-3 w-3" /> LEGACY
                                                     </span>
                                                 )}
-                                                <span className="bg-black text-white text-[9px] font-black px-2 py-0.5">{bom.version}</span>
+                                                <span className="bg-slate-900 text-white text-xs font-semibold px-2 py-0.5">{bom.version}</span>
                                                 {bom.isActive ? (
-                                                    <span className="bg-emerald-500 text-white text-[9px] font-black px-2 py-0.5">AKTIF</span>
+                                                    <span className="bg-emerald-500 text-white text-xs font-semibold px-2 py-0.5">AKTIF</span>
                                                 ) : (
-                                                    <span className="bg-zinc-400 text-white text-[9px] font-black px-2 py-0.5">NONAKTIF</span>
+                                                    <span className="bg-zinc-400 text-white text-xs font-semibold px-2 py-0.5">NONAKTIF</span>
                                                 )}
                                             </div>
                                         </div>
@@ -301,19 +301,19 @@ export function BOMListClient({ boms }: BOMListClientProps) {
                                                                 {i > 0 && <ArrowRight className="h-3 w-3 text-zinc-300" />}
                                                                 <div className="flex items-center gap-1 bg-zinc-100 px-1.5 py-0.5 border border-zinc-200">
                                                                     <Icon className="h-3 w-3 text-zinc-500" />
-                                                                    <span className="text-[9px] font-bold text-zinc-600 truncate max-w-[60px]">{step.station?.name}</span>
+                                                                    <span className="text-xs font-bold text-zinc-600 truncate max-w-[60px]">{step.station?.name}</span>
                                                                 </div>
                                                             </div>
                                                         )
                                                     })}
                                                     {bom.steps.length > 5 && (
-                                                        <span className="text-[9px] font-bold text-zinc-400">+{bom.steps.length - 5}</span>
+                                                        <span className="text-xs font-bold text-zinc-400">+{bom.steps.length - 5}</span>
                                                     )}
                                                 </div>
                                             ) : isLegacy ? (
-                                                <p className="text-[10px] text-amber-500 font-bold">Klik untuk migrasi ke canvas editor</p>
+                                                <p className="text-xs text-amber-500 font-bold">Klik untuk migrasi ke canvas editor</p>
                                             ) : (
-                                                <p className="text-[10px] text-zinc-300 font-bold">Belum ada alur proses</p>
+                                                <p className="text-xs text-zinc-300 font-bold">Belum ada alur proses</p>
                                             )}
 
                                             {/* Stats */}
@@ -321,39 +321,39 @@ export function BOMListClient({ boms }: BOMListClientProps) {
                                                 <div className="text-center">
                                                     <div className="flex items-center justify-center gap-1">
                                                         <Layers className="h-3 w-3 text-zinc-400" />
-                                                        <span className="text-[10px] font-black text-zinc-500">Material</span>
+                                                        <span className="text-xs font-semibold text-zinc-500">Material</span>
                                                     </div>
-                                                    <p className="font-black text-sm">{bom.materialCount || 0}</p>
+                                                    <p className="font-semibold text-sm">{bom.materialCount || 0}</p>
                                                 </div>
                                                 <div className="text-center">
                                                     <div className="flex items-center justify-center gap-1">
                                                         <Cog className="h-3 w-3 text-zinc-400" />
-                                                        <span className="text-[10px] font-black text-zinc-500">Proses</span>
+                                                        <span className="text-xs font-semibold text-zinc-500">Proses</span>
                                                     </div>
-                                                    <p className="font-black text-sm">{bom.stepCount || 0}</p>
+                                                    <p className="font-semibold text-sm">{bom.stepCount || 0}</p>
                                                 </div>
                                                 <div className="text-center">
-                                                    <span className="text-[10px] font-black text-zinc-500">Biaya/pcs</span>
-                                                    <p className="font-black text-xs font-mono">{formatCurrency(bom.totalCostPerUnit || 0)}</p>
+                                                    <span className="text-xs font-semibold text-zinc-500">Biaya/pcs</span>
+                                                    <p className="font-semibold text-xs font-mono">{formatCurrency(bom.totalCostPerUnit || 0)}</p>
                                                 </div>
                                             </div>
                                         </div>
 
                                         {/* Card footer */}
                                         <div className="px-4 py-2 border-t border-zinc-100 bg-zinc-50 flex items-center justify-between">
-                                            <span className="text-[9px] font-bold text-zinc-400">
+                                            <span className="text-xs font-bold text-zinc-400">
                                                 Target: {bom.totalProductionQty || 0} pcs
                                             </span>
                                             {isMigrating ? (
-                                                <span className="text-[9px] font-black text-amber-600 uppercase flex items-center gap-1">
+                                                <span className="text-xs font-semibold text-amber-600 flex items-center gap-1">
                                                     <Loader2 className="h-3 w-3 animate-spin" /> Migrasi...
                                                 </span>
                                             ) : isLegacy ? (
-                                                <span className="text-[9px] font-black text-amber-600 uppercase group-hover:underline">
+                                                <span className="text-xs font-semibold text-amber-600 group-hover:underline">
                                                     Migrasi & Buka Canvas →
                                                 </span>
                                             ) : (
-                                                <span className="text-[9px] font-black text-orange-600 uppercase group-hover:underline">
+                                                <span className="text-xs font-semibold text-blue-600 group-hover:underline">
                                                     Buka Canvas →
                                                 </span>
                                             )}

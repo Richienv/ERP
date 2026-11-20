@@ -70,7 +70,7 @@ export default function NumberingPage() {
 
     const handleSave = () => {
         toast.success("Konfigurasi penomoran disimpan!", {
-            className: "font-bold border-2 border-black",
+            className: "font-bold border border-border",
         })
         setDirty(false)
     }
@@ -80,7 +80,7 @@ export default function NumberingPage() {
             <div className="flex items-center justify-center h-96">
                 <div className="text-center space-y-2">
                     <Hash className="h-8 w-8 animate-pulse mx-auto" />
-                    <p className="text-sm font-bold text-zinc-500 uppercase tracking-wider">Memuat Konfigurasi...</p>
+                    <p className="text-sm font-bold text-zinc-500  ">Memuat Konfigurasi...</p>
                 </div>
             </div>
         )
@@ -93,7 +93,7 @@ export default function NumberingPage() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-black uppercase tracking-tight flex items-center gap-2">
+                    <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
                         <Hash className="h-6 w-6" /> Penomoran Dokumen
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">
@@ -102,8 +102,8 @@ export default function NumberingPage() {
                 </div>
                 <Button
                     className={cn(
-                        "border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-black uppercase text-xs tracking-wider",
-                        dirty ? "bg-black text-white" : "bg-zinc-200 text-zinc-500"
+                        "border border-border shadow-sm hover:shadow-sm font-semibold text-xs",
+                        dirty ? "bg-slate-900 text-white" : "bg-zinc-200 text-zinc-500"
                     )}
                     onClick={handleSave}
                     disabled={!dirty}
@@ -113,17 +113,17 @@ export default function NumberingPage() {
             </div>
 
             {/* Numbering Table */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white">
+            <div className="border border-border shadow-sm overflow-hidden bg-white">
                 <table className="w-full text-sm">
                     <thead>
-                        <tr className="bg-black text-white">
-                            <th className="text-left px-4 py-3 font-black uppercase tracking-wider text-[10px]">Modul</th>
-                            <th className="text-left px-3 py-3 font-black uppercase tracking-wider text-[10px]">Prefix</th>
-                            <th className="text-left px-3 py-3 font-black uppercase tracking-wider text-[10px]">Pemisah</th>
-                            <th className="text-left px-3 py-3 font-black uppercase tracking-wider text-[10px]">Format Tgl</th>
-                            <th className="text-left px-3 py-3 font-black uppercase tracking-wider text-[10px]">Digit</th>
-                            <th className="text-left px-3 py-3 font-black uppercase tracking-wider text-[10px]">Contoh</th>
-                            <th className="text-left px-3 py-3 font-black uppercase tracking-wider text-[10px]">Terakhir</th>
+                        <tr className="bg-slate-900 text-white">
+                            <th className="text-left px-4 py-3 font-semibold text-xs">Modul</th>
+                            <th className="text-left px-3 py-3 font-semibold text-xs">Prefix</th>
+                            <th className="text-left px-3 py-3 font-semibold text-xs">Pemisah</th>
+                            <th className="text-left px-3 py-3 font-semibold text-xs">Format Tgl</th>
+                            <th className="text-left px-3 py-3 font-semibold text-xs">Digit</th>
+                            <th className="text-left px-3 py-3 font-semibold text-xs">Contoh</th>
+                            <th className="text-left px-3 py-3 font-semibold text-xs">Terakhir</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -139,13 +139,13 @@ export default function NumberingPage() {
                                     <Input
                                         value={config.prefix}
                                         onChange={e => updateConfig(idx, "prefix", e.target.value.toUpperCase())}
-                                        className="border-2 border-black font-mono font-bold h-8 w-20 text-center rounded-none text-xs"
+                                        className="border border-border font-mono font-bold h-8 w-20 text-center rounded-md text-xs"
                                         maxLength={5}
                                     />
                                 </td>
                                 <td className="px-3 py-2 border-r border-zinc-200">
                                     <Select value={config.separator} onValueChange={v => updateConfig(idx, "separator", v)}>
-                                        <SelectTrigger className="border-2 border-black h-8 w-16 rounded-none font-mono font-bold text-center text-xs">
+                                        <SelectTrigger className="border border-border h-8 w-16 rounded-md font-mono font-bold text-center text-xs">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -157,7 +157,7 @@ export default function NumberingPage() {
                                 </td>
                                 <td className="px-3 py-2 border-r border-zinc-200">
                                     <Select value={config.dateFormat} onValueChange={v => updateConfig(idx, "dateFormat", v)}>
-                                        <SelectTrigger className="border-2 border-black h-8 w-24 rounded-none font-mono font-bold text-xs">
+                                        <SelectTrigger className="border border-border h-8 w-24 rounded-md font-mono font-bold text-xs">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -174,11 +174,11 @@ export default function NumberingPage() {
                                         max={8}
                                         value={config.digitCount}
                                         onChange={e => updateConfig(idx, "digitCount", parseInt(e.target.value) || 4)}
-                                        className="border-2 border-black font-mono font-bold h-8 w-16 text-center rounded-none text-xs"
+                                        className="border border-border font-mono font-bold h-8 w-16 text-center rounded-md text-xs"
                                     />
                                 </td>
                                 <td className="px-3 py-2 border-r border-zinc-200">
-                                    <Badge variant="outline" className="font-mono text-xs border-2 border-zinc-300 bg-zinc-50 px-3 py-1">
+                                    <Badge variant="outline" className="font-mono text-xs border border-zinc-300 bg-zinc-50 px-3 py-1">
                                         {config.example}
                                     </Badge>
                                 </td>
@@ -200,23 +200,23 @@ export default function NumberingPage() {
             </div>
 
             {/* Info Box */}
-            <div className="border-2 border-black bg-zinc-50 p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500 mb-2">Panduan Format</h3>
+            <div className="border border-border bg-zinc-50 p-4 shadow-sm">
+                <h3 className="text-xs font-semibold text-zinc-500 mb-2">Panduan Format</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                     <div>
-                        <span className="font-black">YYMM</span>
+                        <span className="font-semibold">YYMM</span>
                         <span className="text-zinc-500 ml-1">— Tahun 2 digit + Bulan (2602)</span>
                     </div>
                     <div>
-                        <span className="font-black">YYYYMM</span>
+                        <span className="font-semibold">YYYYMM</span>
                         <span className="text-zinc-500 ml-1">— Tahun 4 digit + Bulan (202602)</span>
                     </div>
                     <div>
-                        <span className="font-black">YY</span>
+                        <span className="font-semibold">YY</span>
                         <span className="text-zinc-500 ml-1">— Tahun saja (26)</span>
                     </div>
                     <div>
-                        <span className="font-black">Digit</span>
+                        <span className="font-semibold">Digit</span>
                         <span className="text-zinc-500 ml-1">— Jumlah angka urut (4 = 0001)</span>
                     </div>
                 </div>

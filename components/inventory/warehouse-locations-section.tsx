@@ -118,20 +118,20 @@ export function WarehouseLocationsSection({ warehouseId }: WarehouseLocationsSec
 
     return (
         <>
-            <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                <div className="px-5 py-3 border-b-2 border-black bg-zinc-50 flex items-center justify-between">
+            <div className="bg-white border border-border shadow-sm overflow-hidden">
+                <div className="px-5 py-3 border-b border-border bg-zinc-50 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Layers className="h-4 w-4 text-zinc-500" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                        <span className="text-xs font-semibold text-zinc-500">
                             Lokasi Penyimpanan
                         </span>
-                        <Badge className="text-[9px] font-black border-2 border-black bg-white text-black rounded-none px-1.5 py-0">
+                        <Badge className="text-xs font-semibold border border-border bg-white text-black rounded-md px-1.5 py-0">
                             {locations.length}
                         </Badge>
                     </div>
                     <Button
                         onClick={() => setCreateOpen(true)}
-                        className="bg-black text-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all font-black uppercase text-[9px] tracking-wider px-3 h-7 rounded-none"
+                        className="bg-slate-900 text-white border border-border shadow-sm hover:shadow-none transition-all font-semibold text-xs px-3 h-7 rounded-md"
                     >
                         <Plus className="h-3 w-3 mr-1" />
                         Tambah Lokasi
@@ -148,10 +148,10 @@ export function WarehouseLocationsSection({ warehouseId }: WarehouseLocationsSec
                 ) : locations.length === 0 ? (
                     <div className="p-8 text-center">
                         <MapPin className="h-8 w-8 mx-auto text-zinc-200 mb-2" />
-                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                        <p className="text-xs font-semibold text-zinc-400">
                             Belum ada lokasi di gudang ini
                         </p>
-                        <p className="text-[10px] text-zinc-400 mt-1">
+                        <p className="text-xs text-zinc-400 mt-1">
                             Tambahkan rak, bin, atau zona untuk mengatur penyimpanan
                         </p>
                     </div>
@@ -162,14 +162,14 @@ export function WarehouseLocationsSection({ warehouseId }: WarehouseLocationsSec
                             return (
                                 <div
                                     key={loc.id}
-                                    className={`p-4 space-y-2 border-b-2 border-zinc-100 ${idx % 2 === 0 ? 'md:border-r-2 md:border-r-zinc-100' : ''}`}
+                                    className={`p-4 space-y-2 border-b border-zinc-100 ${idx % 2 === 0 ? 'md:border-r md:border-r-zinc-100' : ''}`}
                                 >
                                     <div className="flex items-start justify-between">
                                         <div className="flex items-center gap-2">
-                                            <span className="inline-block border-2 border-black bg-zinc-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider font-mono">
+                                            <span className="inline-block border border-border bg-zinc-100 px-2 py-0.5 text-xs font-semibold font-mono">
                                                 {loc.code}
                                             </span>
-                                            <h4 className="text-sm font-black uppercase tracking-tight">
+                                            <h4 className="text-sm font-semibold tracking-tight">
                                                 {loc.name}
                                             </h4>
                                         </div>
@@ -187,20 +187,20 @@ export function WarehouseLocationsSection({ warehouseId }: WarehouseLocationsSec
                                         {badges.map((b, i) => (
                                             <Badge
                                                 key={i}
-                                                className={`text-[9px] font-black uppercase px-2 py-0.5 border rounded-none ${b.className}`}
+                                                className={`text-xs font-semibold px-2 py-0.5 border rounded-md ${b.className}`}
                                             >
                                                 {b.label}
                                             </Badge>
                                         ))}
                                         {badges.length === 0 && (
-                                            <Badge className="text-[9px] font-black uppercase px-2 py-0.5 border rounded-none bg-zinc-100 text-zinc-600 border-zinc-300">
+                                            <Badge className="text-xs font-semibold px-2 py-0.5 border rounded-md bg-zinc-100 text-zinc-600 border-zinc-300">
                                                 Umum
                                             </Badge>
                                         )}
                                     </div>
 
                                     <div className="flex items-center justify-between pt-1 border-t border-zinc-200">
-                                        <div className="flex items-center gap-3 text-[10px] text-zinc-500">
+                                        <div className="flex items-center gap-3 text-xs text-zinc-500">
                                             {loc.capacity && (
                                                 <span className="flex items-center gap-1 font-bold">
                                                     <Archive className="h-3 w-3" />
@@ -322,9 +322,9 @@ export function WarehouseLocationsSection({ warehouseId }: WarehouseLocationsSec
 
             {/* Delete Confirmation */}
             <AlertDialog open={!!deleteTarget} onOpenChange={(v) => { if (!v) setDeleteTarget(null) }}>
-                <AlertDialogContent className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-none">
+                <AlertDialogContent className="border border-border shadow-sm rounded-md">
                     <AlertDialogHeader>
-                        <AlertDialogTitle className="font-black uppercase tracking-wider">
+                        <AlertDialogTitle className="font-semibold  ">
                             Hapus Lokasi?
                         </AlertDialogTitle>
                         <AlertDialogDescription>
@@ -335,7 +335,7 @@ export function WarehouseLocationsSection({ warehouseId }: WarehouseLocationsSec
                     <AlertDialogFooter>
                         <AlertDialogCancel className={NB.cancelBtn}>Batal</AlertDialogCancel>
                         <AlertDialogAction
-                            className="bg-red-600 text-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-red-700 font-black uppercase text-xs tracking-wider px-6 h-9 rounded-none"
+                            className="bg-red-600 text-white border border-border shadow-sm hover:bg-red-700 font-semibold text-xs px-6 h-9 rounded-md"
                             onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
                         >
                             {deleteMutation.isPending ? "Menghapus..." : "Hapus"}

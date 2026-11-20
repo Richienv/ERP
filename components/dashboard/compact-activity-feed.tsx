@@ -51,14 +51,14 @@ export function CompactActivityFeed({ activities }: CompactActivityFeedProps) {
     const displayActivities = activities.slice(0, 6)
 
     return (
-        <div className="h-full flex flex-col bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+        <div className="h-full flex flex-col bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
             {/* Header */}
-            <div className="flex-none flex items-center justify-between px-4 py-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800">
+            <div className="flex-none flex items-center justify-between px-4 py-3 border-b border-border bg-zinc-50 dark:bg-zinc-800">
                 <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-zinc-500" />
-                    <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Aktivitas Terbaru</h3>
+                    <h3 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Aktivitas Terbaru</h3>
                 </div>
-                <span className="bg-emerald-500 text-white text-[9px] font-black px-1.5 py-0.5">LIVE</span>
+                <span className="bg-emerald-500 text-white text-xs font-semibold px-1.5 py-0.5">LIVE</span>
             </div>
 
             {/* Feed Items */}
@@ -70,22 +70,22 @@ export function CompactActivityFeed({ activities }: CompactActivityFeedProps) {
                                 <div className="flex-none mt-0.5">{getIcon(activity.type)}</div>
                                 <div className="min-w-0 flex-1">
                                     <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate">{activity.title}</p>
-                                    <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate">{activity.description}</p>
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{activity.description}</p>
                                 </div>
-                                <span className="flex-none text-[10px] font-mono text-zinc-400 whitespace-nowrap">{timeAgo(activity.timestamp)}</span>
+                                <span className="flex-none text-xs font-mono text-zinc-400 whitespace-nowrap">{timeAgo(activity.timestamp)}</span>
                             </div>
                         ))}
                     </div>
                 ) : (
                     <div className="flex items-center justify-center h-full py-8">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Belum ada aktivitas</p>
+                        <p className="text-xs font-bold text-zinc-400">Belum ada aktivitas</p>
                     </div>
                 )}
             </ScrollArea>
 
             {/* Footer */}
-            <div className="flex-none border-t-2 border-black">
-                <Link href="/reports" className="flex items-center justify-center gap-1 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-black dark:hover:text-white hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all">
+            <div className="flex-none border-t border-border">
+                <Link href="/reports" className="flex items-center justify-center gap-1 py-2 text-xs font-semibold text-zinc-400 hover:text-black dark:hover:text-white hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all">
                     Lihat Semua <ArrowRight className="h-3 w-3" />
                 </Link>
             </div>

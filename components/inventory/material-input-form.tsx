@@ -158,7 +158,7 @@ export function MaterialInputForm() {
     return (
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) handleReset() }}>
             <DialogTrigger asChild>
-                <Button className="h-10 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-emerald-500 text-white font-black hover:bg-emerald-600 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] transition-all px-6 rounded-none uppercase text-xs tracking-wider">
+                <Button className="h-10 border border-border shadow-sm bg-emerald-500 text-white font-semibold hover:bg-emerald-600 hover:shadow-sm transition-all px-6 rounded-md text-xs">
                     <Plus className="mr-2 h-4 w-4" /> Tambah Material
                 </Button>
             </DialogTrigger>
@@ -175,16 +175,16 @@ export function MaterialInputForm() {
 
                         {/* ====== CODE BUILDER ====== */}
                         <div className={NB.section}>
-                            <div className="bg-zinc-900 text-white px-4 py-2 border-b-2 border-black flex items-center gap-2">
+                            <div className="bg-zinc-900 text-white px-4 py-2 border-b border-border flex items-center gap-2">
                                 <Tag className="h-4 w-4" />
-                                <span className="text-xs font-black uppercase tracking-widest">Kode Material Terstruktur</span>
+                                <span className="text-xs font-semibold  ">Kode Material Terstruktur</span>
                             </div>
 
                             <div className="p-4 space-y-3">
                                 <div className="grid grid-cols-4 gap-3">
                                     {/* Segment 1: Category */}
                                     <div>
-                                        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Kategori</label>
+                                        <label className="text-xs font-semibold text-zinc-400 mb-1 block">Kategori</label>
                                         <Select
                                             value={codeCat}
                                             onValueChange={(v) => {
@@ -195,14 +195,14 @@ export function MaterialInputForm() {
                                                 }
                                             }}
                                         >
-                                            <SelectTrigger className="border-2 border-black font-mono font-black text-xs h-9 w-full rounded-none">
+                                            <SelectTrigger className="border border-border font-mono font-semibold text-xs h-9 w-full rounded-md">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {CODE_CATEGORIES.map(c => (
                                                     <SelectItem key={c.code} value={c.code}>
                                                         <span className="font-mono font-bold">{c.code}</span>
-                                                        <span className="text-zinc-400 ml-1.5 text-[10px]">{c.label}</span>
+                                                        <span className="text-zinc-400 ml-1.5 text-xs">{c.label}</span>
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
@@ -211,19 +211,19 @@ export function MaterialInputForm() {
 
                                     {/* Segment 2: Type */}
                                     <div>
-                                        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Tipe</label>
+                                        <label className="text-xs font-semibold text-zinc-400 mb-1 block">Tipe</label>
                                         <Select
                                             value={currentTypeValid ? codeType : (availableTypes[0]?.code || "")}
                                             onValueChange={setCodeType}
                                         >
-                                            <SelectTrigger className="border-2 border-black font-mono font-black text-xs h-9 w-full rounded-none">
+                                            <SelectTrigger className="border border-border font-mono font-semibold text-xs h-9 w-full rounded-md">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {availableTypes.map(t => (
                                                     <SelectItem key={t.code} value={t.code}>
                                                         <span className="font-mono font-bold">{t.code}</span>
-                                                        <span className="text-zinc-400 ml-1.5 text-[10px]">{t.label}</span>
+                                                        <span className="text-zinc-400 ml-1.5 text-xs">{t.label}</span>
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
@@ -232,7 +232,7 @@ export function MaterialInputForm() {
 
                                     {/* Segment 3: Brand — DB-backed */}
                                     <div>
-                                        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Brand</label>
+                                        <label className="text-xs font-semibold text-zinc-400 mb-1 block">Brand</label>
                                         <ComboboxWithCreate
                                             options={brandOptions}
                                             value={codeBrand}
@@ -248,7 +248,7 @@ export function MaterialInputForm() {
 
                                     {/* Segment 4: Color — DB-backed */}
                                     <div>
-                                        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Warna</label>
+                                        <label className="text-xs font-semibold text-zinc-400 mb-1 block">Warna</label>
                                         <ComboboxWithCreate
                                             options={colorOptions}
                                             value={codeColor}
@@ -264,16 +264,16 @@ export function MaterialInputForm() {
                                 </div>
 
                                 {/* Live Code Preview */}
-                                <div className="bg-zinc-50 border-2 border-black p-3 flex items-center justify-between">
+                                <div className="bg-zinc-50 border border-border p-3 flex items-center justify-between">
                                     <div>
-                                        <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 block mb-0.5">Preview Kode</span>
-                                        <span className="font-mono font-black text-base tracking-wider">{previewCode}</span>
+                                        <span className="text-xs font-bold text-zinc-400 block mb-0.5">Preview Kode</span>
+                                        <span className="font-mono font-semibold text-base ">{previewCode}</span>
                                     </div>
                                     <div className="text-right">
-                                        <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 block mb-0.5">Barcode</span>
+                                        <span className="text-xs font-bold text-zinc-400 block mb-0.5">Barcode</span>
                                         <div className="flex items-center gap-1.5">
                                             <Barcode className="h-3.5 w-3.5 text-zinc-400" />
-                                            <span className="font-mono font-bold text-[11px] text-zinc-600">{previewBarcode}</span>
+                                            <span className="font-mono font-bold text-xs text-zinc-600">{previewBarcode}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -282,7 +282,7 @@ export function MaterialInputForm() {
 
                         {/* ====== BASIC INFO ====== */}
                         <div className={NB.section}>
-                            <div className={`${NB.sectionHead} border-l-4 border-l-emerald-400 bg-emerald-50`}>
+                            <div className={`${NB.sectionHead} border-l border-l-emerald-400 bg-emerald-50`}>
                                 <Package className="h-4 w-4" />
                                 <span className={NB.sectionTitle}>Informasi Dasar</span>
                             </div>
@@ -333,7 +333,7 @@ export function MaterialInputForm() {
                         <div className="grid grid-cols-2 gap-4">
                             {/* Stock */}
                             <div className={NB.section}>
-                                <div className={`${NB.sectionHead} border-l-4 border-l-blue-400 bg-blue-50`}>
+                                <div className={`${NB.sectionHead} border-l border-l-blue-400 bg-blue-50`}>
                                     <Boxes className="h-4 w-4" />
                                     <span className={NB.sectionTitle}>Stok</span>
                                 </div>
@@ -349,7 +349,7 @@ export function MaterialInputForm() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="text-[10px] font-black uppercase tracking-wider text-red-500 mb-1 block">
+                                        <label className="text-xs font-semibold text-red-500 mb-1 block">
                                             <AlertTriangle className="h-3 w-3 inline mr-1" />Min. Stock Alert
                                         </label>
                                         <Input
@@ -357,7 +357,7 @@ export function MaterialInputForm() {
                                             value={minStock}
                                             onChange={(e) => setMinStock(e.target.value)}
                                             placeholder="10"
-                                            className="border-2 border-red-300 bg-red-50 font-mono font-bold h-10 rounded-none text-red-600 placeholder:text-red-300"
+                                            className="border border-red-300 bg-red-50 font-mono font-bold h-10 rounded-md text-red-600 placeholder:text-red-300"
                                         />
                                     </div>
                                 </div>
@@ -365,7 +365,7 @@ export function MaterialInputForm() {
 
                             {/* Pricing */}
                             <div className={NB.section}>
-                                <div className={`${NB.sectionHead} border-l-4 border-l-amber-400 bg-amber-50`}>
+                                <div className={`${NB.sectionHead} border-l border-l-amber-400 bg-amber-50`}>
                                     <DollarSign className="h-4 w-4" />
                                     <span className={NB.sectionTitle}>Harga & Modal</span>
                                 </div>
@@ -373,7 +373,7 @@ export function MaterialInputForm() {
                                     <div>
                                         <label className={NB.label}>HPP (Harga Pokok) per Satuan</label>
                                         <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-zinc-400">Rp</span>
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-zinc-400">Rp</span>
                                             <Input
                                                 type="number"
                                                 value={costPrice}

@@ -97,7 +97,7 @@ export function CompanyPulseBar({
     ]
 
     return (
-        <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+        <div className="bg-white dark:bg-zinc-900 border border-border shadow-sm overflow-hidden">
             <div className="grid grid-cols-2 md:grid-cols-5">
                 {metrics.map((metric, i) => (
                     <Link
@@ -105,7 +105,7 @@ export function CompanyPulseBar({
                         href={metric.href}
                         className={`
                                 group relative p-4 md:p-5 transition-all hover:bg-zinc-50 dark:hover:bg-zinc-800
-                                ${i < metrics.length - 1 ? "md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800" : ""}
+                                ${i < metrics.length - 1 ? "md:border-r border-b md:border-b-0 border-zinc-100 dark:border-zinc-800" : ""}
                             `}
                     >
                         {/* Accent top line */}
@@ -116,14 +116,14 @@ export function CompanyPulseBar({
                             <span className="text-zinc-400 group-hover:text-black dark:group-hover:text-white transition-colors">
                                 {metric.icon}
                             </span>
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-black dark:group-hover:text-white transition-colors">
+                            <span className="text-xs font-semibold text-zinc-500 group-hover:text-black dark:group-hover:text-white transition-colors">
                                 {metric.label}
                             </span>
                         </div>
 
                         {/* Big Number */}
                         <div className="flex items-baseline gap-1">
-                            <span className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">
+                            <span className="text-2xl md:text-3xl font-semibold tracking-tighter text-zinc-900 dark:text-white">
                                 {metric.value === 0 && metric.label !== "NET MARGIN" ? (
                                     <span className="text-zinc-300 dark:text-zinc-700 text-lg">Belum ada data</span>
                                 ) : (
@@ -139,7 +139,7 @@ export function CompanyPulseBar({
                         <div className="flex items-center gap-1 mt-1.5">
                             {metric.trend === "up" && <TrendingUp className="h-3 w-3 text-emerald-500" />}
                             {metric.trend === "down" && <TrendingDown className="h-3 w-3 text-rose-500" />}
-                            <span className={`text-[10px] font-bold tracking-wide ${metric.trend === "up" ? "text-emerald-600 dark:text-emerald-400" :
+                            <span className={`text-xs font-bold  ${metric.trend === "up" ? "text-emerald-600 dark:text-emerald-400" :
                                     metric.trend === "down" ? "text-rose-600 dark:text-rose-400" :
                                         "text-zinc-400"
                                 }`}>

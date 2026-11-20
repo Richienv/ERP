@@ -69,7 +69,7 @@ export default function ProcurementPage() {
           title="Pengadaan — terima, tagih, bayar"
           subtitle="PR, PO, GRN, dan bill vendor dalam satu antrian"
         />
-        <TablePageSkeleton accentColor="bg-orange-400" />
+        <TablePageSkeleton accentColor="bg-blue-400" />
       </div>
     )
   }
@@ -92,13 +92,13 @@ export default function ProcurementPage() {
         <MiningSnapshotStrip highlight={["apOpen", "inventoryValue"]} />
 
         {/* Page Header */}
-        <div className="relative border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+        <div className="relative border border-border shadow-sm overflow-hidden bg-white dark:bg-zinc-900">
           <InlinePendingBar active={isFetching} />
           <div className="px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-3 border-l-[6px] border-l-orange-500">
             <div className="flex items-center gap-3">
-              <Package className="h-5 w-5 text-orange-500" />
+              <Package className="h-5 w-5 text-blue-500" />
               <div>
-                <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
+                <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-white">
                   Dashboard Pengadaan
                 </h1>
                 <p className="text-zinc-400 text-xs font-medium mt-0.5">
@@ -108,12 +108,12 @@ export default function ProcurementPage() {
             </div>
             <div className="flex flex-wrap gap-2">
               <Link href="/procurement/requests">
-                <Button variant="outline" className="border-2 border-zinc-300 dark:border-zinc-600 font-bold uppercase text-xs tracking-wide h-10 px-4 hover:border-zinc-500 transition-colors">
+                <Button variant="outline" className="border border-zinc-300 dark:border-zinc-600 font-bold text-xs h-10 px-4 hover:border-zinc-500 transition-colors">
                   <FileText className="mr-1.5 h-3.5 w-3.5" /> Requests
                 </Button>
               </Link>
               <Link href="/procurement/vendors">
-                <Button variant="outline" className="border-2 border-zinc-300 dark:border-zinc-600 font-bold uppercase text-xs tracking-wide h-10 px-4 hover:border-zinc-500 transition-colors">
+                <Button variant="outline" className="border border-zinc-300 dark:border-zinc-600 font-bold text-xs h-10 px-4 hover:border-zinc-500 transition-colors">
                   <Users className="mr-1.5 h-3.5 w-3.5" /> Vendors
                 </Button>
               </Link>
@@ -135,13 +135,13 @@ export default function ProcurementPage() {
 
         {/* KPI Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+          <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
             <div className="p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Spend (Bulan)</span>
+                <span className="text-xs font-semibold text-zinc-400">Spend (Bulan)</span>
                 <DollarSign className="h-4 w-4 text-emerald-500" />
               </div>
-              <div className="text-xl font-black text-zinc-900 dark:text-white">{formatIDR(spend?.current ?? 0)}</div>
+              <div className="text-xl font-semibold text-zinc-900 dark:text-white">{formatIDR(spend?.current ?? 0)}</div>
               <div className="flex items-center gap-1 mt-1">
                 {(spend?.growth ?? 0) > 0 ? <ArrowUpRight className="h-3 w-3 text-red-500" /> : <ArrowDownRight className="h-3 w-3 text-emerald-500" />}
                 <span className={`text-xs font-bold ${(spend?.growth ?? 0) > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
@@ -152,13 +152,13 @@ export default function ProcurementPage() {
             </div>
           </div>
 
-          <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+          <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
             <div className="p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Vendor Health</span>
+                <span className="text-xs font-semibold text-zinc-400">Vendor Health</span>
                 <Activity className="h-4 w-4 text-zinc-500" />
               </div>
-              <div className="text-xl font-black text-zinc-900 dark:text-white flex items-center gap-1.5">
+              <div className="text-xl font-semibold text-zinc-900 dark:text-white flex items-center gap-1.5">
                 {(vendorHealth?.rating ?? 0).toFixed(1)} <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
               </div>
               <span className="text-xs text-zinc-400 font-medium mt-1 block">
@@ -167,45 +167,45 @@ export default function ProcurementPage() {
             </div>
           </div>
 
-          <div className={`border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden ${(urgentNeeds ?? 0) > 0 ? 'bg-red-50 dark:bg-red-950/20' : 'bg-white dark:bg-zinc-900'}`}>
+          <div className={`border border-border shadow-sm overflow-hidden ${(urgentNeeds ?? 0) > 0 ? 'bg-red-50 dark:bg-red-950/20' : 'bg-white dark:bg-zinc-900'}`}>
             <div className="p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Urgent Restock</span>
+                <span className="text-xs font-semibold text-zinc-400">Urgent Restock</span>
                 <AlertCircle className={`h-4 w-4 ${(urgentNeeds ?? 0) > 0 ? 'text-red-500' : 'text-zinc-400'}`} />
               </div>
-              <div className={`text-xl font-black ${(urgentNeeds ?? 0) > 0 ? 'text-red-600' : 'text-zinc-900 dark:text-white'}`}>
+              <div className={`text-xl font-semibold ${(urgentNeeds ?? 0) > 0 ? 'text-red-600' : 'text-zinc-900 dark:text-white'}`}>
                 {urgentNeeds ?? 0} Item
               </div>
               <span className="text-xs text-zinc-400 font-medium mt-1 block">Di bawah stok minimum</span>
             </div>
           </div>
 
-          <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+          <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
             <div className="p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Incoming</span>
+                <span className="text-xs font-semibold text-zinc-400">Incoming</span>
                 <Truck className="h-4 w-4 text-zinc-500" />
               </div>
-              <div className="text-xl font-black text-zinc-900 dark:text-white">{incomingCount ?? 0} Order</div>
+              <div className="text-xl font-semibold text-zinc-900 dark:text-white">{incomingCount ?? 0} Order</div>
               <span className="text-xs text-zinc-400 font-medium mt-1 block">Open / partial delivery</span>
             </div>
           </div>
         </div>
 
         {/* Approval Center */}
-        <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-          <div className="bg-amber-50 dark:bg-amber-950/20 px-5 py-2.5 border-b-2 border-black flex items-center justify-between border-l-[5px] border-l-amber-400">
+        <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
+          <div className="bg-amber-50 dark:bg-amber-950/20 px-5 py-2.5 border-b border-border flex items-center justify-between border-l-[5px] border-l-amber-400">
             <div className="flex items-center gap-2">
               <CheckSquare className="h-4 w-4 text-amber-600" />
-              <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">
+              <h3 className="text-xs font-semibold text-zinc-700 dark:text-zinc-200">
                 Menunggu Persetujuan
               </h3>
-              <span className="bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 min-w-[20px] text-center rounded-sm">
+              <span className="bg-amber-500 text-white text-xs font-semibold px-2 py-0.5 min-w-[20px] text-center rounded-sm">
                 {needsApproval ?? 0}
               </span>
             </div>
             <Link href="/procurement/requests">
-              <Button variant="outline" className="border-2 border-zinc-300 font-bold uppercase text-xs tracking-wide h-8 px-3 hover:border-zinc-500 transition-colors">
+              <Button variant="outline" className="border border-zinc-300 font-bold text-xs h-8 px-3 hover:border-zinc-500 transition-colors">
                 Lihat Semua
               </Button>
             </Link>
@@ -298,10 +298,10 @@ export default function ProcurementPage() {
         </div>
 
         {/* Recent Activity */}
-        <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-          <div className="bg-zinc-50 dark:bg-zinc-800/40 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-zinc-800">
+        <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
+          <div className="bg-zinc-50 dark:bg-zinc-800/40 px-5 py-2.5 border-b border-border flex items-center gap-2 border-l-[5px] border-l-zinc-800">
             <Clock className="h-4 w-4 text-zinc-600" />
-            <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">
+            <h3 className="text-xs font-semibold text-zinc-700 dark:text-zinc-200">
               Aktivitas Terbaru
             </h3>
           </div>
@@ -313,9 +313,9 @@ export default function ProcurementPage() {
                   <div key={po.id} className="px-5 py-3 flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 block">{po.supplier?.name ?? "—"}</span>
-                      <span className="text-[10px] text-zinc-400">{po.createdAt ? new Date(po.createdAt).toLocaleDateString('id-ID') : ''}</span>
+                      <span className="text-xs text-zinc-400">{po.createdAt ? new Date(po.createdAt).toLocaleDateString('id-ID') : ''}</span>
                     </div>
-                    <span className={`inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-sm whitespace-nowrap ${cfg.bg} ${cfg.text}`}>
+                    <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 border rounded-sm whitespace-nowrap ${cfg.bg} ${cfg.text}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
                       {cfg.label}
                     </span>
@@ -324,7 +324,7 @@ export default function ProcurementPage() {
               })}
             </div>
           ) : (
-            <div className="text-center py-10 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+            <div className="text-center py-10 text-zinc-400 text-xs font-bold  ">
               Belum ada aktivitas
             </div>
           )}
@@ -349,10 +349,10 @@ function RegistryTable({
   buildPageHref: (page: number) => string
 }) {
   return (
-    <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-      <div className="bg-zinc-50 dark:bg-zinc-800/40 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-zinc-800">
+    <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
+      <div className="bg-zinc-50 dark:bg-zinc-800/40 px-5 py-2.5 border-b border-border flex items-center gap-2 border-l-[5px] border-l-zinc-800">
         {icon}
-        <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">{title}</h3>
+        <h3 className="text-xs font-semibold text-zinc-700 dark:text-zinc-200">{title}</h3>
       </div>
 
       <div className="px-4 pt-3 pb-2 flex flex-wrap gap-1.5">
@@ -364,7 +364,7 @@ function RegistryTable({
       <div className="px-4 pb-2 flex flex-wrap gap-1.5">
         {filters.map((f) => (
           <Link key={f.label} href={f.href}>
-            <span className="text-xs font-bold px-2 py-0.5 border-2 border-zinc-200 hover:border-orange-400 hover:text-orange-700 transition-colors cursor-pointer rounded-sm text-zinc-500">
+            <span className="text-xs font-bold px-2 py-0.5 border border-zinc-200 hover:border-blue-400 hover:text-blue-700 transition-colors cursor-pointer rounded-sm text-zinc-500">
               {f.label}
             </span>
           </Link>
@@ -373,7 +373,7 @@ function RegistryTable({
 
       <div className="border-t border-zinc-200 dark:border-zinc-700">
         {items.length === 0 ? (
-          <div className="text-center py-10 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+          <div className="text-center py-10 text-zinc-400 text-xs font-bold  ">
             Tidak ada data ditemukan
           </div>
         ) : (
@@ -384,9 +384,9 @@ function RegistryTable({
                 <div key={item.id} className={`px-4 py-2.5 flex items-center justify-between gap-2 ${idx % 2 === 0 ? '' : 'bg-zinc-50/50 dark:bg-zinc-800/10'}`}>
                   <div className="min-w-0">
                     <span className="font-mono text-xs font-bold text-zinc-900 dark:text-zinc-100">{item.number}</span>
-                    <span className="block text-[11px] text-zinc-400 truncate">{item.subtitle}</span>
+                    <span className="block text-xs text-zinc-400 truncate">{item.subtitle}</span>
                   </div>
-                  <span className={`inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-sm whitespace-nowrap ${cfg.bg} ${cfg.text}`}>
+                  <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 border rounded-sm whitespace-nowrap ${cfg.bg} ${cfg.text}`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
                     {cfg.label}
                   </span>
@@ -397,18 +397,18 @@ function RegistryTable({
         )}
       </div>
 
-      <div className="px-4 py-2.5 border-t-2 border-black flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
-        <span className="text-xs font-black uppercase tracking-widest text-zinc-400">{meta.total} total</span>
+      <div className="px-4 py-2.5 border-t border-border flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
+        <span className="text-xs font-semibold text-zinc-400">{meta.total} total</span>
         {meta.totalPages > 1 ? (
           <div className="flex items-center gap-1.5">
             <Link href={buildPageHref(Math.max(1, meta.page - 1))} className={meta.page <= 1 ? "pointer-events-none opacity-40" : ""}>
-              <Button variant="outline" size="icon" className="h-7 w-7 border-2 border-black">
+              <Button variant="outline" size="icon" className="h-7 w-7 border border-border">
                 <ChevronLeft className="h-3 w-3" />
               </Button>
             </Link>
-            <span className="text-xs font-black min-w-[40px] text-center">{meta.page}/{meta.totalPages}</span>
+            <span className="text-xs font-semibold min-w-[40px] text-center">{meta.page}/{meta.totalPages}</span>
             <Link href={buildPageHref(Math.min(meta.totalPages, meta.page + 1))} className={meta.page >= meta.totalPages ? "pointer-events-none opacity-40" : ""}>
-              <Button variant="outline" size="icon" className="h-7 w-7 border-2 border-black">
+              <Button variant="outline" size="icon" className="h-7 w-7 border border-border">
                 <ChevronRight className="h-3 w-3" />
               </Button>
             </Link>

@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     const file = form?.get("file")
     if (!(file instanceof File)) return NextResponse.json({ success: false, error: "File wajib diunggah" }, { status: 400 })
     if (!INVOICE_FILE_TYPES[file.type]) {
-        return NextResponse.json({ success: false, error: "Gunakan PDF, JPG, PNG atau WebP" }, { status: 400 })
+        return NextResponse.json({ success: false, error: "Gunakan PDF, Excel (.xlsx), JPG, PNG atau WebP" }, { status: 400 })
     }
     if (file.size > INVOICE_FILE_MAX_BYTES) {
         return NextResponse.json({ success: false, error: "File lebih dari 10 MB" }, { status: 400 })

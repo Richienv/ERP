@@ -157,7 +157,7 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
       <Button
         size="sm"
         onClick={() => setOpen(true)}
-        className="bg-emerald-600 text-white hover:bg-emerald-700 border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all active:translate-x-[1px] active:translate-y-[1px] active:shadow-none font-bold uppercase text-xs h-8 gap-2 rounded-none"
+        className="bg-emerald-600 text-white hover:bg-emerald-700 border border-border shadow-sm transition-all active:shadow-none font-bold text-xs h-8 gap-2 rounded-md"
       >
         <PackagePlus className="h-3.5 w-3.5" />
         Terima Barang
@@ -174,11 +174,11 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
           {/* Item Info */}
           <NBSection icon={Box} title="Detail Item">
             <div className="flex items-start gap-4">
-              <div className="h-12 w-12 bg-black text-white flex items-center justify-center shrink-0">
+              <div className="h-12 w-12 bg-slate-900 text-white flex items-center justify-center shrink-0">
                 <Box className="h-6 w-6" />
               </div>
               <div>
-                <p className="font-black text-base leading-tight">{item.name}</p>
+                <p className="font-semibold text-base leading-tight">{item.name}</p>
                 <p className="text-xs font-bold text-zinc-400">Satuan: {item.unit}</p>
               </div>
             </div>
@@ -193,7 +193,7 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
                   name="poId"
                   render={({ field }) => (
                     <FormItem>
-                      <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                      <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1 block">
                         Sumber PO <span className="text-red-500">*</span>
                       </label>
                       <Select
@@ -204,7 +204,7 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
                         defaultValue={field.value}
                       >
                         <FormControl>
-                          <SelectTrigger className="h-8 text-sm rounded-none border border-zinc-300">
+                          <SelectTrigger className="h-8 text-sm rounded-md border border-zinc-300">
                             <SelectValue placeholder="Pilih Purchase Order..." />
                           </SelectTrigger>
                         </FormControl>
@@ -226,18 +226,18 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
                   <div className="bg-blue-50 border border-blue-200 p-3">
                     <div className="grid grid-cols-3 gap-3">
                       <div>
-                        <p className="text-[10px] font-black uppercase text-blue-500">Pemasok</p>
+                        <p className="text-xs font-semibold text-blue-500">Pemasok</p>
                         <p className="font-bold text-sm truncate">{selectedPO.supplierName}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-black uppercase text-blue-500">Dipesan</p>
+                        <p className="text-xs font-semibold text-blue-500">Dipesan</p>
                         <p className="font-bold text-sm font-mono">
                           {selectedPO.orderedQty} {item.unit}
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-black uppercase text-blue-500">Sisa</p>
-                        <p className="font-black text-sm font-mono text-blue-700">
+                        <p className="text-xs font-semibold text-blue-500">Sisa</p>
+                        <p className="font-semibold text-sm font-mono text-blue-700">
                           {selectedPO.remainingQty} {item.unit}
                         </p>
                       </div>
@@ -250,7 +250,7 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
                   name="warehouseId"
                   render={({ field }) => (
                     <FormItem>
-                      <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                      <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1 block">
                         <Warehouse className="inline h-3.5 w-3.5 mr-1" />
                         Gudang Tujuan <span className="text-red-500">*</span>
                       </label>
@@ -259,7 +259,7 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
                         value={field.value}
                       >
                         <FormControl>
-                          <SelectTrigger className="h-8 text-sm rounded-none border border-zinc-300">
+                          <SelectTrigger className="h-8 text-sm rounded-md border border-zinc-300">
                             <SelectValue placeholder="Pilih gudang..." />
                           </SelectTrigger>
                         </FormControl>
@@ -281,17 +281,17 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
                   name="receivedQty"
                   render={({ field }) => (
                     <FormItem>
-                      <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                      <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1 block">
                         Jumlah Diterima <span className="text-red-500">*</span>
                       </label>
                       <FormControl>
                         <Input
                           type="number"
                           {...field}
-                          className="border border-black rounded-none font-mono font-black text-2xl h-14 text-center"
+                          className="border border-border rounded-md font-mono font-semibold text-2xl h-14 text-center"
                         />
                       </FormControl>
-                      <p className="text-[10px] text-zinc-400 font-bold mt-1 text-center">
+                      <p className="text-xs text-zinc-400 font-bold mt-1 text-center">
                         dalam {item.unit}
                       </p>
                       <FormMessage />

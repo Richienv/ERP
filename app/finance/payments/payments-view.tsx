@@ -357,26 +357,26 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                     <div className={`px-4 py-2.5 border-r border-zinc-200 dark:border-zinc-800 ${stats.unallocatedCount > 0 ? "bg-amber-50/40 dark:bg-amber-950/10" : ""}`}>
                         <div className="flex items-center gap-1.5 mb-0.5">
                             <span className={`w-1.5 h-1.5 rounded-full ${stats.unallocatedCount > 0 ? "bg-amber-500" : "bg-zinc-300"}`} />
-                            <span className={`text-[10px] font-bold uppercase tracking-widest ${stats.unallocatedCount > 0 ? "text-amber-600 dark:text-amber-400" : "text-zinc-400"}`}>Belum Dialokasi</span>
+                            <span className={`text-xs font-bold   ${stats.unallocatedCount > 0 ? "text-amber-600 dark:text-amber-400" : "text-zinc-400"}`}>Belum Dialokasi</span>
                         </div>
-                        <span className={`text-2xl font-black tabular-nums ${stats.unallocatedCount > 0 ? "text-amber-600 dark:text-amber-400" : "text-zinc-300 dark:text-zinc-600"}`}>{stats.unallocatedCount}</span>
+                        <span className={`text-2xl font-semibold tabular-nums ${stats.unallocatedCount > 0 ? "text-amber-600 dark:text-amber-400" : "text-zinc-300 dark:text-zinc-600"}`}>{stats.unallocatedCount}</span>
                     </div>
                     <div className="px-4 py-2.5 border-r border-zinc-200 dark:border-zinc-800 bg-blue-50/40 dark:bg-blue-950/10">
                         <div className="flex items-center gap-1.5 mb-0.5">
                             <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">Invoice Terbuka</span>
+                            <span className="text-xs font-bold text-blue-600 dark:text-blue-400">Invoice Terbuka</span>
                         </div>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-2xl font-black text-blue-700 dark:text-blue-300 tabular-nums">{stats.openInvoicesCount}</span>
+                            <span className="text-2xl font-semibold text-blue-700 dark:text-blue-300 tabular-nums">{stats.openInvoicesCount}</span>
                             <span className="text-xs font-mono font-bold text-blue-500 dark:text-blue-400">{formatIDR(stats.outstandingAmount)}</span>
                         </div>
                     </div>
                     <div className={`px-4 py-2.5 ${stats.todayPayments > 0 ? "bg-emerald-50/40 dark:bg-emerald-950/10" : ""}`}>
                         <div className="flex items-center gap-1.5 mb-0.5">
                             <span className={`w-1.5 h-1.5 rounded-full ${stats.todayPayments > 0 ? "bg-emerald-500" : "bg-zinc-300"}`} />
-                            <span className={`text-[10px] font-bold uppercase tracking-widest ${stats.todayPayments > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-400"}`}>Penerimaan Hari Ini</span>
+                            <span className={`text-xs font-bold   ${stats.todayPayments > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-400"}`}>Penerimaan Hari Ini</span>
                         </div>
-                        <span className={`text-2xl font-black tabular-nums ${stats.todayPayments > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-300 dark:text-zinc-600"}`}>{formatIDR(stats.todayPayments)}</span>
+                        <span className={`text-2xl font-semibold tabular-nums ${stats.todayPayments > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-300 dark:text-zinc-600"}`}>{formatIDR(stats.todayPayments)}</span>
                     </div>
                 </div>
 
@@ -385,16 +385,16 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                     <div className="relative flex-1 max-w-xs">
                         <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
                         <input
-                            className="border border-zinc-200 dark:border-zinc-700 font-medium h-8 w-full text-xs rounded-none pl-8 pr-3 outline-none placeholder:text-zinc-400 bg-white dark:bg-zinc-900 focus:border-zinc-900 dark:focus:border-zinc-400 transition-colors"
+                            className="border border-zinc-200 dark:border-zinc-700 font-medium h-8 w-full text-xs rounded-md pl-8 pr-3 outline-none placeholder:text-zinc-400 bg-white dark:bg-zinc-900 focus:border-zinc-900 dark:focus:border-zinc-400 transition-colors"
                             placeholder={activeTab === "payments" ? "Cari pembayaran..." : "Cari invoice..."}
                             value={displayedQuery}
                             onChange={(e) => setDisplayedQuery(e.target.value)}
                             onKeyDown={(e) => e.key === "Enter" && applySearch()}
                         />
                     </div>
-                    <button onClick={applySearch} className="h-8 px-3 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[10px] font-bold uppercase tracking-wider hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-colors">Cari</button>
+                    <button onClick={applySearch} className="h-8 px-3 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-bold hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-colors">Cari</button>
                     {(paymentQuery || invoiceQuery) && (
-                        <button onClick={() => { setPaymentQuery(""); setInvoiceQuery(""); pushSearchParams((p) => { p.delete("pay_q"); p.delete("inv_q"); p.delete("pay_page"); p.delete("inv_page") }) }} className="text-[10px] font-bold text-zinc-400 hover:text-zinc-600 transition-colors">Reset</button>
+                        <button onClick={() => { setPaymentQuery(""); setInvoiceQuery(""); pushSearchParams((p) => { p.delete("pay_q"); p.delete("inv_q"); p.delete("pay_page"); p.delete("inv_page") }) }} className="text-xs font-bold text-zinc-400 hover:text-zinc-600 transition-colors">Reset</button>
                     )}
 
                     <div className="ml-auto flex items-center gap-0">
@@ -415,12 +415,12 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
             {/* INVOICE TERBUKA — open invoices table        */}
             {/* ═══════════════════════════════════════════ */}
             {openInvoices.length > 0 && (
-                <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-                    <div className="px-4 py-2.5 border-b-2 border-black bg-blue-50/40 dark:bg-blue-950/20 flex items-center justify-between">
+                <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
+                    <div className="px-4 py-2.5 border-b border-border bg-blue-50/40 dark:bg-blue-950/20 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                            <span className="text-[11px] font-black uppercase tracking-wider text-zinc-900 dark:text-white">Invoice Terbuka</span>
-                            <span className="text-[10px] font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/40 px-1.5 py-0.5">{openInvoices.length}</span>
+                            <span className="text-xs font-semibold text-zinc-900 dark:text-white">Invoice Terbuka</span>
+                            <span className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/40 px-1.5 py-0.5">{openInvoices.length}</span>
                         </div>
                         <span className="text-xs font-mono font-bold text-blue-700 dark:text-blue-300">
                             {formatIDR(openInvoices.reduce((sum, inv) => sum + inv.balanceDue, 0))}
@@ -429,15 +429,15 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
-                                <tr className="text-[10px] uppercase text-zinc-500 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/30">
-                                    <th className="text-left px-4 py-2 font-bold tracking-wider">No. Invoice</th>
-                                    <th className="text-left px-4 py-2 font-bold tracking-wider">Pelanggan</th>
-                                    <th className="text-center px-4 py-2 font-bold tracking-wider">Status</th>
-                                    <th className="text-right px-4 py-2 font-bold tracking-wider">Total</th>
-                                    <th className="text-right px-4 py-2 font-bold tracking-wider">Dibayar</th>
-                                    <th className="text-right px-4 py-2 font-bold tracking-wider">Sisa</th>
-                                    <th className="text-right px-4 py-2 font-bold tracking-wider">Jatuh Tempo</th>
-                                    <th className="text-center px-4 py-2 font-bold tracking-wider">Aksi</th>
+                                <tr className="text-xs text-zinc-500 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/30">
+                                    <th className="text-left px-4 py-2 font-bold ">No. Invoice</th>
+                                    <th className="text-left px-4 py-2 font-bold ">Pelanggan</th>
+                                    <th className="text-center px-4 py-2 font-bold ">Status</th>
+                                    <th className="text-right px-4 py-2 font-bold ">Total</th>
+                                    <th className="text-right px-4 py-2 font-bold ">Dibayar</th>
+                                    <th className="text-right px-4 py-2 font-bold ">Sisa</th>
+                                    <th className="text-right px-4 py-2 font-bold ">Jatuh Tempo</th>
+                                    <th className="text-center px-4 py-2 font-bold ">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -446,13 +446,13 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                     const paid = (inv.amount || 0) - inv.balanceDue - cnReduction
                                     const invDueToday = (inv as any).isDueToday
                                     const statusLabel = inv.isOverdue ? "Jatuh Tempo" : invDueToday ? "Hari Ini" : inv.status === "ISSUED" ? "Terkirim" : inv.status === "PARTIAL" ? "Sebagian" : inv.status
-                                    const statusColor = inv.isOverdue ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-300 dark:border-red-700" : invDueToday ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-orange-300 dark:border-orange-700" : inv.status === "PARTIAL" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-300 dark:border-amber-700" : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-300 dark:border-blue-700"
+                                    const statusColor = inv.isOverdue ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-300 dark:border-red-700" : invDueToday ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-300 dark:border-blue-700" : inv.status === "PARTIAL" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-300 dark:border-amber-700" : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-300 dark:border-blue-700"
                                     return (
                                         <tr key={inv.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors">
                                             <td className="px-4 py-2.5 font-mono font-bold text-zinc-900 dark:text-zinc-100">{inv.number}</td>
                                             <td className="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">{inv.customer?.name ?? "—"}</td>
                                             <td className="px-4 py-2.5 text-center">
-                                                <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 border ${statusColor}`}>{statusLabel}</span>
+                                                <span className={`text-xs font-semibold px-1.5 py-0.5 border ${statusColor}`}>{statusLabel}</span>
                                             </td>
                                             <td className="px-4 py-2.5 text-right font-mono text-zinc-700 dark:text-zinc-300">{formatIDR(inv.amount || 0)}</td>
                                             <td className="px-4 py-2.5 text-right">
@@ -460,17 +460,17 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                                     <div className="font-mono text-emerald-600 dark:text-emerald-400">{formatIDR(paid)}</div>
                                                 )}
                                                 {cnReduction > 0 && (
-                                                    <div className="font-mono text-[10px] text-blue-600 dark:text-blue-400">CN: -{formatIDR(cnReduction)}</div>
+                                                    <div className="font-mono text-xs text-blue-600 dark:text-blue-400">CN: -{formatIDR(cnReduction)}</div>
                                                 )}
                                                 {paid <= 0 && cnReduction <= 0 && (
                                                     <span className="font-mono text-zinc-300 dark:text-zinc-600">—</span>
                                                 )}
                                             </td>
                                             <td className="px-4 py-2.5 text-right font-mono font-bold text-zinc-900 dark:text-zinc-100">{formatIDR(inv.balanceDue)}</td>
-                                            <td className={`px-4 py-2.5 text-right font-mono text-xs ${inv.isOverdue ? "text-red-600 dark:text-red-400 font-bold" : invDueToday ? "text-orange-600 dark:text-orange-400 font-bold" : "text-zinc-500"}`}>
+                                            <td className={`px-4 py-2.5 text-right font-mono text-xs ${inv.isOverdue ? "text-red-600 dark:text-red-400 font-bold" : invDueToday ? "text-blue-600 dark:text-blue-400 font-bold" : "text-zinc-500"}`}>
                                                 {new Date(inv.dueDate).toLocaleDateString("id-ID")}
                                                 {inv.isOverdue && <AlertTriangle className="inline h-3 w-3 ml-1 text-red-500" />}
-                                                {invDueToday && <AlertTriangle className="inline h-3 w-3 ml-1 text-orange-500" />}
+                                                {invDueToday && <AlertTriangle className="inline h-3 w-3 ml-1 text-blue-500" />}
                                             </td>
                                             <td className="px-4 py-2.5 text-center">
                                                 <button
@@ -486,7 +486,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                                         })
                                                         setIsCreateDialogOpen(true)
                                                     }}
-                                                    className="h-7 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black uppercase tracking-wider transition-colors"
+                                                    className="h-7 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-colors"
                                                 >
                                                     Terima
                                                 </button>
@@ -496,8 +496,8 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                 })}
                             </tbody>
                             <tfoot>
-                                <tr className="border-t-2 border-black bg-zinc-50 dark:bg-zinc-800/50">
-                                    <td colSpan={3} className="px-4 py-2 text-[10px] uppercase text-zinc-500 font-bold tracking-wider">
+                                <tr className="border-t border-border bg-zinc-50 dark:bg-zinc-800/50">
+                                    <td colSpan={3} className="px-4 py-2 text-xs text-zinc-500 font-bold">
                                         Total {openInvoices.length} invoice terbuka
                                     </td>
                                     <td className="px-4 py-2 text-right font-mono font-bold text-zinc-700 dark:text-zinc-300">
@@ -508,12 +508,12 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                             {formatIDR(openInvoices.reduce((sum, inv) => sum + ((inv.amount || 0) - inv.balanceDue - (inv.cnReduction ?? 0)), 0))}
                                         </div>
                                         {openInvoices.reduce((sum, inv) => sum + (inv.cnReduction ?? 0), 0) > 0 && (
-                                            <div className="font-mono text-[10px] text-blue-600">
+                                            <div className="font-mono text-xs text-blue-600">
                                                 CN: -{formatIDR(openInvoices.reduce((sum, inv) => sum + (inv.cnReduction ?? 0), 0))}
                                             </div>
                                         )}
                                     </td>
-                                    <td className="px-4 py-2 text-right font-mono font-black text-orange-600">
+                                    <td className="px-4 py-2 text-right font-mono font-semibold text-blue-600">
                                         {formatIDR(openInvoices.reduce((sum, inv) => sum + inv.balanceDue, 0))}
                                     </td>
                                     <td colSpan={2} />
@@ -523,7 +523,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                         <td colSpan={8} className="px-4 py-2 text-center">
                                             <button
                                                 onClick={() => setShowAllOpenInvoices(!showAllOpenInvoices)}
-                                                className="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+                                                className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
                                             >
                                                 {showAllOpenInvoices
                                                     ? "Tampilkan Sedikit"
@@ -566,13 +566,13 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
             {/* ═══════════════════════════════════════════ */}
             {/* COMBINED PANEL — tabs + items + pagination  */}
             {/* ═══════════════════════════════════════════ */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex flex-col" style={{ minHeight: 360 }}>
+            <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden flex flex-col" style={{ minHeight: 360 }}>
                 {/* Tab header */}
-                <div className="flex border-b-2 border-black">
+                <div className="flex border-b border-border">
                     <button
                         onClick={() => setActiveTab("payments")}
-                        className={`flex-1 px-4 py-2 text-[11px] font-black uppercase tracking-wider transition-colors relative ${activeTab === "payments"
-                            ? "bg-black text-white"
+                        className={`flex-1 px-4 py-2 text-xs font-semibold   transition-colors relative ${activeTab === "payments"
+                            ? "bg-slate-900 text-white"
                             : "bg-zinc-50 dark:bg-zinc-800 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                             }`}
                     >
@@ -580,13 +580,13 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                             {selectedPayment && activeTab !== "payments" && <Check className="h-3 w-3 text-emerald-400" />}
                             <Wallet className="h-3.5 w-3.5" />
                             Pembayaran Masuk
-                            <span className={`text-[10px] font-mono ${activeTab === "payments" ? "text-zinc-500" : "text-zinc-300 dark:text-zinc-600"}`}>{registryMeta.payments.total}</span>
+                            <span className={`text-xs font-mono ${activeTab === "payments" ? "text-zinc-500" : "text-zinc-300 dark:text-zinc-600"}`}>{registryMeta.payments.total}</span>
                         </div>
                     </button>
                     <button
                         onClick={() => setActiveTab("invoices")}
-                        className={`flex-1 px-4 py-2 text-[11px] font-black uppercase tracking-wider transition-colors relative ${activeTab === "invoices"
-                            ? "bg-black text-white"
+                        className={`flex-1 px-4 py-2 text-xs font-semibold   transition-colors relative ${activeTab === "invoices"
+                            ? "bg-slate-900 text-white"
                             : "bg-zinc-50 dark:bg-zinc-800 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                             }`}
                     >
@@ -594,7 +594,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                             {selectedInvoice && activeTab !== "invoices" && <Check className="h-3 w-3 text-blue-400" />}
                             <FileText className="h-3.5 w-3.5" />
                             Invoice Tujuan
-                            <span className={`text-[10px] font-mono ${activeTab === "invoices" ? "text-zinc-500" : "text-zinc-300 dark:text-zinc-600"}`}>{filteredInvoices.length}</span>
+                            <span className={`text-xs font-mono ${activeTab === "invoices" ? "text-zinc-500" : "text-zinc-300 dark:text-zinc-600"}`}>{filteredInvoices.length}</span>
                         </div>
                     </button>
                 </div>
@@ -603,12 +603,12 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                 {activeTab === "invoices" && selectedPayment && (
                     <div className="px-4 py-1.5 bg-emerald-50/60 dark:bg-emerald-950/20 border-b border-emerald-200 dark:border-emerald-900 flex items-center gap-2">
                         <Check className="h-3 w-3 text-emerald-500 shrink-0" />
-                        <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 truncate">
+                        <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 truncate">
                             {selectedPayment.number} &middot; {selectedPayment.from} &middot; {formatIDR(selectedPayment.amount)}
                         </span>
                         <button
                             onClick={() => { setSelectedPaymentId(null); setSelectedInvoiceId(null); setActiveTab("payments") }}
-                            className="ml-auto text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-200 transition-colors shrink-0"
+                            className="ml-auto text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-200 transition-colors shrink-0"
                         >
                             Ubah
                         </button>
@@ -619,7 +619,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                 <div className="flex-1 overflow-auto divide-y divide-zinc-100 dark:divide-zinc-800">
                     {activeTab === "payments" ? (
                         filteredPayments.length === 0 ? (
-                            <div className="flex items-center justify-center py-16 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                            <div className="flex items-center justify-center py-16 text-zinc-400 text-xs font-bold  ">
                                 Tidak ada pembayaran ditemukan
                             </div>
                         ) : (
@@ -632,10 +632,10 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                         data-payment-id={item.id}
                                         type="button"
                                         className={`w-full px-4 py-2.5 text-left transition-colors ${isSelected
-                                            ? "bg-emerald-50 dark:bg-emerald-950/30 border-l-4 border-l-emerald-500"
+                                            ? "bg-emerald-50 dark:bg-emerald-950/30 border-l border-l-emerald-500"
                                             : isAllocated
-                                            ? "bg-zinc-50/40 dark:bg-zinc-800/20 border-l-4 border-l-transparent"
-                                            : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50 border-l-4 border-l-transparent"
+                                            ? "bg-zinc-50/40 dark:bg-zinc-800/20 border-l border-l-transparent"
+                                            : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50 border-l border-l-transparent"
                                             }`}
                                         onClick={() => { if (!isAllocated) handleSelectPayment(item.id) }}
                                     >
@@ -644,17 +644,17 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                                 <span className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100">{item.number}</span>
                                                 <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 truncate">{item.from}</span>
                                                 {isAllocated && (
-                                                    <span className="text-[8px] font-black uppercase px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700 shrink-0">
+                                                    <span className="text-xs font-semibold px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700 shrink-0">
                                                         {item.invoiceStatus === "PAID" ? "Lunas" : "Dialokasi"} &middot; {item.invoiceNumber}
                                                     </span>
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-2.5 shrink-0">
-                                                <span className={`font-mono font-black text-sm ${isAllocated ? "text-zinc-500 dark:text-zinc-400" : "text-emerald-700 dark:text-emerald-400"}`}>{formatIDR(item.amount)}</span>
-                                                <span className="text-[10px] font-bold text-zinc-400">{new Date(item.date).toLocaleDateString("id-ID")}</span>
+                                                <span className={`font-mono font-semibold text-sm ${isAllocated ? "text-zinc-500 dark:text-zinc-400" : "text-emerald-700 dark:text-emerald-400"}`}>{formatIDR(item.amount)}</span>
+                                                <span className="text-xs font-bold text-zinc-400">{new Date(item.date).toLocaleDateString("id-ID")}</span>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-2 mt-0.5 text-[10px]">
+                                        <div className="flex items-center gap-2 mt-0.5 text-xs">
                                             <span className="font-bold text-zinc-400">{METHOD_LABEL[item.method as PaymentMethod] ?? item.method}</span>
                                             {item.reference && (
                                                 <>
@@ -669,7 +669,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                         )
                     ) : (
                         filteredInvoices.length === 0 ? (
-                            <div className="flex items-center justify-center py-16 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                            <div className="flex items-center justify-center py-16 text-zinc-400 text-xs font-bold  ">
                                 {selectedPayment ? "Tidak ada invoice yang cocok" : "Tidak ada invoice terbuka"}
                             </div>
                         ) : (
@@ -681,8 +681,8 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                         type="button"
                                         onClick={() => setSelectedInvoiceId(invoice.id)}
                                         className={`w-full px-4 py-2.5 text-left transition-colors ${isSelected
-                                            ? "bg-blue-50 dark:bg-blue-950/30 border-l-4 border-l-blue-500"
-                                            : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50 border-l-4 border-l-transparent"
+                                            ? "bg-blue-50 dark:bg-blue-950/30 border-l border-l-blue-500"
+                                            : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50 border-l border-l-transparent"
                                             }`}
                                     >
                                         <div className="flex items-center justify-between gap-2">
@@ -691,11 +691,11 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                                 <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 truncate">{invoice.customer?.name ?? "—"}</span>
                                             </div>
                                             <div className="flex items-center gap-2 shrink-0">
-                                                <span className={`font-mono font-black text-sm ${invoice.isOverdue ? "text-red-700 dark:text-red-400" : "text-zinc-900 dark:text-zinc-100"}`}>{formatIDR(invoice.balanceDue)}</span>
-                                                {invoice.isOverdue && <Badge variant="destructive" className="text-[9px] font-black uppercase px-1.5 py-0 h-4 rounded-none">Overdue</Badge>}
+                                                <span className={`font-mono font-semibold text-sm ${invoice.isOverdue ? "text-red-700 dark:text-red-400" : "text-zinc-900 dark:text-zinc-100"}`}>{formatIDR(invoice.balanceDue)}</span>
+                                                {invoice.isOverdue && <Badge variant="destructive" className="text-xs font-semibold px-1.5 py-0 h-4 rounded-md">Overdue</Badge>}
                                             </div>
                                         </div>
-                                        <div className="mt-0.5 text-[10px] font-medium text-zinc-400">
+                                        <div className="mt-0.5 text-xs font-medium text-zinc-400">
                                             Jatuh tempo {new Date(invoice.dueDate).toLocaleDateString("id-ID")}
                                         </div>
                                     </button>
@@ -707,7 +707,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
 
                 {/* Pagination */}
                 <div className="px-4 py-1.5 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-zinc-400">{activePagination.page}/{activePagination.totalPages}</span>
+                    <span className="text-xs font-bold text-zinc-400">{activePagination.page}/{activePagination.totalPages}</span>
                     <div className="flex items-center gap-1">
                         <button
                             className="h-6 w-6 flex items-center justify-center border border-zinc-200 dark:border-zinc-700 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-30 transition-colors"
@@ -730,12 +730,12 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
             {/* ═══════════════════════════════════════════ */}
             {/* ALLOCATION BAR — compact inline             */}
             {/* ═══════════════════════════════════════════ */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+            <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
                 {!selectedPayment && !selectedInvoice ? (
                     /* Empty — subtle hint */
                     <div className="px-4 py-2.5 flex items-center justify-center gap-2 text-zinc-300 dark:text-zinc-600">
                         <ArrowRightLeft className="h-3.5 w-3.5" />
-                        <span className="text-[10px] font-bold uppercase tracking-wider">Pilih pembayaran lalu invoice untuk dialokasikan</span>
+                        <span className="text-xs font-bold  ">Pilih pembayaran lalu invoice untuk dialokasikan</span>
                     </div>
                 ) : selectedPayment && !selectedInvoice ? (
                     /* Payment selected — waiting for invoice */
@@ -746,7 +746,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                         <span className="font-mono text-xs font-bold text-zinc-700 dark:text-zinc-200">{selectedPayment.number}</span>
                         <span className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{selectedPayment.from}</span>
                         <span className="font-mono font-bold text-xs text-emerald-700 dark:text-emerald-400">{formatIDR(selectedPayment.amount)}</span>
-                        <span className="ml-auto text-[10px] font-bold text-zinc-400 uppercase tracking-wider">&rarr; Pilih invoice</span>
+                        <span className="ml-auto text-xs font-bold text-zinc-400  ">&rarr; Pilih invoice</span>
                     </div>
                 ) : selectedPayment && selectedInvoice ? (
                     /* Both selected — show comparison + action */
@@ -754,27 +754,27 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                         {paymentInvoiceMismatch && (
                             <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
                                 <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                                <span className="text-[10px] font-bold">Pelanggan pembayaran tidak sama dengan pelanggan invoice</span>
+                                <span className="text-xs font-bold">Pelanggan pembayaran tidak sama dengan pelanggan invoice</span>
                             </div>
                         )}
                         <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-3 flex-1 min-w-0 overflow-x-auto">
                                 {/* Payment */}
                                 <div className="flex items-center gap-1.5 shrink-0">
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">PAY</span>
+                                    <span className="text-xs font-semibold text-zinc-400">PAY</span>
                                     <span className="font-mono text-xs font-bold text-zinc-700 dark:text-zinc-200">{selectedPayment.number}</span>
                                     <span className="font-mono font-bold text-xs text-emerald-700 dark:text-emerald-400">{formatIDR(selectedPayment.amount)}</span>
                                 </div>
                                 <span className="text-zinc-300 dark:text-zinc-600 shrink-0">&rarr;</span>
                                 {/* Invoice */}
                                 <div className="flex items-center gap-1.5 shrink-0">
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">INV</span>
+                                    <span className="text-xs font-semibold text-zinc-400">INV</span>
                                     <span className="font-mono text-xs font-bold text-zinc-700 dark:text-zinc-200">{selectedInvoice.number}</span>
                                     <span className={`font-mono font-bold text-xs ${selectedInvoice.isOverdue ? "text-red-700 dark:text-red-400" : "text-zinc-700 dark:text-zinc-200"}`}>{formatIDR(selectedInvoice.balanceDue)}</span>
                                 </div>
                                 {/* Diff */}
                                 <div className="flex items-center gap-1.5 pl-2.5 border-l border-zinc-200 dark:border-zinc-700 shrink-0">
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Selisih</span>
+                                    <span className="text-xs font-semibold text-zinc-400">Selisih</span>
                                     <span className={`font-mono font-bold text-xs ${(selectedPayment.amount - selectedInvoice.balanceDue) >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400"}`}>
                                         {formatIDR(selectedPayment.amount - selectedInvoice.balanceDue)}
                                     </span>
@@ -783,7 +783,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                             <Button
                                 disabled={!canMatch}
                                 onClick={() => handleMatch(selectedPayment.id, selectedInvoice.id)}
-                                className="bg-black dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200 text-[10px] font-bold uppercase tracking-wider h-8 px-5 rounded-none transition-colors disabled:opacity-30 shrink-0"
+                                className="bg-slate-900 dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200 text-xs font-bold h-8 px-5 rounded-md transition-colors disabled:opacity-30 shrink-0"
                             >
                                 {processing ? (
                                     <><Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> Memproses...</>

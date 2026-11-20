@@ -7,7 +7,7 @@ import { SubcontractOrdersClient } from "@/components/subcontract/subcontract-or
 export default function SubcontractOrdersPage() {
     const { data, isLoading } = useSubcontractOrders()
 
-    if (isLoading || !data) return <TablePageSkeleton accentColor="bg-orange-400" />
+    if (isLoading || !data) return <TablePageSkeleton accentColor="bg-blue-400" />
 
     return (
         <div className="p-6 space-y-6">

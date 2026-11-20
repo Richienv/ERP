@@ -137,3 +137,13 @@ describe("typed numbers (review finding: '2.490' must never become 2.49)", () =>
         expect(parseTypedAmount("")).toBeNull()
     })
 })
+
+describe("purchase that started from our own PO/CO (no supplier invoice yet)", () => {
+    it("says 'Belum ada tagihan' and asks for goods first, then the invoice", async () => {
+        const { derivePurchaseStatus } = await import("@/lib/sparepart-purchase-logic")
+        const base = { poStatus: "ORDERED", billStatus: null, billTotal: 0, balanceDue: 0, dueDate: null, ordered: 10, received: 0, shippedAt: null, currencyCode: "IDR" }
+        expect(derivePurchaseStatus(base)).toMatchObject({ payStage: "NO_BILL", nextAction: "RECEIVE" })
+        expect(derivePurchaseStatus({ ...base, received: 10 })).toMatchObject({ payStage: "NO_BILL", goodsStage: "RECEIVED", nextAction: "ATTACH_INVOICE" })
+        expect(derivePurchaseStatus({ ...base, billStatus: "CANCELLED" }).payStage).toBe("VOID")
+    })
+})

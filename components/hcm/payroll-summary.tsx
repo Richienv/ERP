@@ -31,27 +31,27 @@ export function PayrollSummaryWidget({ data }: PayrollSummaryWidgetProps) {
         }).format(value)
 
     return (
-        <Card className="col-span-1 border border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] md:col-span-2">
-            <CardHeader className="flex flex-row items-center justify-between border-b border-black bg-zinc-50">
-                <CardTitle className="flex items-center gap-2 text-base font-black uppercase tracking-wide">
+        <Card className="col-span-1 border border-border shadow-sm md:col-span-2">
+            <CardHeader className="flex flex-row items-center justify-between border-b border-border bg-zinc-50">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold  ">
                     <Wallet className="h-4 w-4 text-indigo-600" />
                     Payroll {summary.period}
                 </CardTitle>
-                <Badge variant="outline" className="border-black bg-white text-[10px] font-bold">
+                <Badge variant="outline" className="border-border bg-white text-xs font-bold">
                     {summary.status}
                 </Badge>
             </CardHeader>
             <CardContent className="grid gap-3 p-4 sm:grid-cols-3">
                 <div className="rounded-md border bg-zinc-50 p-3">
-                    <p className="text-xs font-semibold uppercase text-muted-foreground">Gaji Kotor</p>
+                    <p className="text-xs font-semibold text-muted-foreground">Gaji Kotor</p>
                     <p className="text-base font-bold">{formatCurrency(summary.gross)}</p>
                 </div>
                 <div className="rounded-md border bg-zinc-50 p-3">
-                    <p className="text-xs font-semibold uppercase text-muted-foreground">Potongan</p>
+                    <p className="text-xs font-semibold text-muted-foreground">Potongan</p>
                     <p className="text-base font-bold">{formatCurrency(summary.deductions)}</p>
                 </div>
                 <div className="rounded-md border bg-indigo-50 p-3">
-                    <p className="text-xs font-semibold uppercase text-indigo-600">Estimasi Netto</p>
+                    <p className="text-xs font-semibold text-indigo-600">Estimasi Netto</p>
                     <p className="text-base font-bold text-indigo-700">{formatCurrency(summary.net)}</p>
                 </div>
             </CardContent>

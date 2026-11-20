@@ -259,19 +259,19 @@ export function StationWorkloadTimeline() {
 
     if (isLoading) {
         return (
-            <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white flex items-center justify-center py-20">
+            <div className="border border-border shadow-sm bg-white flex items-center justify-center py-20">
                 <Loader2 className="h-5 w-5 animate-spin text-zinc-400 mr-2" />
-                <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">Memuat beban kerja stasiun...</span>
+                <span className="text-xs font-bold text-zinc-400">Memuat beban kerja stasiun...</span>
             </div>
         )
     }
 
     if (error) {
         return (
-            <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white">
-                <div className="px-6 py-4 border-b-2 border-black bg-zinc-50 flex items-center gap-3 border-l-[6px] border-l-red-400">
+            <div className="border border-border shadow-sm bg-white">
+                <div className="px-6 py-4 border-b border-border bg-zinc-50 flex items-center gap-3 border-l-[6px] border-l-red-400">
                     <Factory className="h-5 w-5 text-red-600" />
-                    <h2 className="text-lg font-black uppercase tracking-tight">Timeline Work Center</h2>
+                    <h2 className="text-lg font-semibold tracking-tight">Timeline Work Center</h2>
                 </div>
                 <div className="px-6 py-8 text-center text-red-500 text-xs font-bold">
                     Gagal memuat data: {(error as Error).message}
@@ -282,12 +282,12 @@ export function StationWorkloadTimeline() {
 
     if (allSteps.length === 0) {
         return (
-            <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white">
-                <div className="px-6 py-4 border-b-2 border-black bg-zinc-50 flex items-center gap-3 border-l-[6px] border-l-emerald-400">
+            <div className="border border-border shadow-sm bg-white">
+                <div className="px-6 py-4 border-b border-border bg-zinc-50 flex items-center gap-3 border-l-[6px] border-l-emerald-400">
                     <Factory className="h-5 w-5 text-emerald-600" />
-                    <h2 className="text-lg font-black uppercase tracking-tight">Timeline Work Center</h2>
+                    <h2 className="text-lg font-semibold tracking-tight">Timeline Work Center</h2>
                 </div>
-                <div className="flex items-center justify-center py-16 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                <div className="flex items-center justify-center py-16 text-zinc-400 text-xs font-bold  ">
                     Belum ada BOM aktif dengan proses — buat BOM terlebih dahulu
                 </div>
             </div>
@@ -295,14 +295,14 @@ export function StationWorkloadTimeline() {
     }
 
     return (
-        <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white overflow-hidden">
+        <div className="border border-border shadow-sm bg-white overflow-hidden">
             {/* Header */}
-            <div className="px-6 py-4 border-b-2 border-black bg-zinc-50 flex items-center justify-between border-l-[6px] border-l-emerald-400">
+            <div className="px-6 py-4 border-b border-border bg-zinc-50 flex items-center justify-between border-l-[6px] border-l-emerald-400">
                 <div className="flex items-center gap-3">
                     <Factory className="h-5 w-5 text-emerald-600" />
                     <div>
-                        <h2 className="text-lg font-black uppercase tracking-tight">Timeline Work Center</h2>
-                        <p className="text-zinc-400 text-[10px] font-medium mt-0.5">
+                        <h2 className="text-lg font-semibold tracking-tight">Timeline Work Center</h2>
+                        <p className="text-zinc-400 text-xs font-medium mt-0.5">
                             Visualisasi beban kerja semua stasiun dari {totalBoms} BOM aktif
                         </p>
                     </div>
@@ -313,37 +313,37 @@ export function StationWorkloadTimeline() {
             <div className="border-b border-zinc-200 bg-white px-6 py-3 flex items-center gap-8">
                 <div className="flex items-center gap-2">
                     <Layers className="h-4 w-4 text-indigo-500" />
-                    <span className="text-[9px] font-black uppercase text-zinc-400">BOM Aktif:</span>
-                    <span className="text-sm font-black text-indigo-700">{totalBoms}</span>
+                    <span className="text-xs font-semibold text-zinc-400">BOM Aktif:</span>
+                    <span className="text-sm font-semibold text-indigo-700">{totalBoms}</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <Building2 className="h-4 w-4 text-blue-500" />
-                    <span className="text-[9px] font-black uppercase text-zinc-400">Stasiun Aktif:</span>
-                    <span className="text-sm font-black text-blue-700">{stationsWithWork}</span>
+                    <span className="text-xs font-semibold text-zinc-400">Stasiun Aktif:</span>
+                    <span className="text-sm font-semibold text-blue-700">{stationsWithWork}</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-emerald-500" />
-                    <span className="text-[9px] font-black uppercase text-zinc-400">Total Waktu:</span>
-                    <span className="text-sm font-black text-emerald-700">{fmtDuration(totalMinutes)}</span>
+                    <span className="text-xs font-semibold text-zinc-400">Total Waktu:</span>
+                    <span className="text-sm font-semibold text-emerald-700">{fmtDuration(totalMinutes)}</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <ArrowRight className="h-4 w-4 text-amber-500" />
-                    <span className="text-[9px] font-black uppercase text-zinc-400">Proses:</span>
-                    <span className="text-sm font-black text-amber-700">{totalStepsCount}</span>
+                    <span className="text-xs font-semibold text-zinc-400">Proses:</span>
+                    <span className="text-sm font-semibold text-amber-700">{totalStepsCount}</span>
                     {inProgressSteps > 0 && (
-                        <span className="text-[8px] font-black bg-green-100 text-green-700 px-1.5 py-0.5">{inProgressSteps} berjalan</span>
+                        <span className="text-xs font-semibold bg-green-100 text-green-700 px-1.5 py-0.5">{inProgressSteps} berjalan</span>
                     )}
                 </div>
             </div>
 
             {/* BOM filter chips */}
             <div className="border-b border-zinc-200 bg-zinc-50/50 px-6 py-2.5 flex items-center gap-2 flex-wrap">
-                <span className="text-[9px] font-black uppercase text-zinc-400 mr-1 shrink-0">Pilih BOM:</span>
+                <span className="text-xs font-semibold text-zinc-400 mr-1 shrink-0">Pilih BOM:</span>
                 <button
                     onClick={selectAllBoms}
-                    className={`h-7 text-[10px] font-bold px-2.5 border-2 transition-all inline-flex items-center ${
+                    className={`h-7 text-xs font-bold px-2.5 border transition-all inline-flex items-center ${
                         selectedBomIds.size === 0
-                            ? "border-black bg-black text-white"
+                            ? "border-border bg-slate-900 text-white"
                             : "border-zinc-300 bg-white text-zinc-500 hover:border-zinc-400"
                     }`}
                 >
@@ -356,9 +356,9 @@ export function StationWorkloadTimeline() {
                         <button
                             key={bom.id}
                             onClick={() => toggleBom(bom.id)}
-                            className={`h-7 text-[10px] font-bold px-2.5 border-2 transition-all inline-flex items-center gap-1.5 ${
+                            className={`h-7 text-xs font-bold px-2.5 border transition-all inline-flex items-center gap-1.5 ${
                                 isSelected
-                                    ? "shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)]"
+                                    ? "shadow-sm"
                                     : selectedBomIds.size === 0
                                         ? "border-zinc-200 bg-white hover:border-zinc-300"
                                         : "border-zinc-200 bg-white text-zinc-400 hover:border-zinc-300"
@@ -367,7 +367,7 @@ export function StationWorkloadTimeline() {
                         >
                             <div className="w-2.5 h-2.5 rounded-sm border shrink-0" style={{ background: c.bg, borderColor: c.border }} />
                             {bom.productName}
-                            <span className="text-[8px] opacity-60">({bom.stepCount} proses • {bom.totalQty} pcs)</span>
+                            <span className="text-xs opacity-60">({bom.stepCount} proses • {bom.totalQty} pcs)</span>
                             {bom.hasActiveWO && <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />}
                         </button>
                     )
@@ -379,9 +379,9 @@ export function StationWorkloadTimeline() {
                 <div style={{ minWidth: chartWidth + LABEL_WIDTH, minHeight: chartHeight }} className="relative">
 
                     {/* ── Left sidebar ── */}
-                    <div className="absolute left-0 top-0 bg-white border-r-2 border-zinc-200 z-20" style={{ width: LABEL_WIDTH, height: chartHeight }}>
+                    <div className="absolute left-0 top-0 bg-white border-r border-zinc-200 z-20" style={{ width: LABEL_WIDTH, height: chartHeight }}>
                         <div className="border-b border-zinc-200 flex items-end px-3 pb-1.5" style={{ height: HEADER_HEIGHT }}>
-                            <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400">Work Center</span>
+                            <span className="text-xs font-semibold text-zinc-400">Work Center</span>
                         </div>
                         {rowLabels.map((label, i) => {
                             const sc = STATION_COLORS[label.stationType] || STATION_COLORS.OTHER
@@ -397,9 +397,9 @@ export function StationWorkloadTimeline() {
                                         <Icon className="h-3.5 w-3.5" style={{ color: sc.text }} />
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <p className="text-[10px] font-bold truncate text-zinc-700">{label.name}</p>
+                                        <p className="text-xs font-bold truncate text-zinc-700">{label.name}</p>
                                         <div className="flex items-center gap-1">
-                                            <span className="text-[8px] font-mono text-zinc-400">{stationBars.length} proses</span>
+                                            <span className="text-xs font-mono text-zinc-400">{stationBars.length} proses</span>
                                             {label.operationType === "SUBCONTRACTOR" && (
                                                 <span className="text-[7px] font-bold bg-amber-100 text-amber-700 px-1 py-0.5">SUB</span>
                                             )}
@@ -417,7 +417,7 @@ export function StationWorkloadTimeline() {
                         <div className="border-b border-zinc-200 relative bg-zinc-50/80 sticky top-0 z-30" style={{ height: HEADER_HEIGHT }}>
                             {ticks.map((t) => (
                                 <div key={t.minute} className="absolute bottom-0 flex flex-col items-center" style={{ left: t.minute * PIXELS_PER_MINUTE }}>
-                                    <span className="text-[8px] font-mono font-bold text-zinc-400 mb-0.5 whitespace-nowrap">{t.label}</span>
+                                    <span className="text-xs font-mono font-bold text-zinc-400 mb-0.5 whitespace-nowrap">{t.label}</span>
                                     <div className="w-px h-1.5 bg-zinc-300" />
                                 </div>
                             ))}
@@ -455,7 +455,7 @@ export function StationWorkloadTimeline() {
                                     key={bar.step.id}
                                     onClick={() => setSelectedBar(isSelected ? null : bar)}
                                     className={`absolute cursor-pointer transition-all ${
-                                        isSelected ? "ring-2 ring-offset-1 ring-orange-400 shadow-lg z-20" :
+                                        isSelected ? "ring-2 ring-offset-1 ring-blue-400 shadow-lg z-20" :
                                         "shadow-sm hover:shadow-md hover:brightness-[0.97] z-10"
                                     }`}
                                     style={{
@@ -481,15 +481,15 @@ export function StationWorkloadTimeline() {
                                     <div className="relative h-full flex items-center gap-1.5 pl-2 pr-3 overflow-hidden">
                                         <Icon className="h-3 w-3 shrink-0" style={{ color: sc.text }} />
                                         <div className="min-w-0 flex-1">
-                                            <p className="text-[10px] font-bold truncate" style={{ color: pc.text }}>
+                                            <p className="text-xs font-bold truncate" style={{ color: pc.text }}>
                                                 {bar.step.productName}
                                             </p>
-                                            <p className="text-[8px] font-mono opacity-70" style={{ color: pc.text }}>
+                                            <p className="text-xs font-mono opacity-70" style={{ color: pc.text }}>
                                                 {fmtDuration(bar.durationMin)} • {qty} pcs
                                             </p>
                                         </div>
                                         {progress > 0 && (
-                                            <span className="text-[8px] font-black shrink-0" style={{ color: pc.text }}>{Math.round(progress)}%</span>
+                                            <span className="text-xs font-semibold shrink-0" style={{ color: pc.text }}>{Math.round(progress)}%</span>
                                         )}
                                     </div>
                                 </div>
@@ -511,10 +511,10 @@ export function StationWorkloadTimeline() {
 
             {/* Detail panel */}
             {selectedBar && (
-                <div className="border-t-2 border-black bg-zinc-50 px-6 py-4">
+                <div className="border-t border-border bg-zinc-50 px-6 py-4">
                     <div className="flex items-start gap-6">
                         <div className="flex-1 space-y-1">
-                            <h3 className="text-sm font-black text-zinc-900">{selectedBar.step.productName}</h3>
+                            <h3 className="text-sm font-semibold text-zinc-900">{selectedBar.step.productName}</h3>
                             <p className="text-xs text-zinc-500">
                                 Stasiun: <span className="font-bold text-zinc-700">{selectedBar.step.station?.name}</span>
                                 {selectedBar.step.station?.subcontractor && (
@@ -526,14 +526,14 @@ export function StationWorkloadTimeline() {
                             )}
                         </div>
                         <div className="text-right space-y-1">
-                            <p className="text-xs text-zinc-500">Durasi: <span className="font-black text-zinc-900">{fmtDuration(selectedBar.durationMin)}</span></p>
+                            <p className="text-xs text-zinc-500">Durasi: <span className="font-semibold text-zinc-900">{fmtDuration(selectedBar.durationMin)}</span></p>
                             <p className="text-xs text-zinc-500">Qty: <span className="font-bold text-zinc-700">{selectedBar.step.totalQty} pcs</span></p>
                             <p className="text-xs text-zinc-500">
                                 Progress: <span className="font-bold text-zinc-700">{selectedBar.step.completedQty || 0}/{selectedBar.step.totalQty}</span>
                             </p>
                             {selectedBar.step.activeWorkOrders > 0 && (
                                 <p className="text-xs">
-                                    <span className={`font-bold px-1.5 py-0.5 text-[9px] ${
+                                    <span className={`font-bold px-1.5 py-0.5 text-xs ${
                                         selectedBar.step.workOrderStatus === "IN_PROGRESS"
                                             ? "bg-green-100 text-green-700"
                                             : "bg-blue-100 text-blue-700"

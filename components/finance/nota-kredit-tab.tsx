@@ -111,7 +111,7 @@ export function NotaKreditTab() {
     }
 
     if (isLoading) {
-        return <div className="p-8 text-center text-zinc-400 text-xs font-bold uppercase animate-pulse">Memuat...</div>
+        return <div className="p-8 text-center text-zinc-400 text-xs font-bold animate-pulse">Memuat...</div>
     }
 
     return (
@@ -123,40 +123,40 @@ export function NotaKreditTab() {
                     { label: "Pending / Draft", value: String(pendingCN), color: "bg-zinc-50 border-zinc-200" },
                     { label: "Posted", value: String(postedCN), color: "bg-emerald-50 border-emerald-200" },
                 ].map((kpi) => (
-                    <div key={kpi.label} className={`border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] p-3 ${kpi.color}`}>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400">{kpi.label}</p>
-                        <p className="text-lg font-black mt-1">{kpi.value}</p>
+                    <div key={kpi.label} className={`border border-border shadow-sm p-3 ${kpi.color}`}>
+                        <p className="text-xs font-semibold text-zinc-400">{kpi.label}</p>
+                        <p className="text-lg font-semibold mt-1">{kpi.value}</p>
                     </div>
                 ))}
             </div>
 
             {/* Action Bar */}
             <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">{creditNotes.length} Nota Kredit</span>
-                <Button onClick={() => setShowDialog(true)} className="bg-black text-white font-bold text-xs uppercase tracking-wider border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[3px] hover:translate-y-[3px] transition-all">
+                <span className="text-xs font-bold text-zinc-400  ">{creditNotes.length} Nota Kredit</span>
+                <Button onClick={() => setShowDialog(true)} className="bg-slate-900 text-white font-bold text-xs border border-border shadow-sm hover:shadow-none transition-all">
                     <Plus className="h-3.5 w-3.5 mr-1.5" /> Buat Nota Kredit
                 </Button>
             </div>
 
             {/* Table */}
-            <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white">
+            <div className="border border-border shadow-sm overflow-hidden bg-white">
                 <Table>
                     <TableHeader>
                         <TableRow className="bg-zinc-50">
-                            <TableHead className="text-[10px] font-black uppercase tracking-widest">No</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-widest">Customer</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-widest">Invoice</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-widest">Alasan</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Jumlah</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-widest">Tanggal</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-center w-16">Aksi</TableHead>
+                            <TableHead className="text-xs font-semibold  ">No</TableHead>
+                            <TableHead className="text-xs font-semibold  ">Customer</TableHead>
+                            <TableHead className="text-xs font-semibold  ">Invoice</TableHead>
+                            <TableHead className="text-xs font-semibold  ">Alasan</TableHead>
+                            <TableHead className="text-xs font-semibold text-right">Jumlah</TableHead>
+                            <TableHead className="text-xs font-semibold  ">Status</TableHead>
+                            <TableHead className="text-xs font-semibold  ">Tanggal</TableHead>
+                            <TableHead className="text-xs font-semibold text-center w-16">Aksi</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {creditNotes.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={8} className="text-center py-8 text-zinc-400 text-xs font-bold uppercase">
+                                <TableCell colSpan={8} className="text-center py-8 text-zinc-400 text-xs font-bold ">
                                     Belum ada nota kredit
                                 </TableCell>
                             </TableRow>
@@ -181,7 +181,7 @@ export function NotaKreditTab() {
                                     <TableCell className="text-sm text-zinc-500 max-w-[200px] truncate">{note.reason}</TableCell>
                                     <TableCell className="text-right font-mono font-bold">{formatIDR(Number(note.amount || 0))}</TableCell>
                                     <TableCell>
-                                        <Badge variant="outline" className={`text-[9px] font-black uppercase ${
+                                        <Badge variant="outline" className={`text-xs font-semibold  ${
                                             note.status === "DRAFT" ? "border-zinc-300 text-zinc-500" :
                                             note.status === "POSTED" ? "border-blue-300 text-blue-600 bg-blue-50" :
                                             "border-zinc-300 text-zinc-500"
@@ -193,7 +193,7 @@ export function NotaKreditTab() {
                                             type="button"
                                             title="Lihat Detail"
                                             onClick={() => { setDetailNoteId(note.id); setShowDetail(true) }}
-                                            className="flex items-center justify-center w-7 h-7 mx-auto border border-zinc-200 hover:border-black hover:bg-zinc-50 transition-colors"
+                                            className="flex items-center justify-center w-7 h-7 mx-auto border border-zinc-200 hover:border-border hover:bg-zinc-50 transition-colors"
                                         >
                                             <Eye className="h-3.5 w-3.5" />
                                         </button>
@@ -247,7 +247,7 @@ export function NotaKreditTab() {
                             <Checkbox
                                 checked={includePPN}
                                 onCheckedChange={(c) => setIncludePPN(!!c)}
-                                className="border-2 border-black"
+                                className="border border-border"
                             />
                             <span className="text-sm font-medium">Termasuk PPN 11%</span>
                             {includePPN && ppnAmount > 0 && (
@@ -273,15 +273,15 @@ export function NotaKreditTab() {
 
                     {/* GL Preview */}
                     {subtotal > 0 && (
-                        <div className="bg-zinc-50 border-2 border-black p-3">
-                            <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Preview Jurnal</p>
+                        <div className="bg-zinc-50 border border-border p-3">
+                            <p className="text-xs font-bold text-zinc-600 mb-1 block">Preview Jurnal</p>
                             <div className="space-y-1 text-xs font-mono">
                                 <div className="flex justify-between"><span>DR 4000 Pendapatan Penjualan</span><span className="font-bold">{formatIDR(subtotal)}</span></div>
                                 {ppnAmount > 0 && (
                                     <div className="flex justify-between"><span>DR 2110 PPN Keluaran</span><span>{formatIDR(ppnAmount)}</span></div>
                                 )}
                                 <div className="flex justify-between text-zinc-500"><span>CR 1100 Piutang Usaha</span><span>{formatIDR(total)}</span></div>
-                                <div className="border-t border-black pt-1 flex justify-between font-bold"><span>Total</span><span>{formatIDR(total)}</span></div>
+                                <div className="border-t border-border pt-1 flex justify-between font-bold"><span>Total</span><span>{formatIDR(total)}</span></div>
                             </div>
                         </div>
                     )}

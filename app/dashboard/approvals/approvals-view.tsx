@@ -114,18 +114,18 @@ export function ApprovalsView({ pendingPOs }: ApprovalsViewProps) {
                         </Button>
                     </Link>
                     <div>
-                        <h1 className="text-3xl font-black">Purchase Order Approvals</h1>
+                        <h1 className="text-3xl font-semibold">Purchase Order Approvals</h1>
                         <p className="text-muted-foreground mt-1">Review and approve pending purchase orders</p>
                     </div>
                 </div>
-                <Badge variant="outline" className="text-lg font-black px-4 py-2">
+                <Badge variant="outline" className="text-lg font-semibold px-4 py-2">
                     {pendingPOs.length} Pending
                 </Badge>
             </div>
 
             {/* PO List */}
             {pendingPOs.length === 0 ? (
-                <Card className="border-2 border-dashed border-zinc-300">
+                <Card className="border border-dashed border-zinc-300">
                     <CardContent className="flex flex-col items-center justify-center py-16">
                         <CheckCircle className="h-16 w-16 text-emerald-500 mb-4" />
                         <h3 className="text-xl font-bold mb-2">All Clear!</h3>
@@ -135,14 +135,14 @@ export function ApprovalsView({ pendingPOs }: ApprovalsViewProps) {
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {pendingPOs.map((po) => (
-                        <Card key={po.id} className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition-all">
-                            <CardHeader className="border-b-2 border-black bg-amber-50">
+                        <Card key={po.id} className="border border-border shadow-sm hover:shadow-sm transition-all">
+                            <CardHeader className="border-b border-border bg-amber-50">
                                 <CardTitle className="flex items-center justify-between">
                                     <div>
-                                        <div className="text-xs font-black uppercase text-zinc-500 mb-1">Purchase Order</div>
-                                        <div className="text-xl font-black font-mono">{po.number}</div>
+                                        <div className="text-xs font-semibold text-zinc-500 mb-1">Purchase Order</div>
+                                        <div className="text-xl font-semibold font-mono">{po.number}</div>
                                     </div>
-                                    <Badge className="bg-amber-500 hover:bg-amber-600 font-black uppercase text-xs">
+                                    <Badge className="bg-amber-500 hover:bg-amber-600 font-semibold text-xs">
                                         Pending
                                     </Badge>
                                 </CardTitle>
@@ -150,7 +150,7 @@ export function ApprovalsView({ pendingPOs }: ApprovalsViewProps) {
                             <CardContent className="pt-6 space-y-4">
                                 {/* Supplier Info */}
                                 <div>
-                                    <div className="text-[10px] font-bold uppercase text-zinc-500 mb-1">Vendor</div>
+                                    <div className="text-xs font-bold text-zinc-500 mb-1">Vendor</div>
                                     <div className="font-bold">{po.supplier.name}</div>
                                     {po.supplier.email && (
                                         <div className="text-xs text-zinc-500">{po.supplier.email}</div>
@@ -161,8 +161,8 @@ export function ApprovalsView({ pendingPOs }: ApprovalsViewProps) {
                                 <div className="bg-zinc-50 p-3 rounded-lg border border-zinc-200">
                                     <div className="flex justify-between items-end">
                                         <div>
-                                            <div className="text-[10px] font-bold uppercase text-zinc-500 mb-1">Total Amount</div>
-                                            <div className="text-2xl font-black">{formatIDR(po.netAmount)}</div>
+                                            <div className="text-xs font-bold text-zinc-500 mb-1">Total Amount</div>
+                                            <div className="text-2xl font-semibold">{formatIDR(po.netAmount)}</div>
                                         </div>
                                         <div className="text-xs text-zinc-500">
                                             {po.items.length} items
@@ -173,11 +173,11 @@ export function ApprovalsView({ pendingPOs }: ApprovalsViewProps) {
                                 {/* Workflow Info */}
                                 <div className="grid grid-cols-2 gap-3 text-xs">
                                     <div>
-                                        <div className="text-[10px] font-bold uppercase text-zinc-500 mb-1">Requested By</div>
+                                        <div className="text-xs font-bold text-zinc-500 mb-1">Requested By</div>
                                         <div className="font-bold">{po.requester}</div>
                                     </div>
                                     <div>
-                                        <div className="text-[10px] font-bold uppercase text-zinc-500 mb-1">Date</div>
+                                        <div className="text-xs font-bold text-zinc-500 mb-1">Date</div>
                                         <div className="font-bold">{new Date(po.orderDate).toLocaleDateString()}</div>
                                     </div>
                                 </div>
@@ -188,7 +188,7 @@ export function ApprovalsView({ pendingPOs }: ApprovalsViewProps) {
                                 <div className="flex gap-2">
                                     <Button
                                         variant="outline"
-                                        className="flex-1 border-2 border-black"
+                                        className="flex-1 border border-border"
                                         onClick={() => {
                                             setSelectedPO(po)
                                             setRejectMode(false)
@@ -198,7 +198,7 @@ export function ApprovalsView({ pendingPOs }: ApprovalsViewProps) {
                                         Review
                                     </Button>
                                     <Button
-                                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm"
                                         onClick={() => handleApprove(po)}
                                         disabled={processing}
                                     >
@@ -230,26 +230,26 @@ export function ApprovalsView({ pendingPOs }: ApprovalsViewProps) {
                             {/* PO Header */}
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-zinc-50 p-4 rounded-lg border border-zinc-200">
                                 <div>
-                                    <div className="text-[10px] font-bold uppercase text-zinc-500">PO Number</div>
+                                    <div className="text-xs font-bold text-zinc-500">PO Number</div>
                                     <div className="font-mono font-bold">{selectedPO.number}</div>
                                 </div>
                                 <div>
-                                    <div className="text-[10px] font-bold uppercase text-zinc-500">Date</div>
+                                    <div className="text-xs font-bold text-zinc-500">Date</div>
                                     <div className="font-medium">{new Date(selectedPO.orderDate).toLocaleDateString()}</div>
                                 </div>
                                 <div>
-                                    <div className="text-[10px] font-bold uppercase text-zinc-500">Requester</div>
+                                    <div className="text-xs font-bold text-zinc-500">Requester</div>
                                     <div className="font-medium">{selectedPO.requester}</div>
                                 </div>
                                 <div>
-                                    <div className="text-[10px] font-bold uppercase text-zinc-500">Total</div>
-                                    <div className="font-black">{formatIDR(selectedPO.netAmount)}</div>
+                                    <div className="text-xs font-bold text-zinc-500">Total</div>
+                                    <div className="font-semibold">{formatIDR(selectedPO.netAmount)}</div>
                                 </div>
                             </div>
 
                             {/* Vendor */}
                             <div>
-                                <div className="text-sm font-black uppercase mb-2">Vendor</div>
+                                <div className="text-sm font-semibold mb-2">Vendor</div>
                                 <div className="border border-zinc-200 rounded-lg p-3">
                                     <div className="font-bold">{selectedPO.supplier.name}</div>
                                     <div className="text-sm text-zinc-600 mt-1">{selectedPO.supplier.address}</div>
@@ -262,7 +262,7 @@ export function ApprovalsView({ pendingPOs }: ApprovalsViewProps) {
 
                             {/* Items */}
                             <div>
-                                <div className="text-sm font-black uppercase mb-2">Items</div>
+                                <div className="text-sm font-semibold mb-2">Items</div>
                                 <div className="border border-zinc-200 rounded-lg overflow-hidden">
                                     <div className="max-h-60 overflow-y-auto">
                                         <table className="w-full text-sm">
@@ -279,7 +279,7 @@ export function ApprovalsView({ pendingPOs }: ApprovalsViewProps) {
                                                     <tr key={item.id} className="border-b border-zinc-100 last:border-0">
                                                         <td className="px-3 py-2">
                                                             <div className="font-medium">{item.productName}</div>
-                                                            <div className="text-[10px] text-zinc-400 font-mono">{item.productCode}</div>
+                                                            <div className="text-xs text-zinc-400 font-mono">{item.productCode}</div>
                                                         </td>
                                                         <td className="px-3 py-2 text-right font-mono">{item.quantity}</td>
                                                         <td className="px-3 py-2 text-right font-mono">{formatIDR(item.unitPrice)}</td>
@@ -304,7 +304,7 @@ export function ApprovalsView({ pendingPOs }: ApprovalsViewProps) {
                                         <span>{formatIDR(selectedPO.taxAmount)}</span>
                                     </div>
                                     <Separator />
-                                    <div className="flex justify-between text-lg font-black">
+                                    <div className="flex justify-between text-lg font-semibold">
                                         <span>Total</span>
                                         <span>{formatIDR(selectedPO.netAmount)}</span>
                                     </div>
@@ -356,7 +356,7 @@ export function ApprovalsView({ pendingPOs }: ApprovalsViewProps) {
                                 <Button
                                     onClick={() => selectedPO && handleApprove(selectedPO)}
                                     disabled={processing}
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black"
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
                                 >
                                     {processing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
                                     Approve & Sign
@@ -371,7 +371,7 @@ export function ApprovalsView({ pendingPOs }: ApprovalsViewProps) {
                                     variant="destructive"
                                     onClick={handleReject}
                                     disabled={processing || !rejectReason.trim()}
-                                    className="font-black"
+                                    className="font-semibold"
                                 >
                                     {processing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <XCircle className="h-4 w-4 mr-2" />}
                                     Confirm Rejection

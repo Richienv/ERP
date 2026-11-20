@@ -109,8 +109,8 @@ export function WarehouseFormDialog({ mode, warehouse, trigger }: WarehouseFormD
         <Button
           onClick={() => setOpen(true)}
           className={mode === "create"
-            ? "bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-4 h-8 rounded-none"
-            : "border border-zinc-300 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none"
+            ? "bg-slate-900 text-white border border-border hover:bg-zinc-800 font-semibold text-xs px-4 h-8 rounded-md"
+            : "border border-zinc-300 text-zinc-500 font-bold text-xs px-4 h-8 rounded-md"
           }
         >
           {mode === "create" ? <Plus className="mr-2 h-4 w-4" /> : <Edit className="mr-2 h-4 w-4" />}

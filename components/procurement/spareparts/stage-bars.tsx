@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils"
 import { GOODS_STAGE_LABEL, PAY_STAGE_LABEL, type GoodsStage, type PayStage } from "@/lib/sparepart-purchase-logic"
 
 const PAY_TONE: Record<PayStage, string> = {
+    NO_BILL: "bg-slate-300",
     UNPOSTED: "bg-zinc-300",
     UNPAID: "bg-amber-500",
     PARTIAL: "bg-amber-500",
@@ -23,8 +24,8 @@ export function StageBar({ label, pct, tone, overdue, className }: { label: stri
     return (
         <div className={cn("min-w-[118px]", className)}>
             <div className="flex items-center justify-between gap-2">
-                <span className={cn("text-[11px] font-bold", overdue ? "text-red-600" : "text-zinc-700 dark:text-zinc-300")}>{label}</span>
-                <span className="text-[10px] font-mono font-bold text-zinc-400 tabular-nums">{Math.round(pct * 100)}%</span>
+                <span className={cn("text-xs font-bold", overdue ? "text-red-600" : "text-zinc-700 dark:text-zinc-300")}>{label}</span>
+                <span className="text-xs font-mono font-bold text-zinc-400 tabular-nums">{Math.round(pct * 100)}%</span>
             </div>
             <div className="mt-1 h-1.5 w-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
                 <div

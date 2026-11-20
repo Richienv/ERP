@@ -1,7 +1,11 @@
 import { ImageResponse } from "next/og"
+import { INTEGRA_COLORS, INTEGRA_MARK } from "@/components/brand/integra-logo"
 
 export const size = { width: 180, height: 180 }
 export const contentType = "image/png"
+
+// The Integra mark scaled from its 32 x 32 grid. Full-bleed square: iOS rounds the corners itself.
+const SCALE = size.width / INTEGRA_MARK.size
 
 export default function AppleIcon() {
   return new ImageResponse(
@@ -10,20 +14,26 @@ export default function AppleIcon() {
         style={{
           width: "100%",
           height: "100%",
-          background: "#2040FF",
-          borderRadius: "36px",
+          background: INTEGRA_COLORS.blue,
           display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexWrap: "wrap",
-          gap: "8px",
-          padding: "36px",
+          position: "relative",
         }}
       >
-        <div style={{ width: "46px", height: "46px", borderRadius: "10px", background: "white", display: "flex" }} />
-        <div style={{ width: "46px", height: "46px", borderRadius: "10px", background: "rgba(255,255,255,0.30)", display: "flex" }} />
-        <div style={{ width: "46px", height: "46px", borderRadius: "10px", background: "rgba(255,255,255,0.30)", display: "flex" }} />
-        <div style={{ width: "46px", height: "46px", borderRadius: "10px", background: "rgba(255,255,255,0.65)", display: "flex" }} />
+        {INTEGRA_MARK.bars.map((bar) => (
+          <div
+            key={bar.y}
+            style={{
+              position: "absolute",
+              left: `${Math.round(bar.x * SCALE)}px`,
+              top: `${Math.round(bar.y * SCALE)}px`,
+              width: `${Math.round(bar.width * SCALE)}px`,
+              height: `${Math.round(INTEGRA_MARK.barHeight * SCALE)}px`,
+              borderRadius: `${Math.round(INTEGRA_MARK.barRadius * SCALE)}px`,
+              background: INTEGRA_COLORS.white,
+              display: "flex",
+            }}
+          />
+        ))}
       </div>
     ),
     { ...size }

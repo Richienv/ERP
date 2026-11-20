@@ -130,7 +130,7 @@ export function AISidebar() {
                                 <Send className="h-4 w-4" />
                             </Button>
                         </div>
-                        <p className="mt-2 text-center text-[10px] text-zinc-600">
+                        <p className="mt-2 text-center text-xs text-zinc-600">
                             AI can make mistakes. Please verify important financial data.
                         </p>
                     </div>

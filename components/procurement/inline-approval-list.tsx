@@ -110,7 +110,7 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
 
     if (visibleItems.length === 0) {
         return (
-            <div className="py-10 text-center text-zinc-400 text-xs font-bold uppercase tracking-widest flex flex-col items-center gap-2">
+            <div className="py-10 text-center text-zinc-400 text-xs font-bold flex flex-col items-center gap-2">
                 <CheckCircle className="h-6 w-6 text-emerald-400" />
                 Tidak ada yang perlu disetujui
             </div>
@@ -126,7 +126,7 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
                         className={`px-5 py-3 flex items-center gap-4 ${idx % 2 === 0 ? '' : 'bg-zinc-50/50 dark:bg-zinc-800/10'}`}
                     >
                         {/* Type badge */}
-                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 border rounded-sm flex-shrink-0 ${
+                        <span className={`text-xs font-semibold  px-1.5 py-0.5 border rounded-sm flex-shrink-0 ${
                             item.type === 'PO'
                                 ? 'bg-blue-50 text-blue-700 border-blue-200'
                                 : 'bg-purple-50 text-purple-700 border-purple-200'
@@ -139,19 +139,19 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
                             <div className="flex items-center gap-2">
                                 <span className="text-xs font-bold font-mono text-zinc-900 dark:text-zinc-100">{item.number}</span>
                                 {item.priority && item.priority !== 'NORMAL' && (
-                                    <span className="text-[9px] font-black uppercase px-1.5 py-0.5 border rounded-sm bg-red-50 text-red-600 border-red-200">
+                                    <span className="text-xs font-semibold px-1.5 py-0.5 border rounded-sm bg-red-50 text-red-600 border-red-200">
                                         {item.priority}
                                     </span>
                                 )}
                             </div>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                                <span className="text-[11px] text-zinc-500 font-medium truncate">{item.label}</span>
-                                <span className="text-[10px] text-zinc-300">&bull;</span>
-                                <span className="text-[10px] text-zinc-400">{item.itemCount} item</span>
+                                <span className="text-xs text-zinc-500 font-medium truncate">{item.label}</span>
+                                <span className="text-xs text-zinc-300">&bull;</span>
+                                <span className="text-xs text-zinc-400">{item.itemCount} item</span>
                                 {item.department && (
                                     <>
-                                        <span className="text-[10px] text-zinc-300">&bull;</span>
-                                        <span className="text-[10px] text-zinc-400">{item.department}</span>
+                                        <span className="text-xs text-zinc-300">&bull;</span>
+                                        <span className="text-xs text-zinc-400">{item.department}</span>
                                     </>
                                 )}
                             </div>
@@ -159,7 +159,7 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
 
                         {/* Amount */}
                         {item.amount > 0 && (
-                            <span className="text-sm font-black text-zinc-900 dark:text-zinc-100 flex-shrink-0 font-mono">
+                            <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex-shrink-0 font-mono">
                                 {formatIDR(item.amount)}
                             </span>
                         )}
@@ -170,7 +170,7 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
                                 onClick={() => handleApprove(item)}
                                 disabled={processing === item.id}
                                 title="Approve"
-                                className="h-8 w-8 flex items-center justify-center border-2 border-emerald-300 text-emerald-500 hover:bg-emerald-50 hover:border-emerald-500 hover:text-emerald-700 transition-colors rounded-sm disabled:opacity-40"
+                                className="h-8 w-8 flex items-center justify-center border border-emerald-300 text-emerald-500 hover:bg-emerald-50 hover:border-emerald-500 hover:text-emerald-700 transition-colors rounded-sm disabled:opacity-40"
                             >
                                 {processing === item.id
                                     ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -181,14 +181,14 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
                                 onClick={() => setRejectTarget(item)}
                                 disabled={processing === item.id}
                                 title="Reject"
-                                className="h-8 w-8 flex items-center justify-center border-2 border-red-300 text-red-400 hover:bg-red-50 hover:border-red-500 hover:text-red-600 transition-colors rounded-sm disabled:opacity-40"
+                                className="h-8 w-8 flex items-center justify-center border border-red-300 text-red-400 hover:bg-red-50 hover:border-red-500 hover:text-red-600 transition-colors rounded-sm disabled:opacity-40"
                             >
                                 <XCircle className="h-3.5 w-3.5" />
                             </button>
                             <button
                                 onClick={() => setDetailTarget(item)}
                                 title="Lihat Detail"
-                                className="h-8 w-8 flex items-center justify-center border-2 border-zinc-200 text-zinc-400 hover:bg-zinc-50 hover:border-zinc-400 hover:text-zinc-600 transition-colors rounded-sm"
+                                className="h-8 w-8 flex items-center justify-center border border-zinc-200 text-zinc-400 hover:bg-zinc-50 hover:border-zinc-400 hover:text-zinc-600 transition-colors rounded-sm"
                             >
                                 <Eye className="h-3.5 w-3.5" />
                             </button>
@@ -199,9 +199,9 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
 
             {/* Reject Dialog */}
             <Dialog open={!!rejectTarget} onOpenChange={() => { setRejectTarget(null); setRejectReason("") }}>
-                <DialogContent className="max-w-md border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-0 overflow-hidden bg-white">
+                <DialogContent className="max-w-md border border-border shadow-sm p-0 overflow-hidden bg-white">
                     <DialogHeader className="p-6 pb-2 border-b border-black/10 bg-zinc-50">
-                        <DialogTitle className="text-lg font-black uppercase flex items-center gap-2">
+                        <DialogTitle className="text-lg font-semibold flex items-center gap-2">
                             <XCircle className="h-5 w-5 text-red-500" /> Tolak {rejectTarget?.type} {rejectTarget?.number}
                         </DialogTitle>
                         <DialogDescription className="font-medium text-black/60">
@@ -209,7 +209,7 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
                         </DialogDescription>
                     </DialogHeader>
                     <div className="p-6 space-y-4">
-                        <div className="bg-zinc-50 border-2 border-zinc-200 p-3">
+                        <div className="bg-zinc-50 border border-zinc-200 p-3">
                             <p className="font-bold text-sm">{rejectTarget?.label}</p>
                             <p className="text-xs text-zinc-500 mt-0.5">
                                 {rejectTarget?.itemCount} item
@@ -217,19 +217,19 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
                             </p>
                         </div>
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Alasan Penolakan *</label>
+                            <label className="text-xs font-semibold text-zinc-500">Alasan Penolakan *</label>
                             <Textarea
                                 placeholder="Tulis alasan penolakan..."
                                 value={rejectReason}
                                 onChange={(e) => setRejectReason(e.target.value)}
-                                className="min-h-[80px] border-2 border-black resize-none"
+                                className="min-h-[80px] border border-border resize-none"
                             />
                         </div>
                     </div>
                     <DialogFooter className="p-6 pt-2 border-t border-black/10 bg-zinc-50 flex gap-2">
                         <Button
                             variant="outline"
-                            className="border-2 border-zinc-300 font-bold uppercase text-xs"
+                            className="border border-zinc-300 font-bold text-xs"
                             onClick={() => { setRejectTarget(null); setRejectReason("") }}
                         >
                             Batal
@@ -237,7 +237,7 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
                         <Button
                             onClick={handleReject}
                             disabled={!!processing || !rejectReason.trim()}
-                            className="bg-red-500 hover:bg-red-600 border-2 border-red-600 text-white font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
+                            className="bg-red-500 hover:bg-red-600 border border-red-600 text-white font-semibold text-xs shadow-sm active:shadow-none transition-all"
                         >
                             {processing ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <XCircle className="h-3 w-3 mr-1" />}
                             Konfirmasi Tolak
@@ -248,9 +248,9 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
 
             {/* Detail Dialog */}
             <Dialog open={!!detailTarget} onOpenChange={() => setDetailTarget(null)}>
-                <DialogContent className="max-w-lg border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-0 overflow-hidden bg-white">
+                <DialogContent className="max-w-lg border border-border shadow-sm p-0 overflow-hidden bg-white">
                     <DialogHeader className="p-6 pb-2 border-b border-black/10 bg-zinc-50">
-                        <DialogTitle className="text-lg font-black uppercase flex items-center gap-2">
+                        <DialogTitle className="text-lg font-semibold flex items-center gap-2">
                             <FileText className="h-5 w-5" /> Detail {detailTarget?.type} {detailTarget?.number}
                         </DialogTitle>
                         <DialogDescription className="font-medium text-black/60">
@@ -260,34 +260,34 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
                     {detailTarget && (
                         <div className="p-6 space-y-4">
                             <div className="grid grid-cols-2 gap-3">
-                                <div className="bg-zinc-50 border-2 border-zinc-200 p-3">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-0.5">
+                                <div className="bg-zinc-50 border border-zinc-200 p-3">
+                                    <p className="text-xs font-semibold text-zinc-400 mb-0.5">
                                         {detailTarget.type === 'PO' ? 'Vendor' : 'Pemohon'}
                                     </p>
                                     <p className="text-sm font-bold text-zinc-900">{detailTarget.label}</p>
                                 </div>
                                 {detailTarget.amount > 0 && (
-                                    <div className="bg-zinc-50 border-2 border-zinc-200 p-3">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-0.5">Total</p>
-                                        <p className="text-sm font-black text-zinc-900">{formatIDR(detailTarget.amount)}</p>
+                                    <div className="bg-zinc-50 border border-zinc-200 p-3">
+                                        <p className="text-xs font-semibold text-zinc-400 mb-0.5">Total</p>
+                                        <p className="text-sm font-semibold text-zinc-900">{formatIDR(detailTarget.amount)}</p>
                                     </div>
                                 )}
                                 {detailTarget.department && (
-                                    <div className="bg-zinc-50 border-2 border-zinc-200 p-3">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-0.5">Departemen</p>
+                                    <div className="bg-zinc-50 border border-zinc-200 p-3">
+                                        <p className="text-xs font-semibold text-zinc-400 mb-0.5">Departemen</p>
                                         <p className="text-sm font-bold text-zinc-900">{detailTarget.department}</p>
                                     </div>
                                 )}
                             </div>
 
                             <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">Item ({detailTarget.itemCount})</p>
-                                <div className="border-2 border-zinc-200 overflow-hidden max-h-48 overflow-y-auto">
+                                <p className="text-xs font-semibold text-zinc-400 mb-2">Item ({detailTarget.itemCount})</p>
+                                <div className="border border-zinc-200 overflow-hidden max-h-48 overflow-y-auto">
                                     {detailTarget.items.map((item, idx) => (
                                         <div key={idx} className={`px-3 py-2 flex justify-between items-center text-xs ${idx % 2 === 0 ? 'bg-white' : 'bg-zinc-50/50'}`}>
                                             <div className="min-w-0">
                                                 <p className="font-medium text-zinc-900">{item.productName}</p>
-                                                <p className="text-[10px] text-zinc-400 font-mono">{item.productCode}</p>
+                                                <p className="text-xs text-zinc-400 font-mono">{item.productCode}</p>
                                             </div>
                                             <span className="font-bold text-zinc-700 flex-shrink-0 ml-3">{item.quantity} pcs</span>
                                         </div>
@@ -299,14 +299,14 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
                                 <Button
                                     onClick={() => { handleApprove(detailTarget); setDetailTarget(null) }}
                                     disabled={!!processing}
-                                    className="flex-1 h-10 bg-emerald-500 hover:bg-emerald-600 border-2 border-emerald-600 text-white font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
+                                    className="flex-1 h-10 bg-emerald-500 hover:bg-emerald-600 border border-emerald-600 text-white font-semibold text-xs shadow-sm active:shadow-none transition-all"
                                 >
                                     <CheckCircle className="h-3.5 w-3.5 mr-1.5" /> Approve
                                 </Button>
                                 <Button
                                     variant="outline"
                                     onClick={() => { setDetailTarget(null); setRejectTarget(detailTarget) }}
-                                    className="flex-1 h-10 border-2 border-red-300 text-red-600 hover:bg-red-50 hover:border-red-500 font-black uppercase text-xs"
+                                    className="flex-1 h-10 border border-red-300 text-red-600 hover:bg-red-50 hover:border-red-500 font-semibold text-xs"
                                 >
                                     <XCircle className="h-3.5 w-3.5 mr-1.5" /> Reject
                                 </Button>

@@ -88,7 +88,7 @@ export function CreateWorkOrderDialog({ open, onOpenChange, onCreated, orderType
         }
       } catch (error) {
         console.error(error);
-        toast.error("Gagal memuat opsi form", { className: "font-bold border-2 border-black rounded-none" });
+        toast.error("Gagal memuat opsi form", { className: "font-bold border border-border rounded-md" });
       } finally {
         setLoadingOptions(false);
       }
@@ -108,7 +108,7 @@ export function CreateWorkOrderDialog({ open, onOpenChange, onCreated, orderType
 
   const handleSubmit = async () => {
     if (!productId || Number(plannedQty) <= 0) {
-      toast.error("Produk dan jumlah rencana harus diisi", { className: "font-bold border-2 border-black rounded-none" });
+      toast.error("Produk dan jumlah rencana harus diisi", { className: "font-bold border border-border rounded-md" });
       return;
     }
 
@@ -130,11 +130,11 @@ export function CreateWorkOrderDialog({ open, onOpenChange, onCreated, orderType
 
       const payload = await response.json();
       if (!payload.success) {
-        toast.error(payload.error || "Gagal membuat perintah kerja", { className: "font-bold border-2 border-black rounded-none" });
+        toast.error(payload.error || "Gagal membuat perintah kerja", { className: "font-bold border border-border rounded-md" });
         return;
       }
 
-      toast.success(`${orderType} ${payload.data?.number || "berhasil dibuat"}`, { className: "font-bold border-2 border-black rounded-none" });
+      toast.success(`${orderType} ${payload.data?.number || "berhasil dibuat"}`, { className: "font-bold border border-border rounded-md" });
       resetForm();
       onOpenChange(false);
       queryClient.invalidateQueries({ queryKey: queryKeys.workOrders.all });
@@ -142,7 +142,7 @@ export function CreateWorkOrderDialog({ open, onOpenChange, onCreated, orderType
       if (onCreated) await onCreated();
     } catch (error) {
       console.error(error);
-      toast.error("Terjadi kesalahan jaringan", { className: "font-bold border-2 border-black rounded-none" });
+      toast.error("Terjadi kesalahan jaringan", { className: "font-bold border border-border rounded-md" });
     } finally {
       setSubmitting(false);
     }
@@ -170,7 +170,7 @@ export function CreateWorkOrderDialog({ open, onOpenChange, onCreated, orderType
           >
             {products.map((product) => (
               <SelectItem key={product.id} value={product.id}>
-                <span className="font-mono text-[10px] text-zinc-400 mr-2 font-bold">{product.code}</span>
+                <span className="font-mono text-xs text-zinc-400 mr-2 font-bold">{product.code}</span>
                 {product.name}
               </SelectItem>
             ))}
@@ -227,7 +227,7 @@ export function CreateWorkOrderDialog({ open, onOpenChange, onCreated, orderType
               .filter((m) => m.status !== "OFFLINE")
               .map((machine) => (
                 <SelectItem key={machine.id} value={machine.id}>
-                  <span className="font-mono text-[10px] text-zinc-400 mr-2 font-bold">{machine.code}</span>
+                  <span className="font-mono text-xs text-zinc-400 mr-2 font-bold">{machine.code}</span>
                   {machine.name} ({machine.status})
                 </SelectItem>
               ))}

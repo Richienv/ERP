@@ -14,6 +14,7 @@ import {
     markSparepartShipped,
     postSparepartBill,
     receiveSparepartGoods,
+    receiveByDeliveryNote,
     recordSparepartPayment,
     saveSupplierInvoice,
     type SaveSupplierInvoiceInput,
@@ -25,8 +26,16 @@ import {
 type ListPage = Awaited<ReturnType<typeof listSparepartPurchases>>
 type ListData = InfiniteData<ListPage, string | null>
 
-/** Same shape useInfiniteQuery stores, so the sidebar prefetch fills the page's cache directly. */
-export async function fetchSparepartFirstPage(): Promise<ListData> {
+/**
+ * Used by the sidebar prefetch AND by background refresh on the same key as the infinite list.
+ * TanStack calls it two ways: as a plain prefetch (no pageParam → return the whole infinite shape)
+ * or with the infinite behaviour still attached (pageParam present → return ONE page). Returning the
+ * whole shape in the second case nests pages inside pages and breaks the list.
+ */
+export async function fetchSparepartFirstPage(ctx?: { pageParam?: unknown }): Promise<ListData | ListPage> {
+    if (ctx && typeof ctx === "object" && "pageParam" in ctx) {
+        return listSparepartPurchases({ cursor: (ctx.pageParam as string | null) ?? null, filter: "all" })
+    }
     return { pages: [await listSparepartPurchases({ filter: "all" })], pageParams: [null] }
 }
 
@@ -289,3 +298,22 @@ export function useSaveSupplierInvoice() {
         },
     })
 }
+
+/** Surat jalan from a vendor: receive the referenced PO's lines in one go. */
+export function useReceiveByDeliveryNote() {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: async (v: Parameters<typeof receiveByDeliveryNote>[0]) => {
+            const r = await receiveByDeliveryNote(v)
+            if (!r.success) throw new Error(r.error || "Gagal menerima barang")
+            return r
+        },
+        onSuccess: (r) => toast.success(`Barang diterima${"grnNumber" in r && r.grnNumber ? ` · ${r.grnNumber}` : ""}${"received" in r && r.received ? ` · ${r.received} pcs masuk stok` : ""}`),
+        onError: (e) => toast.error(e.message),
+        onSettled: (_d, _e, v) => {
+            settle(qc, v.captureId)
+            void qc.invalidateQueries({ queryKey: queryKeys.receiving.all })
+        },
+    })
+}
+

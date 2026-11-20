@@ -146,60 +146,60 @@ export function PengadaanCard({
 
     return (
         <>
-            <Card className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all bg-white h-full">
-                <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
-                    <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
+            <Card className="border border-border shadow-sm hover:shadow-sm transition-all bg-white h-full">
+                <CardHeader className="pb-2 border-b border-dashed border-zinc-200">
+                    <CardTitle className="text-xs font-semibold text-zinc-500 flex items-center justify-between">
                         <span className="flex items-center gap-2"><Truck className="h-4 w-4 text-blue-600" /> Pengadaan</span>
                         {pendingApproval?.length > 0 ? (
-                            <span className="text-[10px] bg-amber-100 text-amber-900 px-1 py-0.5 rounded font-black">
+                            <span className="text-xs bg-amber-100 text-amber-900 px-1 py-0.5 rounded font-semibold">
                                 {pendingApproval.length} NEEDS APPROVAL
                             </span>
                         ) : (
-                            <span className="text-[10px] bg-zinc-100 text-zinc-900 px-1 py-0.5 rounded font-black">ALL CLEAR</span>
+                            <span className="text-xs bg-zinc-100 text-zinc-900 px-1 py-0.5 rounded font-semibold">ALL CLEAR</span>
                         )}
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-4">
-                    <div className="text-3xl font-black tracking-tight">{activeCount} PO</div>
+                    <div className="text-3xl font-semibold tracking-tight">{activeCount} PO</div>
                     <p className="text-xs font-bold text-zinc-400 mt-1 mb-4">Active Orders</p>
 
                     <div className="mb-4 space-y-2">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">PO Status Snapshot</p>
+                        <p className="text-xs font-bold text-zinc-500">PO Status Snapshot</p>
                         <div className="grid grid-cols-3 gap-2">
                             <div className="rounded border border-zinc-200 bg-zinc-50 p-2">
-                                <p className="text-[9px] uppercase text-zinc-500">Draft</p>
-                                <p className="text-sm font-black">{poStatusSummary?.draft || 0}</p>
+                                <p className="text-xs text-zinc-500">Draft</p>
+                                <p className="text-sm font-semibold">{poStatusSummary?.draft || 0}</p>
                             </div>
                             <div className="rounded border border-amber-200 bg-amber-50 p-2">
-                                <p className="text-[9px] uppercase text-amber-700">Requested</p>
-                                <p className="text-sm font-black text-amber-900">{poStatusSummary?.requested || 0}</p>
+                                <p className="text-xs text-amber-700">Requested</p>
+                                <p className="text-sm font-semibold text-amber-900">{poStatusSummary?.requested || 0}</p>
                             </div>
                             <div className="rounded border border-emerald-200 bg-emerald-50 p-2">
-                                <p className="text-[9px] uppercase text-emerald-700">Approved</p>
-                                <p className="text-sm font-black text-emerald-900">{poStatusSummary?.approved || 0}</p>
+                                <p className="text-xs text-emerald-700">Approved</p>
+                                <p className="text-sm font-semibold text-emerald-900">{poStatusSummary?.approved || 0}</p>
                             </div>
                             <div className="rounded border border-blue-200 bg-blue-50 p-2">
-                                <p className="text-[9px] uppercase text-blue-700">Active</p>
-                                <p className="text-sm font-black text-blue-900">{poStatusSummary?.active || 0}</p>
+                                <p className="text-xs text-blue-700">Active</p>
+                                <p className="text-sm font-semibold text-blue-900">{poStatusSummary?.active || 0}</p>
                             </div>
                             <div className="rounded border border-emerald-200 bg-emerald-50 p-2">
-                                <p className="text-[9px] uppercase text-emerald-700">Completed</p>
-                                <p className="text-sm font-black text-emerald-900">{poStatusSummary?.completed || 0}</p>
+                                <p className="text-xs text-emerald-700">Completed</p>
+                                <p className="text-sm font-semibold text-emerald-900">{poStatusSummary?.completed || 0}</p>
                             </div>
                             <div className="rounded border border-red-200 bg-red-50 p-2">
-                                <p className="text-[9px] uppercase text-red-700">Blocked</p>
-                                <p className="text-sm font-black text-red-900">{poStatusSummary?.blocked || 0}</p>
+                                <p className="text-xs text-red-700">Blocked</p>
+                                <p className="text-sm font-semibold text-red-900">{poStatusSummary?.blocked || 0}</p>
                             </div>
                         </div>
                     </div>
 
                     <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-2.5">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-blue-700 mb-1">Permintaan Pembelian (PR)</p>
-                        <div className="text-sm font-black text-blue-900">{pendingRequestsCount} pending request(s)</div>
+                        <p className="text-xs font-bold text-blue-700 mb-1">Permintaan Pembelian (PR)</p>
+                        <div className="text-sm font-semibold text-blue-900">{pendingRequestsCount} pending request(s)</div>
                         {pendingRequests.length > 0 && (
                             <div className="mt-2 space-y-1">
                                 {pendingRequests.slice(0, 2).map((pr) => (
-                                    <div key={pr.id} className="flex items-center justify-between text-[10px] font-medium text-blue-800">
+                                    <div key={pr.id} className="flex items-center justify-between text-xs font-medium text-blue-800">
                                         <span className="font-mono">{pr.number}</span>
                                         <span>{pr.itemCount} item</span>
                                     </div>
@@ -209,41 +209,41 @@ export function PengadaanCard({
                     </div>
 
                     <div className="mb-4 space-y-2">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">PR Status Snapshot</p>
+                        <p className="text-xs font-bold text-zinc-500">PR Status Snapshot</p>
                         <div className="grid grid-cols-5 gap-2">
                             <div className="rounded border border-zinc-200 bg-zinc-50 p-2">
-                                <p className="text-[9px] uppercase text-zinc-500">Draft</p>
-                                <p className="text-sm font-black">{prStatusSummary?.draft || 0}</p>
+                                <p className="text-xs text-zinc-500">Draft</p>
+                                <p className="text-sm font-semibold">{prStatusSummary?.draft || 0}</p>
                             </div>
                             <div className="rounded border border-amber-200 bg-amber-50 p-2">
-                                <p className="text-[9px] uppercase text-amber-700">Requested</p>
-                                <p className="text-sm font-black text-amber-900">{prStatusSummary?.requested || 0}</p>
+                                <p className="text-xs text-amber-700">Requested</p>
+                                <p className="text-sm font-semibold text-amber-900">{prStatusSummary?.requested || 0}</p>
                             </div>
                             <div className="rounded border border-emerald-200 bg-emerald-50 p-2">
-                                <p className="text-[9px] uppercase text-emerald-700">Approved</p>
-                                <p className="text-sm font-black text-emerald-900">{prStatusSummary?.approved || 0}</p>
+                                <p className="text-xs text-emerald-700">Approved</p>
+                                <p className="text-sm font-semibold text-emerald-900">{prStatusSummary?.approved || 0}</p>
                             </div>
                             <div className="rounded border border-blue-200 bg-blue-50 p-2">
-                                <p className="text-[9px] uppercase text-blue-700">Converted</p>
-                                <p className="text-sm font-black text-blue-900">{prStatusSummary?.converted || 0}</p>
+                                <p className="text-xs text-blue-700">Converted</p>
+                                <p className="text-sm font-semibold text-blue-900">{prStatusSummary?.converted || 0}</p>
                             </div>
                             <div className="rounded border border-red-200 bg-red-50 p-2">
-                                <p className="text-[9px] uppercase text-red-700">Blocked</p>
-                                <p className="text-sm font-black text-red-900">{prStatusSummary?.blocked || 0}</p>
+                                <p className="text-xs text-red-700">Blocked</p>
+                                <p className="text-sm font-semibold text-red-900">{prStatusSummary?.blocked || 0}</p>
                             </div>
                         </div>
                     </div>
 
                     <div className="mb-4">
-                        <p className="text-[10px] font-bold text-zinc-500 mb-2 uppercase tracking-wider">PO Overview Table</p>
+                        <p className="text-xs font-bold text-zinc-500 mb-2  ">PO Overview Table</p>
                         <div className="rounded-lg border border-zinc-200 overflow-hidden">
-                            <table className="w-full text-[10px]">
+                            <table className="w-full text-xs">
                                 <thead className="bg-zinc-100">
                                     <tr>
-                                        <th className="px-2 py-1 text-left font-bold uppercase">PO</th>
-                                        <th className="px-2 py-1 text-left font-bold uppercase">Vendor</th>
-                                        <th className="px-2 py-1 text-left font-bold uppercase">Status</th>
-                                        <th className="px-2 py-1 text-right font-bold uppercase">Qty</th>
+                                        <th className="px-2 py-1 text-left font-bold ">PO</th>
+                                        <th className="px-2 py-1 text-left font-bold ">Vendor</th>
+                                        <th className="px-2 py-1 text-left font-bold ">Status</th>
+                                        <th className="px-2 py-1 text-right font-bold ">Qty</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -252,7 +252,7 @@ export function PengadaanCard({
                                             <td className="px-2 py-1.5 font-mono">{po.number}</td>
                                             <td className="px-2 py-1.5">{po.supplierName}</td>
                                             <td className="px-2 py-1.5">
-                                                <span className={`inline-flex rounded border px-1.5 py-0.5 text-[9px] font-bold ${statusBadgeClass(po.status)}`}>{po.status}</span>
+                                                <span className={`inline-flex rounded border px-1.5 py-0.5 text-xs font-bold ${statusBadgeClass(po.status)}`}>{po.status}</span>
                                             </td>
                                             <td className="px-2 py-1.5 text-right font-bold">{po.itemQty}</td>
                                         </tr>
@@ -263,15 +263,15 @@ export function PengadaanCard({
                     </div>
 
                     <div className="mb-4">
-                        <p className="text-[10px] font-bold text-zinc-500 mb-2 uppercase tracking-wider">PR Overview Table</p>
+                        <p className="text-xs font-bold text-zinc-500 mb-2  ">PR Overview Table</p>
                         <div className="rounded-lg border border-zinc-200 overflow-hidden">
-                            <table className="w-full text-[10px]">
+                            <table className="w-full text-xs">
                                 <thead className="bg-zinc-100">
                                     <tr>
-                                        <th className="px-2 py-1 text-left font-bold uppercase">PR</th>
-                                        <th className="px-2 py-1 text-left font-bold uppercase">Requester</th>
-                                        <th className="px-2 py-1 text-left font-bold uppercase">Status</th>
-                                        <th className="px-2 py-1 text-right font-bold uppercase">Items</th>
+                                        <th className="px-2 py-1 text-left font-bold ">PR</th>
+                                        <th className="px-2 py-1 text-left font-bold ">Requester</th>
+                                        <th className="px-2 py-1 text-left font-bold ">Status</th>
+                                        <th className="px-2 py-1 text-right font-bold ">Items</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -280,7 +280,7 @@ export function PengadaanCard({
                                             <td className="px-2 py-1.5 font-mono">{pr.number}</td>
                                             <td className="px-2 py-1.5">{pr.requesterName}</td>
                                             <td className="px-2 py-1.5">
-                                                <span className={`inline-flex rounded border px-1.5 py-0.5 text-[9px] font-bold ${statusBadgeClass(pr.status)}`}>{pr.status}</span>
+                                                <span className={`inline-flex rounded border px-1.5 py-0.5 text-xs font-bold ${statusBadgeClass(pr.status)}`}>{pr.status}</span>
                                             </td>
                                             <td className="px-2 py-1.5 text-right font-bold">{pr.itemCount}</td>
                                         </tr>
@@ -291,26 +291,26 @@ export function PengadaanCard({
                     </div>
 
                     <div className="mb-4">
-                        <p className="text-[10px] font-bold text-zinc-400 mb-2 uppercase tracking-wider">Pending Your Approval</p>
+                        <p className="text-xs font-bold text-zinc-400 mb-2  ">Pending Your Approval</p>
                         {pendingApproval?.length > 0 ? (
                             <div className="space-y-2">
                                 {pendingApproval.slice(0, 3).map((po) => (
                                     <div
                                         key={po.id}
-                                        className="bg-amber-50 border-2 border-amber-200 rounded-lg p-2.5 transition-colors"
+                                        className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 transition-colors"
                                     >
                                         <div className="flex justify-between items-start mb-1">
-                                            <span className="font-mono text-[10px] font-bold text-amber-900">{po.number}</span>
-                                            <span className="text-[10px] font-black text-amber-700">{formatIDR(po.netAmount)}</span>
+                                            <span className="font-mono text-xs font-bold text-amber-900">{po.number}</span>
+                                            <span className="text-xs font-semibold text-amber-700">{formatIDR(po.netAmount)}</span>
                                         </div>
-                                        <div className="text-[10px] font-medium text-amber-700">{po.supplier.name}</div>
-                                        <div className="text-[9px] text-amber-600">{po.itemCount} items</div>
+                                        <div className="text-xs font-medium text-amber-700">{po.supplier.name}</div>
+                                        <div className="text-xs text-amber-600">{po.itemCount} items</div>
                                         {/* Inline Action Buttons */}
                                         <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-amber-200">
                                             <button
                                                 onClick={() => handleApprove(po)}
                                                 disabled={processing}
-                                                className="flex-1 flex items-center justify-center gap-1 px-2 py-1 bg-emerald-600 text-white text-[9px] font-black uppercase tracking-wider
+                                                className="flex-1 flex items-center justify-center gap-1 px-2 py-1 bg-emerald-600 text-white text-xs font-semibold  
                                                            rounded hover:bg-emerald-700 active:scale-[0.97] transition-all disabled:opacity-50"
                                             >
                                                 {processing ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
@@ -319,7 +319,7 @@ export function PengadaanCard({
                                             <button
                                                 onClick={() => { setSelectedPO(po); setRejectMode(true) }}
                                                 disabled={processing}
-                                                className="flex-1 flex items-center justify-center gap-1 px-2 py-1 bg-white text-red-600 text-[9px] font-black uppercase tracking-wider
+                                                className="flex-1 flex items-center justify-center gap-1 px-2 py-1 bg-white text-red-600 text-xs font-semibold  
                                                            rounded border border-red-300 hover:bg-red-50 active:scale-[0.97] transition-all disabled:opacity-50"
                                             >
                                                 <XCircle className="h-3 w-3" />
@@ -337,7 +337,7 @@ export function PengadaanCard({
                                     </div>
                                 ))}
                                 {pendingApproval.length > 3 && (
-                                    <p className="text-[10px] text-zinc-500 font-bold">+ {pendingApproval.length - 3} more</p>
+                                    <p className="text-xs text-zinc-500 font-bold">+ {pendingApproval.length - 3} more</p>
                                 )}
                             </div>
                         ) : (
@@ -346,7 +346,7 @@ export function PengadaanCard({
                     </div>
 
                     <Link href="/dashboard/approvals">
-                        <Button size="sm" variant="outline" className="w-full text-xs font-black uppercase tracking-wider h-8 border-2 border-black hover:bg-zinc-50">
+                        <Button size="sm" variant="outline" className="w-full text-xs font-semibold h-8 border border-border hover:bg-zinc-50">
                             View All Approvals
                         </Button>
                     </Link>
@@ -371,33 +371,33 @@ export function PengadaanCard({
                             {/* PO Details */}
                             <div className="grid grid-cols-2 gap-4 bg-zinc-50 p-4 rounded-lg border border-zinc-200">
                                 <div>
-                                    <div className="text-[10px] font-bold uppercase text-zinc-500">PO Number</div>
+                                    <div className="text-xs font-bold text-zinc-500">PO Number</div>
                                     <div className="font-mono font-bold">{selectedPO.number}</div>
                                 </div>
                                 <div>
-                                    <div className="text-[10px] font-bold uppercase text-zinc-500">Vendor</div>
+                                    <div className="text-xs font-bold text-zinc-500">Vendor</div>
                                     <div className="font-bold">{selectedPO.supplier.name}</div>
                                 </div>
                                 <div>
-                                    <div className="text-[10px] font-bold uppercase text-zinc-500">Total Amount</div>
-                                    <div className="font-black text-lg">{formatIDR(selectedPO.netAmount)}</div>
+                                    <div className="text-xs font-bold text-zinc-500">Total Amount</div>
+                                    <div className="font-semibold text-lg">{formatIDR(selectedPO.netAmount)}</div>
                                 </div>
                                 <div>
-                                    <div className="text-[10px] font-bold uppercase text-zinc-500">Items</div>
+                                    <div className="text-xs font-bold text-zinc-500">Items</div>
                                     <div className="font-bold">{selectedPO.itemCount} items</div>
                                 </div>
                             </div>
 
                             {/* Items List */}
                             <div>
-                                <div className="text-sm font-black uppercase mb-2">Items</div>
+                                <div className="text-sm font-semibold mb-2">Items</div>
                                 <div className="border border-zinc-200 rounded-lg overflow-hidden">
                                     <div className="max-h-40 overflow-y-auto">
                                         {selectedPO.items.map((item, idx) => (
                                             <div key={idx} className="px-3 py-2 border-b border-zinc-100 last:border-0 flex justify-between">
                                                 <div>
                                                     <div className="font-medium text-sm">{item.productName}</div>
-                                                    <div className="text-[10px] text-zinc-400 font-mono">{item.productCode}</div>
+                                                    <div className="text-xs text-zinc-400 font-mono">{item.productCode}</div>
                                                 </div>
                                                 <div className="text-sm font-bold">{item.quantity} pcs</div>
                                             </div>

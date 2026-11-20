@@ -22,13 +22,13 @@ import { cn } from "@/lib/utils"
 // ─── Style Constants (reference: payments-view.tsx Catat Penerimaan Baru) ───
 
 const ACTIVE_ORANGE =
-    "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 font-bold"
+    "border-blue-400 dark:border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 font-bold"
 const EMPTY_ZINC =
     "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
 const ACTIVE_EMERALD =
     "border-emerald-400 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-950/20"
 const LABEL_CLASS =
-    "text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block"
+    "text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1 block"
 
 const NB_SENTINEL = "__NB_EMPTY__"
 
@@ -58,7 +58,7 @@ function NBDialog({ open, onOpenChange, size = "default", children }: NBDialogPr
                 showCloseButton={false}
                 className={cn(
                     SIZE_MAP[size],
-                    "p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0"
+                    "p-0 border border-border shadow-sm rounded-md overflow-hidden gap-0"
                 )}
             >
                 {children}
@@ -77,12 +77,12 @@ interface NBDialogHeaderProps {
 
 function NBDialogHeader({ icon: Icon, title, subtitle }: NBDialogHeaderProps) {
     return (
-        <DialogHeader className="bg-black text-white px-5 py-3">
-            <DialogTitle className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+        <DialogHeader className="bg-slate-900 text-white px-5 py-3">
+            <DialogTitle className="text-sm font-semibold text-white flex items-center gap-2">
                 <Icon className="h-4 w-4" /> {title}
             </DialogTitle>
             {subtitle && (
-                <p className="text-zinc-400 text-[11px] font-bold mt-0.5">
+                <p className="text-zinc-400 text-xs font-bold mt-0.5">
                     {subtitle}
                 </p>
             )}
@@ -127,14 +127,14 @@ function NBDialogFooter({
                 variant="outline"
                 onClick={onCancel}
                 disabled={submitting}
-                className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none disabled:opacity-50"
+                className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold text-xs px-4 h-8 rounded-md disabled:opacity-50"
             >
                 Batal
             </Button>
             <Button
                 onClick={onSubmit}
                 disabled={submitting || disabled}
-                className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none gap-1.5 disabled:opacity-50 transition-colors"
+                className="bg-slate-900 text-white border border-border hover:bg-zinc-800 font-semibold text-xs px-5 h-8 rounded-md gap-1.5 disabled:opacity-50 transition-colors"
             >
                 {submitting ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -161,11 +161,11 @@ function NBSection({ icon: Icon, title, optional, children }: NBSectionProps) {
         <div className="border border-zinc-200 dark:border-zinc-700">
             <div className="bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700 flex items-center gap-2">
                 <Icon className="h-3.5 w-3.5 text-zinc-400" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                <span className="text-xs font-semibold text-zinc-500">
                     {title}
                 </span>
                 {optional && (
-                    <span className="text-[10px] font-medium text-zinc-400 ml-auto">
+                    <span className="text-xs font-medium text-zinc-400 ml-auto">
                         opsional
                     </span>
                 )}
@@ -222,7 +222,7 @@ function NBInput({
                 min={min}
                 max={max}
                 className={cn(
-                    "border font-medium h-8 text-sm rounded-none transition-colors placeholder:text-zinc-400 placeholder:italic placeholder:font-normal",
+                    "border font-medium h-8 text-sm rounded-md transition-colors placeholder:text-zinc-400 placeholder:italic placeholder:font-normal",
                     hasValue ? ACTIVE_ORANGE : EMPTY_ZINC
                 )}
             />
@@ -258,13 +258,13 @@ function NBCurrencyInput({
             </label>
             <div
                 className={cn(
-                    "flex items-center border h-8 rounded-none transition-colors",
+                    "flex items-center border h-8 rounded-md transition-colors",
                     hasValue ? ACTIVE_EMERALD : EMPTY_ZINC
                 )}
             >
                 <span
                     className={cn(
-                        "pl-2 text-[10px] font-bold select-none",
+                        "pl-2 text-xs font-bold select-none",
                         hasValue
                             ? "text-emerald-500"
                             : "text-zinc-300 dark:text-zinc-600"
@@ -349,7 +349,7 @@ function NBSelect({
             >
                 <SelectTrigger
                     className={cn(
-                        "h-8 text-sm rounded-none border",
+                        "h-8 text-sm rounded-md border",
                         hasValue ? ACTIVE_ORANGE : EMPTY_ZINC
                     )}
                 >
@@ -411,7 +411,7 @@ function NBTextarea({
                 rows={rows}
                 disabled={disabled}
                 className={cn(
-                    "w-full border text-sm rounded-none transition-colors px-3 py-2 outline-none resize-none placeholder:text-zinc-400 placeholder:italic placeholder:font-normal",
+                    "w-full border text-sm rounded-md transition-colors px-3 py-2 outline-none resize-none placeholder:text-zinc-400 placeholder:italic placeholder:font-normal",
                     hasValue ? ACTIVE_ORANGE : EMPTY_ZINC
                 )}
             />

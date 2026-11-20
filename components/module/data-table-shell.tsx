@@ -27,10 +27,10 @@ export function DataTableShell({
   className,
 }: DataTableShellProps) {
   return (
-    <div className={cn("border-2 border-black bg-white overflow-hidden", className)}>
+    <div className={cn("border border-border bg-white overflow-hidden", className)}>
       {title && (
-        <div className="flex items-center gap-2 px-4 py-2.5 border-b-2 border-black">
-          <span className="text-sm font-bold uppercase tracking-wider">{title}</span>
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border">
+          <span className="text-sm font-bold  ">{title}</span>
           {titleCount != null && (
             <span className="min-w-[24px] h-5 rounded-full bg-gray-200 text-xs font-bold inline-flex items-center justify-center px-1.5">
               {titleCount}
@@ -42,7 +42,7 @@ export function DataTableShell({
       {isEmpty ? (
         <div className="flex flex-col items-center justify-center py-12 text-gray-400">
           {emptyState?.icon ?? <IconDatabaseOff size={40} stroke={1.5} />}
-          <span className="mt-3 text-sm font-bold uppercase tracking-wider">
+          <span className="mt-3 text-sm font-bold  ">
             {emptyState?.message ?? "TIDAK ADA DATA DITEMUKAN"}
           </span>
         </div>
@@ -51,7 +51,7 @@ export function DataTableShell({
       )}
 
       {footer && !isEmpty && (
-        <div className="border-t-2 border-black bg-gray-50 px-4 py-2">
+        <div className="border-t border-border bg-gray-50 px-4 py-2">
           {footer}
         </div>
       )}
@@ -61,7 +61,7 @@ export function DataTableShell({
 
 // Styled sub-components for consistent table styling within the shell
 export const ShellTableStyles = {
-  thead: "text-xs uppercase text-gray-500 font-semibold tracking-wider border-b-2 border-black bg-gray-50/50",
+  thead: "text-xs text-gray-500 font-semibold border-b border-border bg-gray-50/50",
   th: "px-4 py-2.5 text-left",
   tr: "border-b border-gray-100 hover:bg-gray-50 transition-colors",
   td: "px-4 py-2.5 text-sm",

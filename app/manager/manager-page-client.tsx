@@ -69,10 +69,10 @@ export function ManagerPageClient({ tasks, employees, orders, dashboard }: Manag
         <>
             {/* Header */}
             <div>
-                <h1 className="text-2xl font-black uppercase tracking-wider">
+                <h1 className="text-2xl font-semibold  ">
                     Pusat Komando Pabrik
                 </h1>
-                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                <p className="text-xs font-bold text-zinc-500  ">
                     Kontrol Operasi & Sistem Akuntabilitas
                 </p>
             </div>

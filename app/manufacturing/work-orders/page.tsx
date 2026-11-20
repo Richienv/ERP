@@ -27,16 +27,16 @@ export default function WorkOrdersPage() {
     }
 
     const tabClass = (active: boolean) =>
-        `flex items-center gap-2 px-5 py-3 text-xs font-black uppercase tracking-widest border-b-3 transition-colors ${
+        `flex items-center gap-2 px-5 py-3 text-xs font-semibold   border-b-3 transition-colors ${
             active
-                ? "border-black text-black"
+                ? "border-border text-black"
                 : "border-transparent text-zinc-400 hover:text-zinc-600"
         }`
 
     return (
         <div className="flex flex-col min-h-[calc(100svh-theme(spacing.16))]">
             {/* Tab bar */}
-            <div className="border-b-2 border-black bg-white px-4 md:px-8 flex items-center gap-0 shrink-0">
+            <div className="border-b border-border bg-white px-4 md:px-8 flex items-center gap-0 shrink-0">
                 <button onClick={() => setTab("spk")} className={tabClass(tab === "spk")}>
                     <ClipboardList className="h-4 w-4" /> Perintah Kerja (SPK)
                 </button>

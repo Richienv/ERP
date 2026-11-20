@@ -10,7 +10,7 @@ export default function BOMPage() {
     const { data, isLoading } = useProductionBOMs()
 
     if (isLoading) {
-        return <TablePageSkeleton accentColor="bg-orange-400" />
+        return <TablePageSkeleton accentColor="bg-blue-400" />
     }
 
     return <BOMListClient boms={data ?? []} />

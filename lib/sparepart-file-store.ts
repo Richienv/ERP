@@ -18,6 +18,7 @@ export const INVOICE_FILE_TYPES: Record<string, string> = {
     "image/jpeg": "jpg",
     "image/png": "png",
     "image/webp": "webp",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
 }
 export const INVOICE_FILE_MAX_BYTES = 10 * 1024 * 1024
 const BUCKET = "documents"
@@ -55,6 +56,8 @@ export function hasMagicBytes(bytes: Uint8Array, contentType: string): boolean {
             return b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff
         case "image/png":
             return b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47
+        case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+            return b[0] === 0x50 && b[1] === 0x4b && b[2] === 0x03 && b[3] === 0x04 // PK.. (zip)
         case "image/webp":
             return b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50
         default:

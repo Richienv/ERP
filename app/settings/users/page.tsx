@@ -149,7 +149,7 @@ export default function UserManagementPage() {
                             <Users className="h-5 w-5" />
                         </div>
                         <div>
-                            <h2 className="text-base font-black uppercase tracking-wider text-zinc-900 dark:text-white">Manajemen Pengguna</h2>
+                            <h2 className="text-base font-semibold text-zinc-900 dark:text-white">Manajemen Pengguna</h2>
                             <p className="text-xs font-medium text-zinc-400">
                                 Ubah peran akun. Perubahan disimpan ke data pengguna, bukan metadata login.
                             </p>
@@ -194,15 +194,15 @@ export default function UserManagementPage() {
                             </button>
                         ) : null}
                     </div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                    <span className="text-xs font-bold text-zinc-500">
                         {filteredUsers.length} pengguna
                     </span>
                 </div>
             </div>
 
-            <Card className="rounded-none border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <Card className="rounded-md border border-border shadow-sm">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-sm font-black uppercase tracking-wider">
+                    <CardTitle className="flex items-center gap-2 text-sm font-semibold  ">
                         <Shield className="h-4 w-4" />
                         Daftar Pengguna
                     </CardTitle>
@@ -254,7 +254,7 @@ export default function UserManagementPage() {
                                             <TableCell>
                                                 <div className="flex items-center space-x-3">
                                                     <Avatar>
-                                                        <AvatarFallback className="bg-orange-500 text-white">
+                                                        <AvatarFallback className="bg-blue-500 text-white">
                                                             {getInitials(user.name, user.email)}
                                                         </AvatarFallback>
                                                     </Avatar>

@@ -204,11 +204,11 @@ export function NewPurchaseOrderDialog({ vendors: vendorsProp, products: product
     const PreviewStep = () => (
         <div className="p-5 space-y-4">
             {/* Success Banner */}
-            <div className="border-2 border-black bg-emerald-50 p-6 text-center">
-                <div className="w-14 h-14 bg-black flex items-center justify-center mx-auto mb-3">
+            <div className="border border-border bg-emerald-50 p-6 text-center">
+                <div className="w-14 h-14 bg-slate-900 flex items-center justify-center mx-auto mb-3">
                     <Check className="h-7 w-7 text-white" />
                 </div>
-                <h3 className="font-black text-xl uppercase tracking-wider">PO Berhasil Dibuat!</h3>
+                <h3 className="font-semibold text-xl  ">PO Berhasil Dibuat!</h3>
                 <p className="font-mono font-bold text-lg mt-1">{createdPO?.number}</p>
             </div>
 
@@ -406,13 +406,13 @@ export function NewPurchaseOrderDialog({ vendors: vendorsProp, products: product
                             <div className="border border-zinc-200 dark:border-zinc-700">
                                 <div className="bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700 flex items-center gap-2">
                                     <ShoppingCart className="h-3.5 w-3.5 text-zinc-400" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Item Pesanan</span>
+                                    <span className="text-xs font-semibold text-zinc-500">Item Pesanan</span>
                                     <Button
                                         type="button"
                                         variant="outline"
                                         size="sm"
                                         onClick={() => append({ productId: "", quantity: 1, unitPrice: 0 })}
-                                        className="ml-auto h-7 text-[10px] font-black uppercase tracking-wider border-2 border-black"
+                                        className="ml-auto h-7 text-xs font-semibold border border-border"
                                     >
                                         <Plus className="h-3 w-3 mr-1" /> Tambah
                                     </Button>
@@ -444,7 +444,7 @@ export function NewPurchaseOrderDialog({ vendors: vendorsProp, products: product
                                                                         <Popover>
                                                                             <PopoverTrigger asChild>
                                                                                 <FormControl>
-                                                                                    <Button variant="outline" role="combobox" className={cn("w-full justify-between border-2 border-black font-bold h-9 text-xs", !field.value && "text-muted-foreground")}>
+                                                                                    <Button variant="outline" role="combobox" className={cn("w-full justify-between border border-border font-bold h-9 text-xs", !field.value && "text-muted-foreground")}>
                                                                                         {field.value
                                                                                             ? products.find((p) => p.id === field.value)?.name
                                                                                             : "Pilih produk"}
@@ -484,7 +484,7 @@ export function NewPurchaseOrderDialog({ vendors: vendorsProp, products: product
                                                                 render={({ field }) => (
                                                                     <FormItem>
                                                                         <FormControl>
-                                                                            <Input type="number" {...field} className="border-2 border-black font-mono font-bold h-9 text-center text-xs" />
+                                                                            <Input type="number" {...field} className="border border-border font-mono font-bold h-9 text-center text-xs" />
                                                                         </FormControl>
                                                                     </FormItem>
                                                                 )}
@@ -497,7 +497,7 @@ export function NewPurchaseOrderDialog({ vendors: vendorsProp, products: product
                                                                 render={({ field }) => (
                                                                     <FormItem>
                                                                         <FormControl>
-                                                                            <Input type="number" {...field} className="border-2 border-black font-mono font-bold h-9 text-right text-xs" />
+                                                                            <Input type="number" {...field} className="border border-border font-mono font-bold h-9 text-right text-xs" />
                                                                         </FormControl>
                                                                     </FormItem>
                                                                 )}
@@ -526,7 +526,7 @@ export function NewPurchaseOrderDialog({ vendors: vendorsProp, products: product
                                 </div>
 
                                 {/* Totals */}
-                                <div className="border-t-2 border-black bg-zinc-50 p-4 space-y-1">
+                                <div className="border-t border-border bg-zinc-50 p-4 space-y-1">
                                     <div className="flex justify-between text-xs">
                                         <span className={NB.label + " !mb-0"}>
                                             {taxMode === "INCLUSIVE" ? "DPP (harga tanpa PPN)" : "Subtotal"}
@@ -540,9 +540,9 @@ export function NewPurchaseOrderDialog({ vendors: vendorsProp, products: product
                                         </span>
                                         <span className="font-mono font-bold">{formatIDR(taxAmount)}</span>
                                     </div>
-                                    <div className="border-t-2 border-black pt-2 mt-2 flex justify-between items-center">
-                                        <span className="font-black text-sm uppercase tracking-wider">Total</span>
-                                        <span className="font-black text-xl font-mono">
+                                    <div className="border-t border-border pt-2 mt-2 flex justify-between items-center">
+                                        <span className="font-semibold text-sm  ">Total</span>
+                                        <span className="font-semibold text-xl font-mono">
                                             {formatIDR(totalAmount)}
                                         </span>
                                     </div>

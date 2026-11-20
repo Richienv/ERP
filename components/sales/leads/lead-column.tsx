@@ -56,7 +56,7 @@ export function LeadColumn({ id, leads }: LeadColumnProps) {
                             <LeadCard key={lead.id} lead={lead} />
                         ))}
                         {leads.length === 0 && (
-                            <div className="h-full flex items-center justify-center text-muted-foreground/40 text-xs italic py-8 border-2 border-dashed border-muted rounded-md m-1">
+                            <div className="h-full flex items-center justify-center text-muted-foreground/40 text-xs italic py-8 border border-dashed border-muted rounded-md m-1">
                                 Kosong
                             </div>
                         )}

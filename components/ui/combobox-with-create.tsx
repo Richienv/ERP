@@ -85,7 +85,7 @@ export function ComboboxWithCreate({
                     value={newName}
                     onChange={e => setNewName(e.target.value)}
                     placeholder="Nama baru..."
-                    className="border-2 border-black font-bold h-9 flex-1 rounded-none"
+                    className="border border-border font-bold h-9 flex-1 rounded-md"
                     onKeyDown={e => {
                         if (e.key === "Enter") { e.preventDefault(); handleCreate() }
                         if (e.key === "Escape") { setCreating(false); setNewName("") }
@@ -98,7 +98,7 @@ export function ComboboxWithCreate({
                     size="sm"
                     onClick={handleCreate}
                     disabled={isCreating || !newName.trim()}
-                    className="bg-black text-white border-2 border-black font-black text-[10px] uppercase h-9 px-3 rounded-none"
+                    className="bg-slate-900 text-white border border-border font-semibold text-xs h-9 px-3 rounded-md"
                 >
                     {isCreating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
                 </Button>
@@ -108,7 +108,7 @@ export function ComboboxWithCreate({
                     variant="outline"
                     onClick={() => { setCreating(false); setNewName("") }}
                     disabled={isCreating}
-                    className="border-2 border-black font-black text-[10px] uppercase h-9 px-3 rounded-none"
+                    className="border border-border font-semibold text-xs h-9 px-3 rounded-md"
                 >
                     Batal
                 </Button>
@@ -125,7 +125,7 @@ export function ComboboxWithCreate({
                     aria-expanded={open}
                     disabled={disabled || isLoading}
                     className={cn(
-                        "w-full justify-between border-2 border-black font-bold h-9 rounded-none text-left",
+                        "w-full justify-between border border-border font-bold h-9 rounded-md text-left",
                         !value && "text-muted-foreground",
                         className
                     )}
@@ -149,11 +149,11 @@ export function ComboboxWithCreate({
                     <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[--radix-popover-trigger-width] p-0 border border-zinc-300 dark:border-zinc-600 rounded-none shadow-md" align="start">
-                <Command className="rounded-none">
-                    <CommandInput placeholder={searchPlaceholder} className="h-7 text-[11px]" />
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0 border border-zinc-300 dark:border-zinc-600 rounded-md shadow-md" align="start">
+                <Command className="rounded-md">
+                    <CommandInput placeholder={searchPlaceholder} className="h-7 text-xs" />
                     <CommandList className="max-h-[200px] overscroll-contain">
-                        <CommandEmpty className="py-3 text-center text-[10px] text-zinc-400 font-medium">
+                        <CommandEmpty className="py-3 text-center text-xs text-zinc-400 font-medium">
                             {emptyMessage}
                         </CommandEmpty>
                         <CommandGroup className="p-0.5">
@@ -168,20 +168,20 @@ export function ComboboxWithCreate({
                                             setOpen(false)
                                         }}
                                         className={cn(
-                                            "text-[11px] py-1.5 px-2 rounded-none gap-1.5 cursor-pointer",
-                                            isSelected && "bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400"
+                                            "text-xs py-1.5 px-2 rounded-md gap-1.5 cursor-pointer",
+                                            isSelected && "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400"
                                         )}
                                     >
                                         <div className={cn(
                                             "w-3.5 h-3.5 flex items-center justify-center shrink-0",
-                                            isSelected ? "text-orange-500" : "text-transparent"
+                                            isSelected ? "text-blue-500" : "text-transparent"
                                         )}>
                                             <Check className="h-3 w-3" />
                                         </div>
                                         {option.subtitle ? (
                                             <span className="truncate">
-                                                <span className={cn("font-mono font-bold mr-1.5 text-[11px]", isSelected ? "text-orange-600 dark:text-orange-400" : "text-zinc-700 dark:text-zinc-300")}>{option.subtitle}</span>
-                                                <span className={cn("text-[11px]", isSelected ? "text-orange-600/70 dark:text-orange-400/70" : "text-zinc-400 dark:text-zinc-500")}>{option.label}</span>
+                                                <span className={cn("font-mono font-bold mr-1.5 text-xs", isSelected ? "text-blue-600 dark:text-blue-400" : "text-zinc-700 dark:text-zinc-300")}>{option.subtitle}</span>
+                                                <span className={cn("text-xs", isSelected ? "text-blue-600/70 dark:text-blue-400/70" : "text-zinc-400 dark:text-zinc-500")}>{option.label}</span>
                                             </span>
                                         ) : (
                                             <span className="truncate">{option.label}</span>
@@ -201,7 +201,7 @@ export function ComboboxWithCreate({
                                             setOpen(false)
                                             setTimeout(() => inputRef.current?.focus(), 50)
                                         }}
-                                        className="text-[11px] py-1.5 px-2 rounded-none font-bold text-emerald-700 dark:text-emerald-400 cursor-pointer"
+                                        className="text-xs py-1.5 px-2 rounded-md font-bold text-emerald-700 dark:text-emerald-400 cursor-pointer"
                                     >
                                         <Plus className="mr-1 h-3 w-3" />
                                         {createLabel}

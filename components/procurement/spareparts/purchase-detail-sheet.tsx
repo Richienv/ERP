@@ -12,6 +12,7 @@ import { PayDialog, ReceiveDialog, ShipDialog, type ActionKind } from "./action-
 import { money, shortDate } from "./format"
 
 const ACTION_ICON: Record<NextAction, React.ComponentType<{ className?: string }>> = {
+    ATTACH_INVOICE: FileText,
     POST_BILL: Receipt,
     PAY: Banknote,
     SHIP: Truck,
@@ -30,7 +31,7 @@ const EVENT_LABEL: Record<string, string> = {
  * Opens instantly with what the list already knows (supplier, totals, status), then fills in
  * items, payments and receipts from a fresh read — money on this panel is never stale.
  */
-export function PurchaseDetailSheet({ row, lookup, onClose }: { row: SparepartRow | null; lookup: SparepartLookup | undefined; onClose: () => void }) {
+export function PurchaseDetailSheet({ row, lookup, onClose, onUpload }: { row: SparepartRow | null; lookup: SparepartLookup | undefined; onClose: () => void; onUpload?: () => void }) {
     const id = row && !row.id.startsWith("pending-") ? row.id : null
     const { data: detail } = useSparepartDetail(id)
     const postBill = usePostSparepartBill()
@@ -45,7 +46,8 @@ export function PurchaseDetailSheet({ row, lookup, onClose }: { row: SparepartRo
 
     function run(action: NextAction | ActionKind) {
         if (!row) return
-        if (action === "POST_BILL") postBill.mutate({ id: row.id })
+        if (action === "ATTACH_INVOICE") onUpload?.()
+        else if (action === "POST_BILL") postBill.mutate({ id: row.id })
         else if (action === "PAY" || action === "pay") setDialog("pay")
         else if (action === "SHIP" || action === "ship") setDialog("ship")
         else if (action === "RECEIVE" || action === "receive") setDialog("receive")
@@ -62,20 +64,20 @@ export function PurchaseDetailSheet({ row, lookup, onClose }: { row: SparepartRo
             <Sheet open={!!row} onOpenChange={(v) => !v && onClose()}>
                 <SheetContent
                     side="right"
-                    className="w-full sm:max-w-[560px] p-0 gap-0 border-l-2 border-black data-[state=open]:duration-200 data-[state=closed]:duration-150 overflow-y-auto"
+                    className="w-full sm:max-w-[560px] p-0 gap-0 border-l border-border data-[state=open]:duration-200 data-[state=closed]:duration-150 overflow-y-auto"
                 >
                     {row && s && (
                         <>
-                            <div className="h-1 bg-orange-500" />
+                            <div className="h-1 bg-blue-500" />
                             <div className="px-5 pt-4 pb-3 border-b border-zinc-200">
-                                <SheetDescription className="text-[11px] font-black uppercase tracking-widest text-zinc-400">
+                                <SheetDescription className="text-xs font-semibold text-zinc-400">
                                     {row.poNumber} · {row.billNumber ?? "tagihan"}
                                 </SheetDescription>
-                                <SheetTitle className="text-lg font-black leading-tight mt-0.5 pr-8">{row.supplierName}</SheetTitle>
+                                <SheetTitle className="text-lg font-semibold leading-tight mt-0.5 pr-8">{row.supplierName}</SheetTitle>
                                 <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
                                     <span className="font-mono font-bold">{row.supplierInvoiceNo}</span>
                                     <span className="text-zinc-500">{shortDate(row.invoiceDate)}</span>
-                                    <span className="ml-auto font-mono font-black text-base">{money(row.totalOriginal, row.currencyCode)}</span>
+                                    <span className="ml-auto font-mono font-semibold text-base">{money(row.totalOriginal, row.currencyCode)}</span>
                                 </div>
                                 {row.currencyCode !== "IDR" && (
                                     <div className="text-right text-xs font-mono text-zinc-500">{money(row.billTotal, "IDR")} @ {row.exchangeRate.toLocaleString("id-ID")}</div>
@@ -102,22 +104,22 @@ export function PurchaseDetailSheet({ row, lookup, onClose }: { row: SparepartRo
                                     <button
                                         onClick={() => run(next)}
                                         disabled={row.id.startsWith("pending-") || (next === "POST_BILL" && !lookup?.canPost)}
-                                        className="w-full h-12 bg-orange-500 text-white border-2 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] active:translate-y-[4px] active:shadow-none transition-all font-black uppercase text-sm tracking-wider flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
+                                        className="w-full h-12 bg-blue-500 text-white border border-border shadow-sm hover:shadow-sm active:shadow-none transition-all font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
                                     >
                                         <NextIcon className="h-4 w-4" /> {NEXT_ACTION_LABEL[next]} <ArrowRight className="h-4 w-4" />
                                     </button>
                                 )}
                                 {next === "POST_BILL" && !lookup?.canPost && (
-                                    <p className="text-[11px] font-bold text-zinc-500">Menunggu finance memposting tagihan. Barang tetap bisa diterima.</p>
+                                    <p className="text-xs font-bold text-zinc-500">Menunggu finance memposting tagihan. Barang tetap bisa diterima.</p>
                                 )}
                                 <div className="flex flex-wrap gap-x-4 gap-y-1">
                                     {secondary.filter((a) => a.show).map((a) => (
-                                        <button key={a.kind} onClick={() => run(a.kind)} className="text-[11px] font-black uppercase tracking-wider text-zinc-500 hover:text-black underline-offset-4 hover:underline">
+                                        <button key={a.kind} onClick={() => run(a.kind)} className="text-xs font-semibold text-zinc-500 hover:text-black underline-offset-4 hover:underline">
                                             {a.label}
                                         </button>
                                     ))}
                                     {view?.file && (
-                                        <a href={view.file.url} target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-zinc-500 hover:text-black">
+                                        <a href={view.file.url} target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-zinc-500 hover:text-black">
                                             <FileText className="h-3.5 w-3.5" /> Invoice asli <ExternalLink className="h-3 w-3" />
                                         </a>
                                     )}
@@ -138,7 +140,7 @@ export function PurchaseDetailSheet({ row, lookup, onClose }: { row: SparepartRo
                                                 {view.po.items.map((i) => (
                                                     <tr key={i.id} className="border-b border-zinc-100 last:border-0">
                                                         <td className="py-2 pr-2">
-                                                            <div className="font-mono text-[11px] text-zinc-500">{i.partNo || i.code}</div>
+                                                            <div className="font-mono text-xs text-zinc-500">{i.partNo || i.code}</div>
                                                             <div className="font-medium leading-tight">{i.name}</div>
                                                         </td>
                                                         <td className="py-2 px-2 text-right font-mono text-xs whitespace-nowrap">
@@ -191,7 +193,7 @@ export function PurchaseDetailSheet({ row, lookup, onClose }: { row: SparepartRo
                                             ))}
                                         </ol>
                                         {view.parseMethod !== "MANUAL" && (
-                                            <p className="mt-3 text-[11px] text-zinc-400">
+                                            <p className="mt-3 text-xs text-zinc-400">
                                                 Dibaca otomatis{view.parseMs ? ` dalam ${view.parseMs} ms` : ""}{view.parseConfidence != null ? ` · keyakinan ${Math.round(view.parseConfidence * 100)}%` : ""}
                                             </p>
                                         )}
@@ -217,8 +219,8 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
     return (
         <div className="px-5 py-4 border-b border-zinc-200">
             <div className="flex items-baseline justify-between mb-2">
-                <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-500">{title}</h3>
-                {hint && <span className="text-[11px] font-mono text-zinc-400">{hint}</span>}
+                <h3 className="text-xs font-semibold text-zinc-500">{title}</h3>
+                {hint && <span className="text-xs font-mono text-zinc-400">{hint}</span>}
             </div>
             {children}
         </div>

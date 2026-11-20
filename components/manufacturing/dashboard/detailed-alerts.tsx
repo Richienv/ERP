@@ -32,16 +32,16 @@ export function DetailedAlerts() {
 
     return (
         <div className="h-full">
-            <Card className="h-full flex flex-col border border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-xl overflow-hidden bg-white dark:bg-black">
-                <CardHeader className="p-6 border-b border-black bg-zinc-50 dark:bg-zinc-900 flex flex-row items-center justify-between">
+            <Card className="h-full flex flex-col border border-border shadow-sm rounded-xl overflow-hidden bg-white dark:bg-slate-900">
+                <CardHeader className="p-6 border-b border-border bg-zinc-50 dark:bg-zinc-900 flex flex-row items-center justify-between">
                     <div>
-                        <CardTitle className="text-xl font-black uppercase tracking-wider flex items-center gap-2">
+                        <CardTitle className="text-xl font-semibold flex items-center gap-2">
                             <AlertCircle className="h-5 w-5 text-red-600" />
                             Operational Alert Log
                         </CardTitle>
                         <p className="text-sm text-muted-foreground mt-1">Real-time issues requiring intervention.</p>
                     </div>
-                    <Button variant="outline" size="sm" className="border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] bg-white h-8 gap-2">
+                    <Button variant="outline" size="sm" className="border-border shadow-sm bg-white h-8 gap-2">
                         <Filter className="h-4 w-4" /> Filter
                     </Button>
                 </CardHeader>
@@ -59,7 +59,7 @@ export function DetailedAlerts() {
                                             {alert.severity === 'critical' || alert.severity === 'high' ? (
                                                 <Badge variant="destructive" className="rounded-md shadow-sm border border-black/20">{alert.type}</Badge>
                                             ) : (
-                                                <Badge variant="outline" className="border-black text-black bg-white">{alert.type}</Badge>
+                                                <Badge variant="outline" className="border-border text-black bg-white">{alert.type}</Badge>
                                             )}
                                             <span className="text-xs text-muted-foreground font-mono">{alert.time}</span>
                                         </div>
@@ -67,7 +67,7 @@ export function DetailedAlerts() {
                                         <p className="text-sm text-muted-foreground line-clamp-1">{alert.message}</p>
                                     </div>
                                     <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Button size="sm" className="h-8 bg-black text-white hover:bg-zinc-800 shadow-sm text-xs">Resolve</Button>
+                                        <Button size="sm" className="h-8 bg-slate-900 text-white hover:bg-zinc-800 shadow-sm text-xs">Resolve</Button>
                                     </div>
                                 </div>
                             </div>
@@ -78,13 +78,13 @@ export function DetailedAlerts() {
 
             {/* Detail Dialog */}
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogContent className="max-w-md border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] bg-white p-0 overflow-hidden gap-0">
-                    <DialogHeader className="p-6 bg-zinc-50 border-b border-black">
+                <DialogContent className="max-w-md border border-border shadow-sm bg-white p-0 overflow-hidden gap-0">
+                    <DialogHeader className="p-6 bg-zinc-50 border-b border-border">
                         <div className="flex items-center gap-2 mb-2">
                             <Badge variant={selectedAlert?.severity === 'critical' ? 'destructive' : 'outline'} className="rounded-sm shadow-none">{selectedAlert?.type}</Badge>
                             <span className="text-xs font-mono text-muted-foreground">ID: #ALT-{selectedAlert?.id}</span>
                         </div>
-                        <DialogTitle className="text-xl font-black uppercase tracking-tight">{selectedAlert?.title}</DialogTitle>
+                        <DialogTitle className="text-xl font-semibold tracking-tight">{selectedAlert?.title}</DialogTitle>
                         <DialogDescription className="font-medium text-black/70">
                             Occurred {selectedAlert?.time} • Status: {selectedAlert?.status}
                         </DialogDescription>
@@ -93,7 +93,7 @@ export function DetailedAlerts() {
                     <div className="p-6 space-y-6">
                         <div className="space-y-4">
                             <div className="p-4 border border-black/10 rounded-lg bg-zinc-50">
-                                <h4 className="text-sm font-black uppercase tracking-wider mb-2">Issue Description</h4>
+                                <h4 className="text-sm font-semibold mb-2">Issue Description</h4>
                                 <p className="text-sm text-muted-foreground leading-relaxed">
                                     {selectedAlert?.message} {selectedAlert?.details}
                                 </p>
@@ -101,14 +101,14 @@ export function DetailedAlerts() {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="p-3 border border-black/10 rounded-lg bg-zinc-50">
-                                    <span className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Machine Impacted</span>
+                                    <span className="text-xs font-bold text-muted-foreground block mb-1">Machine Impacted</span>
                                     <div className="flex items-center gap-2">
                                         <Factory className="h-4 w-4" />
                                         <span className="font-bold text-sm">{selectedAlert?.machine}</span>
                                     </div>
                                 </div>
                                 <div className="p-3 border border-black/10 rounded-lg bg-zinc-50">
-                                    <span className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Severity</span>
+                                    <span className="text-xs font-bold text-muted-foreground block mb-1">Severity</span>
                                     <div className="flex items-center gap-2">
                                         <AlertCircle className={`h-4 w-4 ${selectedAlert?.severity === 'critical' ? 'text-red-600' : 'text-amber-500'}`} />
                                         <span className={`font-bold text-sm capitalize ${selectedAlert?.severity === 'critical' ? 'text-red-700' : ''}`}>{selectedAlert?.severity}</span>
@@ -118,9 +118,9 @@ export function DetailedAlerts() {
                         </div>
                     </div>
 
-                    <DialogFooter className="p-6 bg-zinc-50 border-t border-black gap-2">
-                        <Button variant="outline" onClick={() => setIsOpen(false)} className="flex-1 border-black font-bold">Close</Button>
-                        <Button className="flex-1 bg-black text-white hover:bg-zinc-800 border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none font-bold">
+                    <DialogFooter className="p-6 bg-zinc-50 border-t border-border gap-2">
+                        <Button variant="outline" onClick={() => setIsOpen(false)} className="flex-1 border-border font-bold">Close</Button>
+                        <Button className="flex-1 bg-slate-900 text-white hover:bg-zinc-800 border border-border shadow-sm active:shadow-none font-bold">
                             Resolve Issue
                         </Button>
                     </DialogFooter>

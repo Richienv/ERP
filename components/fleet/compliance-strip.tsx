@@ -22,7 +22,7 @@ export function VehicleComplianceStrip({
     const docs = vehicleDocStatuses({ stnkExpiry, kirExpiry, insuranceExpiry })
     const worst = worstBucket(docs)
     const accent = worst === "OVERDUE" ? "bg-red-500"
-        : worst === "DUE_SOON" ? "bg-orange-500"
+        : worst === "DUE_SOON" ? "bg-blue-500"
         : worst === "MISSING" ? "bg-zinc-400"
         : "bg-emerald-500"
 
@@ -31,8 +31,8 @@ export function VehicleComplianceStrip({
             <div className={`h-1 ${accent}`} />
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-200">
                 <div>
-                    <h2 className="text-xs font-black uppercase tracking-widest text-zinc-600">Kepatuhan dokumen</h2>
-                    <p className="text-[11px] text-zinc-500">Hari tersisa dan jatuh tempo STNK / KIR / asuransi — bukan hanya kapitalisasi aset</p>
+                    <h2 className="text-xs font-semibold text-zinc-600">Kepatuhan dokumen</h2>
+                    <p className="text-xs text-zinc-500">Hari tersisa dan jatuh tempo STNK / KIR / asuransi — bukan hanya kapitalisasi aset</p>
                 </div>
                 <Link
                     href={`/fleet/${vehicleId}?edit=1`}
@@ -68,9 +68,9 @@ function DocCell({ doc }: { doc: DocStatus }) {
             <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
                     <Icon className={`w-3.5 h-3.5 ${tone.icon}`} />
-                    <span className="text-xs uppercase tracking-wider font-bold text-zinc-600">{doc.label}</span>
+                    <span className="text-xs font-bold text-zinc-600">{doc.label}</span>
                 </div>
-                <div className={`text-sm font-black mt-1 ${tone.text}`}>
+                <div className={`text-sm font-semibold mt-1 ${tone.text}`}>
                     {formatDaysRemaining(doc.daysRemaining)}
                 </div>
                 <div className="text-xs font-mono font-bold text-zinc-500 mt-0.5">
@@ -83,7 +83,7 @@ function DocCell({ doc }: { doc: DocStatus }) {
 
 function cellTone(bucket: DocStatus["bucket"]) {
     if (bucket === "OVERDUE") return { icon: "text-red-600", text: "text-red-600" }
-    if (bucket === "DUE_SOON") return { icon: "text-orange-500", text: "text-orange-700" }
+    if (bucket === "DUE_SOON") return { icon: "text-blue-500", text: "text-blue-700" }
     if (bucket === "MISSING") return { icon: "text-zinc-400", text: "text-zinc-500" }
     return { icon: "text-emerald-600", text: "text-emerald-700" }
 }

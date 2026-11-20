@@ -140,28 +140,28 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors, initialOrder 
                             <div className="border border-zinc-200 dark:border-zinc-700 p-3">
                                 <div className="flex items-center gap-1.5 mb-1">
                                     <Hash className="h-3 w-3 text-zinc-400" />
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">No. PO</span>
+                                    <span className="text-xs font-semibold text-zinc-400">No. PO</span>
                                 </div>
-                                <span className="text-sm font-black font-mono">{displayNumber}</span>
+                                <span className="text-sm font-semibold font-mono">{displayNumber}</span>
                             </div>
                             <div className="border border-zinc-200 dark:border-zinc-700 p-3">
                                 <div className="flex items-center gap-1.5 mb-1">
                                     <Calendar className="h-3 w-3 text-zinc-400" />
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Tanggal</span>
+                                    <span className="text-xs font-semibold text-zinc-400">Tanggal</span>
                                 </div>
                                 <span className="text-sm font-bold">{displayDate}</span>
                             </div>
                             <div className="border border-zinc-200 dark:border-zinc-700 p-3">
                                 <div className="flex items-center gap-1.5 mb-1">
                                     <User className="h-3 w-3 text-zinc-400" />
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Pemohon</span>
+                                    <span className="text-xs font-semibold text-zinc-400">Pemohon</span>
                                 </div>
                                 <span className="text-sm font-bold">{displayRequester}</span>
                             </div>
                             <div className="border border-zinc-200 dark:border-zinc-700 p-3">
                                 <div className="flex items-center gap-1.5 mb-1">
                                     <ShieldCheck className="h-3 w-3 text-zinc-400" />
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Disetujui</span>
+                                    <span className="text-xs font-semibold text-zinc-400">Disetujui</span>
                                 </div>
                                 <span className="text-sm font-bold">{displayApprover}</span>
                             </div>
@@ -185,13 +185,13 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors, initialOrder 
                                     disabled={processing}
                                 />
                                 {!selectedVendor && (
-                                    <p className="text-[10px] text-red-500 font-bold mt-1.5 flex items-center gap-1">
+                                    <p className="text-xs text-red-500 font-bold mt-1.5 flex items-center gap-1">
                                         <AlertTriangle className="h-3 w-3" /> Wajib memilih vendor
                                     </p>
                                 )}
                             </div>
                             <div>
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                                <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1 block">
                                     Pajak
                                 </label>
                                 <div className="border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2 font-bold text-sm h-8 flex items-center">
@@ -206,7 +206,7 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors, initialOrder 
                         {loadingItems && !poData ? (
                             <div className="border border-zinc-200 dark:border-zinc-700 overflow-hidden">
                                 <div className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700">
-                                    <div className="grid grid-cols-12 gap-0 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                    <div className="grid grid-cols-12 gap-0 text-xs font-semibold text-zinc-500">
                                         <div className="col-span-5 px-4 py-2.5 border-r border-zinc-200 dark:border-zinc-700">Item</div>
                                         <div className="col-span-2 px-4 py-2.5 text-right border-r border-zinc-200 dark:border-zinc-700">Qty</div>
                                         <div className="col-span-2 px-4 py-2.5 text-right border-r border-zinc-200 dark:border-zinc-700">Harga Satuan</div>
@@ -225,7 +225,7 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors, initialOrder 
                         ) : poData?.items ? (
                             <div className="border border-zinc-200 dark:border-zinc-700 overflow-hidden">
                                 <div className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700">
-                                    <div className="grid grid-cols-12 gap-0 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                    <div className="grid grid-cols-12 gap-0 text-xs font-semibold text-zinc-500">
                                         <div className="col-span-5 px-4 py-2.5 border-r border-zinc-200 dark:border-zinc-700">Item</div>
                                         <div className="col-span-2 px-4 py-2.5 text-right border-r border-zinc-200 dark:border-zinc-700">Qty</div>
                                         <div className="col-span-2 px-4 py-2.5 text-right border-r border-zinc-200 dark:border-zinc-700">Harga Satuan</div>
@@ -238,16 +238,16 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors, initialOrder 
                                             <Package className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
                                             <div>
                                                 <span className="font-bold text-sm">{item.productName}</span>
-                                                <span className="text-[10px] text-zinc-400 font-mono ml-2">{item.productCode}</span>
+                                                <span className="text-xs text-zinc-400 font-mono ml-2">{item.productCode}</span>
                                             </div>
                                         </div>
                                         <div className="col-span-2 px-4 py-3 text-right font-mono font-bold text-sm self-center">
-                                            {item.quantity} <span className="text-[10px] text-zinc-400">{item.unit}</span>
+                                            {item.quantity} <span className="text-xs text-zinc-400">{item.unit}</span>
                                         </div>
                                         <div className="col-span-2 px-4 py-3 text-right font-mono text-sm text-zinc-600 self-center">
                                             {formatIDR(item.unitPrice)}
                                         </div>
-                                        <div className="col-span-3 px-4 py-3 text-right font-black text-sm self-center">
+                                        <div className="col-span-3 px-4 py-3 text-right font-semibold text-sm self-center">
                                             {formatIDR(item.totalPrice)}
                                         </div>
                                     </div>
@@ -255,16 +255,16 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors, initialOrder 
                                 {/* Totals */}
                                 <div className="border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
                                     <div className="grid grid-cols-12 gap-0">
-                                        <div className="col-span-9 px-4 py-2 text-right text-xs text-zinc-500 font-bold uppercase">Subtotal</div>
+                                        <div className="col-span-9 px-4 py-2 text-right text-xs text-zinc-500 font-bold ">Subtotal</div>
                                         <div className="col-span-3 px-4 py-2 text-right font-mono text-sm">{formatIDR(subtotal)}</div>
                                     </div>
                                     <div className="grid grid-cols-12 gap-0 border-t border-zinc-200 dark:border-zinc-700">
-                                        <div className="col-span-9 px-4 py-2 text-right text-xs text-zinc-500 font-bold uppercase">PPN 11%</div>
+                                        <div className="col-span-9 px-4 py-2 text-right text-xs text-zinc-500 font-bold ">PPN 11%</div>
                                         <div className="col-span-3 px-4 py-2 text-right font-mono text-sm">{formatIDR(tax)}</div>
                                     </div>
-                                    <div className="grid grid-cols-12 gap-0 border-t-2 border-black dark:border-white">
-                                        <div className="col-span-9 px-4 py-3 text-right text-sm font-black uppercase">Grand Total</div>
-                                        <div className="col-span-3 px-4 py-3 text-right font-black text-base">{formatIDR(total)}</div>
+                                    <div className="grid grid-cols-12 gap-0 border-t border-border dark:border-white">
+                                        <div className="col-span-9 px-4 py-3 text-right text-sm font-semibold ">Grand Total</div>
+                                        <div className="col-span-3 px-4 py-3 text-right font-semibold text-base">{formatIDR(total)}</div>
                                     </div>
                                 </div>
                             </div>
@@ -281,14 +281,14 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors, initialOrder 
                     variant="outline"
                     onClick={onClose}
                     disabled={processing}
-                    className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none disabled:opacity-50"
+                    className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold text-xs px-4 h-8 rounded-md disabled:opacity-50"
                 >
                     Batal
                 </Button>
                 <Button
                     onClick={handleConfirm}
                     disabled={!poData || processing || !selectedVendor}
-                    className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none gap-1.5 disabled:opacity-50 transition-colors"
+                    className="bg-slate-900 text-white border border-border hover:bg-zinc-800 font-semibold text-xs px-5 h-8 rounded-md gap-1.5 disabled:opacity-50 transition-colors"
                 >
                     {processing ? (
                         <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Memproses...</>

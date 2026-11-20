@@ -57,7 +57,7 @@ export function VendorHistoryDialog({ vendorId, vendorName, trigger }: VendorHis
         <>
             <span onClick={() => setOpen(true)}>
                 {trigger || (
-                    <Button variant="outline" className="flex-1 border-black font-bold uppercase text-xs shadow-sm hover:shadow-none bg-white">
+                    <Button variant="outline" className="flex-1 border-border font-bold text-xs shadow-sm hover:shadow-none bg-white">
                         History
                     </Button>
                 )}
@@ -86,7 +86,7 @@ export function VendorHistoryDialog({ vendorId, vendorName, trigger }: VendorHis
                                         <div className="space-y-1">
                                             <div className="flex items-center gap-2">
                                                 <span className="font-mono font-bold text-sm bg-zinc-100 px-2 py-0.5 rounded">{po.number}</span>
-                                                <Badge variant="outline" className={`text-[10px] font-bold uppercase border ${getStatusColor(po.status)}`}>
+                                                <Badge variant="outline" className={`text-xs font-bold border ${getStatusColor(po.status)}`}>
                                                     {po.status}
                                                 </Badge>
                                             </div>
@@ -95,7 +95,7 @@ export function VendorHistoryDialog({ vendorId, vendorName, trigger }: VendorHis
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <div className="font-black text-lg">
+                                            <div className="font-semibold text-lg">
                                                 {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(po.totalAmount)}
                                             </div>
                                             <div className="text-xs text-muted-foreground">

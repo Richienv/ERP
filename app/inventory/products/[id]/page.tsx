@@ -150,7 +150,7 @@ export default function ProductDetailPage() {
     return (
       <div className="mf-page">
         <div className="flex items-center space-x-4">
-          <Button variant="outline" size="icon" asChild className="border-2 border-black">
+          <Button variant="outline" size="icon" asChild className="border border-border">
             <Link href="/inventory/products">
               <ArrowLeft className="h-4 w-4" />
             </Link>
@@ -202,7 +202,7 @@ export default function ProductDetailPage() {
   const getStockStatus = () => {
     if (totalAvailable === 0) return { status: "Habis Stok", color: "text-red-600" }
     if (totalAvailable <= product.reorderLevel) return { status: "Perlu Restok", color: "text-yellow-600" }
-    if (totalAvailable <= product.minStock) return { status: "Stok Menipis", color: "text-orange-600" }
+    if (totalAvailable <= product.minStock) return { status: "Stok Menipis", color: "text-blue-600" }
     return { status: "Stok Normal", color: "text-green-600" }
   }
 
@@ -268,7 +268,7 @@ export default function ProductDetailPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <Button variant="outline" size="icon" asChild className="border-2 border-black">
+          <Button variant="outline" size="icon" asChild className="border border-border">
             <Link href="/inventory/products">
               <ArrowLeft className="h-4 w-4" />
             </Link>
@@ -287,7 +287,7 @@ export default function ProductDetailPage() {
           {!isEditing && (
             <Button
               variant="outline"
-              className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-bold text-xs"
+              className="border border-border shadow-sm hover:shadow-sm transition-all font-bold text-xs"
               onClick={startEditing}
             >
               <Pencil className="h-4 w-4 mr-2" />
@@ -296,7 +296,7 @@ export default function ProductDetailPage() {
           )}
           <Button
             variant="outline"
-            className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-bold text-xs"
+            className="border border-border shadow-sm hover:shadow-sm transition-all font-bold text-xs"
             onClick={() => setBarcodeLabelOpen(true)}
           >
             <Printer className="h-4 w-4 mr-2" />
@@ -304,7 +304,7 @@ export default function ProductDetailPage() {
           </Button>
           <Button
             variant="outline"
-            className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-bold text-xs"
+            className="border border-border shadow-sm hover:shadow-sm transition-all font-bold text-xs"
             onClick={() => setAdjustmentOpen(true)}
           >
             <ClipboardEdit className="h-4 w-4 mr-2" />
@@ -315,7 +315,7 @@ export default function ProductDetailPage() {
 
       {/* Quick Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <Card className="border border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Stok</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
@@ -328,7 +328,7 @@ export default function ProductDetailPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <Card className="border border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Stok Tersedia</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
@@ -341,7 +341,7 @@ export default function ProductDetailPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <Card className="border border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Nilai Total</CardTitle>
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
@@ -354,7 +354,7 @@ export default function ProductDetailPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <Card className="border border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Lokasi</CardTitle>
             <Warehouse className="h-4 w-4 text-muted-foreground" />
@@ -380,7 +380,7 @@ export default function ProductDetailPage() {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              className={`py-2 px-1 border-b font-medium text-sm ${
                 activeTab === tab.key
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
@@ -396,7 +396,7 @@ export default function ProductDetailPage() {
       {activeTab === "overview" && !isEditing && (
         <div className="grid gap-6 md:grid-cols-2">
           {/* Product Information */}
-          <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <Card className="border border-border shadow-sm">
             <CardHeader>
               <CardTitle>Informasi Produk</CardTitle>
             </CardHeader>
@@ -456,7 +456,7 @@ export default function ProductDetailPage() {
           </Card>
 
           {/* Pricing & Stock Settings */}
-          <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <Card className="border border-border shadow-sm">
             <CardHeader>
               <CardTitle>Harga & Pengaturan Stok</CardTitle>
             </CardHeader>
@@ -518,7 +518,7 @@ export default function ProductDetailPage() {
       {activeTab === "overview" && isEditing && (
         <div className="grid gap-6 md:grid-cols-2">
           {/* Product Information - Editable */}
-          <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <Card className="border border-border shadow-sm">
             <CardHeader>
               <CardTitle>Informasi Produk</CardTitle>
             </CardHeader>
@@ -531,7 +531,7 @@ export default function ProductDetailPage() {
               <div>
                 <label className="text-sm text-muted-foreground mb-1 block">Nama Produk</label>
                 <Input
-                  className="border-2 border-black rounded-none font-bold"
+                  className="border border-border rounded-md font-bold"
                   value={editForm.name}
                   onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
                   placeholder="Nama..."
@@ -541,7 +541,7 @@ export default function ProductDetailPage() {
               <div>
                 <label className="text-sm text-muted-foreground mb-1 block">Deskripsi</label>
                 <Textarea
-                  className="border-2 border-black rounded-none font-bold resize-none"
+                  className="border border-border rounded-md font-bold resize-none"
                   value={editForm.description}
                   onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
                   placeholder="Deskripsi..."
@@ -555,7 +555,7 @@ export default function ProductDetailPage() {
                   value={editForm.unit}
                   onValueChange={(val) => setEditForm((f) => ({ ...f, unit: val }))}
                 >
-                  <SelectTrigger className="border-2 border-black rounded-none font-bold">
+                  <SelectTrigger className="border border-border rounded-md font-bold">
                     <SelectValue placeholder="Pilih satuan..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -571,7 +571,7 @@ export default function ProductDetailPage() {
           </Card>
 
           {/* Pricing & Stock Settings - Editable */}
-          <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <Card className="border border-border shadow-sm">
             <CardHeader>
               <CardTitle>Harga & Pengaturan Stok</CardTitle>
             </CardHeader>
@@ -580,7 +580,7 @@ export default function ProductDetailPage() {
                 <label className="text-sm text-muted-foreground mb-1 block">Harga Pokok Penjualan (HPP)</label>
                 <Input
                   type="number"
-                  className="border-2 border-black rounded-none font-bold"
+                  className="border border-border rounded-md font-bold"
                   value={editForm.costPrice}
                   onChange={(e) => setEditForm((f) => ({ ...f, costPrice: e.target.value }))}
                   placeholder="0"
@@ -591,7 +591,7 @@ export default function ProductDetailPage() {
                 <label className="text-sm text-muted-foreground mb-1 block">Harga Jual <span className="text-zinc-400 font-normal">(opsional)</span></label>
                 <Input
                   type="number"
-                  className="border-2 border-black rounded-none font-bold"
+                  className="border border-border rounded-md font-bold"
                   value={editForm.sellingPrice}
                   onChange={(e) => setEditForm((f) => ({ ...f, sellingPrice: e.target.value }))}
                   placeholder="Kosongkan jika belum ditentukan"
@@ -604,7 +604,7 @@ export default function ProductDetailPage() {
                   <label className="text-sm text-muted-foreground mb-1 block">Stok Min</label>
                   <Input
                     type="number"
-                    className="border-2 border-black rounded-none font-bold"
+                    className="border border-border rounded-md font-bold"
                     value={editForm.minStock}
                     onChange={(e) => setEditForm((f) => ({ ...f, minStock: e.target.value }))}
                     placeholder="0"
@@ -614,7 +614,7 @@ export default function ProductDetailPage() {
                   <label className="text-sm text-muted-foreground mb-1 block">Stok Max</label>
                   <Input
                     type="number"
-                    className="border-2 border-black rounded-none font-bold"
+                    className="border border-border rounded-md font-bold"
                     value={editForm.maxStock}
                     onChange={(e) => setEditForm((f) => ({ ...f, maxStock: e.target.value }))}
                     placeholder="0"
@@ -624,7 +624,7 @@ export default function ProductDetailPage() {
                   <label className="text-sm text-muted-foreground mb-1 block">Reorder Point</label>
                   <Input
                     type="number"
-                    className="border-2 border-black rounded-none font-bold"
+                    className="border border-border rounded-md font-bold"
                     value={editForm.reorderLevel}
                     onChange={(e) => setEditForm((f) => ({ ...f, reorderLevel: e.target.value }))}
                     placeholder="0"
@@ -649,7 +649,7 @@ export default function ProductDetailPage() {
           <div className="md:col-span-2 flex items-center justify-end gap-3">
             <Button
               variant="outline"
-              className="border-2 border-black rounded-none font-bold text-xs uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+              className="border border-border rounded-md font-bold text-xs shadow-sm hover:shadow-sm transition-all"
               onClick={cancelEditing}
               disabled={isSaving}
             >
@@ -657,7 +657,7 @@ export default function ProductDetailPage() {
               Batal
             </Button>
             <Button
-              className="bg-black text-white border-2 border-black rounded-none font-black text-xs uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+              className="bg-slate-900 text-white border border-border rounded-md font-semibold text-xs shadow-sm hover:shadow-sm transition-all"
               onClick={handleSave}
               disabled={isSaving || !editForm.name.trim()}
             >
@@ -673,7 +673,7 @@ export default function ProductDetailPage() {
       )}
 
       {activeTab === "stock" && (
-        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <Card className="border border-border shadow-sm">
           <CardHeader>
             <CardTitle>Lokasi Penyimpanan Stok</CardTitle>
             <CardDescription>
@@ -716,7 +716,7 @@ export default function ProductDetailPage() {
       )}
 
       {activeTab === "movements" && (
-        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <Card className="border border-border shadow-sm">
           <CardHeader>
             <CardTitle>Riwayat Pergerakan Stok</CardTitle>
             <CardDescription>

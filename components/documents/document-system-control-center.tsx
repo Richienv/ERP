@@ -830,7 +830,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
         <div className="space-y-6 p-4 md:p-8">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h1 className="text-3xl font-black tracking-tight">Dokumen & Sistem Control Center</h1>
+                    <h1 className="text-3xl font-semibold tracking-tight">Dokumen & Sistem Control Center</h1>
                     <p className="text-muted-foreground">
                         Satu pusat data master, modul, role, dan dokumen operasional lintas ERP.
                     </p>
@@ -850,7 +850,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                         <CardDescription>Terhubung ke produk & inventori</CardDescription>
                     </CardHeader>
                     <CardContent className="flex items-end justify-between">
-                        <div className="text-2xl font-black">{data.categories.length}</div>
+                        <div className="text-2xl font-semibold">{data.categories.length}</div>
                         <FolderKanban className="h-5 w-5 text-blue-600" />
                     </CardContent>
                 </Card>
@@ -860,7 +860,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                         <CardDescription>Sumber stock & receiving</CardDescription>
                     </CardHeader>
                     <CardContent className="flex items-end justify-between">
-                        <div className="text-2xl font-black">{data.warehouses.filter((item) => item.isActive).length}</div>
+                        <div className="text-2xl font-semibold">{data.warehouses.filter((item) => item.isActive).length}</div>
                         <Warehouse className="h-5 w-5 text-emerald-600" />
                     </CardContent>
                 </Card>
@@ -870,7 +870,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                         <CardDescription>Kontrol akses modul</CardDescription>
                     </CardHeader>
                     <CardContent className="flex items-end justify-between">
-                        <div className="text-2xl font-black">{data.roles.length}</div>
+                        <div className="text-2xl font-semibold">{data.roles.length}</div>
                         <ShieldCheck className="h-5 w-5 text-amber-600" />
                     </CardContent>
                 </Card>
@@ -880,7 +880,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                         <CardDescription>PO, Invoice, GRN, Payroll</CardDescription>
                     </CardHeader>
                     <CardContent className="flex items-end justify-between">
-                        <div className="text-2xl font-black">{totalDocumentCount}</div>
+                        <div className="text-2xl font-semibold">{totalDocumentCount}</div>
                         <FileText className="h-5 w-5 text-violet-600" />
                     </CardContent>
                 </Card>
@@ -1078,7 +1078,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                             <TableCell>
                                                 <div className="flex flex-wrap gap-1">
                                                     {role.permissions.slice(0, 4).map((permission) => (
-                                                        <Badge key={permission} variant="outline" className="font-mono text-[10px]">
+                                                        <Badge key={permission} variant="outline" className="font-mono text-xs">
                                                             {permission}
                                                         </Badge>
                                                     ))}
@@ -1215,7 +1215,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                                 {event.changedPermissions.length > 0 ? (
                                                     <div className="flex flex-wrap gap-1">
                                                         {event.changedPermissions.slice(0, 6).map((permission) => (
-                                                            <Badge key={`${event.id}-${permission}`} variant="outline" className="font-mono text-[10px]">
+                                                            <Badge key={`${event.id}-${permission}`} variant="outline" className="font-mono text-xs">
                                                                 {permission}
                                                             </Badge>
                                                         ))}
@@ -1284,25 +1284,25 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-sm">Purchase Order PDF</CardTitle>
                             </CardHeader>
-                            <CardContent className="text-2xl font-black">{data.documentsMeta.purchaseOrders.total}</CardContent>
+                            <CardContent className="text-2xl font-semibold">{data.documentsMeta.purchaseOrders.total}</CardContent>
                         </Card>
                         <Card>
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-sm">Invoice Documents</CardTitle>
                             </CardHeader>
-                            <CardContent className="text-2xl font-black">{data.documentsMeta.invoices.total}</CardContent>
+                            <CardContent className="text-2xl font-semibold">{data.documentsMeta.invoices.total}</CardContent>
                         </Card>
                         <Card>
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-sm">GRN Records</CardTitle>
                             </CardHeader>
-                            <CardContent className="text-2xl font-black">{data.documentsMeta.goodsReceipts.total}</CardContent>
+                            <CardContent className="text-2xl font-semibold">{data.documentsMeta.goodsReceipts.total}</CardContent>
                         </Card>
                         <Card>
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-sm">Payroll PDFs</CardTitle>
                             </CardHeader>
-                            <CardContent className="text-2xl font-black">{data.documentsMeta.payrollRuns.total}</CardContent>
+                            <CardContent className="text-2xl font-semibold">{data.documentsMeta.payrollRuns.total}</CardContent>
                         </Card>
                     </div>
 

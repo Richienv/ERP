@@ -110,7 +110,7 @@ export function ShortcutCheatSheet() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent
-        className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-none sm:max-w-md"
+        className="border border-border shadow-sm rounded-md sm:max-w-md"
       >
         <DialogHeader>
           <DialogTitle className="text-lg font-bold">
@@ -123,7 +123,7 @@ export function ShortcutCheatSheet() {
         <div className="space-y-5 mt-2">
           {SHORTCUT_GROUPS.map((group) => (
             <div key={group.title}>
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+              <h3 className="text-sm font-semibold text-muted-foreground mb-2">
                 {group.title}
               </h3>
               <div className="space-y-2">
@@ -145,7 +145,7 @@ export function ShortcutCheatSheet() {
                         ) : (
                           <kbd
                             key={`${shortcut.description}-key-${i}`}
-                            className="inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 text-xs font-mono font-medium border-2 border-black bg-zinc-100 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] rounded-none"
+                            className="inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 text-xs font-mono font-medium border border-border bg-zinc-100 shadow-sm rounded-md"
                           >
                             {key}
                           </kbd>

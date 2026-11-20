@@ -1026,7 +1026,7 @@ function BOMCanvasPageInner({ id }: { id: string }) {
     }
 
     if (isLoading) {
-        return <TablePageSkeleton accentColor="bg-orange-400" />
+        return <TablePageSkeleton accentColor="bg-blue-400" />
     }
 
     if (!bom) {
@@ -1036,7 +1036,7 @@ function BOMCanvasPageInner({ id }: { id: string }) {
     return (
         <div className="flex flex-col overflow-hidden -mx-4 -mb-4 h-[calc(100svh-4rem)]">
             {/* ═══ TOOLBAR — Row 1: Command Bar ═══ */}
-            <div className="border-b-2 border-black bg-white px-6 py-3 flex items-center justify-between shrink-0 gap-6">
+            <div className="border-b border-border bg-white px-6 py-3 flex items-center justify-between shrink-0 gap-6">
                 {/* Left: Back + Product info + Version + Target */}
                 <div className="flex items-center gap-4 min-w-0">
                     <button
@@ -1046,45 +1046,45 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                             }
                             router.push("/manufacturing/bom")
                         }}
-                        className="p-2 border-2 border-black hover:bg-zinc-100 transition-colors shrink-0"
+                        className="p-2 border border-border hover:bg-zinc-100 transition-colors shrink-0"
                     >
                         <ArrowLeft className="h-4 w-4" />
                     </button>
                     <div className="min-w-0">
                         <div className="flex items-center gap-2.5">
-                            <Package className="h-4 w-4 text-orange-500 shrink-0" />
-                            <span className="font-black text-sm uppercase truncate">{bom.product?.name}</span>
-                            <span className="bg-orange-500 text-white text-[10px] font-black px-2.5 py-0.5 shrink-0 border border-orange-600">{bom.version}</span>
+                            <Package className="h-4 w-4 text-blue-500 shrink-0" />
+                            <span className="font-semibold text-sm truncate">{bom.product?.name}</span>
+                            <span className="bg-blue-500 text-white text-xs font-semibold px-2.5 py-0.5 shrink-0 border border-blue-600">{bom.version}</span>
                             {isDirty && <span className="w-2 h-2 bg-amber-400 rounded-full shrink-0" title="Ada perubahan belum disimpan" />}
                         </div>
-                        <p className="text-[10px] font-mono text-zinc-400 truncate mt-0.5">{bom.product?.code}</p>
+                        <p className="text-xs font-mono text-zinc-400 truncate mt-0.5">{bom.product?.code}</p>
                     </div>
 
-                    <div className="border-l-2 border-zinc-200 pl-4 flex items-center gap-2.5 shrink-0">
-                        <span className="text-[10px] font-black uppercase text-zinc-400">Target</span>
+                    <div className="border-l border-zinc-200 pl-4 flex items-center gap-2.5 shrink-0">
+                        <span className="text-xs font-semibold text-zinc-400">Target</span>
                         <Input
                             type="number"
                             value={totalQty}
                             onChange={(e) => dirtySetTotalQty(parseInt(e.target.value) || 0)}
-                            className="h-8 w-24 text-xs font-mono font-bold border-2 border-zinc-300 rounded-none hover:border-black transition-colors focus:border-black"
+                            className="h-8 w-24 text-xs font-mono font-bold border border-zinc-300 rounded-md hover:border-border transition-colors focus:border-border"
                         />
-                        <span className="text-[10px] font-bold text-zinc-400">pcs</span>
+                        <span className="text-xs font-bold text-zinc-400">pcs</span>
                     </div>
                 </div>
 
                 {/* Right: Actions */}
                 <div className="flex items-center gap-2.5 shrink-0">
                     {/* View Toggle */}
-                    <div className="flex border-2 border-black overflow-hidden">
+                    <div className="flex border border-border overflow-hidden">
                         <button
                             onClick={() => setViewMode("canvas")}
-                            className={`px-3 py-1.5 text-[10px] font-black uppercase transition-colors ${viewMode === "canvas" ? "bg-black text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"}`}
+                            className={`px-3 py-1.5 text-xs font-semibold  transition-colors ${viewMode === "canvas" ? "bg-slate-900 text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"}`}
                         >
                             Canvas
                         </button>
                         <button
                             onClick={() => setViewMode("timeline")}
-                            className={`px-3 py-1.5 text-[10px] font-black uppercase border-l-2 border-black transition-colors ${viewMode === "timeline" ? "bg-black text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"}`}
+                            className={`px-3 py-1.5 text-xs font-semibold  border-l border-border transition-colors ${viewMode === "timeline" ? "bg-slate-900 text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"}`}
                         >
                             Timeline
                         </button>
@@ -1092,7 +1092,7 @@ function BOMCanvasPageInner({ id }: { id: string }) {
 
                     <button
                         onClick={() => setHistoryOpen(true)}
-                        className="h-9 px-3 border-2 border-black text-[10px] font-black uppercase flex items-center gap-1.5 hover:bg-zinc-50 transition-colors"
+                        className="h-9 px-3 border border-border text-xs font-semibold flex items-center gap-1.5 hover:bg-zinc-50 transition-colors"
                         title="Riwayat Edit"
                     >
                         <History className="h-3.5 w-3.5" />
@@ -1100,14 +1100,14 @@ function BOMCanvasPageInner({ id }: { id: string }) {
 
                     <button
                         onClick={() => setAddStationDialogOpen(true)}
-                        className="h-9 px-3 border-2 border-black text-[10px] font-black uppercase flex items-center gap-1.5 hover:bg-zinc-50 transition-colors"
+                        className="h-9 px-3 border border-border text-xs font-semibold flex items-center gap-1.5 hover:bg-zinc-50 transition-colors"
                     >
                         <Plus className="h-3.5 w-3.5" /> Kustom
                     </button>
 
                     <button
                         onClick={() => window.open(`/api/manufacturing/production-bom/${id}/pdf`, "_blank")}
-                        className="h-9 px-3 border-2 border-black text-[10px] font-black uppercase flex items-center gap-1.5 hover:bg-zinc-50 transition-colors"
+                        className="h-9 px-3 border border-border text-xs font-semibold flex items-center gap-1.5 hover:bg-zinc-50 transition-colors"
                     >
                         <FileDown className="h-3.5 w-3.5" /> PDF
                     </button>
@@ -1117,7 +1117,7 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                             onClick={handleResetSPK}
                             disabled={resettingSPK}
                             title="Hapus work order yang belum berjalan dan buat ulang SPK"
-                            className="h-9 px-4 border-2 border-amber-500 text-amber-600 text-[10px] font-black uppercase flex items-center gap-1.5 hover:bg-amber-50 transition-colors disabled:opacity-40"
+                            className="h-9 px-4 border border-amber-500 text-amber-600 text-xs font-semibold flex items-center gap-1.5 hover:bg-amber-50 transition-colors disabled:opacity-40"
                         >
                             {resettingSPK ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
                             Reset SPK
@@ -1127,15 +1127,15 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                             onClick={handleGenerateSPK}
                             disabled={generating || !spkReadiness.ready}
                             title={spkReadiness.ready ? "Semua siap — klik untuk generate SPK" : `Belum siap:\n${spkReadiness.issues.join('\n')}`}
-                            className={`h-9 px-4 border-2 text-[10px] font-black uppercase flex items-center gap-1.5 transition-colors disabled:opacity-40 ${spkReadiness.ready
-                                    ? "border-orange-500 text-orange-600 hover:bg-orange-50"
+                            className={`h-9 px-4 border text-xs font-semibold  flex items-center gap-1.5 transition-colors disabled:opacity-40 ${spkReadiness.ready
+                                    ? "border-blue-500 text-blue-600 hover:bg-blue-50"
                                     : "border-zinc-300 text-zinc-400"
                                 }`}
                         >
                             {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
                             SPK
                             {!spkReadiness.ready && steps.length > 0 && (
-                                <span className="bg-red-500 text-white text-[8px] font-black rounded-full h-4 w-4 flex items-center justify-center">
+                                <span className="bg-red-500 text-white text-xs font-semibold rounded-full h-4 w-4 flex items-center justify-center">
                                     {spkReadiness.issues.length}
                                 </span>
                             )}
@@ -1143,20 +1143,20 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                     )}
 
                     {/* Save + Save As group */}
-                    <div className="flex border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] overflow-hidden ml-1">
+                    <div className="flex border border-border shadow-sm overflow-hidden ml-1">
                         <button
                             onClick={handleSave}
                             disabled={saving}
-                            className="h-9 px-5 bg-black text-white text-[10px] font-black uppercase flex items-center gap-1.5 hover:bg-zinc-800 transition-colors disabled:opacity-50"
+                            className="h-9 px-5 bg-slate-900 text-white text-xs font-semibold flex items-center gap-1.5 hover:bg-zinc-800 transition-colors disabled:opacity-50"
                         >
                             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                             Simpan
-                            {isDirty && !saving && <span className="w-2 h-2 rounded-full bg-orange-400 ml-0.5" />}
+                            {isDirty && !saving && <span className="w-2 h-2 rounded-full bg-blue-400 ml-0.5" />}
                         </button>
                         <button
                             onClick={() => setShowSaveAsConfirm(true)}
                             disabled={savingAs}
-                            className="h-9 px-3 bg-zinc-800 text-white text-[10px] font-black uppercase flex items-center gap-1.5 border-l border-zinc-600 hover:bg-zinc-700 transition-colors disabled:opacity-50"
+                            className="h-9 px-3 bg-zinc-800 text-white text-xs font-semibold flex items-center gap-1.5 border-l border-zinc-600 hover:bg-zinc-700 transition-colors disabled:opacity-50"
                             title="Simpan sebagai versi baru"
                         >
                             {savingAs ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FilePlus2 className="h-3.5 w-3.5" />}
@@ -1167,7 +1167,7 @@ function BOMCanvasPageInner({ id }: { id: string }) {
 
             {/* ═══ TOOLBAR — Row 2: Process Palette ═══ */}
             <div className="border-b border-zinc-200 bg-zinc-50 px-6 py-2.5 flex items-center gap-2 shrink-0 overflow-x-auto">
-                <span className="text-[10px] font-black uppercase text-zinc-400 mr-2 shrink-0">Proses</span>
+                <span className="text-xs font-semibold text-zinc-400 mr-2 shrink-0">Proses</span>
                 {dynamicProcessTypes.map((cfg) => {
                     const Icon = cfg.icon
                     const isCreating = creatingStationType === cfg.type
@@ -1189,38 +1189,38 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                                 <button
                                     disabled={isCreating}
                                     onClick={() => handleQuickAddByType(cfg.type, cfg.description)}
-                                    className={`h-8 px-3 text-[10px] font-black uppercase flex items-center gap-1.5 border-2 border-black hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-40 shrink-0 ${cfg.color}`}
+                                    className={`h-8 px-3 text-xs font-semibold flex items-center gap-1.5 border border-border hover:shadow-sm transition-all disabled:opacity-40 shrink-0 ${cfg.color}`}
                                 >
                                     {isCreating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}
                                     {cfg.label}
-                                    {totalCount > 1 && <span className="text-[8px] opacity-60">({totalCount})</span>}
+                                    {totalCount > 1 && <span className="text-xs opacity-60">({totalCount})</span>}
                                 </button>
                             </PopoverTrigger>
                             {isPicking && (
-                                <PopoverContent className="w-72 p-0 border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" align="start" sideOffset={4}>
+                                <PopoverContent className="w-72 p-0 border border-border rounded-md shadow-sm" align="start" sideOffset={4}>
                                     {/* Header */}
                                     <div className="px-3 py-2 bg-zinc-900 text-white flex items-center gap-2">
                                         <Icon className="h-3.5 w-3.5" />
-                                        <p className="text-[10px] font-black uppercase tracking-widest flex-1">Tambah {cfg.label}</p>
+                                        <p className="text-xs font-semibold flex-1">Tambah {cfg.label}</p>
                                     </div>
 
                                     {/* In-House / Subkon tabs */}
-                                    <div className="flex border-b-2 border-black">
+                                    <div className="flex border-b border-border">
                                         <button
                                             onClick={() => setPickerTab("inhouse")}
-                                            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase transition-colors ${pickerTab === "inhouse" ? "bg-emerald-50 text-emerald-700 border-b-2 border-emerald-500 -mb-[2px]" : "bg-zinc-50 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100"}`}
+                                            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold  transition-colors ${pickerTab === "inhouse" ? "bg-emerald-50 text-emerald-700 border-b border-emerald-500 -mb-[2px]" : "bg-zinc-50 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100"}`}
                                         >
                                             <Building2 className="h-3 w-3" />
                                             In-House
-                                            {inhouseCandidates.length > 0 && <span className="text-[8px] bg-emerald-200 text-emerald-800 px-1 py-0.5 font-mono">{inhouseCandidates.length}</span>}
+                                            {inhouseCandidates.length > 0 && <span className="text-xs bg-emerald-200 text-emerald-800 px-1 py-0.5 font-mono">{inhouseCandidates.length}</span>}
                                         </button>
                                         <button
                                             onClick={() => setPickerTab("subkon")}
-                                            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase transition-colors ${pickerTab === "subkon" ? "bg-amber-50 text-amber-700 border-b-2 border-amber-500 -mb-[2px]" : "bg-zinc-50 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100"}`}
+                                            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold  transition-colors ${pickerTab === "subkon" ? "bg-amber-50 text-amber-700 border-b border-amber-500 -mb-[2px]" : "bg-zinc-50 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100"}`}
                                         >
                                             <Truck className="h-3 w-3" />
                                             Subkon
-                                            {subkonCandidates.length > 0 && <span className="text-[8px] bg-amber-200 text-amber-800 px-1 py-0.5 font-mono">{subkonCandidates.length}</span>}
+                                            {subkonCandidates.length > 0 && <span className="text-xs bg-amber-200 text-amber-800 px-1 py-0.5 font-mono">{subkonCandidates.length}</span>}
                                         </button>
                                     </div>
 
@@ -1242,21 +1242,21 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                                                         <div className="flex-1 min-w-0">
                                                             <p className="text-xs font-bold truncate">{station.name}</p>
                                                             <div className="flex items-center gap-2 mt-0.5">
-                                                                <span className="text-[9px] font-mono text-zinc-400">{station.code}</span>
-                                                                {station.group && <span className="text-[8px] text-zinc-500 bg-zinc-100 px-1 py-0.5">{station.group.name}</span>}
+                                                                <span className="text-xs font-mono text-zinc-400">{station.code}</span>
+                                                                {station.group && <span className="text-xs text-zinc-500 bg-zinc-100 px-1 py-0.5">{station.group.name}</span>}
                                                             </div>
                                                         </div>
                                                         {alreadyUsed ? (
-                                                            <span className="text-[9px] font-bold text-zinc-400 shrink-0">Sudah ada</span>
+                                                            <span className="text-xs font-bold text-zinc-400 shrink-0">Sudah ada</span>
                                                         ) : Number(station.costPerUnit) > 0 ? (
-                                                            <span className="text-[9px] font-bold text-emerald-600 shrink-0">Rp {Number(station.costPerUnit).toLocaleString("id-ID")}</span>
+                                                            <span className="text-xs font-bold text-emerald-600 shrink-0">Rp {Number(station.costPerUnit).toLocaleString("id-ID")}</span>
                                                         ) : null}
                                                     </button>
                                                 )
                                             }) : (
                                                 <div className="px-3 py-6 text-center">
                                                     <Building2 className="h-5 w-5 text-zinc-300 mx-auto mb-2" />
-                                                    <p className="text-[10px] text-zinc-400 font-bold">Belum ada stasiun in-house</p>
+                                                    <p className="text-xs text-zinc-400 font-bold">Belum ada stasiun in-house</p>
                                                 </div>
                                             )
                                         ) : (
@@ -1275,9 +1275,9 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                                                         <div className="flex-1 min-w-0">
                                                             <p className="text-xs font-bold truncate">{station.subcontractor?.name || station.name}</p>
                                                             <div className="flex items-center gap-2 mt-0.5">
-                                                                <span className="text-[9px] font-mono text-zinc-400">{station.code}</span>
+                                                                <span className="text-xs font-mono text-zinc-400">{station.code}</span>
                                                                 {station.subcontractor?.rating != null && (
-                                                                    <span className="text-[8px] text-amber-600 flex items-center gap-0.5">
+                                                                    <span className="text-xs text-amber-600 flex items-center gap-0.5">
                                                                         <Star className="h-2.5 w-2.5 fill-amber-400 text-amber-400" />
                                                                         {Number(station.subcontractor.rating).toFixed(1)}
                                                                     </span>
@@ -1285,27 +1285,27 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                                                             </div>
                                                         </div>
                                                         {alreadyUsed ? (
-                                                            <span className="text-[9px] font-bold text-zinc-400 shrink-0">Sudah ada</span>
+                                                            <span className="text-xs font-bold text-zinc-400 shrink-0">Sudah ada</span>
                                                         ) : Number(station.costPerUnit) > 0 ? (
-                                                            <span className="text-[9px] font-bold text-amber-600 shrink-0">Rp {Number(station.costPerUnit).toLocaleString("id-ID")}</span>
+                                                            <span className="text-xs font-bold text-amber-600 shrink-0">Rp {Number(station.costPerUnit).toLocaleString("id-ID")}</span>
                                                         ) : null}
                                                     </button>
                                                 )
                                             }) : (
                                                 <div className="px-3 py-6 text-center">
                                                     <Truck className="h-5 w-5 text-zinc-300 mx-auto mb-2" />
-                                                    <p className="text-[10px] text-zinc-400 font-bold">Belum ada subkon</p>
+                                                    <p className="text-xs text-zinc-400 font-bold">Belum ada subkon</p>
                                                 </div>
                                             )
                                         )}
                                     </div>
 
                                     {/* Footer: + Buat Baru */}
-                                    <div className="border-t-2 border-black px-3 py-2 bg-zinc-50">
+                                    <div className="border-t border-border px-3 py-2 bg-zinc-50">
                                         <button
                                             disabled={!!creatingStationType}
                                             onClick={() => handleCreateAndAddStation(cfg.type, pickerTab === "subkon")}
-                                            className="w-full flex items-center justify-center gap-1.5 text-[10px] font-black uppercase text-zinc-500 hover:text-black transition-colors py-1 disabled:opacity-40"
+                                            className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-black transition-colors py-1 disabled:opacity-40"
                                         >
                                             {creatingStationType === cfg.type ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
                                             Buat Stasiun {pickerTab === "subkon" ? "Subkon" : "In-House"} Baru
@@ -1317,13 +1317,13 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                     )
                 })}
 
-                <div className="border-l-2 border-zinc-300 mx-2 h-5 shrink-0" />
+                <div className="border-l border-zinc-300 mx-2 h-5 shrink-0" />
 
                 {/* Template Manager */}
                 <button
                     disabled={applyingTemplate}
                     onClick={() => setShowTemplateManager(true)}
-                    className="h-8 px-3 text-[10px] font-bold flex items-center gap-1.5 bg-orange-50 text-orange-600 border-2 border-orange-300 hover:bg-orange-100 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] transition-all disabled:opacity-40 shrink-0"
+                    className="h-8 px-3 text-xs font-bold flex items-center gap-1.5 bg-blue-50 text-blue-600 border border-blue-300 hover:bg-blue-100 hover:shadow-sm transition-all disabled:opacity-40 shrink-0"
                 >
                     {applyingTemplate ? <Loader2 className="h-3 w-3 animate-spin" /> : <LayoutTemplate className="h-3.5 w-3.5" />}
                     Templates
@@ -1331,7 +1331,7 @@ function BOMCanvasPageInner({ id }: { id: string }) {
             </div>
 
             {/* ═══ TOOLBAR — Row 3: Info Strip ═══ */}
-            <div className="border-b border-zinc-200 bg-white px-6 py-2 flex items-center gap-5 lg:gap-8 shrink-0 overflow-x-auto text-[10px]">
+            <div className="border-b border-zinc-200 bg-white px-6 py-2 flex items-center gap-5 lg:gap-8 shrink-0 overflow-x-auto text-xs">
                 {costSummary.durationPerPiece > 0 && (
                     <div className="flex items-center gap-1.5 shrink-0">
                         <Clock className="h-3.5 w-3.5 text-blue-500" />
@@ -1347,7 +1347,7 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                 )}
                 {costSummary.progressPct > 0 && (
                     <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="font-black uppercase text-zinc-400">Progress</span>
+                        <span className="font-semibold text-zinc-400">Progress</span>
                         <div className="h-1.5 w-16 bg-zinc-200 overflow-hidden">
                             <div className="h-full bg-emerald-500" style={{ width: `${costSummary.progressPct}%` }} />
                         </div>
@@ -1356,7 +1356,7 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                 )}
                 <button
                     onClick={() => setCostCardOpen(!costCardOpen)}
-                    className="ml-auto flex items-center gap-1.5 shrink-0 font-black uppercase text-emerald-600 hover:text-emerald-800 transition-colors"
+                    className="ml-auto flex items-center gap-1.5 shrink-0 font-semibold text-emerald-600 hover:text-emerald-800 transition-colors"
                 >
                     <Calculator className="h-3.5 w-3.5" />
                     Detail HPP
@@ -1366,7 +1366,7 @@ function BOMCanvasPageInner({ id }: { id: string }) {
 
             {/* HPP/COGS Cost Breakdown Panel */}
             {costCardOpen && bom && (
-                <div className="border-b-2 border-black shrink-0 max-h-[400px] overflow-y-auto">
+                <div className="border-b border-border shrink-0 max-h-[400px] overflow-y-auto">
                     <BOMCostCard
                         mode="inline"
                         bomId={id}
@@ -1382,9 +1382,9 @@ function BOMCanvasPageInner({ id }: { id: string }) {
             {/* Draft restore banner */}
             {hasDraft && (
                 <div className="border-b border-amber-300 bg-amber-50 px-6 py-2 flex items-center gap-3 shrink-0">
-                    <span className="text-[11px] font-black uppercase text-amber-700">Draft tersimpan ditemukan</span>
+                    <span className="text-xs font-semibold text-amber-700">Draft tersimpan ditemukan</span>
                     <button
-                        className="px-3 py-1 bg-amber-500 text-white font-black text-[10px] uppercase border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-px hover:translate-y-px transition-transform"
+                        className="px-3 py-1 bg-amber-500 text-white font-semibold text-xs border border-border shadow-sm hover:translate-x-px hover:translate-y-px transition-transform"
                         onClick={() => {
                             const d = loadLocalDraft()
                             if (d) {
@@ -1396,7 +1396,7 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                         }}
                     >Pulihkan</button>
                     <button
-                        className="text-[10px] font-bold text-amber-700 underline"
+                        className="text-xs font-bold text-amber-700 underline"
                         onClick={() => { clearLocalDraft(); setHasDraft(false) }}
                     >Buang</button>
                 </div>
@@ -1405,14 +1405,14 @@ function BOMCanvasPageInner({ id }: { id: string }) {
             {/* Price drift warning banner */}
             {driftedItems.length > 0 && (
                 <div className="border-b border-yellow-300 bg-yellow-50 px-6 py-2 flex items-center gap-3 shrink-0 overflow-x-auto">
-                    <span className="text-[11px] font-black uppercase text-yellow-700 shrink-0">
+                    <span className="text-xs font-semibold text-yellow-700 shrink-0">
                         {driftedItems.length} material berubah harga
                     </span>
-                    <span className="text-[10px] text-yellow-600 font-bold shrink-0">
+                    <span className="text-xs text-yellow-600 font-bold shrink-0">
                         {driftedItems.map((d) => `${d.materialName} ${d.direction === "naik" ? "↑" : "↓"}${d.changePct.toFixed(0)}%`).join(" · ")}
                     </span>
                     <button
-                        className="px-3 py-1 bg-yellow-500 text-white font-black text-[10px] uppercase border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] shrink-0"
+                        className="px-3 py-1 bg-yellow-500 text-white font-semibold text-xs border border-border shadow-sm shrink-0"
                         onClick={() => setDirty(true)}
                     >Hitung Ulang HPP</button>
                 </div>
@@ -1423,9 +1423,9 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                 <div className="border-b border-amber-200 bg-amber-50/60 px-6 py-1.5 flex items-center gap-3 shrink-0 overflow-x-auto">
                     <div className="flex items-center gap-1.5 shrink-0">
                         <Zap className="h-3.5 w-3.5 text-amber-500" />
-                        <span className="text-[10px] font-black uppercase text-amber-600">{spkReadiness.issues.length} hal perlu dilengkapi</span>
+                        <span className="text-xs font-semibold text-amber-600">{spkReadiness.issues.length} hal perlu dilengkapi</span>
                     </div>
-                    <div className="flex items-center gap-2 text-[10px] text-amber-600 font-bold">
+                    <div className="flex items-center gap-2 text-xs text-amber-600 font-bold">
                         {spkReadiness.issues.slice(0, 3).map((issue, i) => (
                             <span key={i} className="flex items-center gap-1 shrink-0">
                                 <span className="w-1 h-1 bg-amber-400 rounded-full" />
@@ -1499,8 +1499,8 @@ function BOMCanvasPageInner({ id }: { id: string }) {
             </div>
 
             {/* Footer */}
-            <div className="border-t-2 border-black bg-zinc-50 px-6 py-1.5 flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-6 text-[10px] font-bold text-zinc-500">
+            <div className="border-t border-border bg-zinc-50 px-6 py-1.5 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-6 text-xs font-bold text-zinc-500">
                     <span>Material: <span className="text-black">{items.length}</span></span>
                     <span>Proses: <span className="text-black">{steps.length}</span></span>
                     <span>Target: <span className="text-black">{totalQty} pcs</span></span>
@@ -1548,9 +1548,9 @@ function BOMCanvasPageInner({ id }: { id: string }) {
 
             {/* Save As New Version confirmation dialog */}
             <Dialog open={showSaveAsConfirm} onOpenChange={setShowSaveAsConfirm}>
-                <DialogContent className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-none sm:max-w-md">
+                <DialogContent className="border border-border shadow-sm rounded-md sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="font-black text-base flex items-center gap-2">
+                        <DialogTitle className="font-semibold text-base flex items-center gap-2">
                             <FilePlus2 className="h-4 w-4 text-indigo-500" />
                             Simpan Sebagai Versi Baru?
                         </DialogTitle>
@@ -1560,7 +1560,7 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                                 <div className="bg-indigo-50 border border-indigo-200 rounded-md p-3 space-y-2 text-xs text-indigo-800">
                                     <div className="flex items-start gap-2">
                                         <GitBranch className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                                        <span>Versi baru <span className="font-black">{bom.version?.replace(/\d+$/, (m: string) => String(Number(m) + 1)) || "v2"}</span> akan dibuat dari {bom.version || "v1"}</span>
+                                        <span>Versi baru <span className="font-semibold">{bom.version?.replace(/\d+$/, (m: string) => String(Number(m) + 1)) || "v2"}</span> akan dibuat dari {bom.version || "v1"}</span>
                                     </div>
                                     <div className="flex items-start gap-2">
                                         <Copy className="h-3.5 w-3.5 mt-0.5 shrink-0" />
@@ -1571,16 +1571,16 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                                         <span>Anda akan diarahkan ke halaman BOM versi baru</span>
                                     </div>
                                 </div>
-                                <p className="text-[11px] text-zinc-400">Versi saat ini ({bom.version}) tidak akan berubah.</p>
+                                <p className="text-xs text-zinc-400">Versi saat ini ({bom.version}) tidak akan berubah.</p>
                             </div>
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="flex gap-2 sm:gap-2">
-                        <Button variant="outline" className="border-2 border-black font-black" onClick={() => setShowSaveAsConfirm(false)}>
+                        <Button variant="outline" className="border border-border font-semibold" onClick={() => setShowSaveAsConfirm(false)}>
                             Batal
                         </Button>
                         <Button
-                            className="bg-black text-white font-black border-2 border-black hover:bg-zinc-800"
+                            className="bg-slate-900 text-white font-semibold border border-border hover:bg-zinc-800"
                             disabled={savingAs}
                             onClick={() => {
                                 setShowSaveAsConfirm(false)
@@ -1596,9 +1596,9 @@ function BOMCanvasPageInner({ id }: { id: string }) {
 
             {/* Template overwrite confirmation dialog */}
             <Dialog open={!!pendingTemplate} onOpenChange={(open) => { if (!open) setPendingTemplate(null) }}>
-                <DialogContent className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-none sm:max-w-md">
+                <DialogContent className="border border-border shadow-sm rounded-md sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="font-black text-base">Ganti Proses dengan Template?</DialogTitle>
+                        <DialogTitle className="font-semibold text-base">Ganti Proses dengan Template?</DialogTitle>
                         <DialogDescription className="text-zinc-500 text-sm">
                             Sudah ada {steps.length} proses di canvas. Menggunakan template akan <span className="font-bold text-red-600">menghapus semua proses saat ini</span> dan menggantinya dengan template baru.
                         </DialogDescription>
@@ -1607,13 +1607,13 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                         <Button
                             variant="outline"
                             onClick={() => setPendingTemplate(null)}
-                            className="border-2 border-black rounded-none font-bold"
+                            className="border border-border rounded-md font-bold"
                         >
                             Batal
                         </Button>
                         <Button
                             onClick={() => pendingTemplate && applyTemplateNow(pendingTemplate)}
-                            className="bg-black text-white rounded-none font-bold hover:bg-zinc-800"
+                            className="bg-slate-900 text-white rounded-md font-bold hover:bg-zinc-800"
                         >
                             Ya, Ganti Semua
                         </Button>
@@ -1630,17 +1630,17 @@ function BOMCanvasPageInner({ id }: { id: string }) {
 
             {/* SPK Progress / Result Dialog */}
             <Dialog open={!!spkProgress || !!spkResult} onOpenChange={(open) => { if (!open && !spkProgress) setSpkResult(null) }}>
-                <DialogContent className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-none sm:max-w-lg">
+                <DialogContent className="border border-border shadow-sm rounded-md sm:max-w-lg">
                     {spkProgress ? (
                         <>
                             <DialogHeader>
-                                <DialogTitle className="font-black text-lg">Membuat SPK...</DialogTitle>
+                                <DialogTitle className="font-semibold text-lg">Membuat SPK...</DialogTitle>
                                 <DialogDescription className="text-zinc-500 text-sm">Mohon tunggu, sedang memproses</DialogDescription>
                             </DialogHeader>
                             <div className="flex flex-col items-center py-8 gap-4">
                                 <div className="relative">
-                                    <div className="h-16 w-16 border-4 border-zinc-200 border-t-orange-500 rounded-full animate-spin" />
-                                    <Zap className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-6 w-6 text-orange-500" />
+                                    <div className="h-16 w-16 border border-zinc-200 border-t-orange-500 rounded-full animate-spin" />
+                                    <Zap className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-6 w-6 text-blue-500" />
                                 </div>
                                 <p className="font-bold text-sm text-zinc-700 animate-pulse">{spkProgress}</p>
                             </div>
@@ -1648,7 +1648,7 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                     ) : spkResult ? (
                         <>
                             <DialogHeader>
-                                <DialogTitle className="font-black text-lg flex items-center gap-2">
+                                <DialogTitle className="font-semibold text-lg flex items-center gap-2">
                                     <CheckCircle2 className="h-5 w-5 text-emerald-500" />
                                     SPK Berhasil Dibuat
                                 </DialogTitle>
@@ -1658,13 +1658,13 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                             </DialogHeader>
 
                             {/* PDF Preview / Download Section */}
-                            <div className="border-2 border-black bg-orange-50 p-4 flex items-center gap-4">
-                                <div className="bg-orange-500 text-white p-3 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                            <div className="border border-border bg-blue-50 p-4 flex items-center gap-4">
+                                <div className="bg-blue-500 text-white p-3 border border-border shadow-sm">
                                     <FileDown className="h-6 w-6" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="font-black text-sm">Dokumen SPK (PDF)</p>
-                                    <p className="text-[10px] text-zinc-500 font-mono truncate">
+                                    <p className="font-semibold text-sm">Dokumen SPK (PDF)</p>
+                                    <p className="text-xs text-zinc-500 font-mono truncate">
                                         SPK-{bom?.product?.code}-{bom?.version}.pdf
                                     </p>
                                 </div>
@@ -1672,14 +1672,14 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                                     <Button
                                         size="sm"
                                         variant="outline"
-                                        className="border-2 border-black rounded-none font-bold text-xs shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                                        className="border border-border rounded-md font-bold text-xs shadow-sm"
                                         onClick={() => window.open(`/api/documents/spk/${spkResult.bomId}?disposition=inline`, '_blank')}
                                     >
                                         Lihat
                                     </Button>
                                     <Button
                                         size="sm"
-                                        className="bg-orange-500 hover:bg-orange-600 text-white border-2 border-black rounded-none font-bold text-xs shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                                        className="bg-blue-500 hover:bg-blue-600 text-white border border-border rounded-md font-bold text-xs shadow-sm"
                                         onClick={() => {
                                             const a = document.createElement('a')
                                             a.href = `/api/documents/spk/${spkResult.bomId}`
@@ -1695,13 +1695,13 @@ function BOMCanvasPageInner({ id }: { id: string }) {
 
                             {/* Work Orders Summary */}
                             <div className="space-y-1">
-                                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Work Orders ({spkResult.workOrders.length})</p>
+                                <p className="text-xs font-bold text-zinc-400  ">Work Orders ({spkResult.workOrders.length})</p>
                                 <div className="max-h-[200px] overflow-y-auto space-y-1">
                                     {spkResult.workOrders.map((wo: any, i: number) => (
                                         <div key={wo.id || i} className="flex items-center gap-3 px-3 py-1.5 bg-zinc-50 border border-zinc-200">
-                                            <span className="bg-black text-white text-[9px] font-black px-1.5 py-0.5 shrink-0">{wo.stepSequence}</span>
+                                            <span className="bg-slate-900 text-white text-xs font-semibold px-1.5 py-0.5 shrink-0">{wo.stepSequence}</span>
                                             <div className="min-w-0 flex-1">
-                                                <p className="text-[11px] font-bold truncate">
+                                                <p className="text-xs font-bold truncate">
                                                     {wo.stationName}
                                                     {wo.allocStationName && wo.allocStationName !== wo.stationName && (
                                                         <span className="text-zinc-400 font-normal ml-1">
@@ -1709,9 +1709,9 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                                                         </span>
                                                     )}
                                                 </p>
-                                                <p className="text-[9px] text-zinc-400 font-mono">{wo.number}</p>
+                                                <p className="text-xs text-zinc-400 font-mono">{wo.number}</p>
                                             </div>
-                                            <span className="text-[11px] font-bold text-emerald-600">{wo.plannedQty} pcs</span>
+                                            <span className="text-xs font-bold text-emerald-600">{wo.plannedQty} pcs</span>
                                         </div>
                                     ))}
                                 </div>
@@ -1721,7 +1721,7 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                                 <Button
                                     onClick={() => setSpkResult(null)}
                                     variant="outline"
-                                    className="font-bold border-2 border-black rounded-none"
+                                    className="font-bold border border-border rounded-md"
                                 >
                                     Tutup
                                 </Button>
@@ -1730,7 +1730,7 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                                         setSpkResult(null)
                                         router.push("/manufacturing/orders")
                                     }}
-                                    className="bg-black hover:bg-zinc-800 text-white font-bold border-2 border-black rounded-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+                                    className="bg-slate-900 hover:bg-zinc-800 text-white font-bold border border-border rounded-md shadow-sm"
                                 >
                                     Lihat Perintah Kerja
                                 </Button>

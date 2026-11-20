@@ -71,13 +71,13 @@ export function InHouseAllocator({ stationType, allocations, totalQty, onChange 
     return (
         <div className="space-y-3">
             <div className="flex items-center justify-between">
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                <h4 className="text-xs font-semibold text-zinc-500">
                     <Building2 className="h-3 w-3 inline mr-1" />
                     Distribusi ke Work Center
                 </h4>
             </div>
 
-            <p className="text-[9px] text-zinc-400 -mt-1">
+            <p className="text-xs text-zinc-400 -mt-1">
                 Bagi kuantitas produksi ke beberapa work center in-house
             </p>
 
@@ -87,7 +87,7 @@ export function InHouseAllocator({ stationType, allocations, totalQty, onChange 
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Cari..."
-                    className="h-7 text-[10px] pl-7 border-zinc-200 rounded-none placeholder:text-zinc-300"
+                    className="h-7 text-xs pl-7 border-zinc-200 rounded-md placeholder:text-zinc-300"
                 />
             </div>
 
@@ -96,12 +96,12 @@ export function InHouseAllocator({ stationType, allocations, totalQty, onChange 
                     <div className="flex items-center gap-2">
                         <button
                             onClick={autoDistribute}
-                            className="text-[9px] font-bold text-blue-600 hover:underline"
+                            className="text-xs font-bold text-blue-600 hover:underline"
                         >
                             Bagi Rata
                         </button>
                     </div>
-                    <span className={`text-[10px] font-bold ${
+                    <span className={`text-xs font-bold ${
                         remaining === 0 ? "text-emerald-600" : remaining < 0 ? "text-red-600" : "text-amber-600"
                     }`}>
                         {allocated}/{totalQty} pcs
@@ -118,9 +118,9 @@ export function InHouseAllocator({ stationType, allocations, totalQty, onChange 
                         if (alloc) {
                             return (
                                 <div key={station.id}
-                                    className="flex items-center gap-2 p-2 border-2 border-emerald-400 bg-emerald-50 text-[10px]"
+                                    className="flex items-center gap-2 p-2 border border-emerald-400 bg-emerald-50 text-xs"
                                 >
-                                    <p className="font-black truncate min-w-0 flex-1">
+                                    <p className="font-semibold truncate min-w-0 flex-1">
                                         {station.name}
                                         {station.code && <span className="text-zinc-400 font-mono ml-1">({station.code})</span>}
                                     </p>
@@ -129,9 +129,9 @@ export function InHouseAllocator({ stationType, allocations, totalQty, onChange 
                                             type="number"
                                             value={alloc.quantity}
                                             onChange={(e) => updateQty(station.id, parseInt(e.target.value) || 0)}
-                                            className="h-6 w-16 text-[10px] font-mono border-emerald-300 rounded-none text-right"
+                                            className="h-6 w-16 text-xs font-mono border-emerald-300 rounded-md text-right"
                                         />
-                                        <span className="text-[9px] text-zinc-400 font-mono">/{totalQty}</span>
+                                        <span className="text-xs text-zinc-400 font-mono">/{totalQty}</span>
                                         <button onClick={() => removeAllocation(station.id)}>
                                             <X className="h-3 w-3 text-zinc-400 hover:text-red-500" />
                                         </button>
@@ -141,10 +141,10 @@ export function InHouseAllocator({ stationType, allocations, totalQty, onChange 
                         }
                         return (
                             <div key={station.id}
-                                className="flex items-center justify-between gap-2 p-2 border border-zinc-200 hover:border-black hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-[10px] transition-all"
+                                className="flex items-center justify-between gap-2 p-2 border border-zinc-200 hover:border-border hover:shadow-sm text-xs transition-all"
                             >
                                 <div className="min-w-0">
-                                    <p className="font-black truncate">{station.name}</p>
+                                    <p className="font-semibold truncate">{station.name}</p>
                                     {station.code && (
                                         <span className="text-zinc-400 font-mono">{station.code}</span>
                                     )}
@@ -152,7 +152,7 @@ export function InHouseAllocator({ stationType, allocations, totalQty, onChange 
                                 <Button
                                     variant="outline" size="sm"
                                     onClick={() => addAllocation(station.id)}
-                                    className="h-6 text-[9px] font-bold rounded-none shrink-0 px-2"
+                                    className="h-6 text-xs font-bold rounded-md shrink-0 px-2"
                                 >
                                     <Plus className="h-3 w-3" /> Alokasi
                                 </Button>
@@ -167,9 +167,9 @@ export function InHouseAllocator({ stationType, allocations, totalQty, onChange 
                             const station = (allStations || []).find((s: any) => s.id === alloc.stationId)
                             return (
                                 <div key={alloc.stationId}
-                                    className="flex items-center gap-2 p-2 border-2 border-emerald-400 bg-emerald-50 text-[10px]"
+                                    className="flex items-center gap-2 p-2 border border-emerald-400 bg-emerald-50 text-xs"
                                 >
-                                    <p className="font-black truncate min-w-0 flex-1">
+                                    <p className="font-semibold truncate min-w-0 flex-1">
                                         {station?.name || "—"}
                                         {station?.code && <span className="text-zinc-400 font-mono ml-1">({station.code})</span>}
                                     </p>
@@ -178,9 +178,9 @@ export function InHouseAllocator({ stationType, allocations, totalQty, onChange 
                                             type="number"
                                             value={alloc.quantity}
                                             onChange={(e) => updateQty(alloc.stationId, parseInt(e.target.value) || 0)}
-                                            className="h-6 w-16 text-[10px] font-mono border-emerald-300 rounded-none text-right"
+                                            className="h-6 w-16 text-xs font-mono border-emerald-300 rounded-md text-right"
                                         />
-                                        <span className="text-[9px] text-zinc-400 font-mono">/{totalQty}</span>
+                                        <span className="text-xs text-zinc-400 font-mono">/{totalQty}</span>
                                         <button onClick={() => removeAllocation(alloc.stationId)}>
                                             <X className="h-3 w-3 text-zinc-400 hover:text-red-500" />
                                         </button>
@@ -191,7 +191,7 @@ export function InHouseAllocator({ stationType, allocations, totalQty, onChange 
                     }
 
                     {filtered.length === 0 && allocations.length === 0 && (
-                        <p className="text-[10px] text-zinc-300 font-bold py-3 text-center">
+                        <p className="text-xs text-zinc-300 font-bold py-3 text-center">
                             Belum ada work center untuk tipe ini
                         </p>
                     )}

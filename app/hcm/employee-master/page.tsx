@@ -11,7 +11,7 @@ export default function EmployeeMasterPage() {
     if (!data) {
         return (
             <div className="min-h-screen bg-background p-4 md:p-8 pb-24">
-                <TablePageSkeleton accentColor="bg-orange-400" />
+                <TablePageSkeleton accentColor="bg-blue-400" />
             </div>
         )
     }

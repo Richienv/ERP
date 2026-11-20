@@ -216,30 +216,30 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
     const statusLabel = STATUS_LABELS[order.status] || order.status
 
     return (
-        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-none hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all group overflow-hidden flex flex-col">
+        <div className="bg-white border border-border shadow-sm rounded-md hover:shadow-sm transition-all group overflow-hidden flex flex-col">
             {/* Status color bar */}
             <div className={`h-1.5 w-full ${barColor}`} />
 
             {/* Header */}
             <div className="p-4 pb-3">
                 <div className="flex items-center justify-between mb-2">
-                    <div className="bg-black text-white px-2 py-0.5 text-[9px] font-black font-mono tracking-widest">
+                    <div className="bg-slate-900 text-white px-2 py-0.5 text-xs font-semibold font-mono ">
                         {order.number}
                     </div>
-                    <Badge className={`border text-[9px] font-black uppercase tracking-wider rounded-none px-2 py-0.5 ${badgeStyle}`}>
+                    <Badge className={`border text-xs font-semibold rounded-md px-2 py-0.5 ${badgeStyle}`}>
                         {statusLabel}
                     </Badge>
                 </div>
-                <h3 className="font-black text-sm uppercase truncate group-hover:text-blue-600 transition-colors" title={order.customer.name}>
+                <h3 className="font-semibold text-sm truncate group-hover:text-blue-600 transition-colors" title={order.customer.name}>
                     {order.customer.name}
                 </h3>
                 <div className="flex items-center gap-2 mt-1.5">
-                    <span className="text-[10px] text-zinc-500 font-mono flex items-center gap-1">
+                    <span className="text-xs text-zinc-500 font-mono flex items-center gap-1">
                         <Clock className="h-3 w-3" />
                         {new Date(order.orderDate).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
                     </span>
                     {order.itemCount > 0 && (
-                        <span className="text-[10px] font-bold bg-zinc-100 px-1.5 py-0.5 border border-zinc-200">
+                        <span className="text-xs font-bold bg-zinc-100 px-1.5 py-0.5 border border-zinc-200">
                             {order.itemCount} Item
                         </span>
                     )}
@@ -247,17 +247,17 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
             </div>
 
             {/* Metrics */}
-            <div className="border-t-2 border-dashed border-zinc-200 px-4 py-3">
+            <div className="border-t border-dashed border-zinc-200 px-4 py-3">
                 <div className="grid grid-cols-2 gap-3">
                     <div>
-                        <p className="text-[9px] font-black text-zinc-400 uppercase tracking-wider mb-0.5">Nilai Order</p>
-                        <p className="font-black text-lg leading-none tracking-tight">
+                        <p className="text-xs font-semibold text-zinc-400 mb-0.5">Nilai Order</p>
+                        <p className="font-semibold text-lg leading-none tracking-tight">
                             {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", notation: "compact", maximumFractionDigits: 1 }).format(order.total)}
                         </p>
                     </div>
                     <div>
-                        <p className="text-[9px] font-black text-zinc-400 uppercase tracking-wider mb-0.5">Status Bayar</p>
-                        <p className="text-[10px] font-bold text-zinc-600 uppercase">{order.paymentTerm || "—"}</p>
+                        <p className="text-xs font-semibold text-zinc-400 mb-0.5">Status Bayar</p>
+                        <p className="text-xs font-bold text-zinc-600 ">{order.paymentTerm || "—"}</p>
                     </div>
                 </div>
             </div>
@@ -265,14 +265,14 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
             {/* Production Progress */}
             <div className="px-4 pb-3">
                 <div className="flex justify-between items-center mb-1.5">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-1">
+                    <span className="text-xs font-semibold text-zinc-500 flex items-center gap-1">
                         <Factory className="h-3 w-3" /> Progres
                     </span>
-                    <span className="text-[10px] font-black bg-black text-white px-1.5 py-0.5">{progress}%</span>
+                    <span className="text-xs font-semibold bg-slate-900 text-white px-1.5 py-0.5">{progress}%</span>
                 </div>
-                <div className="relative h-3 w-full bg-zinc-100 border-2 border-black rounded-none overflow-hidden">
+                <div className="relative h-3 w-full bg-zinc-100 border border-border rounded-md overflow-hidden">
                     <div
-                        className="absolute top-0 left-0 h-full bg-blue-500 transition-all duration-1000 border-r-2 border-black"
+                        className="absolute top-0 left-0 h-full bg-blue-500 transition-all duration-1000 border-r border-border"
                         style={{ width: `${Math.max(progress, 2)}%` }}
                     />
                     <div
@@ -280,7 +280,7 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
                         style={{ backgroundImage: "repeating-linear-gradient(45deg, #000 0, #000 1px, transparent 0, transparent 50%)", backgroundSize: "10px 10px" }}
                     />
                 </div>
-                <div className="flex justify-between mt-1 text-[9px] text-zinc-400 font-bold uppercase tracking-wider">
+                <div className="flex justify-between mt-1 text-xs text-zinc-400 font-bold  ">
                     <span className={progress >= 25 ? "text-blue-600" : ""}>Konfirmasi</span>
                     <span className={progress >= 50 ? "text-blue-600" : ""}>Produksi</span>
                     <span className={progress >= 75 ? "text-blue-600" : ""}>Terkirim</span>
@@ -291,7 +291,7 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
             {/* Error */}
             {woError && (
                 <div className="px-4 pb-2">
-                    <p className="text-[10px] font-bold text-red-600 flex items-center gap-1.5 bg-red-50 border border-red-200 px-2 py-1">
+                    <p className="text-xs font-bold text-red-600 flex items-center gap-1.5 bg-red-50 border border-red-200 px-2 py-1">
                         <AlertCircle className="h-3 w-3 flex-shrink-0" />
                         {woError}
                     </p>
@@ -304,9 +304,9 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
                     <button
                         onClick={() => handleTransition(primaryAction.target)}
                         disabled={transitionMutation.isPending}
-                        className={`w-full h-9 ${primaryAction.color} text-white font-black uppercase text-[10px] tracking-wider
-                            border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]
-                            hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px]
+                        className={`w-full h-9 ${primaryAction.color} text-white font-semibold  text-xs 
+                            border border-border shadow-sm
+                            hover:shadow-sm  
                             transition-all disabled:opacity-50 flex items-center justify-center gap-2`}
                     >
                         {transitionMutation.isPending && (
@@ -318,7 +318,7 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
             )}
 
             {/* Footer */}
-            <div className="mt-auto border-t-2 border-black p-3 flex items-center gap-2">
+            <div className="mt-auto border-t border-border p-3 flex items-center gap-2">
                 {canCreateWorkOrders && !woCreated && (
                     <TooltipProvider>
                         <Tooltip>
@@ -326,7 +326,7 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    className={`flex-1 h-8 border-2 border-black rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none text-[10px] font-black uppercase tracking-wider ${woError ? "border-red-500 text-red-500" : "hover:bg-blue-50"}`}
+                                    className={`flex-1 h-8 border border-border rounded-md shadow-sm   hover:shadow-none text-xs font-semibold   ${woError ? "border-red-500 text-red-500" : "hover:bg-blue-50"}`}
                                     onClick={handleCreateWorkOrders}
                                     disabled={isCreatingWO}
                                 >
@@ -338,7 +338,7 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
                                     Produksi
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent className="border-2 border-black rounded-none font-bold text-xs bg-white text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                            <TooltipContent className="border border-border rounded-md font-bold text-xs bg-white text-black shadow-sm">
                                 <p>Buat Work Order dari pesanan ini</p>
                             </TooltipContent>
                         </Tooltip>
@@ -346,7 +346,7 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
                 )}
 
                 {woCreated && (
-                    <Badge className="flex-1 justify-center bg-emerald-100 text-emerald-800 border-2 border-emerald-600 rounded-none text-[9px] font-black uppercase h-8 flex items-center">
+                    <Badge className="flex-1 justify-center bg-emerald-100 text-emerald-800 border border-emerald-600 rounded-md text-xs font-semibold h-8 flex items-center">
                         <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
                         WO Aktif
                     </Badge>
@@ -356,7 +356,7 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
                     variant="outline"
                     size="sm"
                     asChild
-                    className="flex-1 h-8 border-2 border-black rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none text-[10px] font-black uppercase tracking-wider hover:bg-zinc-100"
+                    className="flex-1 h-8 border border-border rounded-md shadow-sm hover:shadow-none text-xs font-semibold hover:bg-zinc-100"
                 >
                     <Link href={`/sales/orders/${order.id}`}>
                         <FileText className="h-3.5 w-3.5 mr-1.5" />
@@ -366,21 +366,21 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
 
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" className="h-8 w-8 p-0 border-2 border-black rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none hover:bg-zinc-100">
+                        <Button variant="outline" size="sm" className="h-8 w-8 p-0 border border-border rounded-md shadow-sm hover:shadow-none hover:bg-zinc-100">
                             <MoreHorizontal className="h-4 w-4" />
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] w-48">
-                        <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Aksi</DropdownMenuLabel>
+                    <DropdownMenuContent align="end" className="border border-border rounded-md shadow-sm w-48">
+                        <DropdownMenuLabel className="text-xs font-semibold text-zinc-500">Aksi</DropdownMenuLabel>
                         <DropdownMenuSeparator className="bg-zinc-200" />
-                        <DropdownMenuItem className="text-xs font-bold cursor-pointer focus:bg-zinc-100 rounded-none" asChild>
+                        <DropdownMenuItem className="text-xs font-bold cursor-pointer focus:bg-zinc-100 rounded-md" asChild>
                             <Link href={`/sales/orders/${order.id}`}>
                                 <FileText className="mr-2 h-3.5 w-3.5" /> Lihat Detail
                             </Link>
                         </DropdownMenuItem>
                         {order.status === "CONFIRMED" && (
                             <DropdownMenuItem
-                                className="text-xs font-bold cursor-pointer focus:bg-blue-50 rounded-none text-blue-700"
+                                className="text-xs font-bold cursor-pointer focus:bg-blue-50 rounded-md text-blue-700"
                                 onClick={() => handleTransition("DELIVERED")}
                             >
                                 <Truck className="mr-2 h-3.5 w-3.5" /> Langsung Kirim
@@ -388,7 +388,7 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
                         )}
                         {["DELIVERED", "INVOICED", "COMPLETED"].includes(order.status) && (
                             <DropdownMenuItem
-                                className="text-xs font-bold cursor-pointer focus:bg-zinc-100 rounded-none"
+                                className="text-xs font-bold cursor-pointer focus:bg-zinc-100 rounded-md"
                                 onClick={() => toast.info("Surat Jalan & Pengiriman \u2014 segera hadir di Phase 3")}
                             >
                                 <Truck className="mr-2 h-3.5 w-3.5" /> Pengiriman
@@ -396,7 +396,7 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
                         )}
                         {["INVOICED", "COMPLETED"].includes(order.status) && (
                             <DropdownMenuItem
-                                className="text-xs font-bold cursor-pointer focus:bg-zinc-100 rounded-none"
+                                className="text-xs font-bold cursor-pointer focus:bg-zinc-100 rounded-md"
                                 onClick={() => toast.info("Lihat Invoice \u2014 segera hadir di Phase 2")}
                             >
                                 <Package className="mr-2 h-3.5 w-3.5" /> Invoice
@@ -404,7 +404,7 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
                         )}
                         {canReturn && (
                             <DropdownMenuItem
-                                className="text-xs font-bold cursor-pointer focus:bg-amber-50 rounded-none text-amber-700"
+                                className="text-xs font-bold cursor-pointer focus:bg-amber-50 rounded-md text-amber-700"
                                 onClick={() => setShowReturnDialog(true)}
                             >
                                 <Undo2 className="mr-2 h-3.5 w-3.5" /> Retur Penjualan
@@ -414,7 +414,7 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
                             <>
                                 <DropdownMenuSeparator className="bg-zinc-200" />
                                 <DropdownMenuItem
-                                    className="text-xs font-bold text-red-600 cursor-pointer focus:bg-red-50 focus:text-red-700 rounded-none"
+                                    className="text-xs font-bold text-red-600 cursor-pointer focus:bg-red-50 focus:text-red-700 rounded-md"
                                     onClick={handleCancel}
                                 >
                                     Batalkan Pesanan

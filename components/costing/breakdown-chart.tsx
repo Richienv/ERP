@@ -38,10 +38,10 @@ export function BreakdownChart({ items, totalCost }: BreakdownChartProps) {
         .sort((a, b) => b.planned - a.planned)
 
     return (
-        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <div className="px-4 py-2.5 border-b-2 border-black bg-zinc-50 flex items-center gap-2">
+        <div className="bg-white border border-border shadow-sm">
+            <div className="px-4 py-2.5 border-b border-border bg-zinc-50 flex items-center gap-2">
                 <PieChart className="h-4 w-4 text-zinc-500" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                <span className="text-xs font-semibold text-zinc-500">
                     Komposisi Biaya
                 </span>
             </div>
@@ -50,7 +50,7 @@ export function BreakdownChart({ items, totalCost }: BreakdownChartProps) {
                 {categories.length === 0 ? (
                     <div className="text-center py-4">
                         <DollarSign className="h-6 w-6 mx-auto text-zinc-200 mb-1" />
-                        <span className="text-[9px] font-bold text-zinc-400">Belum ada item biaya</span>
+                        <span className="text-xs font-bold text-zinc-400">Belum ada item biaya</span>
                     </div>
                 ) : (
                     categories.map((cat) => (
@@ -58,20 +58,20 @@ export function BreakdownChart({ items, totalCost }: BreakdownChartProps) {
                             <div className="flex items-center justify-between mb-1">
                                 <div className="flex items-center gap-2">
                                     <div
-                                        className="w-2.5 h-2.5 border border-black"
+                                        className="w-2.5 h-2.5 border border-border"
                                         style={{
                                             backgroundColor: COST_CATEGORY_COLORS[cat.category] || '#6b7280',
                                         }}
                                     />
-                                    <span className="text-[10px] font-black">
+                                    <span className="text-xs font-semibold">
                                         {COST_CATEGORY_LABELS[cat.category] || cat.category}
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-mono font-bold">
+                                    <span className="text-xs font-mono font-bold">
                                         {cat.planned.toLocaleString('id-ID')}
                                     </span>
-                                    <span className="text-[9px] font-black px-1.5 py-0.5 bg-zinc-100 border border-zinc-300">
+                                    <span className="text-xs font-semibold px-1.5 py-0.5 bg-zinc-100 border border-zinc-300">
                                         {cat.pct}%
                                     </span>
                                 </div>

@@ -1,63 +1,63 @@
 /**
- * Neo-Brutalist Style Constants
+ * Integra Pro style constants (was Neo-Brutalist; values replaced 2026-11-21, keys unchanged)
  * Single source of truth for all UI components — dialogs, pages, toolbars.
  * Import as: import { NB } from "@/lib/dialog-styles"
  */
 
 export const NB = {
   // Dialog container variants
-  content: "max-w-3xl sm:max-w-3xl p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0",
-  contentWide: "max-w-4xl sm:max-w-4xl p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0",
-  contentNarrow: "max-w-xl sm:max-w-xl p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0",
+  content: "max-w-3xl sm:max-w-3xl p-0 border border-border shadow-xl rounded-lg overflow-hidden gap-0",
+  contentWide: "max-w-4xl sm:max-w-4xl p-0 border border-border shadow-xl rounded-lg overflow-hidden gap-0",
+  contentNarrow: "max-w-xl sm:max-w-xl p-0 border border-border shadow-xl rounded-lg overflow-hidden gap-0",
 
-  // Header (always black) — aligned with reference (Catat Penerimaan Baru)
-  header: "bg-black text-white px-5 py-3",
-  title: "text-sm font-black uppercase tracking-wider text-white flex items-center gap-2",
-  subtitle: "text-zinc-400 text-[11px] font-bold mt-0.5",
+  // Header: dark title bar (desktop-app familiar), white text, larger title
+  header: "bg-slate-800 text-white px-5 py-3.5",
+  title: "text-base font-semibold text-white flex items-center gap-2",
+  subtitle: "text-slate-300 text-sm font-normal mt-0.5",
 
   // Scroll wrapper
   scroll: "max-h-[72vh]",
 
   // Section containers — aligned with reference (Catat Penerimaan Baru)
-  section: "border border-zinc-200 dark:border-zinc-700",
-  sectionHead: "bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700 flex items-center gap-2",
-  sectionTitle: "text-xs font-black uppercase tracking-widest text-zinc-500",
-  sectionHint: "text-xs font-medium text-zinc-400 dark:text-zinc-500 ml-auto",
-  sectionBody: "p-3 space-y-3",
+  section: "border border-border rounded-lg bg-white dark:bg-zinc-900 overflow-hidden",
+  sectionHead: "bg-slate-50 dark:bg-zinc-800/50 px-3.5 py-2 border-b border-border flex items-center gap-2",
+  sectionTitle: "text-sm font-semibold text-slate-700 dark:text-zinc-300",
+  sectionHint: "text-sm font-normal text-slate-500 dark:text-zinc-400 ml-auto",
+  sectionBody: "p-3.5 space-y-3",
 
   // Form elements
-  label: "text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block",
+  label: "text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1.5 block",
   labelRequired: "text-red-500",
-  labelHint: "text-xs font-medium text-zinc-400 dark:text-zinc-500 mt-0.5 block",
+  labelHint: "text-xs font-normal text-slate-500 dark:text-zinc-400 mt-1 block",
   // Form inputs — aligned with reference (h-8, border-1, text-sm)
-  input: "border font-medium h-8 text-sm rounded-none placeholder:text-zinc-400 placeholder:italic placeholder:font-normal transition-colors",
-  inputMono: "border font-mono font-bold h-8 text-sm rounded-none placeholder:text-zinc-400 placeholder:italic placeholder:font-normal transition-colors",
-  select: "h-8 text-sm rounded-none border transition-colors",
-  textarea: "border text-sm rounded-none px-3 py-2 min-h-[60px] placeholder:text-zinc-400 placeholder:italic placeholder:font-normal transition-colors resize-none",
+  input: "border font-normal h-10 text-sm rounded-md px-3 placeholder:text-slate-400 placeholder:font-normal transition-colors",
+  inputMono: "border font-mono font-medium h-10 text-sm rounded-md px-3 placeholder:text-slate-400 placeholder:font-normal transition-colors tabular-nums",
+  select: "h-10 text-sm rounded-md border transition-colors",
+  textarea: "border text-sm rounded-md px-3 py-2 min-h-[72px] placeholder:text-slate-400 placeholder:font-normal transition-colors resize-none",
 
   // Buttons
-  cancelBtn: "border border-zinc-300 dark:border-zinc-600 text-zinc-500 dark:text-zinc-400 font-bold uppercase text-xs tracking-wider px-6 h-9 rounded-none bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700",
-  submitBtn: "bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-[4px] active:shadow-none transition-all font-black uppercase text-xs tracking-wider px-8 h-11 rounded-none",
-  submitBtnGreen: "bg-emerald-500 text-white border-2 border-emerald-600 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-emerald-600 hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] active:translate-y-[4px] active:shadow-none transition-all font-black uppercase text-xs tracking-wider px-8 h-11 rounded-none",
-  submitBtnOrange: "bg-orange-500 text-white border-2 border-orange-600 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-orange-600 hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] active:translate-y-[4px] active:shadow-none transition-all font-black uppercase text-xs tracking-wider px-8 h-11 rounded-none",
-  submitBtnBlue: "bg-zinc-900 text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-black hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] active:translate-y-[4px] active:shadow-none transition-all font-black uppercase text-xs tracking-wider px-8 h-11 rounded-none",
-  triggerBtn: "bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider rounded-none",
+  cancelBtn: "border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-300 font-medium text-sm px-5 h-10 rounded-md bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors",
+  submitBtn: "bg-slate-800 text-white font-semibold text-sm px-6 h-10 rounded-md shadow-sm hover:bg-slate-900 active:translate-y-px transition-colors",
+  submitBtnGreen: "bg-emerald-600 text-white font-semibold text-sm px-6 h-10 rounded-md shadow-sm hover:bg-emerald-700 active:translate-y-px transition-colors",
+  submitBtnOrange: "bg-blue-700 text-white font-semibold text-sm px-6 h-10 rounded-md shadow-sm hover:bg-blue-800 active:translate-y-px transition-colors",
+  submitBtnBlue: "bg-blue-700 text-white font-semibold text-sm px-6 h-10 rounded-md shadow-sm hover:bg-blue-800 active:translate-y-px transition-colors",
+  triggerBtn: "bg-blue-700 text-white font-semibold text-sm rounded-md shadow-sm hover:bg-blue-800 transition-colors",
 
   // Toggle / Switch
-  toggle: "relative w-11 h-6 rounded-none border-2 transition-colors cursor-pointer",
-  toggleActive: "bg-emerald-500 border-emerald-600",
-  toggleInactive: "bg-zinc-200 dark:bg-zinc-700 border-zinc-300 dark:border-zinc-600",
-  toggleThumb: "absolute top-0.5 w-4 h-4 bg-white rounded-none shadow transition-transform",
+  toggle: "relative w-11 h-6 rounded-full border transition-colors cursor-pointer",
+  toggleActive: "bg-blue-700 border-blue-700",
+  toggleInactive: "bg-slate-200 dark:bg-zinc-700 border-slate-300 dark:border-zinc-600",
+  toggleThumb: "absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform",
 
   // Error & feedback
-  error: "text-xs text-red-500 font-bold mt-0.5",
+  error: "text-sm text-red-600 font-medium mt-1",
 
   // Table styling (for item tables)
-  tableWrap: "border-2 border-black overflow-hidden rounded-none",
-  tableHead: "bg-zinc-100 dark:bg-zinc-800 border-b-2 border-black",
-  tableHeadCell: "text-xs font-black uppercase tracking-widest text-zinc-500 px-3 py-2",
-  tableRow: "border-b border-zinc-200 dark:border-zinc-700 last:border-b-0",
-  tableCell: "px-3 py-2 text-sm font-medium",
+  tableWrap: "border border-border overflow-hidden rounded-lg",
+  tableHead: "bg-slate-50 dark:bg-zinc-800 border-b border-border",
+  tableHeadCell: "text-xs font-semibold text-slate-600 dark:text-zinc-400 px-3 py-2.5",
+  tableRow: "border-b border-slate-100 dark:border-zinc-800 last:border-b-0",
+  tableCell: "px-3 py-2.5 text-sm",
 
   // Footer actions row
   footer: "flex items-center justify-end gap-3 pt-2",
@@ -65,37 +65,37 @@ export const NB = {
   // ─── Active Input Indicator ───
   // When an input/select/filter has a value, apply these to show "active" state.
   // Use conditionally: className={value ? NB.inputActive : NB.inputEmpty}
-  inputActive: "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 text-zinc-900 dark:text-white",
-  inputEmpty: "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900",
+  inputActive: "border-blue-500 dark:border-blue-500 bg-blue-50/40 dark:bg-blue-950/20 text-slate-900 dark:text-white",
+  inputEmpty: "border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900",
   // Icon color when input has value vs empty
-  inputIconActive: "text-orange-500",
-  inputIconEmpty: "text-zinc-500 dark:text-zinc-400",
+  inputIconActive: "text-blue-700",
+  inputIconEmpty: "text-slate-500 dark:text-zinc-400",
 
   // ─── Page Header (Unified Card) ───
   // Outer wrapper: one card with accent bar, 3 internal rows
-  pageCard: "relative border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900",
-  pageAccent: "h-1 bg-orange-500",
+  pageCard: "relative border border-border rounded-lg shadow-sm overflow-hidden bg-white dark:bg-zinc-900",
+  pageAccent: "hidden",
   // Row divider (internal rows share light borders, not heavy black)
-  pageRowBorder: "border-b border-zinc-200 dark:border-zinc-800",
+  pageRowBorder: "border-b border-slate-100 dark:border-zinc-800",
 
   // ─── Page Toolbar Buttons ───
   // Secondary actions — joined with border-r-0 between adjacent buttons
-  toolbarBtn: "border border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 text-xs font-bold uppercase tracking-wider h-9 px-3.5 rounded-none hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors",
+  toolbarBtn: "border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 text-sm font-medium h-10 px-4 rounded-md bg-white hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors",
   toolbarBtnJoin: "border-r-0", // add to all except last in group
   // Primary CTA — orange, separated from secondary group by ml-2
-  toolbarBtnPrimary: "bg-orange-500 text-white border border-orange-600 hover:bg-orange-600 font-bold uppercase text-xs tracking-wider px-4 h-9 rounded-none transition-colors ml-2",
+  toolbarBtnPrimary: "bg-blue-700 text-white hover:bg-blue-800 font-semibold text-sm px-5 h-10 rounded-md shadow-sm transition-colors ml-2",
 
   // ─── Filter Toolbar ───
   // Joined search + dropdowns + action in one strip, all h-9
-  filterBar: "px-5 py-2.5 flex items-center justify-between bg-zinc-50/80 dark:bg-zinc-800/30",
-  filterInput: "border font-medium h-9 text-xs rounded-none pl-9 pr-8 placeholder:text-zinc-400 placeholder:font-normal focus:z-10 relative transition-all",
-  filterDropdown: "flex items-center gap-2 border border-zinc-300 dark:border-zinc-700 border-r-0 h-9 px-3 bg-white dark:bg-zinc-900 text-xs font-medium min-w-[120px] justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors rounded-none",
+  filterBar: "px-5 py-3 flex items-center justify-between bg-slate-50/70 dark:bg-zinc-800/30",
+  filterInput: "border font-normal h-10 text-sm rounded-md pl-9 pr-8 placeholder:text-slate-400 placeholder:font-normal focus:z-10 relative transition-all",
+  filterDropdown: "flex items-center gap-2 border border-slate-300 dark:border-zinc-700 h-10 px-3 bg-white dark:bg-zinc-900 text-sm font-normal min-w-[130px] justify-between hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors rounded-md",
 
   // ─── KPI Strip ───
   // Horizontal cells: label left, count+amount right, divide-x between
-  kpiStrip: "flex items-center divide-x divide-zinc-200 dark:divide-zinc-800",
-  kpiCell: "flex-1 px-4 py-3 flex items-center justify-between gap-3 cursor-default",
-  kpiLabel: "text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400",
-  kpiCount: "text-xl font-black text-zinc-900 dark:text-white",
-  kpiAmount: "text-xs font-mono font-bold text-zinc-500 dark:text-zinc-400",
+  kpiStrip: "flex items-stretch divide-x divide-slate-100 dark:divide-zinc-800",
+  kpiCell: "flex-1 px-5 py-4 flex items-center justify-between gap-3 cursor-default",
+  kpiLabel: "text-sm font-medium text-slate-600 dark:text-zinc-400",
+  kpiCount: "text-2xl font-semibold text-slate-900 dark:text-white tabular-nums",
+  kpiAmount: "text-sm font-medium text-slate-500 dark:text-zinc-400 tabular-nums",
 } as const

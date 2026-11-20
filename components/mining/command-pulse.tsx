@@ -49,35 +49,35 @@ function InboxRow({ action, index }: { action: CommandAction; index: number }) {
     return (
         <Link
             href={action.href}
-            className={`group flex items-center gap-3 px-3 py-3 border-l-4 transition-colors hover:bg-orange-50/70 dark:hover:bg-orange-950/20 ${tone.bar}`}
+            className={`group flex items-center gap-3 px-3 py-3 border-l transition-colors hover:bg-blue-50/70 dark:hover:bg-blue-950/20 ${tone.bar}`}
         >
-            <span className="w-7 shrink-0 text-center text-[11px] font-mono font-black text-zinc-400 group-hover:text-orange-500">
+            <span className="w-7 shrink-0 text-center text-xs font-mono font-semibold text-zinc-400 group-hover:text-blue-500">
                 {queueNumber(index)}
             </span>
             <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5">
-                    <span className={`text-xs font-black uppercase tracking-widest px-1.5 py-0.5 border ${tone.chip}`}>
+                    <span className={`text-xs font-semibold px-1.5 py-0.5 border ${tone.chip}`}>
                         {SEVERITY_LABEL[action.tone]}
                     </span>
-                    <span className="text-xs font-black uppercase tracking-widest px-1.5 py-0.5 border border-zinc-200 dark:border-zinc-700 text-zinc-500">
+                    <span className="text-xs font-semibold px-1.5 py-0.5 border border-zinc-200 dark:border-zinc-700 text-zinc-500">
                         {MODULE_LABEL[action.module]}
                     </span>
                     <span className="text-sm font-bold truncate">{action.title}</span>
                 </div>
-                <p className="text-[11px] text-zinc-500 mt-0.5 line-clamp-2">{action.detail}</p>
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-[10px] text-zinc-400">
-                    <span className="font-bold uppercase tracking-wider">{action.owner}</span>
+                <p className="text-xs text-zinc-500 mt-0.5 line-clamp-2">{action.detail}</p>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-xs text-zinc-400">
+                    <span className="font-bold  ">{action.owner}</span>
                     {action.due ? <span>· Batas: {action.due}</span> : null}
                     {action.impact ? <span className="hidden md:inline">· {action.impact}</span> : null}
                 </div>
             </div>
             <div className="flex shrink-0 flex-col items-end gap-1.5">
                 {action.amount ? (
-                    <span className="text-xs font-mono font-black tabular-nums">{formatIDR(action.amount)}</span>
+                    <span className="text-xs font-mono font-semibold tabular-nums">{formatIDR(action.amount)}</span>
                 ) : action.count != null ? (
-                    <span className="text-lg font-black leading-none tabular-nums">{action.count}</span>
+                    <span className="text-lg font-semibold leading-none tabular-nums">{action.count}</span>
                 ) : null}
-                <span className="inline-flex items-center gap-1 border-2 border-black bg-orange-500 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-transform group-hover:translate-x-[1px] group-hover:translate-y-[1px] group-hover:shadow-none">
+                <span className="inline-flex items-center gap-1 border border-border bg-blue-500 px-2 py-1 text-xs font-semibold text-white shadow-sm transition-transform group-hover:shadow-none">
                     {action.cta}
                     <ChevronRight className="h-3 w-3" />
                 </span>
@@ -90,8 +90,8 @@ function QueueClean({ compact = false }: { compact?: boolean }) {
     return (
         <div className={`flex flex-col items-center justify-center gap-1 text-center ${compact ? "px-4 py-6" : "px-4 py-10"}`}>
             <CheckCircle2 className="h-6 w-6 text-emerald-600" />
-            <span className="text-sm font-black uppercase tracking-widest text-emerald-700">Antrian bersih</span>
-            <p className="max-w-sm text-[11px] text-zinc-500">
+            <span className="text-sm font-semibold text-emerald-700">Antrian bersih</span>
+            <p className="max-w-sm text-xs text-zinc-500">
                 Tidak ada pekerjaan yang menahan buku. Semua tagihan, armada, dan gaji sudah tercatat.
             </p>
         </div>
@@ -102,8 +102,8 @@ function QueueError({ onRetry }: { onRetry: () => void }) {
     return (
         <div className="flex flex-col items-center justify-center gap-2 px-4 py-8 text-center">
             <AlertTriangle className="h-6 w-6 text-red-500" />
-            <span className="text-sm font-black uppercase tracking-widest text-red-700">Antrian gagal dimuat</span>
-            <p className="text-[11px] text-zinc-500">Koneksi ke data operasi terputus. Coba muat ulang.</p>
+            <span className="text-sm font-semibold text-red-700">Antrian gagal dimuat</span>
+            <p className="text-xs text-zinc-500">Koneksi ke data operasi terputus. Coba muat ulang.</p>
             <button
                 type="button"
                 onClick={onRetry}
@@ -167,17 +167,17 @@ export function OperationsInbox({
             {/* Row 1: identitas inbox + status buku */}
             <div className={`flex items-start justify-between gap-4 px-4 py-3 ${NB.pageRowBorder}`}>
                 <div className="flex items-start gap-2.5 min-w-0">
-                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center border-2 border-black bg-orange-500 text-white">
+                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center border border-border bg-blue-500 text-white">
                         <Inbox className="h-4 w-4" />
                     </span>
                     <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                            <h2 className="text-sm font-black uppercase tracking-wider">{title}</h2>
-                            <span className="border border-zinc-300 px-1.5 py-0.5 text-xs font-black uppercase tracking-widest text-zinc-500 dark:border-zinc-700">
+                            <h2 className="text-sm font-semibold  ">{title}</h2>
+                            <span className="border border-zinc-300 px-1.5 py-0.5 text-xs font-semibold text-zinc-500 dark:border-zinc-700">
                                 {data ? `${actions.length} tugas` : "memuat"}
                             </span>
                         </div>
-                        <p className="mt-0.5 text-[11px] text-zinc-500">{subtitle}</p>
+                        <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>
                     </div>
                 </div>
                 {data ? <IntegrityBadge pulse={data} /> : null}
@@ -221,7 +221,7 @@ export function OperationsInbox({
             )}
 
             {overflow > 0 ? (
-                <div className={`${NB.filterBar} justify-center text-[10px] font-bold uppercase tracking-wider text-zinc-500`}>
+                <div className={`${NB.filterBar} justify-center text-xs font-bold text-zinc-500`}>
                     +{overflow} tugas lain menunggu di modulnya
                 </div>
             ) : null}
@@ -270,10 +270,10 @@ export function CommandPulse({
             <div className={`flex items-start justify-between gap-4 px-4 py-3 ${NB.pageRowBorder}`}>
                 <div>
                     <div className="flex items-center gap-2">
-                        <Sparkles className="h-4 w-4 text-orange-500" />
-                        <h2 className="text-sm font-black uppercase tracking-wider">{title}</h2>
+                        <Sparkles className="h-4 w-4 text-blue-500" />
+                        <h2 className="text-sm font-semibold  ">{title}</h2>
                     </div>
-                    <p className="text-[11px] text-zinc-500 mt-0.5">{subtitle}</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">{subtitle}</p>
                 </div>
                 <IntegrityBadge pulse={data} />
             </div>
@@ -293,7 +293,7 @@ export function CommandPulse({
 function IntegrityBadge({ pulse }: { pulse: MiningCommandPulse }) {
     const healthy = pulse.integrity.booksHealthy && !pulse.integrity.unpostedPayroll
     return (
-        <div className={`flex shrink-0 items-center gap-1.5 text-xs font-black uppercase tracking-widest px-2 py-1 border ${
+        <div className={`flex shrink-0 items-center gap-1.5 text-xs font-semibold   px-2 py-1 border ${
             healthy ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-700 border-red-200"
         }`}>
             {healthy ? <CheckCircle2 className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
@@ -325,8 +325,8 @@ export function MiningMoneyLoop() {
         <div className={NB.pageCard}>
             <div className={NB.pageAccent} />
             <div className="px-4 py-3 border-b border-zinc-200">
-                <h2 className="text-sm font-black uppercase tracking-wider">Siklus uang tambang</h2>
-                <p className="text-[11px] text-zinc-500 mt-0.5">
+                <h2 className="text-sm font-semibold  ">Siklus uang tambang</h2>
+                <p className="text-xs text-zinc-500 mt-0.5">
                     Spare part masuk → bill → bayar → invoice pelanggan → gaji → armada jadi aset. Semua ke GL.
                 </p>
             </div>
@@ -335,15 +335,15 @@ export function MiningMoneyLoop() {
                     <Link
                         key={step.key}
                         href={step.href}
-                        className="px-3 py-3 hover:bg-orange-50/70 min-w-0"
+                        className="px-3 py-3 hover:bg-blue-50/70 min-w-0"
                     >
-                        <div className="text-xs font-black uppercase tracking-widest text-orange-600">
+                        <div className="text-xs font-semibold text-blue-600">
                             {queueNumber(index)} · {step.label}
                         </div>
-                        <div className="text-sm font-black font-mono mt-1 truncate">
+                        <div className="text-sm font-semibold font-mono mt-1 truncate">
                             {formatIDR(data.snapshot[step.key])}
                         </div>
-                        <div className="text-[10px] text-zinc-500 mt-0.5">{step.hint}</div>
+                        <div className="text-xs text-zinc-500 mt-0.5">{step.hint}</div>
                     </Link>
                 ))}
             </div>

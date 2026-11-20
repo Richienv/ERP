@@ -57,12 +57,12 @@ export function ComparativeReportView({
     ], [])
 
     return (
-        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <div className="bg-white border border-border shadow-sm">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b-2 border-black bg-zinc-50">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-zinc-50">
                 <div className="flex items-center gap-2">
                     <TrendingUp className="h-4 w-4 text-zinc-500" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                    <span className="text-xs font-semibold text-zinc-500">
                         Laporan Komparatif Laba Rugi
                     </span>
                 </div>
@@ -71,20 +71,20 @@ export function ComparativeReportView({
             {/* Table */}
             <table className="w-full text-xs">
                 <thead>
-                    <tr className="bg-zinc-100 border-b-2 border-black">
-                        <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-4 py-2.5 text-left w-[40%]">
+                    <tr className="bg-zinc-100 border-b border-border">
+                        <th className="text-xs font-semibold text-zinc-500 px-4 py-2.5 text-left w-[40%]">
                             Keterangan
                         </th>
-                        <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2.5 text-right w-[20%]">
+                        <th className="text-xs font-semibold text-zinc-500 px-3 py-2.5 text-right w-[20%]">
                             {currentPeriod.label}
                         </th>
-                        <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2.5 text-right w-[20%]">
+                        <th className="text-xs font-semibold text-zinc-500 px-3 py-2.5 text-right w-[20%]">
                             {priorPeriod.label}
                         </th>
-                        <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2.5 text-right w-[10%]">
+                        <th className="text-xs font-semibold text-zinc-500 px-3 py-2.5 text-right w-[10%]">
                             Selisih
                         </th>
-                        <th className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2.5 text-right w-[10%]">
+                        <th className="text-xs font-semibold text-zinc-500 px-3 py-2.5 text-right w-[10%]">
                             %
                         </th>
                     </tr>
@@ -100,17 +100,17 @@ export function ComparativeReportView({
                                 key={row.key}
                                 className={`border-b ${
                                     row.isHeader
-                                        ? 'border-black bg-zinc-50'
+                                        ? 'border-border bg-zinc-50'
                                         : 'border-zinc-100'
                                 }`}
                             >
                                 <td className={`px-4 py-2 ${
-                                    row.isHeader ? 'font-black' : 'font-medium'
+                                    row.isHeader ? 'font-semibold' : 'font-medium'
                                 } ${row.indent ? 'pl-8' : ''}`}>
                                     {row.label}
                                 </td>
                                 <td className={`px-3 py-2 text-right font-mono ${
-                                    row.isHeader ? 'font-black' : 'font-bold'
+                                    row.isHeader ? 'font-semibold' : 'font-bold'
                                 }`}>
                                     Rp {formatIDR(current)}
                                 </td>
@@ -151,11 +151,11 @@ export function ComparativeReportView({
             </table>
 
             {/* Summary bar */}
-            <div className="px-4 py-2.5 border-t-2 border-black bg-zinc-50 flex items-center justify-between">
-                <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
+            <div className="px-4 py-2.5 border-t border-border bg-zinc-50 flex items-center justify-between">
+                <span className="text-xs font-semibold text-zinc-500">
                     Margin Laba Bersih
                 </span>
-                <div className="flex items-center gap-4 text-[10px] font-black font-mono">
+                <div className="flex items-center gap-4 text-xs font-semibold font-mono">
                     <span>
                         {currentPeriod.revenue > 0
                             ? ((currentPeriod.netIncome / currentPeriod.revenue) * 100).toFixed(1)

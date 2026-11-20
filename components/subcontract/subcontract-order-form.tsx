@@ -217,12 +217,12 @@ export function SubcontractOrderForm({
                                             Operasi <span className={NB.labelRequired}>*</span>
                                         </label>
                                         {!subcontractorId ? (
-                                            <div className="border-2 border-dashed border-zinc-300 bg-zinc-50 h-10 flex items-center px-3 rounded-none">
+                                            <div className="border border-dashed border-zinc-300 bg-zinc-50 h-10 flex items-center px-3 rounded-md">
                                                 <span className="text-xs text-zinc-400 font-bold">Pilih subkontraktor dulu</span>
                                             </div>
                                         ) : availableOperations.length === 1 ? (
-                                            <div className="border-2 border-black bg-emerald-50 h-10 flex items-center px-3 rounded-none">
-                                                <span className="text-sm font-black text-emerald-700">{availableOperations[0].label}</span>
+                                            <div className="border border-border bg-emerald-50 h-10 flex items-center px-3 rounded-md">
+                                                <span className="text-sm font-semibold text-emerald-700">{availableOperations[0].label}</span>
                                             </div>
                                         ) : (
                                             <Select value={operation} onValueChange={setOperation}>
@@ -259,7 +259,7 @@ export function SubcontractOrderForm({
                                     Item <span className={NB.labelRequired}>*</span>
                                 </span>
                                 {items.length > 0 && (
-                                    <span className="ml-2 text-[9px] font-black bg-emerald-100 text-emerald-700 border border-emerald-300 px-1.5 py-0.5">
+                                    <span className="ml-2 text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-300 px-1.5 py-0.5">
                                         {items.length} item
                                     </span>
                                 )}
@@ -288,7 +288,7 @@ export function SubcontractOrderForm({
                                     <button
                                         type="button"
                                         onClick={addItem}
-                                        className="border-2 border-black bg-zinc-100 hover:bg-zinc-200 px-3 h-10 rounded-none"
+                                        className="border border-border bg-zinc-100 hover:bg-zinc-200 px-3 h-10 rounded-md"
                                     >
                                         <Plus className="h-4 w-4" />
                                     </button>

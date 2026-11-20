@@ -14,58 +14,62 @@ export function ErrorFallback({ error, reset, moduleName }: ErrorFallbackProps) 
   const [showDetails, setShowDetails] = useState(false)
 
   return (
-    <div className="flex-1 flex items-center justify-center p-8">
-      <div className="w-full max-w-md border-2 border-black bg-white dark:bg-zinc-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-8">
-        <div className="flex flex-col items-center text-center gap-4">
-          <div className="flex items-center justify-center w-16 h-16 bg-red-50 dark:bg-red-950 border-2 border-red-200 dark:border-red-800">
-            <IconAlertTriangle className="w-8 h-8 text-red-500" />
+    <div className="flex flex-1 items-center justify-center p-4 md:p-8">
+      <div
+        role="alert"
+        className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-sm md:p-8"
+      >
+        <div className="flex flex-col items-center gap-4 text-center">
+          <div className="flex size-14 items-center justify-center rounded-full bg-amber-50 ring-1 ring-amber-200 dark:bg-amber-950/50 dark:ring-amber-800">
+            <IconAlertTriangle aria-hidden className="size-7 text-amber-600 dark:text-amber-400" />
           </div>
 
           <div className="space-y-2">
-            <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-              Terjadi Kesalahan
+            <h2 className="text-lg font-semibold text-foreground">
+              {moduleName ? `Halaman ${moduleName} belum bisa dibuka` : "Halaman ini belum bisa dibuka"}
             </h2>
-            <p className="text-sm text-muted-foreground">
-              {moduleName
-                ? `Modul ${moduleName} mengalami masalah. Silakan coba lagi.`
-                : "Halaman ini mengalami masalah. Silakan coba lagi."}
+            <p className="text-[15px] leading-relaxed text-muted-foreground">
+              Ada gangguan saat memuat halaman ini.
+              Silakan tekan tombol di bawah untuk mencoba lagi.
             </p>
           </div>
 
-          <Button
-            onClick={reset}
-            className="rounded-none border-2 border-black bg-zinc-900 text-white hover:bg-zinc-800 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-semibold"
-          >
-            <IconRefresh className="w-4 h-4 mr-2" />
-            Coba Lagi
+          <Button onClick={reset} size="lg" className="h-11 min-w-40 px-6 text-[15px] font-semibold">
+            <IconRefresh aria-hidden className="size-[18px]" />
+            Coba lagi
           </Button>
+
+          <p className="text-sm text-muted-foreground">
+            Jika masih gagal, hubungi admin dan tunjukkan detail di bawah ini.
+          </p>
 
           <button
             type="button"
             onClick={() => setShowDetails(!showDetails)}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            aria-expanded={showDetails}
+            className="flex items-center gap-1 rounded-sm text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
           >
             {showDetails ? (
               <>
-                <IconChevronUp className="w-3 h-3" />
+                <IconChevronUp aria-hidden className="size-4" />
                 Sembunyikan detail
               </>
             ) : (
               <>
-                <IconChevronDown className="w-3 h-3" />
-                Lihat detail error
+                <IconChevronDown aria-hidden className="size-4" />
+                Lihat detail untuk admin
               </>
             )}
           </button>
 
           {showDetails && (
-            <div className="w-full text-left bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-3 overflow-auto max-h-40">
-              <p className="text-xs font-mono text-red-600 dark:text-red-400 break-all">
+            <div className="max-h-40 w-full overflow-auto rounded-md border border-border bg-muted/60 p-3 text-left">
+              <p className="break-all font-mono text-xs text-red-700 dark:text-red-400">
                 {error.message}
               </p>
               {error.digest && (
-                <p className="text-xs font-mono text-muted-foreground mt-2">
-                  Digest: {error.digest}
+                <p className="mt-2 font-mono text-xs text-muted-foreground">
+                  Kode: {error.digest}
                 </p>
               )}
             </div>

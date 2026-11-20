@@ -147,7 +147,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/procurement/spareparts": {
         queryKey: queryKeys.sparepartPurchases.list("all", ""),
-        queryFn: fetchSparepartFirstPage,
+        queryFn: (ctx?: unknown) => fetchSparepartFirstPage(ctx as { pageParam?: unknown }),
     },
     "/inventory/fabric-rolls": {
         queryKey: queryKeys.fabricRolls.list(),

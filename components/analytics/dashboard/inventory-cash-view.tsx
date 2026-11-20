@@ -53,14 +53,14 @@ export function InventoryCashView() {
             </Card>
 
             {/* Inventory Aging */}
-            <Card className="shadow-sm border-r-4 border-r-orange-400">
+            <Card className="shadow-sm border-r border-r-orange-400">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                     <div>
                         <CardTitle>Umur Stok (Aging)</CardTitle>
                         <CardDescription>Barang Slow Moving ({'>'}90 Hari)</CardDescription>
                     </div>
                     <div className="text-right">
-                        <span className="text-2xl font-bold text-orange-600">Rp 350jt</span>
+                        <span className="text-2xl font-bold text-blue-600">Rp 350jt</span>
                         <p className="text-xs text-muted-foreground">Stuck in {'>'}90 Days</p>
                     </div>
                 </CardHeader>
@@ -78,7 +78,7 @@ export function InventoryCashView() {
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
-                    <Button variant="outline" className="w-full border-orange-200 text-orange-700 hover:bg-orange-50">
+                    <Button variant="outline" className="w-full border-blue-200 text-blue-700 hover:bg-blue-50">
                         <ExternalLink className="mr-2 h-4 w-4" />
                         Buat Kampanye Clearance Sale
                     </Button>

@@ -109,19 +109,19 @@ export function SubcontractorRatesTable({ rates, subcontractorId }: Subcontracto
     }
 
     return (
-        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <div className="px-4 py-2.5 border-b-2 border-black bg-zinc-50 flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Tarif</span>
-                <span className="text-[9px] font-bold text-zinc-400">{rates.length} tarif</span>
+        <div className="bg-white border border-border shadow-sm">
+            <div className="px-4 py-2.5 border-b border-border bg-zinc-50 flex items-center justify-between">
+                <span className="text-xs font-semibold text-zinc-500">Tarif</span>
+                <span className="text-xs font-bold text-zinc-400">{rates.length} tarif</span>
             </div>
             <table className="w-full">
                 <thead className="bg-zinc-50 border-b border-zinc-200">
                     <tr>
-                        <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">Operasi</th>
-                        <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">Tipe Produk</th>
-                        <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-right">Tarif/Unit</th>
-                        <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">Berlaku</th>
-                        <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-right w-24">Aksi</th>
+                        <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">Operasi</th>
+                        <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">Tipe Produk</th>
+                        <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-right">Tarif/Unit</th>
+                        <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">Berlaku</th>
+                        <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-right w-24">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -129,12 +129,12 @@ export function SubcontractorRatesTable({ rates, subcontractorId }: Subcontracto
                         <tr key={rate.id} className="border-b border-zinc-200 last:border-b-0">
                             {editingId === rate.id ? (
                                 <>
-                                    <td className="px-3 py-2 text-xs font-black">
+                                    <td className="px-3 py-2 text-xs font-semibold">
                                         {OPERATION_LABELS[rate.operation] || rate.operation}
                                     </td>
                                     <td className="px-2 py-1.5">
                                         <Input
-                                            className="h-7 text-xs border-2 border-black font-bold"
+                                            className="h-7 text-xs border border-border font-bold"
                                             value={editProductType}
                                             onChange={(e) => setEditProductType(e.target.value)}
                                             placeholder="Tipe produk"
@@ -142,7 +142,7 @@ export function SubcontractorRatesTable({ rates, subcontractorId }: Subcontracto
                                     </td>
                                     <td className="px-2 py-1.5">
                                         <Input
-                                            className="h-7 text-xs border-2 border-black font-mono font-bold text-right"
+                                            className="h-7 text-xs border border-border font-mono font-bold text-right"
                                             type="number"
                                             value={editRate}
                                             onChange={(e) => setEditRate(parseFloat(e.target.value) || 0)}
@@ -151,13 +151,13 @@ export function SubcontractorRatesTable({ rates, subcontractorId }: Subcontracto
                                     <td className="px-2 py-1.5">
                                         <div className="flex gap-1">
                                             <Input
-                                                className="h-7 text-[10px] border-2 border-black font-bold"
+                                                className="h-7 text-xs border border-border font-bold"
                                                 type="date"
                                                 value={editValidFrom}
                                                 onChange={(e) => setEditValidFrom(e.target.value)}
                                             />
                                             <Input
-                                                className="h-7 text-[10px] border-2 border-black font-bold"
+                                                className="h-7 text-xs border border-border font-bold"
                                                 type="date"
                                                 value={editValidTo}
                                                 onChange={(e) => setEditValidTo(e.target.value)}
@@ -190,10 +190,10 @@ export function SubcontractorRatesTable({ rates, subcontractorId }: Subcontracto
                                 </>
                             ) : (
                                 <>
-                                    <td className="px-3 py-2 text-xs font-black">{OPERATION_LABELS[rate.operation] || rate.operation}</td>
+                                    <td className="px-3 py-2 text-xs font-semibold">{OPERATION_LABELS[rate.operation] || rate.operation}</td>
                                     <td className="px-3 py-2 text-xs font-bold text-zinc-500">{rate.productType || "—"}</td>
                                     <td className="px-3 py-2 text-xs font-mono font-bold text-right">{formatCurrency(rate.ratePerUnit)}</td>
-                                    <td className="px-3 py-2 text-[10px] font-bold text-zinc-500">
+                                    <td className="px-3 py-2 text-xs font-bold text-zinc-500">
                                         {new Date(rate.validFrom).toLocaleDateString("id-ID")}
                                         {rate.validTo ? ` — ${new Date(rate.validTo).toLocaleDateString("id-ID")}` : " — Sekarang"}
                                     </td>

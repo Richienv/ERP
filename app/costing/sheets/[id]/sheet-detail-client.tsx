@@ -269,19 +269,19 @@ export function SheetDetailClient({ sheet }: Props) {
                 <div className="flex items-start gap-3">
                     <Link
                         href="/costing/sheets"
-                        className="p-2 border-2 border-black hover:bg-zinc-100 transition-colors mt-1"
+                        className="p-2 border border-border hover:bg-zinc-100 transition-colors mt-1"
                     >
                         <ArrowLeft className="h-4 w-4" />
                     </Link>
                     <div>
                         <div className="flex items-center gap-2 flex-wrap">
-                            <h1 className="text-xl font-black uppercase tracking-wider">
+                            <h1 className="text-xl font-semibold  ">
                                 {sheet.number}
                             </h1>
-                            <span className="text-[9px] font-black px-2 py-0.5 bg-zinc-100 border-2 border-black">
+                            <span className="text-xs font-semibold px-2 py-0.5 bg-zinc-100 border border-border">
                                 v{sheet.version}
                             </span>
-                            <span className={`text-[9px] font-black px-2 py-0.5 border ${costSheetStatusColors[sheet.status as CostSheetStatusType]}`}>
+                            <span className={`text-xs font-semibold px-2 py-0.5 border ${costSheetStatusColors[sheet.status as CostSheetStatusType]}`}>
                                 {costSheetStatusLabels[sheet.status as CostSheetStatusType]}
                             </span>
                         </div>
@@ -297,14 +297,14 @@ export function SheetDetailClient({ sheet }: Props) {
                         <>
                             <button
                                 onClick={() => setAddOpen(true)}
-                                className="flex items-center gap-1.5 px-3 py-2 border-2 border-black bg-black text-white font-black uppercase text-[10px] tracking-wider shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+                                className="flex items-center gap-1.5 px-3 py-2 border border-border bg-slate-900 text-white font-semibold text-xs shadow-sm hover:shadow-sm transition-all"
                             >
                                 <Plus className="h-3.5 w-3.5" />
                                 Tambah Item
                             </button>
                             <button
                                 onClick={handleOpenBOM}
-                                className="flex items-center gap-1.5 px-3 py-2 border-2 border-black bg-white text-black font-black uppercase text-[10px] tracking-wider shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+                                className="flex items-center gap-1.5 px-3 py-2 border border-border bg-white text-black font-semibold text-xs shadow-sm hover:shadow-sm transition-all"
                             >
                                 <Download className="h-3.5 w-3.5" />
                                 Tarik dari BOM
@@ -312,7 +312,7 @@ export function SheetDetailClient({ sheet }: Props) {
                             <button
                                 onClick={() => handleStatusChange("CS_FINALIZED")}
                                 disabled={loading || sheet.items.length === 0}
-                                className="flex items-center gap-1.5 px-3 py-2 border-2 border-blue-600 bg-blue-600 text-white font-black uppercase text-[10px] tracking-wider shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-50"
+                                className="flex items-center gap-1.5 px-3 py-2 border border-blue-600 bg-blue-600 text-white font-semibold text-xs shadow-sm hover:shadow-sm transition-all disabled:opacity-50"
                             >
                                 <Lock className="h-3.5 w-3.5" />
                                 Finalisasi
@@ -324,7 +324,7 @@ export function SheetDetailClient({ sheet }: Props) {
                             <button
                                 onClick={() => handleStatusChange("CS_APPROVED")}
                                 disabled={loading}
-                                className="flex items-center gap-1.5 px-3 py-2 border-2 border-emerald-600 bg-emerald-600 text-white font-black uppercase text-[10px] tracking-wider shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+                                className="flex items-center gap-1.5 px-3 py-2 border border-emerald-600 bg-emerald-600 text-white font-semibold text-xs shadow-sm hover:shadow-sm transition-all"
                             >
                                 <CheckCircle2 className="h-3.5 w-3.5" />
                                 Setujui
@@ -332,7 +332,7 @@ export function SheetDetailClient({ sheet }: Props) {
                             <button
                                 onClick={() => handleStatusChange("CS_DRAFT")}
                                 disabled={loading}
-                                className="flex items-center gap-1.5 px-3 py-2 border-2 border-black bg-white text-black font-black uppercase text-[10px] tracking-wider shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+                                className="flex items-center gap-1.5 px-3 py-2 border border-border bg-white text-black font-semibold text-xs shadow-sm hover:shadow-sm transition-all"
                             >
                                 <Undo2 className="h-3.5 w-3.5" />
                                 Buka Kembali
@@ -342,7 +342,7 @@ export function SheetDetailClient({ sheet }: Props) {
                     <button
                         onClick={handleDuplicate}
                         disabled={loading}
-                        className="flex items-center gap-1.5 px-3 py-2 border-2 border-black bg-white text-black font-black uppercase text-[10px] tracking-wider shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+                        className="flex items-center gap-1.5 px-3 py-2 border border-border bg-white text-black font-semibold text-xs shadow-sm hover:shadow-sm transition-all"
                     >
                         <Copy className="h-3.5 w-3.5" />
                         Duplikasi
@@ -373,12 +373,12 @@ export function SheetDetailClient({ sheet }: Props) {
             </div>
 
             {/* ── Items Table ── */}
-            <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                <div className="px-4 py-2.5 border-b-2 border-black bg-zinc-50 flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+            <div className="bg-white border border-border shadow-sm overflow-hidden">
+                <div className="px-4 py-2.5 border-b border-border bg-zinc-50 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-zinc-500">
                         Item Biaya
                     </span>
-                    <span className="text-[10px] font-bold text-zinc-400 font-mono">
+                    <span className="text-xs font-bold text-zinc-400 font-mono">
                         {sheet.items.length} item — Total: Rp {formatIDR(sheet.totalCost)}
                     </span>
                 </div>
@@ -386,7 +386,7 @@ export function SheetDetailClient({ sheet }: Props) {
                 {sheet.items.length === 0 ? (
                     <div className="p-8 text-center">
                         <Package className="h-8 w-8 mx-auto text-zinc-200 mb-2" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                        <span className="text-xs font-semibold text-zinc-400">
                             Belum ada item — tambah manual atau tarik dari BOM
                         </span>
                     </div>
@@ -403,14 +403,14 @@ export function SheetDetailClient({ sheet }: Props) {
                                     <div className="px-4 py-1.5 bg-zinc-100 border-b border-zinc-200 border-t border-t-zinc-300 flex items-center justify-between">
                                         <div className="flex items-center gap-2">
                                             <div
-                                                className="w-2.5 h-2.5 border border-black"
+                                                className="w-2.5 h-2.5 border border-border"
                                                 style={{ backgroundColor: COST_CATEGORY_COLORS[cat] }}
                                             />
-                                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
+                                            <span className="text-xs font-semibold text-zinc-500">
                                                 {COST_CATEGORY_LABELS[cat]}
                                             </span>
                                         </div>
-                                        <span className="text-[9px] font-bold font-mono text-zinc-500">
+                                        <span className="text-xs font-bold font-mono text-zinc-500">
                                             Rp {formatIDR(subtotal)}
                                             {actualSubtotal > 0 && (
                                                 <span className="ml-2 text-zinc-400">
@@ -429,20 +429,20 @@ export function SheetDetailClient({ sheet }: Props) {
                                                 <div className="text-xs font-bold truncate">{item.description}</div>
                                             </div>
                                             <div className="text-right shrink-0 w-20">
-                                                <div className="text-[9px] font-bold text-zinc-400 uppercase">Qty</div>
+                                                <div className="text-xs font-bold text-zinc-400 ">Qty</div>
                                                 <div className="text-xs font-mono">{item.quantity}</div>
                                             </div>
                                             <div className="text-right shrink-0 w-24">
-                                                <div className="text-[9px] font-bold text-zinc-400 uppercase">Biaya/Unit</div>
+                                                <div className="text-xs font-bold text-zinc-400 ">Biaya/Unit</div>
                                                 <div className="text-xs font-mono">Rp {formatIDR(item.unitCost)}</div>
                                             </div>
                                             <div className="text-right shrink-0 w-28">
-                                                <div className="text-[9px] font-bold text-zinc-400 uppercase">Total</div>
+                                                <div className="text-xs font-bold text-zinc-400 ">Total</div>
                                                 <div className="text-xs font-mono font-bold">Rp {formatIDR(item.totalCost)}</div>
                                             </div>
                                             {/* Actual columns */}
                                             <div className="text-right shrink-0 w-28 border-l border-zinc-200 pl-4">
-                                                <div className="text-[9px] font-bold text-zinc-400 uppercase">Aktual</div>
+                                                <div className="text-xs font-bold text-zinc-400 ">Aktual</div>
                                                 {item.actualTotalCost != null ? (
                                                     <div className={`text-xs font-mono font-bold ${item.actualTotalCost > item.totalCost ? "text-red-600" : "text-emerald-600"}`}>
                                                         Rp {formatIDR(item.actualTotalCost)}
@@ -456,7 +456,7 @@ export function SheetDetailClient({ sheet }: Props) {
                                                                 actualUnitCost: String(item.unitCost),
                                                             })
                                                         }}
-                                                        className="text-[9px] font-bold text-blue-600 hover:underline"
+                                                        className="text-xs font-bold text-blue-600 hover:underline"
                                                     >
                                                         Input
                                                     </button>
@@ -473,7 +473,7 @@ export function SheetDetailClient({ sheet }: Props) {
                                                                 unitCost: String(item.unitCost),
                                                             })
                                                         }}
-                                                        className="p-1.5 border border-zinc-300 hover:border-black hover:bg-zinc-100 transition-colors"
+                                                        className="p-1.5 border border-zinc-300 hover:border-border hover:bg-zinc-100 transition-colors"
                                                         title="Edit"
                                                     >
                                                         <Pencil className="h-3 w-3" />
@@ -561,16 +561,16 @@ export function SheetDetailClient({ sheet }: Props) {
                                 </div>
                             </div>
                             {addForm.quantity && addForm.unitCost && (
-                                <div className="bg-zinc-100 border-2 border-black p-3 text-center">
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Total:</span>
-                                    <span className="text-sm font-black font-mono ml-2">
+                                <div className="bg-zinc-100 border border-border p-3 text-center">
+                                    <span className="text-xs font-semibold text-zinc-500">Total:</span>
+                                    <span className="text-sm font-semibold font-mono ml-2">
                                         Rp {formatIDR(parseFloat(addForm.quantity) * parseFloat(addForm.unitCost))}
                                     </span>
                                 </div>
                             )}
                         </div>
                     </ScrollArea>
-                    <DialogFooter className="px-6 py-4 border-t-2 border-black bg-zinc-50">
+                    <DialogFooter className="px-6 py-4 border-t border-border bg-zinc-50">
                         <div className={NB.footer}>
                             <button onClick={() => setAddOpen(false)} className={NB.cancelBtn}>Batal</button>
                             <button onClick={handleAddItem} disabled={loading} className={NB.submitBtn}>
@@ -614,15 +614,15 @@ export function SheetDetailClient({ sheet }: Props) {
                             </div>
                         </div>
                         {editForm.quantity && editForm.unitCost && (
-                            <div className="bg-zinc-100 border-2 border-black p-3 text-center">
-                                <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Total:</span>
-                                <span className="text-sm font-black font-mono ml-2">
+                            <div className="bg-zinc-100 border border-border p-3 text-center">
+                                <span className="text-xs font-semibold text-zinc-500">Total:</span>
+                                <span className="text-sm font-semibold font-mono ml-2">
                                     Rp {formatIDR(parseFloat(editForm.quantity) * parseFloat(editForm.unitCost))}
                                 </span>
                             </div>
                         )}
                     </div>
-                    <DialogFooter className="px-6 py-4 border-t-2 border-black bg-zinc-50">
+                    <DialogFooter className="px-6 py-4 border-t border-border bg-zinc-50">
                         <div className={NB.footer}>
                             <button onClick={() => setEditItem(null)} className={NB.cancelBtn}>Batal</button>
                             <button onClick={handleEditItem} disabled={loading} className={NB.submitBtn}>
@@ -644,8 +644,8 @@ export function SheetDetailClient({ sheet }: Props) {
                         <p className={NB.subtitle}>{actualItem?.description}</p>
                     </DialogHeader>
                     <div className="p-6 space-y-4">
-                        <div className="bg-zinc-100 border-2 border-black p-3">
-                            <div className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1">Rencana</div>
+                        <div className="bg-zinc-100 border border-border p-3">
+                            <div className="text-xs font-semibold text-zinc-500 mb-1">Rencana</div>
                             <div className="text-xs font-mono">
                                 {actualItem?.quantity} × Rp {formatIDR(actualItem?.unitCost ?? 0)} = Rp {formatIDR(actualItem?.totalCost ?? 0)}
                             </div>
@@ -672,9 +672,9 @@ export function SheetDetailClient({ sheet }: Props) {
                             </div>
                         </div>
                         {actualForm.actualQuantity && actualForm.actualUnitCost && actualItem && (
-                            <div className="border-2 border-black p-3 text-center">
-                                <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Total Aktual:</span>
-                                <span className="text-sm font-black font-mono ml-2">
+                            <div className="border border-border p-3 text-center">
+                                <span className="text-xs font-semibold text-zinc-500">Total Aktual:</span>
+                                <span className="text-sm font-semibold font-mono ml-2">
                                     Rp {formatIDR(parseFloat(actualForm.actualQuantity) * parseFloat(actualForm.actualUnitCost))}
                                 </span>
                                 {(() => {
@@ -682,7 +682,7 @@ export function SheetDetailClient({ sheet }: Props) {
                                     const diff = actual - actualItem.totalCost
                                     const pct = actualItem.totalCost > 0 ? Math.round((diff / actualItem.totalCost) * 100) : 0
                                     return (
-                                        <div className={`text-[10px] font-bold mt-1 ${diff > 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                        <div className={`text-xs font-bold mt-1 ${diff > 0 ? "text-red-600" : "text-emerald-600"}`}>
                                             {diff > 0 ? "+" : ""}{formatIDR(diff)} ({pct > 0 ? "+" : ""}{pct}%)
                                         </div>
                                     )
@@ -690,7 +690,7 @@ export function SheetDetailClient({ sheet }: Props) {
                             </div>
                         )}
                     </div>
-                    <DialogFooter className="px-6 py-4 border-t-2 border-black bg-zinc-50">
+                    <DialogFooter className="px-6 py-4 border-t border-border bg-zinc-50">
                         <div className={NB.footer}>
                             <button onClick={() => setActualItem(null)} className={NB.cancelBtn}>Batal</button>
                             <button onClick={handleUpdateActual} disabled={loading} className={NB.submitBtn}>
@@ -717,21 +717,21 @@ export function SheetDetailClient({ sheet }: Props) {
                         <div className="p-6">
                             {bomLoading ? (
                                 <div className="text-center py-8">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 animate-pulse">
+                                    <span className="text-xs font-semibold text-zinc-400 animate-pulse">
                                         Memuat data BOM...
                                     </span>
                                 </div>
                             ) : bomItems.length === 0 ? (
                                 <div className="text-center py-8">
                                     <Package className="h-8 w-8 mx-auto text-zinc-200 mb-2" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                                    <span className="text-xs font-semibold text-zinc-400">
                                         Tidak ada BOM aktif untuk produk ini
                                     </span>
                                 </div>
                             ) : (
-                                <div className="border-2 border-black overflow-hidden">
+                                <div className="border border-border overflow-hidden">
                                     <table className="w-full">
-                                        <thead className="bg-zinc-100 border-b-2 border-black">
+                                        <thead className="bg-zinc-100 border-b border-border">
                                             <tr>
                                                 <th className="px-3 py-2 w-8">
                                                     <input
@@ -744,11 +744,11 @@ export function SheetDetailClient({ sheet }: Props) {
                                                         className="accent-black"
                                                     />
                                                 </th>
-                                                <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">Material</th>
-                                                <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-center">Kategori</th>
-                                                <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-right">Qty</th>
-                                                <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-right">Biaya/Unit</th>
-                                                <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-right">Total</th>
+                                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-left">Material</th>
+                                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-center">Kategori</th>
+                                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-right">Qty</th>
+                                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-right">Biaya/Unit</th>
+                                                <th className="text-xs font-semibold text-zinc-500 px-3 py-2 text-right">Total</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -764,11 +764,11 @@ export function SheetDetailClient({ sheet }: Props) {
                                                     </td>
                                                     <td className="px-3 py-2">
                                                         <div className="text-xs font-bold">{item.materialName}</div>
-                                                        <div className="text-[9px] text-zinc-400 font-mono">{item.materialCode}</div>
+                                                        <div className="text-xs text-zinc-400 font-mono">{item.materialCode}</div>
                                                     </td>
                                                     <td className="px-3 py-2 text-center">
                                                         <span
-                                                            className="text-[8px] font-black px-1.5 py-0.5 border"
+                                                            className="text-xs font-semibold px-1.5 py-0.5 border"
                                                             style={{
                                                                 backgroundColor: `${COST_CATEGORY_COLORS[item.category as CostCategoryType]}20`,
                                                                 borderColor: COST_CATEGORY_COLORS[item.category as CostCategoryType],
@@ -780,7 +780,7 @@ export function SheetDetailClient({ sheet }: Props) {
                                                     <td className="px-3 py-2 text-xs font-mono text-right">
                                                         {item.quantity}
                                                         {item.wastePct > 0 && (
-                                                            <span className="text-[8px] text-zinc-400 ml-1">(+{item.wastePct}%)</span>
+                                                            <span className="text-xs text-zinc-400 ml-1">(+{item.wastePct}%)</span>
                                                         )}
                                                     </td>
                                                     <td className="px-3 py-2 text-xs font-mono text-right">
@@ -798,9 +798,9 @@ export function SheetDetailClient({ sheet }: Props) {
                         </div>
                     </ScrollArea>
                     {bomItems.length > 0 && (
-                        <DialogFooter className="px-6 py-4 border-t-2 border-black bg-zinc-50">
+                        <DialogFooter className="px-6 py-4 border-t border-border bg-zinc-50">
                             <div className={NB.footer}>
-                                <span className="text-[10px] font-bold text-zinc-500 mr-auto">
+                                <span className="text-xs font-bold text-zinc-500 mr-auto">
                                     {bomSelected.size} dari {bomItems.length} dipilih
                                 </span>
                                 <button onClick={() => setBomOpen(false)} className={NB.cancelBtn}>Batal</button>

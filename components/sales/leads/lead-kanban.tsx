@@ -94,7 +94,7 @@ const formatDate = (value: string | Date) => {
 }
 
 const getHeatClass = (probability: number) => {
-  if (probability >= 80) return "bg-gradient-to-r from-rose-500 to-orange-500"
+  if (probability >= 80) return "bg-gradient-to-r from-rose-500 to-blue-500"
   if (probability >= 50) return "bg-amber-500"
   return "bg-sky-500"
 }
@@ -104,42 +104,42 @@ function LeadCardContent({ lead }: { lead: LeadKanbanItem }) {
   return (
     <div
       className={cn(
-        "border-2 border-black bg-white overflow-hidden transition-all rounded-none",
-        "shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]"
+        "border border-border bg-white overflow-hidden transition-all rounded-md",
+        "shadow-sm hover:translate-y-[-2px] hover:shadow-sm"
       )}
     >
       <div className={cn("h-1.5 w-full", getHeatClass(lead.probability))} />
       <div className="p-3 space-y-3">
         <div>
-          <p className="text-xs font-black leading-tight line-clamp-2 uppercase tracking-wide mb-1">
+          <p className="text-xs font-semibold leading-tight line-clamp-2 mb-1">
             {lead.title}
           </p>
-          <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-zinc-500">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-500">
             <Building2 className="h-3 w-3 flex-shrink-0" />
             <span className="truncate">{lead.company || "No Company"}</span>
           </div>
         </div>
 
         <div className="space-y-1.5 pt-2 border-t border-dashed border-zinc-200">
-          <div className="flex items-center gap-2 text-[10px] font-medium text-zinc-600">
+          <div className="flex items-center gap-2 text-xs font-medium text-zinc-600">
             <User className="h-3 w-3" />
             <span className="truncate">{lead.contactName}</span>
           </div>
-          <div className="flex items-center gap-2 text-[10px] font-medium text-zinc-400">
+          <div className="flex items-center gap-2 text-xs font-medium text-zinc-400">
             <Calendar className="h-3 w-3" />
             <span>{formatDate(lead.updatedAt)}</span>
           </div>
         </div>
 
         <div className="pt-2 flex items-center justify-between">
-          <p className="text-sm font-black text-zinc-900">{formatIDR(lead.estimatedValue)}</p>
+          <p className="text-sm font-semibold text-zinc-900">{formatIDR(lead.estimatedValue)}</p>
 
           {lead.probability >= 80 ? (
-            <div className="flex items-center gap-1 bg-orange-100 text-orange-700 border-2 border-orange-200 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider">
-              <Flame className="h-3 w-3 fill-orange-500" /> HOT
+            <div className="flex items-center gap-1 bg-blue-100 text-blue-700 border border-blue-200 px-1.5 py-0.5 text-xs font-semibold  ">
+              <Flame className="h-3 w-3 fill-blue-500" /> HOT
             </div>
           ) : (
-            <div className="text-[10px] font-bold text-zinc-400">
+            <div className="text-xs font-bold text-zinc-400">
               {lead.probability}% Prob.
             </div>
           )}
@@ -166,42 +166,42 @@ function DraggableLeadCard({ lead, isDragOverlay = false }: { lead: LeadKanbanIt
       {isDragOverlay ? (
         <div
           className={cn(
-            "border-2 border-black bg-white overflow-hidden rounded-none",
-            "shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rotate-2 scale-105 z-50"
+            "border border-border bg-white overflow-hidden rounded-md",
+            "shadow-sm rotate-2 scale-105 z-50"
           )}
         >
           <div className={cn("h-1.5 w-full", getHeatClass(lead.probability))} />
           <div className="p-3 space-y-3">
             <div>
-              <p className="text-xs font-black leading-tight line-clamp-2 uppercase tracking-wide mb-1">
+              <p className="text-xs font-semibold leading-tight line-clamp-2 mb-1">
                 {lead.title}
               </p>
-              <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-zinc-500">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-500">
                 <Building2 className="h-3 w-3 flex-shrink-0" />
                 <span className="truncate">{lead.company || "No Company"}</span>
               </div>
             </div>
 
             <div className="space-y-1.5 pt-2 border-t border-dashed border-zinc-200">
-              <div className="flex items-center gap-2 text-[10px] font-medium text-zinc-600">
+              <div className="flex items-center gap-2 text-xs font-medium text-zinc-600">
                 <User className="h-3 w-3" />
                 <span className="truncate">{lead.contactName}</span>
               </div>
-              <div className="flex items-center gap-2 text-[10px] font-medium text-zinc-400">
+              <div className="flex items-center gap-2 text-xs font-medium text-zinc-400">
                 <Calendar className="h-3 w-3" />
                 <span>{formatDate(lead.updatedAt)}</span>
               </div>
             </div>
 
             <div className="pt-2 flex items-center justify-between">
-              <p className="text-sm font-black text-zinc-900">{formatIDR(lead.estimatedValue)}</p>
+              <p className="text-sm font-semibold text-zinc-900">{formatIDR(lead.estimatedValue)}</p>
 
               {lead.probability >= 80 ? (
-                <div className="flex items-center gap-1 bg-orange-100 text-orange-700 border-2 border-orange-200 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider">
-                  <Flame className="h-3 w-3 fill-orange-500" /> HOT
+                <div className="flex items-center gap-1 bg-blue-100 text-blue-700 border border-blue-200 px-1.5 py-0.5 text-xs font-semibold  ">
+                  <Flame className="h-3 w-3 fill-blue-500" /> HOT
                 </div>
               ) : (
-                <div className="text-[10px] font-bold text-zinc-400">
+                <div className="text-xs font-bold text-zinc-400">
                   {lead.probability}% Prob.
                 </div>
               )}
@@ -226,8 +226,8 @@ function DroppableColumn({ status, children }: { status: LeadStage; children: Re
     <div
       ref={setNodeRef}
       className={cn(
-        "flex-1 min-h-[200px] p-2 border-2 border-dashed transition-colors rounded-none overflow-y-auto",
-        isOver ? "border-black bg-zinc-200/50" : "border-zinc-300 bg-zinc-50"
+        "flex-1 min-h-[200px] p-2 border border-dashed transition-colors rounded-md overflow-y-auto",
+        isOver ? "border-border bg-zinc-200/50" : "border-zinc-300 bg-zinc-50"
       )}
     >
       {children}
@@ -335,13 +335,13 @@ export function LeadKanban({ leads, isLoading = false, onStatusChange }: LeadKan
             return (
               <div key={status} className="flex-1 min-w-[200px] flex flex-col space-y-3">
                 {/* Column Header */}
-                <div className="p-3 border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden rounded-none">
+                <div className="p-3 border border-border bg-white shadow-sm relative overflow-hidden rounded-md">
                   <div className={cn("absolute top-0 left-0 w-full h-1.5", meta.accent)} />
                   <div className="flex items-center justify-between mb-2 mt-1">
-                    <h3 className="font-black text-xs uppercase tracking-wider text-zinc-800">{meta.title}</h3>
-                    <Badge className={cn("border-2 rounded-none font-bold h-5 px-1.5", meta.badgeClass)}>{statusLeads.length}</Badge>
+                    <h3 className="font-semibold text-xs text-zinc-800">{meta.title}</h3>
+                    <Badge className={cn("border rounded-md font-bold h-5 px-1.5", meta.badgeClass)}>{statusLeads.length}</Badge>
                   </div>
-                  <p className="text-sm font-black text-zinc-900 tracking-tight">{formatIDR(totalValue)}</p>
+                  <p className="text-sm font-semibold text-zinc-900 tracking-tight">{formatIDR(totalValue)}</p>
                 </div>
 
                 <DroppableColumn status={status}>

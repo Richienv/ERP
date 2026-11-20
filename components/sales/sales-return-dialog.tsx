@@ -239,11 +239,11 @@ export function SalesReturnDialog({
                         <NBSection icon={FileText} title="Informasi Retur">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">Pelanggan</label>
+                                    <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1 block">Pelanggan</label>
                                     <p className="font-bold text-sm">
                                         {soData.customer.name}
                                     </p>
-                                    <p className="text-[10px] text-zinc-500 font-mono">
+                                    <p className="text-xs text-zinc-500 font-mono">
                                         {soData.customer.code}
                                     </p>
                                 </div>
@@ -261,7 +261,7 @@ export function SalesReturnDialog({
                                         />
                                     ) : (
                                         <div>
-                                            <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">Invoice Terkait</label>
+                                            <label className="text-xs font-bold text-zinc-600 dark:text-zinc-400 mb-1 block">Invoice Terkait</label>
                                             <p className="text-xs text-zinc-500 font-bold">
                                                 Belum ada invoice
                                             </p>
@@ -277,11 +277,11 @@ export function SalesReturnDialog({
                                 <table className="w-full text-left">
                                     <thead className="bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700">
                                         <tr>
-                                            <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500">Produk</th>
-                                            <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-center">Terkirim</th>
-                                            <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-center">Qty Retur</th>
-                                            <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500">Alasan</th>
-                                            <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Subtotal</th>
+                                            <th className="px-3 py-2 text-xs font-semibold text-zinc-500">Produk</th>
+                                            <th className="px-3 py-2 text-xs font-semibold text-zinc-500 text-center">Terkirim</th>
+                                            <th className="px-3 py-2 text-xs font-semibold text-zinc-500 text-center">Qty Retur</th>
+                                            <th className="px-3 py-2 text-xs font-semibold text-zinc-500">Alasan</th>
+                                            <th className="px-3 py-2 text-xs font-semibold text-zinc-500 text-right">Subtotal</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -300,13 +300,13 @@ export function SalesReturnDialog({
                                                         <p className="font-bold text-sm">
                                                             {item.productName}
                                                         </p>
-                                                        <p className="text-[10px] text-zinc-500 font-mono">
+                                                        <p className="text-xs text-zinc-500 font-mono">
                                                             {item.productCode}
                                                             {item.color &&
                                                                 ` | ${item.color}`}
                                                             {item.size && ` | ${item.size}`}
                                                         </p>
-                                                        <p className="text-[10px] text-zinc-400">
+                                                        <p className="text-xs text-zinc-400">
                                                             @{" "}
                                                             {formatCurrency(item.unitPrice)}{" "}
                                                             / {item.unit}
@@ -335,7 +335,7 @@ export function SalesReturnDialog({
                                                                     )
                                                                 )
                                                             }
-                                                            className="w-20 mx-auto border border-zinc-300 rounded-none text-center font-bold h-8 text-sm"
+                                                            className="w-20 mx-auto border border-zinc-300 rounded-md text-center font-bold h-8 text-sm"
                                                             placeholder="0"
                                                         />
                                                     </td>
@@ -350,15 +350,15 @@ export function SalesReturnDialog({
                                                                 )
                                                             }
                                                         >
-                                                            <SelectTrigger className="border border-zinc-300 rounded-none h-8 text-xs font-bold w-[180px]">
+                                                            <SelectTrigger className="border border-zinc-300 rounded-md h-8 text-xs font-bold w-[180px]">
                                                                 <SelectValue />
                                                             </SelectTrigger>
-                                                            <SelectContent className="rounded-none">
+                                                            <SelectContent className="rounded-md">
                                                                 {RETURN_REASONS.map((r) => (
                                                                     <SelectItem
                                                                         key={r.value}
                                                                         value={r.value}
-                                                                        className="rounded-none text-xs"
+                                                                        className="rounded-md text-xs"
                                                                     >
                                                                         {r.label}
                                                                     </SelectItem>
@@ -394,22 +394,22 @@ export function SalesReturnDialog({
                         {selectedItems.length > 0 && (
                             <div className="bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 p-4">
                                 <div className="flex justify-between items-center mb-2">
-                                    <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-600">Subtotal Retur</span>
+                                    <span className="text-xs font-bold text-zinc-600">Subtotal Retur</span>
                                     <span className="font-bold">
                                         {formatCurrency(subtotal)}
                                     </span>
                                 </div>
                                 <div className="flex justify-between items-center mb-2">
-                                    <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-600">PPN 11%</span>
+                                    <span className="text-xs font-bold text-zinc-600">PPN 11%</span>
                                     <span className="font-bold">
                                         {formatCurrency(ppn)}
                                     </span>
                                 </div>
-                                <div className="flex justify-between items-center border-t-2 border-black pt-2">
-                                    <span className="text-sm font-black uppercase">
+                                <div className="flex justify-between items-center border-t border-border pt-2">
+                                    <span className="text-sm font-semibold ">
                                         Total Nota Kredit
                                     </span>
-                                    <span className="text-lg font-black">
+                                    <span className="text-lg font-semibold">
                                         {formatCurrency(total)}
                                     </span>
                                 </div>

@@ -138,14 +138,14 @@ function AddCurrencyDialog({ open, onOpenChange }: { open: boolean; onOpenChange
                         {selected ? (
                             /* ── Pill chip after selection ── */
                             <div className={`${NB.input} flex items-center h-9 px-2 border-emerald-400 dark:border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20`}>
-                                <span className="inline-flex items-center gap-2 bg-emerald-100 dark:bg-emerald-900/40 border border-emerald-300 dark:border-emerald-700 px-2.5 py-0.5 text-xs font-bold text-emerald-800 dark:text-emerald-200 rounded-none select-none">
+                                <span className="inline-flex items-center gap-2 bg-emerald-100 dark:bg-emerald-900/40 border border-emerald-300 dark:border-emerald-700 px-2.5 py-0.5 text-xs font-bold text-emerald-800 dark:text-emerald-200 rounded-md select-none">
                                     <span className="font-bold text-sm">{selected.symbol}</span>
-                                    <span className="font-mono font-black tracking-wider">{selected.code}</span>
+                                    <span className="font-mono font-semibold ">{selected.code}</span>
                                     <span className="text-emerald-600 dark:text-emerald-400 font-medium">&mdash;</span>
                                     <span className="font-medium text-emerald-700 dark:text-emerald-300">{selected.name}</span>
                                     <button
                                         type="button"
-                                        className="ml-1 text-emerald-400 dark:text-emerald-500 hover:text-red-500 dark:hover:text-red-400 transition-colors font-black text-xs leading-none"
+                                        className="ml-1 text-emerald-400 dark:text-emerald-500 hover:text-red-500 dark:hover:text-red-400 transition-colors font-semibold text-xs leading-none"
                                         onClick={clearSelection}
                                         title="Hapus pilihan"
                                     >&#10005;</button>
@@ -175,7 +175,7 @@ function AddCurrencyDialog({ open, onOpenChange }: { open: boolean; onOpenChange
 
                         {/* Hint text */}
                         {!selected && search.trim().length < 2 && (
-                            <p className="text-[9px] mt-0.5 font-bold text-zinc-400">
+                            <p className="text-xs mt-0.5 font-bold text-zinc-400">
                                 Ketik minimal 2 huruf untuk mencari
                             </p>
                         )}
@@ -183,7 +183,7 @@ function AddCurrencyDialog({ open, onOpenChange }: { open: boolean; onOpenChange
 
                     {/* Dropdown results — only when 2+ chars typed & not yet selected */}
                     {showDropdown && (
-                        <div className="border-2 border-zinc-200 dark:border-zinc-700 -mt-2 overflow-hidden">
+                        <div className="border border-zinc-200 dark:border-zinc-700 -mt-2 overflow-hidden">
                             <ScrollArea className="max-h-[180px]">
                                 {ranked.length === 0 ? (
                                     <div className="px-4 py-4 text-center">
@@ -197,14 +197,14 @@ function AddCurrencyDialog({ open, onOpenChange }: { open: boolean; onOpenChange
                                             <button
                                                 key={c.code}
                                                 type="button"
-                                                className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-orange-50 dark:hover:bg-orange-950/20 transition-colors"
+                                                className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-colors"
                                                 onClick={() => { setSelectedCode(c.code); setSearch("") }}
                                             >
                                                 <span className="w-7 text-center text-base font-bold text-zinc-500 dark:text-zinc-400 shrink-0">{c.symbol}</span>
-                                                <span className="font-mono font-black text-xs tracking-wider text-zinc-700 dark:text-zinc-200">{c.code}</span>
+                                                <span className="font-mono font-semibold text-xs text-zinc-700 dark:text-zinc-200">{c.code}</span>
                                                 <span className="text-xs text-zinc-500 dark:text-zinc-400 truncate flex-1">{c.name}</span>
                                                 {c.matchTier === 4 && (
-                                                    <span className="text-[9px] font-mono font-medium text-amber-500 dark:text-amber-400 shrink-0 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-1.5 py-0.5">
+                                                    <span className="text-xs font-mono font-medium text-amber-500 dark:text-amber-400 shrink-0 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-1.5 py-0.5">
                                                         &asymp; &quot;{search.trim().toLowerCase()}&quot;
                                                     </span>
                                                 )}
@@ -294,7 +294,7 @@ function AddRateDialog({ open, onOpenChange, currency }: { open: boolean; onOpen
                         <div><label className={NB.label}>Kurs Jual <span className={NB.labelRequired}>*</span></label><Input type="number" className={NB.inputMono} placeholder="16400" value={sellRate} onChange={(e) => { setSellRate(e.target.value); autoCalcMiddle(buyRate, e.target.value) }} step="0.01" /></div>
                         <div><label className={NB.label}>Kurs Tengah <span className={NB.labelRequired}>*</span></label><Input type="number" className={NB.inputMono} placeholder="16300" value={middleRate} onChange={(e) => setMiddleRate(e.target.value)} step="0.01" /></div>
                     </div>
-                    <p className="text-[10px] text-zinc-400 font-medium -mt-2">Kurs tengah otomatis dihitung dari rata-rata beli &amp; jual</p>
+                    <p className="text-xs text-zinc-400 font-medium -mt-2">Kurs tengah otomatis dihitung dari rata-rata beli &amp; jual</p>
                     <div>
                         <label className={NB.label}>Sumber</label>
                         <Input className={NB.input} placeholder="BI / BCA / Manual" value={source} onChange={(e) => setSource(e.target.value)} />
@@ -316,20 +316,20 @@ function CurrencyCard({ currency, onAddRate, onDelete }: { currency: Currency; o
 
     return (
         <div
-            className="border-2 border-black bg-white dark:bg-zinc-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden"
+            className="border border-border bg-white dark:bg-zinc-900 shadow-sm overflow-hidden"
         >
             {/* Card header — black bar */}
-            <div className="bg-black dark:bg-zinc-950 text-white px-4 py-3 flex items-center justify-between">
+            <div className="bg-slate-900 dark:bg-zinc-950 text-white px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <span className="text-2xl font-bold">{currency.symbol}</span>
                     <div>
-                        <div className="font-black text-sm tracking-wider">{currency.code}</div>
-                        <div className="text-[10px] text-zinc-400 font-medium">{currency.name}</div>
+                        <div className="font-semibold text-sm ">{currency.code}</div>
+                        <div className="text-xs text-zinc-400 font-medium">{currency.name}</div>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
                     <button
-                        className="flex items-center gap-1 bg-white text-black font-black text-[10px] uppercase tracking-wider rounded-none h-7 px-3 hover:bg-zinc-200 transition-colors"
+                        className="flex items-center gap-1 bg-white text-black font-semibold text-xs rounded-md h-7 px-3 hover:bg-zinc-200 transition-colors"
                         onClick={() => onAddRate(currency)}
                     >
                         <Plus className="h-3 w-3" /> Input Kurs
@@ -347,21 +347,21 @@ function CurrencyCard({ currency, onAddRate, onDelete }: { currency: Currency; o
             {/* Latest rate highlight */}
             {latestRate ? (
                 <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-800/30">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1.5">
+                    <div className="text-xs font-semibold text-zinc-400 mb-1.5">
                         Kurs Terbaru &mdash; {format(new Date(latestRate.date), "dd MMM yyyy", { locale: localeID })}
                     </div>
                     <div className="grid grid-cols-3 gap-4">
                         <div>
-                            <div className="text-[10px] text-zinc-400 font-bold uppercase">Beli</div>
+                            <div className="text-xs text-zinc-400 font-bold ">Beli</div>
                             <div className="font-mono font-bold text-sm text-zinc-900 dark:text-zinc-100">{fmtIDR(latestRate.buyRate)}</div>
                         </div>
                         <div>
-                            <div className="text-[10px] text-zinc-400 font-bold uppercase">Jual</div>
+                            <div className="text-xs text-zinc-400 font-bold ">Jual</div>
                             <div className="font-mono font-bold text-sm text-zinc-900 dark:text-zinc-100">{fmtIDR(latestRate.sellRate)}</div>
                         </div>
                         <div>
-                            <div className="text-[10px] text-zinc-400 font-bold uppercase">Tengah</div>
-                            <div className="font-mono font-black text-sm text-orange-600 dark:text-orange-400">{fmtIDR(latestRate.middleRate)}</div>
+                            <div className="text-xs text-zinc-400 font-bold ">Tengah</div>
+                            <div className="font-mono font-semibold text-sm text-blue-600 dark:text-blue-400">{fmtIDR(latestRate.middleRate)}</div>
                         </div>
                     </div>
                 </div>
@@ -377,17 +377,17 @@ function CurrencyCard({ currency, onAddRate, onDelete }: { currency: Currency; o
                     <table className="w-full text-xs">
                         <thead className="bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700 sticky top-0">
                             <tr>
-                                <th className="text-left px-3 py-1.5 font-black uppercase tracking-widest text-xs text-zinc-500">Tanggal</th>
-                                <th className="text-right px-3 py-1.5 font-black uppercase tracking-widest text-xs text-zinc-500">Beli</th>
-                                <th className="text-right px-3 py-1.5 font-black uppercase tracking-widest text-xs text-zinc-500">Jual</th>
-                                <th className="text-right px-3 py-1.5 font-black uppercase tracking-widest text-xs text-zinc-500">Tengah</th>
-                                <th className="text-center px-3 py-1.5 font-black uppercase tracking-widest text-xs text-zinc-500">Sumber</th>
+                                <th className="text-left px-3 py-1.5 font-semibold text-xs text-zinc-500">Tanggal</th>
+                                <th className="text-right px-3 py-1.5 font-semibold text-xs text-zinc-500">Beli</th>
+                                <th className="text-right px-3 py-1.5 font-semibold text-xs text-zinc-500">Jual</th>
+                                <th className="text-right px-3 py-1.5 font-semibold text-xs text-zinc-500">Tengah</th>
+                                <th className="text-center px-3 py-1.5 font-semibold text-xs text-zinc-500">Sumber</th>
                                 <th className="w-8"></th>
                             </tr>
                         </thead>
                         <tbody>
                             {currency.rates.map((rate, idx) => (
-                                <tr key={rate.id} className={`border-b border-zinc-100 dark:border-zinc-800 hover:bg-orange-50/30 dark:hover:bg-orange-950/10 transition-colors ${idx === 0 ? "bg-amber-50/50 dark:bg-amber-950/10" : ""}`}>
+                                <tr key={rate.id} className={`border-b border-zinc-100 dark:border-zinc-800 hover:bg-blue-50/30 dark:hover:bg-blue-950/10 transition-colors ${idx === 0 ? "bg-amber-50/50 dark:bg-amber-950/10" : ""}`}>
                                     <td className="px-3 py-1.5 font-medium text-zinc-700 dark:text-zinc-300">{format(new Date(rate.date), "dd/MM/yyyy")}</td>
                                     <td className="px-3 py-1.5 text-right font-mono text-zinc-700 dark:text-zinc-300">{fmtRate(rate.buyRate)}</td>
                                     <td className="px-3 py-1.5 text-right font-mono text-zinc-700 dark:text-zinc-300">{fmtRate(rate.sellRate)}</td>
@@ -426,7 +426,7 @@ export default function CurrenciesPage() {
     const [showRates, setShowRates] = useState(true)
     const deleteCurrency = useDeleteCurrency()
 
-    if (isLoading || !currencies) return <TablePageSkeleton accentColor="bg-orange-400" />
+    if (isLoading || !currencies) return <TablePageSkeleton accentColor="bg-blue-400" />
 
     const currenciesWithRates = currencies.filter((c) => c.rates.length > 0)
     const totalCurrencies = currencies.length
@@ -441,14 +441,14 @@ export default function CurrenciesPage() {
                 {/* Row 1: Title + Actions */}
                 <div className={`px-5 py-3.5 flex items-center justify-between ${NB.pageRowBorder}`}>
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-orange-500 flex items-center justify-center">
+                        <div className="w-9 h-9 bg-blue-500 flex items-center justify-center">
                             <DollarSign className="h-4.5 w-4.5 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-base font-black uppercase tracking-wider text-zinc-900 dark:text-white">
+                            <h1 className="text-base font-semibold text-zinc-900 dark:text-white">
                                 Tabel Kurs Mata Uang
                             </h1>
-                            <p className="text-zinc-400 text-[11px] font-medium">
+                            <p className="text-zinc-400 text-xs font-medium">
                                 Kelola kurs harian untuk transaksi multi-mata uang (PO impor, invoice ekspor)
                             </p>
                         </div>
@@ -462,7 +462,7 @@ export default function CurrenciesPage() {
                 <div className={`flex items-center divide-x divide-zinc-200 dark:divide-zinc-800 ${NB.pageRowBorder}`}>
                     <div className="flex-1 px-4 py-3 flex items-center justify-between gap-3 cursor-default">
                         <div className="flex items-center gap-1.5">
-                            <span className="w-2 h-2 bg-orange-500" />
+                            <span className="w-2 h-2 bg-blue-500" />
                             <span className={NB.kpiLabel}>Mata Uang</span>
                         </div>
                         <motion.span key={totalCurrencies} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={NB.kpiCount}>{totalCurrencies}</motion.span>
@@ -506,11 +506,11 @@ export default function CurrenciesPage() {
 
             {/* ─── Currency Cards Grid ─── */}
             {currencies.length === 0 ? (
-                <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 p-12 text-center">
-                    <div className="w-16 h-16 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center mx-auto mb-4">
+                <div className="border border-border shadow-sm bg-white dark:bg-zinc-900 p-12 text-center">
+                    <div className="w-16 h-16 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center mx-auto mb-4">
                         <DollarSign className="h-7 w-7 text-zinc-200 dark:text-zinc-700" />
                     </div>
-                    <h2 className="font-black text-lg uppercase mb-2 text-zinc-900 dark:text-white">Belum Ada Mata Uang</h2>
+                    <h2 className="font-semibold text-lg mb-2 text-zinc-900 dark:text-white">Belum Ada Mata Uang</h2>
                     <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
                         Tambahkan mata uang asing yang digunakan untuk transaksi impor/ekspor.
                         Contoh: USD, CNY, EUR, SGD, KRW

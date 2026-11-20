@@ -46,7 +46,7 @@ export default function FiscalPeriodsPage() {
     const closeMutation = useCloseFiscalPeriod()
     const reopenMutation = useReopenFiscalPeriod()
 
-    if (isLoading) return <TablePageSkeleton accentColor="bg-orange-400" />
+    if (isLoading) return <TablePageSkeleton accentColor="bg-blue-400" />
 
     const periodsByYear = (periods ?? []).reduce<Record<number, FiscalPeriod[]>>((acc, p) => {
         if (!acc[p.year]) acc[p.year] = []
@@ -89,14 +89,14 @@ export default function FiscalPeriodsPage() {
                 {/* Row 1: Title + Actions */}
                 <div className={`px-5 py-3.5 flex items-center justify-between ${NB.pageRowBorder}`}>
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-orange-500 flex items-center justify-center">
+                        <div className="w-9 h-9 bg-blue-500 flex items-center justify-center">
                             <Calendar className="h-4.5 w-4.5 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-base font-black uppercase tracking-wider text-zinc-900 dark:text-white">
+                            <h1 className="text-base font-semibold text-zinc-900 dark:text-white">
                                 Periode Fiskal
                             </h1>
-                            <p className="text-zinc-400 text-[11px] font-medium">
+                            <p className="text-zinc-400 text-xs font-medium">
                                 Kelola periode akuntansi tahunan
                             </p>
                         </div>
@@ -139,7 +139,7 @@ export default function FiscalPeriodsPage() {
                 {/* Row 2: KPI Strip */}
                 <div className={`${NB.kpiStrip} ${NB.pageRowBorder}`}>
                     {[
-                        { label: "Total Periode", count: allPeriods.length, dot: "bg-orange-500" },
+                        { label: "Total Periode", count: allPeriods.length, dot: "bg-blue-500" },
                         { label: "Terbuka", count: totalOpen, dot: "bg-emerald-500" },
                         { label: "Ditutup", count: totalClosed, dot: "bg-zinc-400" },
                         { label: "Tahun Fiskal", count: years.length, dot: "bg-zinc-400" },
@@ -167,9 +167,9 @@ export default function FiscalPeriodsPage() {
                     <div className="flex items-center gap-0">
                         <button
                             onClick={() => setFilterYear(undefined)}
-                            className={`h-9 px-3 text-[10px] font-black uppercase tracking-widest transition-all border ${years.length > 0 ? "border-r-0" : ""} rounded-none ${
+                            className={`h-9 px-3 text-xs font-semibold   transition-all border ${years.length > 0 ? "border-r-0" : ""} rounded-md ${
                                 filterYear === undefined
-                                    ? "bg-black dark:bg-white text-white dark:text-black border-black dark:border-white"
+                                    ? "bg-slate-900 dark:bg-white text-white dark:text-black border-border dark:border-white"
                                     : "bg-white dark:bg-zinc-900 text-zinc-400 border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                             }`}
                         >
@@ -179,9 +179,9 @@ export default function FiscalPeriodsPage() {
                             <button
                                 key={y}
                                 onClick={() => setFilterYear(y)}
-                                className={`h-9 px-3 text-[10px] font-black uppercase tracking-widest transition-all border ${idx < years.length - 1 ? "border-r-0" : ""} rounded-none ${
+                                className={`h-9 px-3 text-xs font-semibold   transition-all border ${idx < years.length - 1 ? "border-r-0" : ""} rounded-md ${
                                     filterYear === y
-                                        ? "bg-black dark:bg-white text-white dark:text-black border-black dark:border-white"
+                                        ? "bg-slate-900 dark:bg-white text-white dark:text-black border-border dark:border-white"
                                         : "bg-white dark:bg-zinc-900 text-zinc-400 border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                                 }`}
                             >
@@ -189,7 +189,7 @@ export default function FiscalPeriodsPage() {
                             </button>
                         ))}
                     </div>
-                    <span className="hidden md:inline text-[11px] font-medium text-zinc-400">
+                    <span className="hidden md:inline text-xs font-medium text-zinc-400">
                         <span className="font-mono font-bold text-zinc-600 dark:text-zinc-300">{allPeriods.length}</span> periode
                     </span>
                 </div>
@@ -216,7 +216,7 @@ export default function FiscalPeriodsPage() {
                     className={NB.pageCard}
                 >
                     <div className="flex flex-col items-center justify-center py-16 text-zinc-400">
-                        <div className="w-16 h-16 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
+                        <div className="w-16 h-16 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
                             <Calendar className="h-7 w-7 text-zinc-200 dark:text-zinc-700" />
                         </div>
                         <span className="text-sm font-bold">Belum ada periode fiskal</span>
@@ -232,34 +232,34 @@ export default function FiscalPeriodsPage() {
                     return (
                         <div key={year} className="space-y-3">
                             <div className="flex items-center justify-between px-1">
-                                <h2 className="text-sm font-black uppercase tracking-widest text-zinc-900 dark:text-white">
+                                <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">
                                     Tahun Fiskal {year}
                                 </h2>
                                 <div className="flex items-center gap-2">
-                                    <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400">
+                                    <span className="text-xs font-semibold px-2 py-0.5 border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400">
                                         {openCount} Terbuka
                                     </span>
-                                    <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 border border-zinc-300 bg-zinc-50 dark:bg-zinc-800 text-zinc-500">
+                                    <span className="text-xs font-semibold px-2 py-0.5 border border-zinc-300 bg-zinc-50 dark:bg-zinc-800 text-zinc-500">
                                         {closedCount} Ditutup
                                     </span>
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6 gap-0 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6 gap-0 border border-border shadow-sm bg-white dark:bg-zinc-900 overflow-hidden">
                                 {yearPeriods.map((period, idx) => (
                                     <div
                                         key={period.id}
                                         onClick={() => setCockpitPeriodId(period.id)}
                                         className={`p-4 flex flex-col gap-2 transition-colors cursor-pointer ${
                                             cockpitPeriod?.id === period.id
-                                                ? "bg-orange-50 dark:bg-orange-950/20 ring-2 ring-inset ring-orange-500"
+                                                ? "bg-blue-50 dark:bg-blue-950/20 ring-2 ring-inset ring-blue-500"
                                                 : period.isClosed
                                                 ? "bg-zinc-50/50 dark:bg-zinc-800/30"
-                                                : "hover:bg-orange-50/50 dark:hover:bg-orange-950/10"
+                                                : "hover:bg-blue-50/50 dark:hover:bg-blue-950/10"
                                         } ${idx < yearPeriods.length - 1 ? "border-r border-b border-zinc-200 dark:border-zinc-800" : "border-b border-zinc-200 dark:border-zinc-800"}`}
                                     >
                                         <div className="flex items-center justify-between">
-                                            <span className="font-black text-sm text-zinc-900 dark:text-white">{period.name}</span>
+                                            <span className="font-semibold text-sm text-zinc-900 dark:text-white">{period.name}</span>
                                             {period.isClosed ? (
                                                 <Lock className="h-3.5 w-3.5 text-zinc-400" />
                                             ) : (
@@ -267,12 +267,12 @@ export default function FiscalPeriodsPage() {
                                             )}
                                         </div>
 
-                                        <div className="text-[10px] text-zinc-400 font-mono">
+                                        <div className="text-xs text-zinc-400 font-mono">
                                             {new Date(period.startDate).toLocaleDateString("id-ID")} — {new Date(period.endDate).toLocaleDateString("id-ID")}
                                         </div>
 
                                         <span
-                                            className={`w-fit text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 border ${
+                                            className={`w-fit text-xs font-semibold   px-1.5 py-0.5 border ${
                                                 period.isClosed
                                                     ? "border-zinc-300 bg-zinc-100 dark:bg-zinc-800 text-zinc-500"
                                                     : "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400"
@@ -282,7 +282,7 @@ export default function FiscalPeriodsPage() {
                                         </span>
 
                                         {period.isClosed && period.closedBy && (
-                                            <p className="text-[9px] text-zinc-400 truncate">Oleh: {period.closedBy}</p>
+                                            <p className="text-xs text-zinc-400 truncate">Oleh: {period.closedBy}</p>
                                         )}
 
                                         <Button
@@ -293,7 +293,7 @@ export default function FiscalPeriodsPage() {
                                                 setConfirmAction({ type: period.isClosed ? "reopen" : "close", period })
                                             }}
                                             disabled={closeMutation.isPending || reopenMutation.isPending}
-                                            className={`mt-auto h-7 text-[9px] font-black uppercase tracking-wider rounded-none border transition-colors ${
+                                            className={`mt-auto h-7 text-xs font-semibold   rounded-md border transition-colors ${
                                                 period.isClosed
                                                     ? "border-emerald-300 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
                                                     : "border-red-300 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20"

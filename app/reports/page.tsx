@@ -11,7 +11,7 @@ import { ReportCatalog } from "@/components/analytics/dashboard/report-catalog"
 
 export default function AnalyticsPage() {
     return (
-        <div className="min-h-screen w-full bg-zinc-50/50 dark:bg-black p-6 md:p-8 space-y-8">
+        <div className="min-h-screen w-full bg-zinc-50/50 dark:bg-slate-900 p-6 md:p-8 space-y-8">
 
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

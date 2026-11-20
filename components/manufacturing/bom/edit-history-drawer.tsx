@@ -21,7 +21,7 @@ const ACTION_CONFIG: Record<string, { icon: typeof Save; color: string; bg: stri
     SAVE: { icon: Save, color: "text-blue-600", bg: "bg-blue-50 border-blue-200" },
     ADD_STEP: { icon: Plus, color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-200" },
     REMOVE_STEP: { icon: Minus, color: "text-red-600", bg: "bg-red-50 border-red-200" },
-    GENERATE_SPK: { icon: Zap, color: "text-orange-600", bg: "bg-orange-50 border-orange-200" },
+    GENERATE_SPK: { icon: Zap, color: "text-blue-600", bg: "bg-blue-50 border-blue-200" },
 }
 
 function LogEntry({ log }: { log: EditLog }) {
@@ -40,8 +40,8 @@ function LogEntry({ log }: { log: EditLog }) {
             >
                 <div className="flex items-center gap-2 mb-1">
                     <Icon className={`h-3.5 w-3.5 ${config.color} shrink-0`} />
-                    <span className={`text-[10px] font-black uppercase ${config.color}`}>{log.action}</span>
-                    <span className="text-[9px] font-mono text-zinc-400 ml-auto shrink-0">
+                    <span className={`text-xs font-semibold ${config.color}`}>{log.action}</span>
+                    <span className="text-xs font-mono text-zinc-400 ml-auto shrink-0">
                         {new Date(log.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </span>
                 </div>
@@ -58,8 +58,8 @@ function LogEntry({ log }: { log: EditLog }) {
                 <div className="border-t border-current/10 px-3 pb-3 pt-2 space-y-1">
                     {changes.map((change, i) => (
                         <div key={i} className="flex items-start gap-1.5">
-                            <span className="text-zinc-400 text-[10px] mt-0.5 shrink-0">•</span>
-                            <span className="text-[11px] text-zinc-700 leading-snug">{change}</span>
+                            <span className="text-zinc-400 text-xs mt-0.5 shrink-0">•</span>
+                            <span className="text-xs text-zinc-700 leading-snug">{change}</span>
                         </div>
                     ))}
                 </div>
@@ -87,13 +87,13 @@ export function EditHistoryDrawer({ bomId, open, onClose }: EditHistoryDrawerPro
     if (!open) return null
 
     return (
-        <div className="fixed inset-y-0 right-0 w-80 z-50 bg-white border-l-2 border-black shadow-[-4px_0px_0px_0px_rgba(0,0,0,1)] flex flex-col">
-            <div className="flex items-center justify-between px-4 py-3 border-b-2 border-black bg-zinc-50">
+        <div className="fixed inset-y-0 right-0 w-80 z-50 bg-white border-l border-border shadow-sm flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-zinc-50">
                 <div className="flex items-center gap-2">
                     <History className="h-4 w-4" />
-                    <span className="text-[11px] font-black uppercase tracking-widest">Riwayat Edit</span>
+                    <span className="text-xs font-semibold  ">Riwayat Edit</span>
                 </div>
-                <button onClick={onClose} className="p-1 hover:bg-zinc-200 border border-transparent hover:border-black">
+                <button onClick={onClose} className="p-1 hover:bg-zinc-200 border border-transparent hover:border-border">
                     <X className="h-4 w-4" />
                 </button>
             </div>
@@ -102,10 +102,10 @@ export function EditHistoryDrawer({ bomId, open, onClose }: EditHistoryDrawerPro
                 {loading ? (
                     <div className="flex items-center justify-center py-10 text-zinc-400">
                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        <span className="text-xs font-bold uppercase">Memuat...</span>
+                        <span className="text-xs font-bold ">Memuat...</span>
                     </div>
                 ) : logs.length === 0 ? (
-                    <div className="text-center py-10 text-zinc-400 text-xs font-bold uppercase">
+                    <div className="text-center py-10 text-zinc-400 text-xs font-bold ">
                         Belum ada riwayat
                     </div>
                 ) : (

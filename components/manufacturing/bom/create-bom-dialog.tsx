@@ -308,32 +308,32 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated }: CreateBOMDial
                 {/* STEP 1: Product Selection */}
                 <NBSection icon={Package} title="Pilih Produk">
                     {selectedProduct ? (
-                        <div className="flex items-center justify-between border border-orange-300 bg-orange-50 px-3 py-2">
+                        <div className="flex items-center justify-between border border-blue-300 bg-blue-50 px-3 py-2">
                             <div>
-                                <p className="font-black text-sm">{selectedProduct.name}</p>
-                                <p className="text-[10px] font-mono text-zinc-500">{selectedProduct.code} · {selectedProduct.unit} · {selectedProduct.productType}</p>
+                                <p className="font-semibold text-sm">{selectedProduct.name}</p>
+                                <p className="text-xs font-mono text-zinc-500">{selectedProduct.code} · {selectedProduct.unit} · {selectedProduct.productType}</p>
                             </div>
                             <Button variant="ghost" size="sm" onClick={() => setSelectedProduct(null)} className="h-7 w-7 p-0">
                                 <X className="h-4 w-4" />
                             </Button>
                         </div>
                     ) : showCreateProduct ? (
-                        <div className="border border-orange-300 bg-orange-50/50 p-3 space-y-3">
+                        <div className="border border-blue-300 bg-blue-50/50 p-3 space-y-3">
                             <div className="flex items-center justify-between">
-                                <p className="text-[10px] font-black uppercase tracking-wider text-orange-600">Produk Baru</p>
+                                <p className="text-xs font-semibold text-blue-600">Produk Baru</p>
                                 <Button variant="ghost" size="sm" onClick={() => setShowCreateProduct(false)} className="h-6 w-6 p-0">
                                     <X className="h-3.5 w-3.5" />
                                 </Button>
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                                 <div className="col-span-2">
-                                    <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Nama Produk <span className="text-red-500">*</span></label>
-                                    <Input value={newProductName} onChange={(e) => setNewProductName(e.target.value)} placeholder="Nama produk..." className="h-8 text-xs rounded-none border border-zinc-300 placeholder:text-zinc-300" />
+                                    <label className="text-xs font-bold text-zinc-600 mb-1 block">Nama Produk <span className="text-red-500">*</span></label>
+                                    <Input value={newProductName} onChange={(e) => setNewProductName(e.target.value)} placeholder="Nama produk..." className="h-8 text-xs rounded-md border border-zinc-300 placeholder:text-zinc-300" />
                                 </div>
                                 <div>
-                                    <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Tipe Produk</label>
+                                    <label className="text-xs font-bold text-zinc-600 mb-1 block">Tipe Produk</label>
                                     <Select value={newProductType} onValueChange={setNewProductType}>
-                                        <SelectTrigger className="h-8 text-xs rounded-none border border-zinc-300">
+                                        <SelectTrigger className="h-8 text-xs rounded-md border border-zinc-300">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -346,9 +346,9 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated }: CreateBOMDial
                                     </Select>
                                 </div>
                                 <div>
-                                    <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Unit <span className="text-red-500">*</span></label>
+                                    <label className="text-xs font-bold text-zinc-600 mb-1 block">Unit <span className="text-red-500">*</span></label>
                                     <Select value={newProductUnit} onValueChange={setNewProductUnit}>
-                                        <SelectTrigger className="h-8 text-xs rounded-none border border-zinc-300">
+                                        <SelectTrigger className="h-8 text-xs rounded-md border border-zinc-300">
                                             <SelectValue placeholder="Pilih unit..." />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -361,18 +361,18 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated }: CreateBOMDial
                                     </Select>
                                 </div>
                                 <div>
-                                    <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Harga Pokok (Rp)</label>
-                                    <Input type="number" value={newProductCost} onChange={(e) => setNewProductCost(parseFloat(e.target.value) || 0)} className="h-8 text-xs font-mono rounded-none border border-zinc-300" />
+                                    <label className="text-xs font-bold text-zinc-600 mb-1 block">Harga Pokok (Rp)</label>
+                                    <Input type="number" value={newProductCost} onChange={(e) => setNewProductCost(parseFloat(e.target.value) || 0)} className="h-8 text-xs font-mono rounded-md border border-zinc-300" />
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2 text-[9px] font-mono text-zinc-400 bg-zinc-100 px-2 py-1 border border-zinc-200">
+                            <div className="flex items-center gap-2 text-xs font-mono text-zinc-400 bg-zinc-100 px-2 py-1 border border-zinc-200">
                                 <span>Kode otomatis:</span>
                                 <span className="font-bold text-black">{generateNextCode(newProductType, products)}</span>
                             </div>
                             <Button
                                 onClick={handleCreateProduct}
                                 disabled={creatingProduct || !newProductName}
-                                className="w-full h-8 bg-orange-500 hover:bg-orange-600 text-white font-black uppercase text-[10px] rounded-none border border-orange-600"
+                                className="w-full h-8 bg-blue-500 hover:bg-blue-600 text-white font-semibold text-xs rounded-md border border-blue-600"
                             >
                                 {creatingProduct ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Check className="h-3.5 w-3.5 mr-1" />}
                                 Buat & Pilih Produk
@@ -387,13 +387,13 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated }: CreateBOMDial
                                         value={productSearch}
                                         onChange={(e) => setProductSearch(e.target.value)}
                                         placeholder="Cari..."
-                                        className="pl-9 h-9 rounded-none border border-zinc-300 placeholder:text-zinc-300"
+                                        className="pl-9 h-9 rounded-md border border-zinc-300 placeholder:text-zinc-300"
                                     />
                                 </div>
                                 <Button
                                     variant="outline"
                                     onClick={() => setShowCreateProduct(true)}
-                                    className="h-9 border border-zinc-300 font-black uppercase text-[9px] tracking-wider rounded-none shrink-0 px-3"
+                                    className="h-9 border border-zinc-300 font-semibold text-xs rounded-md shrink-0 px-3"
                                 >
                                     <Plus className="h-3.5 w-3.5 mr-1" /> Baru
                                 </Button>
@@ -405,8 +405,8 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated }: CreateBOMDial
                                     </div>
                                 ) : filteredProducts.length === 0 ? (
                                     <div className="text-center py-8">
-                                        <p className="text-[10px] font-bold text-zinc-400">Tidak ada produk ditemukan</p>
-                                        <Button variant="link" onClick={() => setShowCreateProduct(true)} className="text-[10px] text-orange-500 p-0 h-auto mt-1">
+                                        <p className="text-xs font-bold text-zinc-400">Tidak ada produk ditemukan</p>
+                                        <Button variant="link" onClick={() => setShowCreateProduct(true)} className="text-xs text-blue-500 p-0 h-auto mt-1">
                                             + Buat produk baru
                                         </Button>
                                     </div>
@@ -416,10 +416,10 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated }: CreateBOMDial
                                             <button
                                                 key={p.id}
                                                 onClick={() => { setSelectedProduct(p); setProductSearch("") }}
-                                                className="w-full text-left px-3 py-2 hover:bg-orange-50 transition-colors"
+                                                className="w-full text-left px-3 py-2 hover:bg-blue-50 transition-colors"
                                             >
                                                 <p className="text-xs font-bold">{p.name}</p>
-                                                <p className="text-[10px] text-zinc-400 font-mono">{p.code} · {p.unit} · {p.productType}</p>
+                                                <p className="text-xs text-zinc-400 font-mono">{p.code} · {p.unit} · {p.productType}</p>
                                             </button>
                                         ))}
                                     </div>
@@ -443,13 +443,13 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated }: CreateBOMDial
                                 value={materialSearch}
                                 onChange={(e) => setMaterialSearch(e.target.value)}
                                 placeholder="Cari..."
-                                className="pl-9 h-9 rounded-none border border-zinc-300 placeholder:text-zinc-300"
+                                className="pl-9 h-9 rounded-md border border-zinc-300 placeholder:text-zinc-300"
                             />
                         </div>
                         <Button
                             variant="outline"
                             onClick={() => setShowCreateMaterial(true)}
-                            className="h-9 border border-zinc-300 font-black uppercase text-[9px] tracking-wider rounded-none shrink-0 px-3"
+                            className="h-9 border border-zinc-300 font-semibold text-xs rounded-md shrink-0 px-3"
                         >
                             <Plus className="h-3.5 w-3.5 mr-1" /> Baru
                         </Button>
@@ -459,20 +459,20 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated }: CreateBOMDial
                     {showCreateMaterial && (
                         <div className="border border-emerald-300 bg-emerald-50/50 p-3 space-y-3">
                             <div className="flex items-center justify-between">
-                                <p className="text-[10px] font-black uppercase tracking-wider text-emerald-600">Material Baru</p>
+                                <p className="text-xs font-semibold text-emerald-600">Material Baru</p>
                                 <Button variant="ghost" size="sm" onClick={() => setShowCreateMaterial(false)} className="h-6 w-6 p-0">
                                     <X className="h-3.5 w-3.5" />
                                 </Button>
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                                 <div className="col-span-2">
-                                    <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Nama Material <span className="text-red-500">*</span></label>
-                                    <Input value={newMatName} onChange={(e) => setNewMatName(e.target.value)} placeholder="Nama material..." className="h-8 text-xs rounded-none border border-zinc-300 placeholder:text-zinc-300" />
+                                    <label className="text-xs font-bold text-zinc-600 mb-1 block">Nama Material <span className="text-red-500">*</span></label>
+                                    <Input value={newMatName} onChange={(e) => setNewMatName(e.target.value)} placeholder="Nama material..." className="h-8 text-xs rounded-md border border-zinc-300 placeholder:text-zinc-300" />
                                 </div>
                                 <div>
-                                    <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Unit <span className="text-red-500">*</span></label>
+                                    <label className="text-xs font-bold text-zinc-600 mb-1 block">Unit <span className="text-red-500">*</span></label>
                                     <Select value={newMatUnit} onValueChange={setNewMatUnit}>
-                                        <SelectTrigger className="h-8 text-xs rounded-none border border-zinc-300">
+                                        <SelectTrigger className="h-8 text-xs rounded-md border border-zinc-300">
                                             <SelectValue placeholder="Pilih unit..." />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -485,18 +485,18 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated }: CreateBOMDial
                                     </Select>
                                 </div>
                                 <div>
-                                    <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Harga Pokok (Rp)</label>
-                                    <Input type="number" value={newMatCost} onChange={(e) => setNewMatCost(parseFloat(e.target.value) || 0)} className="h-8 text-xs font-mono rounded-none border border-zinc-300" />
+                                    <label className="text-xs font-bold text-zinc-600 mb-1 block">Harga Pokok (Rp)</label>
+                                    <Input type="number" value={newMatCost} onChange={(e) => setNewMatCost(parseFloat(e.target.value) || 0)} className="h-8 text-xs font-mono rounded-md border border-zinc-300" />
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2 text-[9px] font-mono text-zinc-400 bg-zinc-100 px-2 py-1 border border-zinc-200">
+                            <div className="flex items-center gap-2 text-xs font-mono text-zinc-400 bg-zinc-100 px-2 py-1 border border-zinc-200">
                                 <span>Kode otomatis:</span>
                                 <span className="font-bold text-black">{generateNextCode("RAW_MATERIAL", products)}</span>
                             </div>
                             <Button
                                 onClick={handleCreateMaterial}
                                 disabled={creatingMaterial || !newMatName}
-                                className="w-full h-8 bg-emerald-500 hover:bg-emerald-600 text-white font-black uppercase text-[10px] rounded-none border border-emerald-600"
+                                className="w-full h-8 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-xs rounded-md border border-emerald-600"
                             >
                                 {creatingMaterial ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Check className="h-3.5 w-3.5 mr-1" />}
                                 Buat & Tambahkan Material
@@ -512,8 +512,8 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated }: CreateBOMDial
                         ) : filteredMaterials.length === 0 ? (
                             <div className="text-center py-8">
                                 <Layers className="h-8 w-8 text-zinc-200 mx-auto mb-2" />
-                                <p className="text-[10px] font-bold text-zinc-400">Tidak ada material ditemukan</p>
-                                <Button variant="link" onClick={() => setShowCreateMaterial(true)} className="text-[10px] text-emerald-500 p-0 h-auto mt-1">
+                                <p className="text-xs font-bold text-zinc-400">Tidak ada material ditemukan</p>
+                                <Button variant="link" onClick={() => setShowCreateMaterial(true)} className="text-xs text-emerald-500 p-0 h-auto mt-1">
                                     + Buat material baru
                                 </Button>
                             </div>
@@ -532,10 +532,10 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated }: CreateBOMDial
                                             </div>
                                             <div className="min-w-0 flex-1">
                                                 <p className="text-xs font-bold truncate">{mat.name}</p>
-                                                <p className="text-[10px] text-zinc-400 font-mono">{mat.code} · {mat.unit}</p>
+                                                <p className="text-xs text-zinc-400 font-mono">{mat.code} · {mat.unit}</p>
                                             </div>
                                             {mat.costPrice > 0 && (
-                                                <span className="text-[9px] font-mono text-zinc-400 shrink-0">
+                                                <span className="text-xs font-mono text-zinc-400 shrink-0">
                                                     Rp {Number(mat.costPrice).toLocaleString("id-ID")}
                                                 </span>
                                             )}
@@ -549,28 +549,28 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated }: CreateBOMDial
                     {/* Selected materials qty/waste editor */}
                     {selectedMaterials.size > 0 && (
                         <div className="space-y-2">
-                            <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Qty & Waste per Material</label>
+                            <label className="text-xs font-bold text-zinc-600 mb-1 block">Qty & Waste per Material</label>
                             {Array.from(selectedMaterials.entries()).map(([id, item]) => (
                                 <div key={id} className="flex items-center gap-2 border border-zinc-200 bg-zinc-50 px-3 py-1.5">
                                     <div className="min-w-0 flex-1">
-                                        <p className="text-[10px] font-bold truncate">{item.material.name}</p>
+                                        <p className="text-xs font-bold truncate">{item.material.name}</p>
                                     </div>
                                     <div className="flex items-center gap-1 shrink-0">
-                                        <label className="text-[8px] font-bold text-zinc-400">QTY</label>
+                                        <label className="text-xs font-bold text-zinc-400">QTY</label>
                                         <Input
                                             type="number"
                                             value={item.qty}
                                             onChange={(e) => updateMaterialQty(id, parseFloat(e.target.value) || 0)}
-                                            className="w-16 h-6 text-[10px] font-mono rounded-none border-zinc-300 p-1"
+                                            className="w-16 h-6 text-xs font-mono rounded-md border-zinc-300 p-1"
                                         />
                                     </div>
                                     <div className="flex items-center gap-1 shrink-0">
-                                        <label className="text-[8px] font-bold text-zinc-400">WASTE%</label>
+                                        <label className="text-xs font-bold text-zinc-400">WASTE%</label>
                                         <Input
                                             type="number"
                                             value={item.waste}
                                             onChange={(e) => updateMaterialWaste(id, parseFloat(e.target.value) || 0)}
-                                            className="w-14 h-6 text-[10px] font-mono rounded-none border-zinc-300 p-1"
+                                            className="w-14 h-6 text-xs font-mono rounded-md border-zinc-300 p-1"
                                         />
                                     </div>
                                     <Button variant="ghost" size="sm" onClick={() => toggleMaterial(item.material)} className="h-6 w-6 p-0">

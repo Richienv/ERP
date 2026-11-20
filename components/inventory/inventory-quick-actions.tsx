@@ -25,13 +25,13 @@ export function InventoryQuickActions() {
                             className={`
                                 group flex items-center gap-1 px-2 py-1.5 transition-all
                                 ${mod.bg} ${mod.hoverBg} text-white
-                                border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]
-                                hover:shadow-none hover:translate-y-[1px]
-                                active:translate-y-[2px]
+                                border border-border shadow-sm
+                                hover:shadow-none 
+                                
                             `}
                         >
                             <Icon className="h-3 w-3 shrink-0" />
-                            <span className="text-[8px] font-black uppercase tracking-wider whitespace-nowrap">
+                            <span className="text-xs font-semibold whitespace-nowrap">
                                 {mod.title}
                             </span>
                         </Link>

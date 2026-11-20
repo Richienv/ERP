@@ -89,7 +89,7 @@ export function EFakturExportDialog({ invoices, onExport }: EFakturExportDialogP
 
             <DialogContent
                 showCloseButton={false}
-                className="max-w-4xl sm:max-w-4xl p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0"
+                className="max-w-4xl sm:max-w-4xl p-0 border border-border shadow-sm rounded-md overflow-hidden gap-0"
             >
                 <NBDialogHeader icon={FileSpreadsheet} title="Export e-Faktur CSV" subtitle="Pilih invoice untuk diekspor ke format DJP e-Faktur" />
 
@@ -97,7 +97,7 @@ export function EFakturExportDialog({ invoices, onExport }: EFakturExportDialogP
                     {invoices.length === 0 ? (
                         <div className="p-8 text-center">
                             <FileText className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                            <span className="text-xs font-semibold text-zinc-400">
                                 Tidak ada invoice yang eligible
                             </span>
                         </div>
@@ -139,7 +139,7 @@ export function EFakturExportDialog({ invoices, onExport }: EFakturExportDialogP
                                                 {inv.number}
                                             </td>
                                             <td className={NB.tableCell}>{inv.customerName}</td>
-                                            <td className={`${NB.tableCell} font-mono text-[10px]`}>
+                                            <td className={`${NB.tableCell} font-mono text-xs`}>
                                                 {inv.customerNpwp || '-'}
                                             </td>
                                             <td className={`${NB.tableCell} text-right font-mono`}>
@@ -159,7 +159,7 @@ export function EFakturExportDialog({ invoices, onExport }: EFakturExportDialogP
                     )}
 
                     {invoices.length > 0 && (
-                        <div className="text-[10px] font-bold text-zinc-400 pt-2">
+                        <div className="text-xs font-bold text-zinc-400 pt-2">
                             {selected.size} dari {invoices.length} dipilih · Total: Rp {formatIDR(selectedTotal)}
                         </div>
                     )}

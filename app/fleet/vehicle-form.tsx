@@ -97,7 +97,7 @@ export function VehicleForm({ initial, warehouses, customers }: VehicleFormProps
                         </Button>
                     </Link>
                     <div>
-                        <h1 className="text-xl font-black uppercase tracking-tight">
+                        <h1 className="text-xl font-semibold tracking-tight">
                             {isEdit ? "Edit Armada" : "Tambah Armada Baru"}
                         </h1>
                         <p className="text-xs text-zinc-500">Lengkapi data kendaraan / alat berat</p>
@@ -324,7 +324,7 @@ export function VehicleForm({ initial, warehouses, customers }: VehicleFormProps
 function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
     return (
         <div>
-            <Label className="text-[11px] uppercase font-bold tracking-wider text-zinc-600">
+            <Label className="text-xs font-bold text-zinc-600">
                 {label}
             </Label>
             <div className="mt-1">{children}</div>
