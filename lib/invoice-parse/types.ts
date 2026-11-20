@@ -14,6 +14,8 @@ export type TextItem = {
     w: number
     h: number
     page: number
+    /** A whole cell already (Excel): never glue it to its neighbour, however close. */
+    solid?: boolean
 }
 
 export type Box = { page: number; x: number; y: number; w: number; h: number }

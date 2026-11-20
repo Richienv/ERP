@@ -67,7 +67,8 @@ export function buildLines(items: TextItem[]): Line[] {
             const gap = prev ? item.x - prev.x2 : Infinity
             // A different font size on the same baseline is a different block (e.g. company name + document title).
             const sameSize = prev ? Math.abs((item.h || h) - prev.h) <= Math.max(prev.h, item.h || h) * 0.12 : false
-            if (prev && gap <= gapLimit && sameSize) {
+            const solid = item.solid || (prev && byX[byX.indexOf(item) - 1]?.solid)
+            if (prev && gap <= gapLimit && sameSize && !solid) {
                 const joiner = gap > h * 0.15 && !prev.text.endsWith(" ") && !item.str.startsWith(" ") ? " " : ""
                 prev.text += joiner + item.str
                 prev.x2 = Math.max(prev.x2, item.x + item.w)
