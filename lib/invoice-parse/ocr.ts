@@ -17,10 +17,13 @@ const RENDER_SCALE = 2.5 // ≈ 180 dpi for A4: enough for printed invoices, fas
 
 type Word = { text: string; bbox: { x0: number; y0: number; x1: number; y1: number }; confidence: number }
 
-async function pdfPagesToImages(bytes: Uint8Array, maxPages = 3): Promise<{ canvas: HTMLCanvasElement; scale: number; size: { width: number; height: number } }[]> {
+let lastPdfPageCount = 0
+
+async function pdfPagesToImages(bytes: Uint8Array, maxPages = 4): Promise<{ canvas: HTMLCanvasElement; scale: number; size: { width: number; height: number } }[]> {
     const pdfjs = await preloadPdfjs()
     const doc = await pdfjs.getDocument({ data: bytes.slice() }).promise
     const out: { canvas: HTMLCanvasElement; scale: number; size: { width: number; height: number } }[] = []
+    lastPdfPageCount = doc.numPages
     try {
         for (let p = 1; p <= Math.min(doc.numPages, maxPages); p++) {
             const page = await doc.getPage(p)
@@ -100,5 +103,11 @@ export async function ocrInvoice(file: File, bytes: Uint8Array): Promise<PdfText
     } finally {
         await worker.terminate()
     }
-    return { items, pages: pageSizes.length, chars: items.reduce((s, it) => s + it.str.length, 0), pageSizes }
+    return {
+        items,
+        pages: pageSizes.length,
+        chars: items.reduce((s, it) => s + it.str.length, 0),
+        pageSizes,
+        totalPages: isPdf ? lastPdfPageCount : 1,
+    }
 }

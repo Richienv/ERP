@@ -8,9 +8,8 @@ import { NB } from "@/lib/dialog-styles"
 import { cn } from "@/lib/utils"
 import { readInvoiceFile, type ReadResult } from "@/lib/invoice-parse/client"
 import { fingerprintOf, learnTemplate, matchLines, matchSupplier, normalisePartCode, type LookupTemplate } from "@/lib/invoice-parse/match"
-import { parseAmount } from "@/lib/invoice-parse/numbers"
 import type { Box, ParsedInvoice, SupplierTemplate } from "@/lib/invoice-parse/types"
-import { derivePurchaseStatus, netUnitPrice, type CurrencyCode } from "@/lib/sparepart-purchase-logic"
+import { derivePurchaseStatus, netUnitPrice, parseRate, parseTypedAmount, rateProblem, type CurrencyCode } from "@/lib/sparepart-purchase-logic"
 import { checkSupplierInvoiceDuplicate, type SaveSupplierInvoiceInput } from "@/lib/actions/sparepart-purchasing"
 import { useSaveSupplierInvoice, type PendingRow, type SparepartLookup } from "@/hooks/use-sparepart-purchases"
 import { InvoicePreview, type PreviewMark } from "./pdf-preview"
@@ -40,6 +39,8 @@ type Draft = {
     supplierNpwp: string
     supplierEmail: string
     supplierVia: string | null
+    /** The name as printed on the invoice (shown when a different known supplier was matched). */
+    printedName: string
     invoiceNo: string
     invoiceDate: string
     dueDate: string
@@ -52,6 +53,7 @@ type Draft = {
     paidAmount: string
     receivedAll: boolean
     warehouseId: string
+    bankAccountCode: string
 }
 
 type Upload = { sha256: string; storagePath: string; name: string; type: string; size: number }
@@ -80,13 +82,14 @@ function draftFromParsed(parsed: ParsedInvoice, lookup: SparepartLookup | undefi
         supplierNpwp: String(f.supplierNpwp?.value ?? ""),
         supplierEmail: String(f.supplierEmail?.value ?? ""),
         supplierVia: sm?.via ?? null,
+        printedName: String(f.supplierName?.value ?? ""),
         invoiceNo: String(f.invoiceNo?.value ?? ""),
         invoiceDate: String(f.invoiceDate?.value ?? todayIso()),
         dueDate: String(f.dueDate?.value ?? ""),
         paymentTerms: String(f.paymentTerms?.value ?? ""),
         currency,
         rate: rate ? String(rate) : "",
-        tax: toStr(Number(f.tax?.value ?? 0)),
+        tax: currency === "IDR" ? toStr(Number(f.tax?.value ?? 0)) : "0",
         lines: parsed.lines.length
             ? parsed.lines.map((l, i) => ({
                 key: nextKey(),
@@ -107,12 +110,13 @@ function draftFromParsed(parsed: ParsedInvoice, lookup: SparepartLookup | undefi
         paidAmount: "",
         receivedAll: false,
         warehouseId: lookup?.warehouses?.[0]?.id ?? "",
+        bankAccountCode: lookup?.bankAccounts?.[0]?.code ?? "",
     }
 }
 
-function numOf(s: string, currency: CurrencyCode): number | null {
-    if (!s.trim()) return null
-    return parseAmount(s, currency === "IDR" ? "id" : "en")
+/** Typed numbers are read the way the screen shows them (Indonesian grouping), for every currency. */
+function numOf(s: string, _currency?: CurrencyCode): number | null {
+    return parseTypedAmount(s)
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -139,6 +143,8 @@ export function InvoiceReview({
     const [focus, setFocus] = useState<Box | null>(null)
     const [duplicate, setDuplicate] = useState<Awaited<ReturnType<typeof checkSupplierInvoiceDuplicate>>>(null)
     const [saveError, setSaveError] = useState<string | null>(null)
+    const [saving, setSaving] = useState(false)
+    const savingRef = useRef(false) // state updates are async; the ref stops a same-tick double click
     const uploadRef = useRef<Promise<Upload | null> | null>(null)
     const save = useSaveSupplierInvoice()
     const file = target?.file ?? null
@@ -150,6 +156,8 @@ export function InvoiceReview({
         setReadError(null)
         setDuplicate(null)
         setSaveError(null)
+        setSaving(false)
+        savingRef.current = false
         setFocus(null)
         if (!target) {
             setDraft(null)
@@ -219,10 +227,11 @@ export function InvoiceReview({
         const subtotal = Math.round(lines.reduce((s, l) => s + (l.amount ?? 0), 0) * 100) / 100
         const tax = numOf(draft.tax, cur) ?? 0
         const total = Math.round((subtotal + tax) * 100) / 100
-        const printedTotal = parsed?.fields.total ? Number(parsed.fields.total.value) : null
+        const printedTotal = parsed?.fields.total?.source ? Number(parsed.fields.total.value) : null
         const diff = printedTotal != null && read ? Math.round((total - printedTotal) * 100) / 100 : null
-        const rate = cur === "IDR" ? 1 : numOf(draft.rate, "USD")
-        return { lines, subtotal, tax, total, printedTotal, diff, rate, totalIdr: rate ? total * rate : null }
+        const rate = parseRate(draft.rate, cur)
+        const paidTyped = draft.paidAmount.trim() ? numOf(draft.paidAmount) : null
+        return { lines, subtotal, tax, total, printedTotal, diff, rate, paidTyped, totalIdr: rate ? total * rate : null }
     }, [draft, parsed, read])
 
     const problems = useMemo(() => {
@@ -231,7 +240,14 @@ export function InvoiceReview({
         if (!draft.supplierId && !draft.supplierName.trim()) p.push("Isi supplier")
         if (!draft.invoiceNo.trim()) p.push("Isi nomor invoice")
         if (!draft.invoiceDate) p.push("Isi tanggal invoice")
-        if (draft.currency !== "IDR" && !(calc.rate && calc.rate > 0)) p.push(`Isi kurs ${draft.currency}`)
+        if (draft.currency !== "IDR" && !calc.rate) {
+            p.push(draft.rate.trim() ? (rateProblem(numOf(draft.rate) ?? 0, draft.currency) ?? "Kurs tidak wajar") : `Isi kurs ${draft.currency === "CNY" ? "RMB" : draft.currency}`)
+        }
+        if (draft.currency !== "IDR" && calc.tax > 0) p.push("Invoice impor tanpa PPN Masukan — kosongkan PPN")
+        if (draft.paidNow && draft.paidAmount.trim()) {
+            if (calc.paidTyped == null) p.push("Jumlah bayar tidak terbaca")
+            else if (calc.paidTyped > calc.total + 0.005) p.push("Jumlah bayar melebihi total")
+        }
         draft.lines.forEach((l, i) => {
             const c = calc.lines[i]
             if (!l.description.trim()) p.push(`Baris ${i + 1}: nama barang`)
@@ -254,7 +270,9 @@ export function InvoiceReview({
     }, [parsed, focus])
 
     async function handleSave() {
-        if (!draft || !calc || problems.length) return
+        if (!draft || !calc || problems.length || saving || savingRef.current) return
+        savingRef.current = true
+        setSaving(true) // one click = one purchase, even while a large upload finishes
         setSaveError(null)
         const upload = uploadRef.current ? await uploadRef.current : null
         const templates = (lookup?.templates ?? []) as unknown as LookupTemplate[]
@@ -280,7 +298,7 @@ export function InvoiceReview({
                 unitPriceOriginal: calc.lines[i].price ?? 0,
                 discountPct: calc.lines[i].disc || null,
             })),
-            file: upload,
+            file: upload ? { name: upload.name, type: upload.type, size: upload.size, sha256: upload.sha256 } : null,
             parse: parsed && read
                 ? {
                     method: parsed.method,
@@ -292,7 +310,8 @@ export function InvoiceReview({
                 }
                 : { method: "MANUAL" },
             already: {
-                paidOriginal: draft.paidNow ? (numOf(draft.paidAmount, draft.currency) ?? calc.total) : null,
+                paidOriginal: draft.paidNow ? (calc.paidTyped ?? calc.total) : null,
+                bankAccountCode: draft.paidNow ? draft.bankAccountCode || null : null,
                 receivedAll: draft.receivedAll,
                 warehouseId: draft.warehouseId || null,
             },
@@ -421,6 +440,12 @@ export function InvoiceReview({
                         )}
                         {draft && calc && (
                             <div className="p-5 space-y-4 animate-in fade-in-0 slide-in-from-bottom-1 duration-200">
+                                {read?.text?.totalPages != null && read.text.totalPages > read.text.pages && (
+                                    <div className="flex items-start gap-3 border-2 border-amber-400 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+                                        <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                                        Invoice ini {read.text.totalPages} halaman; yang dibaca {read.text.pages} halaman pertama. Cek baris di halaman berikutnya.
+                                    </div>
+                                )}
                                 {duplicate && (
                                     <div className="flex items-start gap-3 border-2 border-amber-400 bg-amber-50 px-3 py-2.5">
                                         <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
@@ -467,6 +492,9 @@ export function InvoiceReview({
                                                     trigger={<span className="text-[11px] font-bold text-zinc-500 whitespace-nowrap">Pilih</span>}
                                                 />
                                             </div>
+                                            {draft.supplierId && draft.printedName && draft.printedName.trim().toLowerCase() !== draft.supplierName.trim().toLowerCase() && (
+                                                <p className="mt-1 text-[11px] text-zinc-500">Tertulis di invoice: <b>{draft.printedName}</b> — ganti lewat Pilih kalau salah</p>
+                                            )}
                                             {!draft.supplierId && draft.supplierName && (
                                                 <p className="mt-1 text-[11px] font-bold text-orange-600">+ Supplier baru akan dibuat</p>
                                             )}
@@ -491,9 +519,9 @@ export function InvoiceReview({
                                                         key={c}
                                                         type="button"
                                                         onClick={() => {
-                                                            const tpl = draft.supplierId ? lookup?.templates.find((t) => t.supplierId === draft.supplierId) : null
+                                                            const tpl = draft.supplierId ? lookup?.templates?.find((t) => t.supplierId === draft.supplierId) : null
                                                             const r = c === "IDR" ? "1" : String(tpl?.lastRate ?? lookup?.latestRate?.[c]?.rate ?? "")
-                                                            setDraft((d) => (d ? { ...d, currency: c, rate: r } : d))
+                                                            setDraft((d) => (d ? { ...d, currency: c, rate: r, tax: c === "IDR" ? d.tax : "0" } : d))
                                                         }}
                                                         className={cn("flex-1 text-[11px] font-black transition-colors", draft.currency === c ? "bg-black text-white" : "text-zinc-500 hover:bg-zinc-50")}
                                                     >
@@ -510,8 +538,11 @@ export function InvoiceReview({
                                                 disabled={draft.currency === "IDR"}
                                                 mono
                                                 low={draft.currency !== "IDR" && !draft.rate}
-                                                placeholder="mis. 2490"
+                                                placeholder="mis. 2.490"
                                             />
+                                            {draft.currency !== "IDR" && calc.rate && (
+                                                <p className="mt-0.5 text-[11px] font-mono text-zinc-500">1 {draft.currency === "CNY" ? "RMB" : draft.currency} = {money(calc.rate, "IDR")}</p>
+                                            )}
                                         </div>
                                         {draft.paymentTerms && (
                                             <div className="col-span-2 md:col-span-4 text-[11px] text-zinc-500">
@@ -620,14 +651,23 @@ export function InvoiceReview({
                                         {draft.paidNow && (
                                             <div className="pl-12">
                                                 <Field value={draft.paidAmount} onChange={(v) => set("paidAmount", v)} mono placeholder={`Lunas: ${money(calc.total, draft.currency)}`} />
-                                                <p className="mt-1 text-[11px] text-zinc-500">Kosongkan = lunas. Isi sebagian untuk DP.</p>
+                                                <p className="mt-1 text-[11px] text-zinc-500">
+                                                    {calc.paidTyped != null
+                                                        ? <>Tercatat <b className="font-mono">{money(calc.paidTyped, draft.currency)}</b>{draft.currency !== "IDR" && calc.rate ? <> = {money(calc.paidTyped * calc.rate, "IDR")}</> : null}</>
+                                                        : "Kosongkan = lunas. Isi sebagian untuk DP."}
+                                                </p>
+                                                {(lookup?.bankAccounts?.length ?? 0) > 0 && (
+                                                    <select value={draft.bankAccountCode} onChange={(e) => set("bankAccountCode", e.target.value)} className={cn(NB.select, "mt-1.5 w-full px-2 bg-white", NB.inputActive)} aria-label="Dibayar dari">
+                                                        {(lookup?.bankAccounts ?? []).map((a) => <option key={a.code} value={a.code}>Dari {a.name} ({a.code})</option>)}
+                                                    </select>
+                                                )}
                                             </div>
                                         )}
                                         <Toggle checked={draft.receivedAll} onChange={(v) => set("receivedAll", v)} label="Barang sudah datang semua" />
-                                        {draft.receivedAll && (lookup?.warehouses.length ?? 0) > 1 && (
+                                        {draft.receivedAll && (lookup?.warehouses?.length ?? 0) > 1 && (
                                             <div className="pl-12">
                                                 <select value={draft.warehouseId} onChange={(e) => set("warehouseId", e.target.value)} className={cn(NB.select, "w-full px-2 bg-white", NB.inputActive)}>
-                                                    {lookup!.warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                                                    {(lookup?.warehouses ?? []).map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
                                                 </select>
                                             </div>
                                         )}
@@ -635,8 +675,12 @@ export function InvoiceReview({
                                     <div className={cn(NB.section, "p-3 space-y-1.5 text-sm")}>
                                         <Row label="Subtotal" value={money(calc.subtotal, draft.currency)} check={parsed?.checks.linesVsSubtotal === 0} />
                                         <div className="flex items-center justify-between gap-3">
-                                            <span className="text-zinc-500 font-medium">PPN</span>
-                                            <div className="w-36"><Cell value={draft.tax} onChange={(v) => set("tax", v)} right mono placeholder="0" /></div>
+                                            <span className="text-zinc-500 font-medium">{draft.currency === "IDR" ? "PPN" : "PPN (impor: di bea cukai)"}</span>
+                                            <div className="w-36">
+                                                {draft.currency === "IDR"
+                                                    ? <Cell value={draft.tax} onChange={(v) => set("tax", v)} right mono placeholder="0" />
+                                                    : <span className="block text-right font-mono text-zinc-400 pr-1.5">—</span>}
+                                            </div>
                                         </div>
                                         <div className="border-t border-zinc-200 pt-1.5 flex items-center justify-between">
                                             <span className="font-black uppercase tracking-wider text-xs">Total</span>
@@ -644,6 +688,11 @@ export function InvoiceReview({
                                         </div>
                                         {draft.currency !== "IDR" && calc.totalIdr != null && (
                                             <div className="text-right text-xs font-mono text-zinc-500">≈ {money(calc.totalIdr, "IDR")} @ {calc.rate}</div>
+                                        )}
+                                        {read && calc.printedTotal == null && (
+                                            <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-700">
+                                                <AlertTriangle className="h-3.5 w-3.5" /> Total tidak terbaca di invoice — cocokkan manual
+                                            </div>
                                         )}
                                         {calc.diff != null && (
                                             <div className={cn("flex items-center gap-1.5 text-[11px] font-bold", Math.abs(calc.diff) < 1 ? "text-emerald-700" : "text-amber-700")}>
@@ -672,8 +721,8 @@ export function InvoiceReview({
                         )}
                     </div>
                     <button onClick={onClose} className={NB.cancelBtn}>Batal</button>
-                    <button onClick={handleSave} disabled={problems.length > 0} className={cn(NB.submitBtnOrange, "disabled:opacity-40 disabled:pointer-events-none")}>
-                        Simpan pembelian
+                    <button onClick={handleSave} disabled={problems.length > 0 || saving} className={cn(NB.submitBtnOrange, "disabled:opacity-40 disabled:pointer-events-none")}>
+                        {saving ? "Menyimpan…" : "Simpan pembelian"}
                     </button>
                 </div>
             </DialogContent>

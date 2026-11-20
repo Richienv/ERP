@@ -159,6 +159,10 @@ function settle(qc: QueryClient, id?: string) {
     void qc.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
     void qc.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
     void qc.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
+    // Saving, paying and receiving also change parts, suppliers, stock, journals and AP aging.
+    for (const key of [queryKeys.products.all, queryKeys.suppliers.all, queryKeys.vendors.all, queryKeys.receiving.all, queryKeys.stockMovements.all, queryKeys.journal.all, queryKeys.apAging.all]) {
+        void qc.invalidateQueries({ queryKey: key })
+    }
     invalidateOpsLoop(qc)
 }
 

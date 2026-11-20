@@ -16,9 +16,11 @@ export type PdfText = {
     chars: number
     /** Page sizes in points, for drawing highlight boxes over a rendered page. */
     pageSizes: { width: number; height: number }[]
+    /** Pages in the document; more than `pages` means the end was not read. */
+    totalPages?: number
 }
 
-export async function extractTextItems(data: ArrayBuffer | Uint8Array, pdfjs: PdfJsLike, maxPages = 5): Promise<PdfText> {
+export async function extractTextItems(data: ArrayBuffer | Uint8Array, pdfjs: PdfJsLike, maxPages = 12): Promise<PdfText> {
     const bytes = data instanceof Uint8Array ? data : new Uint8Array(data)
     // pdf.js transfers (detaches) the buffer; give it a copy so callers can reuse theirs.
     const task = pdfjs.getDocument({ data: bytes.slice(), disableFontFace: true })
@@ -27,6 +29,7 @@ export async function extractTextItems(data: ArrayBuffer | Uint8Array, pdfjs: Pd
     const pageSizes: PdfText["pageSizes"] = []
     let chars = 0
     const pages = Math.min(doc.numPages, maxPages)
+    const totalPages: number = doc.numPages
     try {
         for (let p = 1; p <= pages; p++) {
             const page = await doc.getPage(p)
@@ -53,7 +56,7 @@ export async function extractTextItems(data: ArrayBuffer | Uint8Array, pdfjs: Pd
     } finally {
         await doc.destroy?.()
     }
-    return { items, pages, chars, pageSizes }
+    return { items, pages, chars, pageSizes, totalPages }
 }
 
 /** A text layer this thin means the PDF is a scan or photo. */

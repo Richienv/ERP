@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto"
-import { mkdir, readFile, writeFile } from "node:fs/promises"
+import { access, mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { isLocalDemoAllowed } from "@/lib/local-demo"
 
@@ -32,8 +32,45 @@ type StorageClient = {
     }
 }
 
+/** Disk storage is for local development only — never on a production server. */
 export function isLocalFileStore(): boolean {
+    if (process.env.NODE_ENV === "production") return false
     return process.env.SPAREPART_FILE_STORE === "local" || isLocalDemoAllowed()
+}
+
+/** Content type for a stored file, from its own extension (never from what a client said). */
+export function contentTypeForPath(storagePath: string): string {
+    const ext = storagePath.split(".").pop() || ""
+    const hit = Object.entries(INVOICE_FILE_TYPES).find(([, e]) => e === ext)
+    return hit ? hit[0] : "application/octet-stream"
+}
+
+/** True when the bytes really are the declared type (PDF / JPEG / PNG / WebP). */
+export function hasMagicBytes(bytes: Uint8Array, contentType: string): boolean {
+    const b = bytes
+    switch (contentType) {
+        case "application/pdf":
+            return b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46 // %PDF
+        case "image/jpeg":
+            return b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff
+        case "image/png":
+            return b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47
+        case "image/webp":
+            return b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50
+        default:
+            return false
+    }
+}
+
+/** Local store: the file must really be there. Supabase: the path is derived from the hash, so trust it. */
+export async function invoiceFileExists(storagePath: string): Promise<boolean> {
+    if (!isLocalFileStore()) return true
+    try {
+        await access(localPath(storagePath))
+        return true
+    } catch {
+        return false
+    }
 }
 
 export function sha256Hex(bytes: Uint8Array): string {

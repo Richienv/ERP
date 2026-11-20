@@ -4,7 +4,48 @@
  * always agree.
  */
 
+import { parseAmount } from "@/lib/invoice-parse/numbers"
+
 export type CurrencyCode = "IDR" | "CNY" | "USD"
+
+// ── Typed numbers ────────────────────────────────────────────────────────────
+
+/**
+ * Plausible rupiah per unit. A rate outside this range is a typo (e.g. "2.490" read as 2.49),
+ * and a typo here books every amount 1000× wrong, so both the screen and the server refuse it.
+ */
+export const RATE_BOUNDS: Record<Exclude<CurrencyCode, "IDR">, [number, number]> = {
+    CNY: [500, 10_000],
+    USD: [5_000, 50_000],
+}
+
+/** Read a typed rate. "2.490", "2,490", "2490" and "2490,5" all work; anything implausible is null. */
+export function parseRate(raw: string | number | null | undefined, currency: CurrencyCode): number | null {
+    if (currency === "IDR") return 1
+    if (raw == null || raw === "") return null
+    const text = String(raw)
+    const [min, max] = RATE_BOUNDS[currency]
+    const candidates = [parseAmount(text, "id"), parseAmount(text, "en")].filter((v): v is number => v != null)
+    return candidates.find((v) => v >= min && v <= max) ?? null
+}
+
+export function rateProblem(rate: number, currency: CurrencyCode): string | null {
+    if (currency === "IDR") return null
+    const [min, max] = RATE_BOUNDS[currency]
+    if (!(rate >= min && rate <= max)) {
+        return `Kurs ${currency === "CNY" ? "RMB" : currency} harus antara ${min.toLocaleString("id-ID")} dan ${max.toLocaleString("id-ID")} rupiah (contoh: ${currency === "CNY" ? "2.490" : "16.250"})`
+    }
+    return null
+}
+
+/**
+ * Amounts the user types are read the way the screen shows them: Indonesian grouping
+ * ("26.595" = twenty-six thousand), for every currency. The screen echoes the value it read.
+ */
+export function parseTypedAmount(raw: string | null | undefined): number | null {
+    if (raw == null || !String(raw).trim()) return null
+    return parseAmount(String(raw), "id")
+}
 
 export type SaveLineInput = {
     productId?: string | null

@@ -465,6 +465,7 @@ export const queryKeys = {
         lists: () => [...queryKeys.sparepartPurchases.all, "list"] as const,
         list: (filter: string, q: string) => [...queryKeys.sparepartPurchases.all, "list", filter, q] as const,
         detail: (id: string) => [...queryKeys.sparepartPurchases.all, "detail", id] as const,
-        lookup: () => [...queryKeys.sparepartPurchases.all, "lookup"] as const,
+        // Bump the version when the lookup shape changes, so a persisted old copy is never read.
+        lookup: () => [...queryKeys.sparepartPurchases.all, "lookup", 2] as const,
     },
 } as const

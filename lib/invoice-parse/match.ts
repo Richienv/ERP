@@ -64,16 +64,31 @@ function nameSimilarity(a: string, b: string): number {
     return 1 - distance(a, b) / Math.max(a.length, b.length)
 }
 
+/**
+ * An NPWP or email can belong to the BUYER when it is printed outside the bill-to block. Trust such
+ * an identity match only when the printed supplier name does not contradict it.
+ */
+function nameAgrees(printed: string, candidate?: string | null): boolean {
+    if (!printed || !candidate) return true
+    const a = normaliseCompany(printed)
+    const b = normaliseCompany(candidate)
+    if (!a || !b) return true
+    if (nameSimilarity(a, b) >= 0.4) return true
+    const tokens = new Set(a.split(" ").filter((t) => t.length >= 4))
+    return b.split(" ").some((t) => t.length >= 4 && tokens.has(t))
+}
+
 export function matchSupplier(
     parsed: Pick<ParsedInvoice, "fields">,
     suppliers: LookupSupplier[],
     templates: LookupTemplate[] = [],
 ): SupplierMatch | null {
+    const printedRaw = (parsed.fields.supplierName?.value as string) || ""
     const npwp = digitsOnly(parsed.fields.supplierNpwp?.value as string)
     if (npwp.length >= 15) {
-        const hit = suppliers.find((s) => digitsOnly(s.npwp) === npwp)
+        const hit = suppliers.find((s) => digitsOnly(s.npwp) === npwp && nameAgrees(printedRaw, s.name))
         if (hit) return { supplierId: hit.id, via: "npwp", confidence: 0.99 }
-        const t = templates.find((t) => digitsOnly(t.fingerprint.npwp) === npwp)
+        const t = templates.find((t) => digitsOnly(t.fingerprint.npwp) === npwp && nameAgrees(printedRaw, t.fingerprint.printedName))
         if (t) return { supplierId: t.supplierId, via: "template", confidence: 0.98 }
     }
 
@@ -82,15 +97,15 @@ export function matchSupplier(
     if (domain) {
         const hit = FREE_MAIL.has(domain)
             ? suppliers.find((s) => (s.email || "").toLowerCase() === email.toLowerCase())
-            : suppliers.find((s) => emailDomain(s.email) === domain)
+            : suppliers.find((s) => emailDomain(s.email) === domain && nameAgrees(printedRaw, s.name))
         if (hit) return { supplierId: hit.id, via: "email", confidence: 0.95 }
         if (!FREE_MAIL.has(domain)) {
-            const t = templates.find((t) => t.fingerprint.emailDomain === domain)
+            const t = templates.find((t) => t.fingerprint.emailDomain === domain && nameAgrees(printedRaw, t.fingerprint.printedName))
             if (t) return { supplierId: t.supplierId, via: "template", confidence: 0.95 }
         }
     }
 
-    const printed = normaliseCompany(parsed.fields.supplierName?.value as string)
+    const printed = normaliseCompany(printedRaw)
     if (!printed) return null
     let best: SupplierMatch | null = null
     for (const t of templates) {

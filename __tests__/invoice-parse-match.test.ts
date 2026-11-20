@@ -86,3 +86,13 @@ describe("templates", () => {
         expect(normalisePartCode(" mn-171 419 ")).toBe("MN171419")
     })
 })
+
+describe("buyer identity printed outside the bill-to block (review finding)", () => {
+    it("does not match a supplier by NPWP or email when the printed name contradicts it", () => {
+        const templates = [{ supplierId: "s-cn", fingerprint: { emailDomain: "contoh-buyer.co.id", npwp: "019876543210000", printedName: "GUANGZHOU RUIXIANG AUTO PARTS CO., LTD." }, template: {}, samples: 1 }]
+        const other = fields({ supplierName: "NINGBO BRAKE MASTERS CO., LTD.", supplierEmail: "finance@contoh-buyer.co.id", supplierNpwp: "01.987.654.3-210.000" })
+        expect(matchSupplier(other, [], templates)).toBeNull()
+        const same = fields({ supplierName: "Guangzhou Ruixiang Auto Parts", supplierEmail: "finance@contoh-buyer.co.id" })
+        expect(matchSupplier(same, [], templates)).toMatchObject({ supplierId: "s-cn" })
+    })
+})

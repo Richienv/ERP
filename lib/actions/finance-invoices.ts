@@ -759,7 +759,10 @@ export async function recordPendingBillFromPO(
                 where: { purchaseOrderId: livePo.id },
                 select: { billId: true, supplierInvoiceNo: true, bill: { select: { number: true, status: true } } },
             })
-            if (capture) {
+            // Only while that bill is alive: if finance cancelled or deleted it, normal re-billing applies,
+            // so the GR/IR credit from receipts can still be cleared.
+            const captureBillActive = !!capture?.billId && !!capture.bill && !["CANCELLED", "VOID"].includes(capture.bill.status)
+            if (capture && captureBillActive) {
                 if (options?.requireConfirmationOnDuplicate) {
                     return {
                         success: false,

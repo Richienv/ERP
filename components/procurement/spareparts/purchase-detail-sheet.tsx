@@ -204,7 +204,7 @@ export function PurchaseDetailSheet({ row, lookup, onClose }: { row: SparepartRo
             </Sheet>
             {view && (
                 <>
-                    <PayDialog detail={view} open={dialog === "pay"} onOpenChange={(v) => setDialog(v ? "pay" : null)} />
+                    <PayDialog detail={view} lookup={lookup} open={dialog === "pay"} onOpenChange={(v) => setDialog(v ? "pay" : null)} />
                     <ShipDialog detail={view} open={dialog === "ship"} onOpenChange={(v) => setDialog(v ? "ship" : null)} />
                     <ReceiveDialog detail={view} lookup={lookup} open={dialog === "receive"} onOpenChange={(v) => setDialog(v ? "receive" : null)} />
                 </>

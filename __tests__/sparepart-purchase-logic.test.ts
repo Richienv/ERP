@@ -112,3 +112,28 @@ describe("search", () => {
         expect(normaliseSearch("   ")).toBeNull()
     })
 })
+
+describe("typed numbers (review finding: '2.490' must never become 2.49)", () => {
+    it("reads a rate however it is typed, and refuses implausible ones", async () => {
+        const { parseRate, rateProblem } = await import("@/lib/sparepart-purchase-logic")
+        expect(parseRate("2.490", "CNY")).toBe(2490)
+        expect(parseRate("2,490", "CNY")).toBe(2490)
+        expect(parseRate("2490", "CNY")).toBe(2490)
+        expect(parseRate("2490,5", "CNY")).toBe(2490.5)
+        expect(parseRate("2.49", "CNY")).toBeNull()
+        expect(parseRate("16.250", "USD")).toBe(16250)
+        expect(parseRate("", "CNY")).toBeNull()
+        expect(parseRate("abc", "IDR")).toBe(1)
+        expect(rateProblem(2.49, "CNY")).toMatch(/antara 500 dan 10\.000/)
+        expect(rateProblem(2490, "CNY")).toBeNull()
+    })
+    it("reads typed amounts with Indonesian grouping, as displayed", async () => {
+        const { parseTypedAmount } = await import("@/lib/sparepart-purchase-logic")
+        expect(parseTypedAmount("26.595")).toBe(26595)
+        expect(parseTypedAmount("26595")).toBe(26595)
+        expect(parseTypedAmount("12,5")).toBe(12.5)
+        expect(parseTypedAmount("0.85")).toBe(0.85)
+        expect(parseTypedAmount("DP 30")).toBeNull()
+        expect(parseTypedAmount("")).toBeNull()
+    })
+})

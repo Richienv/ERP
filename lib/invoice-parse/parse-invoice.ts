@@ -259,8 +259,16 @@ function toParsedLine(row: RawRow, locale: NumberLocale): ParsedLine {
     if (discText) {
         const d = parseAmount(discText, locale)
         if (d !== null) {
-            if (/%/.test(discText) || d <= 100) discountPct = d
-            else if (qty && unitPrice) discountPct = Math.round((d / (qty * unitPrice)) * 10000) / 100
+            const gross = qty && unitPrice ? qty * unitPrice : null
+            const asAmount = gross ? Math.round((d / gross) * 1_000_000) / 10_000 : null
+            if (/%/.test(discText)) discountPct = d
+            else if (gross && amount !== null && asAmount !== null) {
+                // No % sign: pick whichever reading (percent or rupiah off) makes the line add up.
+                const viaPct = Math.abs(gross * (1 - d / 100) - amount)
+                const viaAbs = Math.abs(gross - d - amount)
+                discountPct = viaAbs < viaPct ? asAmount : d
+            } else if (d <= 100) discountPct = d
+            else discountPct = asAmount
         }
     }
     const factor = 1 - (discountPct || 0) / 100

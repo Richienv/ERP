@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
-import { readLocalInvoiceFile, signedInvoiceFileUrl, isLocalFileStore } from "@/lib/sparepart-file-store"
+import { contentTypeForPath, readLocalInvoiceFile, signedInvoiceFileUrl, isLocalFileStore } from "@/lib/sparepart-file-store"
 
 /** GET /api/procurement/sparepart-invoices/[id]/file — the original supplier invoice, logged-in users only. */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -22,7 +22,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
             const bytes = await readLocalInvoiceFile(capture.storagePath)
             return new NextResponse(Buffer.from(bytes), {
                 headers: {
-                    "Content-Type": capture.fileType || "application/octet-stream",
+                    "Content-Type": contentTypeForPath(capture.storagePath),
+                    "X-Content-Type-Options": "nosniff",
                     "Content-Disposition": `inline; filename="${(capture.fileName || "invoice").replace(/[^\w.-]/g, "_")}"`,
                     "Cache-Control": "private, max-age=3600",
                 },

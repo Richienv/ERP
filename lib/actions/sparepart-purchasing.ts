@@ -15,21 +15,24 @@
  * invoice as printed (RMB/USD amounts, rate, file, parse result).
  */
 
+import { randomUUID } from "node:crypto"
 import { Prisma } from "@prisma/client"
 import { prisma, withPrismaAuth } from "@/lib/db"
 import { assertRole, FINANCE_POSTING_ROLES, getAuthzUser } from "@/lib/authz"
-import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts-server"
+import { CASH_BANK_CODES, SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts-server"
 import { getNextDocNumber } from "@/lib/document-numbering"
 import { moveInvoiceToSent } from "@/lib/actions/finance-invoices"
 import { recordVendorPayment } from "@/lib/actions/finance-ap"
 import { markAsShipped } from "@/lib/actions/procurement"
 import { acceptGRN, createGRN } from "@/lib/actions/grn"
+import { INVOICE_FILE_TYPES, invoiceFileExists, storagePathFor } from "@/lib/sparepart-file-store"
 import {
     buildSearchText,
     derivePurchaseStatus,
     normaliseSearch,
     paymentIdr,
     poPaymentStatus,
+    rateProblem,
     toIdrLines,
     validateSaveLines,
     type CurrencyCode,
@@ -53,6 +56,12 @@ function hasRole(user: Authz, roles: readonly string[]): boolean {
     }
 }
 
+/** Cash accounts pay as CASH, everything else as TRANSFER (the AP action picks the GL account from both). */
+function methodForAccount(code: string | null | undefined, fallback?: "TRANSFER" | "CASH"): "TRANSFER" | "CASH" {
+    if (code && (code === SYS_ACCOUNTS.CASH || code === SYS_ACCOUNTS.PETTY_CASH)) return "CASH"
+    return fallback ?? "TRANSFER"
+}
+
 const num = (v: unknown) => (v == null ? 0 : Number(v))
 const errorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e || "Terjadi kesalahan"))
 
@@ -70,7 +79,7 @@ function parseIsoDate(s: string | null | undefined): Date | null {
 
 export async function getSparepartLookup() {
     const user = await getAuthzUser()
-    const [suppliers, templates, products, skus, warehouses, rates] = await Promise.all([
+    const [suppliers, templates, products, skus, warehouses, bankAccounts, rates] = await Promise.all([
         prisma.supplier.findMany({
             where: { isActive: true },
             select: { id: true, code: true, name: true, npwp: true, email: true },
@@ -93,6 +102,11 @@ export async function getSparepartLookup() {
             where: { isActive: true },
             select: { id: true, code: true, name: true },
             orderBy: { name: "asc" },
+        }),
+        prisma.gLAccount.findMany({
+            where: { code: { in: [...CASH_BANK_CODES] } },
+            select: { code: true, name: true },
+            orderBy: { code: "asc" },
         }),
         prisma.exchangeRate.findMany({
             where: { currency: { code: { in: ["CNY", "USD"] } } },
@@ -117,6 +131,8 @@ export async function getSparepartLookup() {
         products,
         skus: skus.map((s) => ({ supplierId: s.supplierId, productId: s.productId, skuCode: s.skuCode as string })),
         warehouses,
+        /** Where payments can come from; Bank BCA first, as the AP action defaults to it. */
+        bankAccounts: [...bankAccounts].sort((a, b) => (a.code === SYS_ACCOUNTS.BANK_BCA ? -1 : b.code === SYS_ACCOUNTS.BANK_BCA ? 1 : a.code.localeCompare(b.code))),
         latestRate,
         canPost: hasRole(user, FINANCE_POSTING_ROLES),
         canPurchase: hasRole(user, PURCHASING_ROLES),
@@ -355,7 +371,11 @@ export async function getSparepartPurchase(id: string) {
     })
     if (!c) return null
     const po = c.purchaseOrder
-    const parsedLines = ((c.parsed as { lines?: { partNo?: string | null; unitPriceOriginal?: number; discountPct?: number | null }[] } | null)?.lines) || []
+    type ParsedLineMeta = { poItemId?: string; partNo?: string | null; unitPriceOriginal?: number; discountPct?: number | null }
+    const parsedLines = ((c.parsed as { lines?: ParsedLineMeta[] } | null)?.lines) || []
+    const metaById = new Map(parsedLines.filter((l) => l.poItemId).map((l) => [l.poItemId!, l]))
+    const orderIndex = new Map(parsedLines.map((l, i) => [l.poItemId, i]))
+    const metaFor = (id: string, idx: number): ParsedLineMeta | undefined => metaById.get(id) ?? (metaById.size ? undefined : parsedLines[idx])
     const ordered = po.items.reduce((s, i) => s + i.quantity, 0)
     const received = po.items.reduce((s, i) => s + i.receivedQty, 0)
     const status = derivePurchaseStatus({
@@ -394,18 +414,19 @@ export async function getSparepartPurchase(id: string) {
             number: po.number,
             status: po.status,
             taxMode: po.taxMode,
-            items: po.items.map((i, idx) => ({
+            // Invoice order (PO items created together share one timestamp, so the DB order is arbitrary).
+            items: [...po.items].sort((a, b) => (orderIndex.get(a.id) ?? 1e9) - (orderIndex.get(b.id) ?? 1e9)).map((i, idx) => ({
                 id: i.id,
                 productId: i.product.id,
                 code: i.product.code,
                 name: i.product.name,
                 unit: i.product.unit,
-                partNo: parsedLines[idx]?.partNo ?? null,
+                partNo: metaFor(i.id, idx)?.partNo ?? null,
                 quantity: i.quantity,
                 receivedQty: i.receivedQty,
                 unitPriceIdr: num(i.unitPrice),
                 totalIdr: num(i.totalPrice),
-                unitPriceOriginal: parsedLines[idx]?.unitPriceOriginal ?? null,
+                unitPriceOriginal: metaFor(i.id, idx)?.unitPriceOriginal ?? null,
             })),
             events: po.events.map((e) => ({ ...e, createdAt: e.createdAt.toISOString() })),
             grns: po.goodsReceivedNotes.map((g) => ({
@@ -476,7 +497,8 @@ export type SaveSupplierInvoiceInput = {
     /** Tax as printed (invoice currency). 0 = no PPN. */
     taxOriginal: number
     lines: SaveLineInput[]
-    file?: { name: string; type: string; size: number; sha256: string; storagePath: string } | null
+    /** What the upload route returned. The server re-derives the storage path from sha256 + type. */
+    file?: { name: string; type: string; size: number; sha256: string } | null
     parse?: {
         method: "TEXT" | "OCR" | "MANUAL"
         ms?: number | null
@@ -510,18 +532,34 @@ export async function saveSupplierInvoice(input: SaveSupplierInvoiceInput) {
         if (!invoiceNo) return { success: false as const, error: "Nomor invoice supplier wajib diisi" }
         if (!invoiceDate) return { success: false as const, error: "Tanggal invoice tidak valid" }
         if (!CURRENCIES.includes(input.currencyCode)) return { success: false as const, error: "Mata uang tidak didukung" }
-        if (!(rate > 0)) return { success: false as const, error: `Isi kurs ${input.currencyCode} → IDR` }
+        const badRate = rateProblem(rate, input.currencyCode)
+        if (badRate) return { success: false as const, error: badRate }
         if (!(input.taxOriginal >= 0)) return { success: false as const, error: "PPN tidak valid" }
+        // Foreign VAT (e.g. Chinese 增值税) is not Indonesian input tax; import PPN is paid at customs.
+        if (input.currencyCode !== "IDR" && input.taxOriginal > 0) {
+            return { success: false as const, error: "Invoice impor tidak boleh berisi PPN Masukan. PPN impor dicatat saat bea cukai." }
+        }
         const lineError = validateSaveLines(input.lines)
         if (lineError) return { success: false as const, error: lineError }
+
+        // The server decides where the file lives (from its hash and an allowed type), never the browser.
+        let file: { name: string; type: string; size: number; sha256: string; storagePath: string } | null = null
+        if (input.file) {
+            if (!INVOICE_FILE_TYPES[input.file.type]) return { success: false as const, error: "Tipe file tidak didukung" }
+            file = { name: String(input.file.name).slice(0, 200), type: input.file.type, size: Number(input.file.size) || 0, sha256: input.file.sha256, storagePath: storagePathFor(input.file.sha256, input.file.type) }
+            if (!(await invoiceFileExists(file.storagePath))) file = null
+        }
 
         const idr = toIdrLines(input.lines, rate)
         const taxIdr = Math.round(input.taxOriginal * rate * 100) / 100
         const totalIdr = Math.round((idr.subtotalIdr + taxIdr) * 100) / 100
         const totalOriginal = Math.round((idr.subtotalOriginal + input.taxOriginal) * 100) / 100
+        const poItemIds = input.lines.map(() => randomUUID())
 
+        // Every query below is batched (no per-line round trips), so a 150-line invoice still saves
+        // in a handful of statements. The timeout is raised for the far-away production database.
         const core = await withPrismaAuth(async (tx) => {
-            // 1. Supplier
+            // 1. Supplier — reuse an existing one with the same NPWP or name instead of creating a twin.
             let supplierId = input.supplier.id || null
             let supplierName = input.supplier.name.trim()
             if (supplierId) {
@@ -530,20 +568,35 @@ export async function saveSupplierInvoice(input: SaveSupplierInvoiceInput) {
                 supplierName = s.name
             } else {
                 const npwpDigits = (input.supplier.npwp || "").replace(/\D/g, "")
-                let code = await getNextDocNumber(tx, "SUP-SP", 3)
-                while (await tx.supplier.findUnique({ where: { code }, select: { id: true } })) code = await getNextDocNumber(tx, "SUP-SP", 3)
-                const created = await tx.supplier.create({
-                    data: {
-                        code,
-                        name: supplierName,
-                        npwp: npwpDigits.length === 15 || npwpDigits.length === 16 ? npwpDigits : null,
-                        email: input.supplier.email || null,
-                        phone: input.supplier.phone || null,
-                        address: input.supplier.address || null,
+                const validNpwp = npwpDigits.length === 15 || npwpDigits.length === 16 ? npwpDigits : null
+                const existing = await tx.supplier.findFirst({
+                    where: {
+                        OR: [
+                            ...(validNpwp ? [{ npwp: validNpwp }] : []),
+                            { name: { equals: supplierName, mode: "insensitive" as const } },
+                        ],
                     },
-                    select: { id: true },
+                    select: { id: true, name: true },
                 })
-                supplierId = created.id
+                if (existing) {
+                    supplierId = existing.id
+                    supplierName = existing.name
+                } else {
+                    let code = await getNextDocNumber(tx, "SUP-SP", 3)
+                    while (await tx.supplier.findUnique({ where: { code }, select: { id: true } })) code = await getNextDocNumber(tx, "SUP-SP", 3)
+                    const created = await tx.supplier.create({
+                        data: {
+                            code,
+                            name: supplierName,
+                            npwp: validNpwp,
+                            email: input.supplier.email || null,
+                            phone: input.supplier.phone || null,
+                            address: input.supplier.address || null,
+                        },
+                        select: { id: true },
+                    })
+                    supplierId = created.id
+                }
             }
 
             // 2. The same supplier invoice can never be entered twice.
@@ -553,48 +606,56 @@ export async function saveSupplierInvoice(input: SaveSupplierInvoiceInput) {
             })
             if (dup) throw new DuplicateInvoiceError(dup.id, dup.purchaseOrder.number, invoiceNo, supplierName)
 
-            // 3. New products for unknown part numbers.
-            let categoryId: string | null = null
-            const productIds: string[] = []
-            for (const [i, line] of input.lines.entries()) {
-                if (line.productId) {
-                    productIds.push(line.productId)
-                    continue
-                }
-                const np = line.newProduct!
-                const code = np.code.trim().toUpperCase()
-                const existing = await tx.product.findUnique({ where: { code }, select: { id: true } })
-                if (existing) {
-                    productIds.push(existing.id)
-                    continue
-                }
-                if (!categoryId) {
+            // 3. Products: one read for every code, one insert for every new part.
+            const productIds: string[] = input.lines.map((l) => l.productId || "")
+            const newCodes = Array.from(new Set(input.lines.filter((l) => !l.productId).map((l) => l.newProduct!.code.trim().toUpperCase())))
+            if (newCodes.length) {
+                const found = await tx.product.findMany({ where: { code: { in: newCodes } }, select: { id: true, code: true } })
+                const byCode = new Map(found.map((p) => [p.code, p.id]))
+                const toCreate = newCodes.filter((c) => !byCode.has(c))
+                if (toCreate.length) {
                     const cat = await tx.category.upsert({
                         where: { code: "SPAREPART" },
                         create: { code: "SPAREPART", name: "Sparepart" },
                         update: {},
                         select: { id: true },
                     })
-                    categoryId = cat.id
+                    const firstLine = new Map<string, number>()
+                    input.lines.forEach((l, i) => {
+                        if (!l.productId) {
+                            const c = l.newProduct!.code.trim().toUpperCase()
+                            if (!firstLine.has(c)) firstLine.set(c, i)
+                        }
+                    })
+                    const created = await tx.product.createManyAndReturn({
+                        data: toCreate.map((code) => {
+                            const i = firstLine.get(code)!
+                            const line = input.lines[i]
+                            return {
+                                code,
+                                name: line.newProduct!.name.trim() || line.description,
+                                unit: (line.newProduct!.unit || line.unit || "PCS").toUpperCase(),
+                                productType: "TRADING" as const,
+                                equipmentType: "spare_part",
+                                categoryId: cat.id,
+                                costPrice: idr.lines[i].unitPriceIdr,
+                            }
+                        }),
+                        select: { id: true, code: true },
+                    })
+                    for (const p of created) byCode.set(p.code, p.id)
                 }
-                const created = await tx.product.create({
-                    data: {
-                        code,
-                        name: np.name.trim() || line.description,
-                        unit: (np.unit || line.unit || "PCS").toUpperCase(),
-                        productType: "TRADING",
-                        equipmentType: "spare_part",
-                        categoryId,
-                        costPrice: idr.lines[i].unitPriceIdr,
-                    },
-                    select: { id: true },
+                input.lines.forEach((l, i) => {
+                    if (!l.productId) productIds[i] = byCode.get(l.newProduct!.code.trim().toUpperCase())!
                 })
-                productIds.push(created.id)
             }
 
-            // 4. PO — the supplier's invoice is the vendor's confirmation.
-            const ym = `${invoiceDate.getUTCFullYear()}${String(invoiceDate.getUTCMonth() + 1).padStart(2, "0")}`
-            const poNumber = await getNextDocNumber(tx, `PO-${ym}`, 4)
+            // 4. PO — the supplier's invoice is the vendor's confirmation. Numbered like the other PO
+            //    paths (current month); skips numbers taken by the count-based "New PO" dialog.
+            const now = new Date()
+            const prefix = `PO-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`
+            let poNumber = await getNextDocNumber(tx, prefix, 4)
+            while (await tx.purchaseOrder.findUnique({ where: { number: poNumber }, select: { id: true } })) poNumber = await getNextDocNumber(tx, prefix, 4)
             const po = await tx.purchaseOrder.create({
                 data: {
                     number: poNumber,
@@ -608,12 +669,15 @@ export async function saveSupplierInvoice(input: SaveSupplierInvoiceInput) {
                     netAmount: totalIdr,
                     createdBy: user.id,
                     items: {
-                        create: input.lines.map((line, i) => ({
-                            productId: productIds[i],
-                            quantity: line.qty,
-                            unitPrice: idr.lines[i].unitPriceIdr,
-                            totalPrice: idr.lines[i].totalIdr,
-                        })),
+                        createMany: {
+                            data: input.lines.map((line, i) => ({
+                                id: poItemIds[i],
+                                productId: productIds[i],
+                                quantity: line.qty,
+                                unitPrice: idr.lines[i].unitPriceIdr,
+                                totalPrice: idr.lines[i].totalIdr,
+                            })),
+                        },
                     },
                 },
                 select: { id: true, number: true },
@@ -649,39 +713,36 @@ export async function saveSupplierInvoice(input: SaveSupplierInvoiceInput) {
                     amountInIDR: totalIdr,
                     glAccountCode: SYS_ACCOUNTS.GR_IR_CLEARING,
                     items: {
-                        create: input.lines.map((line, i) => ({
-                            productId: productIds[i],
-                            description: [line.partNo, line.description].filter(Boolean).join(" — ").slice(0, 300),
-                            quantity: line.qty,
-                            unitPrice: idr.lines[i].unitPriceIdr,
-                            amount: idr.lines[i].totalIdr,
-                        })),
+                        createMany: {
+                            data: input.lines.map((line, i) => ({
+                                productId: productIds[i],
+                                description: [line.partNo, line.description].filter(Boolean).join(" — ").slice(0, 300),
+                                quantity: line.qty,
+                                unitPrice: idr.lines[i].unitPriceIdr,
+                                amount: idr.lines[i].totalIdr,
+                            })),
+                        },
                     },
                 },
                 select: { id: true, number: true },
             })
 
-            // 6. Learn the supplier's codes for these parts.
-            for (const [i, line] of input.lines.entries()) {
-                const sku = (line.partNo || "").trim()
-                await tx.supplierProduct.upsert({
-                    where: { supplierId_productId: { supplierId, productId: productIds[i] } },
-                    create: {
-                        supplierId,
-                        productId: productIds[i],
-                        price: idr.lines[i].amountOriginal / line.qty,
-                        currency: input.currencyCode,
-                        skuCode: sku || null,
-                    },
-                    update: {
-                        price: idr.lines[i].amountOriginal / line.qty,
-                        currency: input.currencyCode,
-                        ...(sku ? { skuCode: sku } : {}),
-                    },
-                })
-            }
+            // 6. Learn the supplier's codes and prices for these parts — one statement.
+            const skuRows = new Map<string, { productId: string; sku: string | null; price: number }>()
+            input.lines.forEach((line, i) => {
+                skuRows.set(productIds[i], { productId: productIds[i], sku: (line.partNo || "").trim() || null, price: Math.round((idr.lines[i].amountOriginal / line.qty) * 100) / 100 })
+            })
+            const values = Array.from(skuRows.values()).map(
+                (r) => Prisma.sql`(uuid_generate_v4(), ${supplierId}::uuid, ${r.productId}::uuid, ${r.price}, ${input.currencyCode}, ${r.sku}, now(), now())`,
+            )
+            await tx.$executeRaw`
+                INSERT INTO supplier_products (id, "supplierId", "productId", price, currency, "skuCode", "createdAt", "updatedAt")
+                VALUES ${Prisma.join(values)}
+                ON CONFLICT ("supplierId", "productId") DO UPDATE
+                SET price = EXCLUDED.price, currency = EXCLUDED.currency,
+                    "skuCode" = COALESCE(EXCLUDED."skuCode", supplier_products."skuCode"), "updatedAt" = now()`
 
-            // 7. Learn the supplier's invoice layout.
+            // 7. Learn the supplier's invoice layout (and remember the rate for next time).
             if (input.parse?.template && input.parse.method !== "MANUAL") {
                 await tx.supplierInvoiceTemplate.upsert({
                     where: { supplierId },
@@ -722,16 +783,22 @@ export async function saveSupplierInvoice(input: SaveSupplierInvoiceInput) {
                     subtotalOriginal: idr.subtotalOriginal,
                     taxOriginal: input.taxOriginal,
                     totalOriginal,
-                    fileName: input.file?.name ?? null,
-                    fileType: input.file?.type ?? null,
-                    fileSize: input.file?.size ?? null,
-                    fileSha256: input.file?.sha256 ?? null,
-                    storagePath: input.file?.storagePath ?? null,
+                    fileName: file?.name ?? null,
+                    fileType: file?.type ?? null,
+                    fileSize: file?.size ?? null,
+                    fileSha256: file?.sha256 ?? null,
+                    storagePath: file?.storagePath ?? null,
                     parseMethod: input.parse?.method ?? "MANUAL",
                     parseMs: input.parse?.ms == null ? null : Math.round(input.parse.ms),
                     parseConfidence: input.parse?.confidence ?? null,
                     parsed: {
-                        lines: input.lines.map((l) => ({ partNo: l.partNo ?? null, unitPriceOriginal: l.unitPriceOriginal, discountPct: l.discountPct ?? null, unit: l.unit ?? null })),
+                        lines: input.lines.map((l, i) => ({
+                            poItemId: poItemIds[i],
+                            partNo: l.partNo ?? null,
+                            unitPriceOriginal: l.unitPriceOriginal,
+                            discountPct: l.discountPct ?? null,
+                            unit: l.unit ?? null,
+                        })),
                         ...(input.parse?.snapshot ? { snapshot: input.parse.snapshot } : {}),
                     } as Prisma.InputJsonValue,
                     searchText: buildSearchText({
@@ -747,20 +814,20 @@ export async function saveSupplierInvoice(input: SaveSupplierInvoiceInput) {
                 select: { id: true },
             })
 
-            if (input.file?.storagePath) {
+            if (file) {
                 await tx.invoiceAttachment.create({
                     data: {
                         invoiceId: bill.id,
-                        fileName: input.file.name,
+                        fileName: file.name,
                         fileUrl: `/api/procurement/sparepart-invoices/${capture.id}/file`,
-                        fileType: input.file.type,
-                        fileSize: input.file.size,
+                        fileType: file.type,
+                        fileSize: file.size,
                     },
                 })
             }
 
             return { captureId: capture.id, poId: po.id, poNumber: po.number, billId: bill.id, billNumber: bill.number, supplierId }
-        })
+        }, { timeout: 60_000 })
         const coreMs = Math.round(performance.now() - t0)
 
         // Steps after commit. Each one reports back; none can undo the saved purchase.
@@ -772,8 +839,9 @@ export async function saveSupplierInvoice(input: SaveSupplierInvoiceInput) {
         }
         const paid = Number(input.already?.paidOriginal || 0)
         if (paid > 0) {
+            const bank = input.already?.bankAccountCode ?? null
             steps.pay = steps.post.ok
-                ? await payCapture(core.captureId, paid, input.already?.method ?? "TRANSFER", input.already?.bankAccountCode ?? null)
+                ? await payCapture(core.captureId, paid, methodForAccount(bank, input.already?.method), bank)
                 : { ok: false, skipped: "Pembayaran dicatat setelah tagihan diposting" }
         }
         if (input.already?.receivedAll) {
@@ -784,6 +852,10 @@ export async function saveSupplierInvoice(input: SaveSupplierInvoiceInput) {
     } catch (e) {
         if (e instanceof DuplicateInvoiceError) {
             return { success: false as const, code: "DUPLICATE" as const, existingId: e.existingId, error: e.message }
+        }
+        // Two saves of the same invoice at the same moment: the unique index catches the second one.
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+            return { success: false as const, code: "DUPLICATE" as const, existingId: null, error: "Invoice ini baru saja tersimpan (kemungkinan klik dua kali). Cek daftar." }
         }
         console.error("[saveSupplierInvoice]", e)
         return { success: false as const, error: errorMessage(e) }
@@ -871,8 +943,11 @@ async function payCapture(captureId: string, amountOriginal: number, method: "TR
 }
 
 export async function recordSparepartPayment(input: { id: string; amountOriginal: number; method?: "TRANSFER" | "CASH"; bankAccountCode?: string | null }) {
+    const user = await getAuthzUser()
+    if (!hasRole(user, FINANCE_POSTING_ROLES)) return { success: false, error: "Hanya finance/manajer yang bisa mencatat pembayaran" }
     if (!(input.amountOriginal > 0)) return { success: false, error: "Jumlah bayar harus lebih dari 0" }
-    const r = await payCapture(input.id, input.amountOriginal, input.method ?? "TRANSFER", input.bankAccountCode ?? null)
+    const bank = input.bankAccountCode ?? null
+    const r = await payCapture(input.id, input.amountOriginal, methodForAccount(bank, input.method), bank)
     return r.ok ? { success: true, balanceDue: r.balanceDue } : { success: false, error: r.error }
 }
 

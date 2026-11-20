@@ -5,7 +5,7 @@ import { Banknote, PackageCheck, Truck } from "lucide-react"
 import { NBDialog, NBDialogBody, NBDialogFooter, NBDialogHeader } from "@/components/ui/nb-dialog"
 import { NB } from "@/lib/dialog-styles"
 import { cn } from "@/lib/utils"
-import { parseAmount } from "@/lib/invoice-parse/numbers"
+import { parseTypedAmount } from "@/lib/sparepart-purchase-logic"
 import type { SparepartDetail } from "@/lib/actions/sparepart-purchasing"
 import { usePaySparepart, useReceiveSparepart, useShipSparepart, type SparepartLookup } from "@/hooks/use-sparepart-purchases"
 import { money } from "./format"
@@ -18,14 +18,20 @@ function remainingOriginal(d: SparepartDetail) {
     return d.currencyCode === "IDR" ? balance : Math.round((balance / (d.exchangeRate || 1)) * 100) / 100
 }
 
-export function PayDialog({ detail, open, onOpenChange }: { detail: SparepartDetail; open: boolean; onOpenChange: (v: boolean) => void }) {
+export function PayDialog({ detail, lookup, open, onOpenChange }: { detail: SparepartDetail; lookup: SparepartLookup | undefined; open: boolean; onOpenChange: (v: boolean) => void }) {
     const pay = usePaySparepart()
     const remaining = remainingOriginal(detail)
     const [amount, setAmount] = useState("")
+    const [bank, setBank] = useState("")
+    const fmt = (n: number) => new Intl.NumberFormat("id-ID", { maximumFractionDigits: 2 }).format(n)
     useEffect(() => {
-        if (open) setAmount(String(remaining))
-    }, [open, remaining])
-    const value = parseAmount(amount, detail.currencyCode === "IDR" ? "id" : "en") ?? 0
+        if (open) {
+            setAmount(fmt(remaining))
+            setBank(lookup?.bankAccounts?.[0]?.code ?? "")
+        }
+    }, [open, remaining, lookup?.bankAccounts])
+    // Read the way it is shown: "26.595" is twenty-six thousand, in every currency.
+    const value = parseTypedAmount(amount) ?? 0
     const total = detail.totalOriginal
     const chips = useMemo(() => {
         const out: { label: string; value: number }[] = []
@@ -55,23 +61,33 @@ export function PayDialog({ detail, open, onOpenChange }: { detail: SparepartDet
                     />
                     <div className="mt-2 flex gap-2">
                         {chips.map((c) => (
-                            <button key={c.label} onClick={() => setAmount(String(c.value))} className="border border-zinc-300 px-2.5 h-7 text-[11px] font-bold hover:border-black transition-colors">
+                            <button key={c.label} onClick={() => setAmount(fmt(c.value))} className="border border-zinc-300 px-2.5 h-7 text-[11px] font-bold hover:border-black transition-colors">
                                 {c.label}
                             </button>
                         ))}
                     </div>
-                    {detail.currencyCode !== "IDR" && value > 0 && (
+                    {value > 0 && (
                         <p className="mt-2 text-xs font-mono text-zinc-500">
-                            Dibukukan {money(value * detail.exchangeRate, "IDR")} @ {detail.exchangeRate.toLocaleString("id-ID")}
+                            Tercatat <b className="text-zinc-800">{money(value, detail.currencyCode)}</b>
+                            {detail.currencyCode !== "IDR" && <> · dibukukan {money(value * detail.exchangeRate, "IDR")} @ {detail.exchangeRate.toLocaleString("id-ID")}</>}
                         </p>
                     )}
+                    {amount.trim() && !value && <p className={NB.error}>Jumlah tidak terbaca</p>}
                     {value > remaining + 0.005 && <p className={NB.error}>Lebih dari sisa tagihan</p>}
                 </div>
+                {(lookup?.bankAccounts?.length ?? 0) > 0 && (
+                    <div>
+                        <label className={NB.label}>Dibayar dari</label>
+                        <select value={bank} onChange={(e) => setBank(e.target.value)} className={cn(NB.select, "w-full px-2 bg-white", NB.inputActive)}>
+                            {(lookup?.bankAccounts ?? []).map((a) => <option key={a.code} value={a.code}>{a.name} ({a.code})</option>)}
+                        </select>
+                    </div>
+                )}
             </NBDialogBody>
             <NBDialogFooter
                 onCancel={() => onOpenChange(false)}
                 onSubmit={() => {
-                    pay.mutate({ id: detail.id, amountOriginal: value, rate: detail.currencyCode === "IDR" ? 1 : detail.exchangeRate })
+                    pay.mutate({ id: detail.id, amountOriginal: value, rate: detail.currencyCode === "IDR" ? 1 : detail.exchangeRate, bankAccountCode: bank || null })
                     onOpenChange(false)
                 }}
                 submitLabel="Catat bayar"
@@ -134,11 +150,11 @@ export function ReceiveDialog({ detail, lookup, open, onOpenChange }: { detail: 
         <NBDialog open={open} onOpenChange={onOpenChange} size="default">
             <NBDialogHeader icon={PackageCheck} title="Terima barang" subtitle={`${detail.po.number} · isi jumlah yang benar-benar datang`} />
             <NBDialogBody>
-                {(lookup?.warehouses.length ?? 0) > 1 && (
+                {(lookup?.warehouses?.length ?? 0) > 1 && (
                     <div>
                         <label className={NB.label}>Gudang</label>
                         <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} className={cn(NB.select, "w-full px-2 bg-white", NB.inputActive)}>
-                            {lookup!.warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                            {(lookup?.warehouses ?? []).map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
                         </select>
                     </div>
                 )}

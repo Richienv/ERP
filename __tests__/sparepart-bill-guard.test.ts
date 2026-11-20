@@ -10,7 +10,7 @@ const { tx, withPrismaAuthMock } = vi.hoisted(() => {
     const tx = {
         purchaseOrder: { findUnique: vi.fn() },
         supplierInvoiceCapture: { findUnique: vi.fn() },
-        invoice: { findMany: vi.fn(), create: vi.fn(), update: vi.fn() },
+        invoice: { findMany: vi.fn(), create: vi.fn(async () => ({ id: "bill-new", number: "BILL-PO-SP-0001" })), update: vi.fn(), count: vi.fn(async () => 0), findFirst: vi.fn(async () => null), findUnique: vi.fn(async () => null) },
         invoiceItem: { deleteMany: vi.fn() },
     }
     return { tx, withPrismaAuthMock: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)) }
@@ -58,7 +58,16 @@ describe("bill-from-received guard for captured supplier invoices", () => {
     it("still plans a bill for an ordinary PO", async () => {
         tx.supplierInvoiceCapture.findUnique.mockResolvedValue(null)
         tx.invoice.findMany.mockResolvedValue([])
-        await recordPendingBillFromPO(po).catch(() => undefined)
+        const result = await recordPendingBillFromPO(po)
+        expect(tx.invoice.findMany).toHaveBeenCalled()
+        expect(result).toMatchObject({ success: true })
+        expect(tx.invoice.create).toHaveBeenCalled()
+    })
+
+    it("re-bills normally when the captured bill was cancelled, so GR/IR can still clear", async () => {
+        tx.supplierInvoiceCapture.findUnique.mockResolvedValue({ billId: "bill-1", supplierInvoiceNo: "RX-1", bill: { number: "BILL-PO-SP-0001", status: "CANCELLED" } })
+        tx.invoice.findMany.mockResolvedValue([])
+        await recordPendingBillFromPO(po)
         expect(tx.invoice.findMany).toHaveBeenCalled()
     })
 })

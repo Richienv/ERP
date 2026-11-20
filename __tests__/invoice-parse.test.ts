@@ -187,3 +187,21 @@ describe("parser edge cases", () => {
         expect(r.lines[0].description).toBe("DIESEL PUMP VACUUM PRESSURE VALVE")
     })
 })
+
+describe("discount without a % sign (review finding)", () => {
+    const row = (disc: string, amount: string) =>
+        layout([
+            [[40, "PT SUPPLIER CONTOH"]],
+            [[40, "Kode"], [100, "Nama Barang"], [300, "Qty"], [340, "Harga"], [400, "Disc"], [460, "Jumlah"]],
+            [[40, "A1"], [100, "Filter"], [300, "10"], [340, "425.000"], [400, disc], [460, amount]],
+            [[400, "Total:"], [460, amount]],
+        ])
+    it("reads 5 as 5% when that makes the line add up", () => {
+        expect(parseInvoice(row("5", "4.037.500")).lines[0]).toMatchObject({ discountPct: 5, issues: [] })
+    })
+    it("reads 50 as Rp 50 off when that makes the line add up", () => {
+        const l = parseInvoice(row("50", "4.249.950")).lines[0]
+        expect(l.issues).toEqual([])
+        expect(l.amount).toBe(4249950)
+    })
+})

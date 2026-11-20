@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { INVOICE_FILE_MAX_BYTES, INVOICE_FILE_TYPES, saveInvoiceFile, isLocalFileStore } from "@/lib/sparepart-file-store"
+import { assertRole, getAuthzUser } from "@/lib/authz"
+import { INVOICE_FILE_MAX_BYTES, INVOICE_FILE_TYPES, hasMagicBytes, saveInvoiceFile, isLocalFileStore } from "@/lib/sparepart-file-store"
+
+const PURCHASING_ROLES = ["ROLE_PURCHASING", "ROLE_ADMIN", "ROLE_CEO", "ROLE_DIRECTOR"]
 
 /**
  * POST /api/procurement/sparepart-invoices/upload
@@ -11,6 +14,12 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+
+    try {
+        assertRole(await getAuthzUser(), PURCHASING_ROLES)
+    } catch {
+        return NextResponse.json({ success: false, error: "Tidak punya akses pembelian" }, { status: 403 })
+    }
 
     const form = await request.formData().catch(() => null)
     const file = form?.get("file")
@@ -24,6 +33,9 @@ export async function POST(request: NextRequest) {
 
     try {
         const bytes = new Uint8Array(await file.arrayBuffer())
+        if (!hasMagicBytes(bytes, file.type)) {
+            return NextResponse.json({ success: false, error: "Isi file tidak sesuai jenisnya" }, { status: 400 })
+        }
         const stored = await saveInvoiceFile(bytes, file.type, isLocalFileStore() ? null : (supabase as never))
         return NextResponse.json({ success: true, ...stored, name: file.name, type: file.type, size: file.size })
     } catch (error) {
