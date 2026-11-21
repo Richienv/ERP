@@ -10,7 +10,7 @@ import path from "node:path"
 import { describe, expect, it } from "vitest"
 import { statusLabel, statusTone, findStatusWord } from "@/lib/status-labels"
 import { loginErrorMessage } from "@/lib/auth-messages"
-import { businessUsesModule, dashboardShows, dashboardShowsModule, getBusinessProfile, isProfileHiddenPath } from "@/lib/business-profile"
+import { businessPitch, businessUsesModule, dashboardShows, dashboardShowsModule, getBusinessProfile, isProfileHiddenPath } from "@/lib/business-profile"
 import { filterNavByFeatureFlags, navMain } from "@/lib/sidebar-nav-data"
 import { isModuleEnabled, MODULE_FLAGS } from "@/lib/sidebar-feature-flags"
 import { CMDK_ACTIONS, VISIBLE_CMDK_ACTIONS } from "@/lib/cmdk-registry"
@@ -270,7 +270,8 @@ describe("the dashboard shows only what this business uses", () => {
         const inbox = pulse.slice(pulse.indexOf("export function OperationsInbox("), pulse.indexOf("export function CommandPulse("))
         const modulePulse = pulse.slice(pulse.indexOf("export function CommandPulse("))
         expect(inbox).toContain("dashboardShowsModule(action.module)")
-        expect(modulePulse).not.toContain("dashboardShowsModule(")
+        // A module page shows only its module; without one (Keuangan) it follows the profile.
+        expect(modulePulse).toContain("module ? action.module === module : businessUsesModule(action.module)")
     })
 })
 
@@ -341,5 +342,32 @@ describe("the menus show only what this business uses", () => {
     it("the pages still open from a direct link (no redirect)", () => {
         expect(isKriHiddenPath("/hcm/payroll")).toBe(false)
         expect(isKriHiddenPath("/fleet")).toBe(false)
+    })
+})
+
+describe("Keuangan and the sign-in pages follow the business too", () => {
+    it("the Keuangan money loop drops Gaji and Armada for spare parts, and the duplicate strip goes", () => {
+        const pulse = src("components/mining/command-pulse.tsx")
+        expect(pulse).toMatch(/key: "payrollCompanyCost".*module: "hcm"/)
+        expect(pulse).toMatch(/key: "fleetAssetValue".*module: "fleet"/)
+        expect(pulse).toContain("!step.module || businessUsesModule(step.module)")
+        expect(pulse).toContain('mining ? "Siklus uang tambang" : "Siklus uang"')
+        const finance = src("app/finance/page.tsx")
+        expect(finance).toContain("{mining && <MiningSnapshotStrip />}")
+        expect(finance).not.toContain("Finance Command")
+    })
+
+    it("the sign-in pages promise exactly the menus this business has", () => {
+        const sidebarModules = () =>
+            filterNavByFeatureFlags(navMain).map((i) => i.title).filter((t) => t !== "Dasbor")
+        withProfile("sparepart", () => expect(businessPitch().modules).toEqual(sidebarModules()))
+        withProfile("mining", () => expect(businessPitch().modules).toEqual(sidebarModules()))
+        expect(businessPitch("sparepart").line).not.toMatch(/armada|gaji|manufaktur|penjualan/i)
+        for (const page of ["app/login/page.tsx", "app/signup/page.tsx"]) {
+            const code = src(page)
+            expect(code, page).toContain("businessPitch()")
+            expect(code, page).not.toContain('"Manufaktur"')
+            expect(code, page).not.toContain('"Penjualan"')
+        }
     })
 })

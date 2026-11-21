@@ -144,16 +144,44 @@ opened, "Batal" closed it, and no delete request was sent.
 - *Kenapa penting:* a menu nobody uses is one more thing to read past on every visit. Four menus
   for four jobs is the shortest path for a 40–60+ admin.
 
+## Round 5: Keuangan and the sign-in pages (Richie: "Ya, rapikan")
+
+**11. Keuangan tanpa sisa tambang**
+- *Sebelumnya:* the Keuangan page opened with "Finance Command … gaji, dan armada", a "Siklus uang
+  tambang" strip with six tiles ("Gaji + BPJS" and "Armada NBV" led to hidden pages), then a second
+  strip that repeated the same Kas / Piutang / Utang / spare-part numbers. At laptop width the
+  amounts were cut ("Rp 230.89…"), and at 375 px the "Entri Jurnal Baru" button stuck out of its card.
+- *Sekarang:* for `sparepart` the queue is "Keuangan — langkah yang menggerakkan buku" and shows no
+  Armada/SDM steps. "Siklus uang" has four tiles (Spare part → Tagihan vendor → Kas / Bayar →
+  Invoice): one column on phones, two on tablets and narrow windows, four from 1280 px, and every
+  Rupiah is shown in full. The repeated strip is gone, and the header buttons wrap inside the card.
+  The mining profile keeps its six tiles and both strips.
+- *Kenapa penting:* each number appears once, in full. A cut-off amount is a number the owner can't
+  trust.
+
+**12. Login dan Daftar menjanjikan menu yang benar-benar ada**
+- *Sebelumnya:* "Inventori, penjualan, keuangan, dan manufaktur…" plus Penjualan, Manufaktur and SDM
+  chips. None of those three are in this business's menu (the mining edition hides Penjualan and
+  Manufaktur too). The signup panel text was 2.9:1 on navy, and its chips were 2.3:1.
+- *Sekarang:* `businessPitch()` gives one line and the chips per profile ("Stok spare part, pembelian,
+  tagihan vendor, dan kas tercatat rapi dalam satu sistem." · Inventori, Pengadaan, Keuangan). A test
+  keeps the chips equal to the visible sidebar for both profiles. The signup panel text is now 12:1
+  and the chips 14.5:1. Checked in the browser on 127.0.0.1, which has its own cookies, so the demo
+  session stayed signed in.
+- *Kenapa penting:* the first screen must not promise something the menu doesn't have.
+
 ## Not done (next)
 
 - About 30 icon-only buttons (refresh, clone, delete) spin without words. Their aria-labels name the
   action, but they could also set `aria-busy`.
 - 60 English words remain, mostly in manufacturing, HR and sales, which this business has hidden.
 - 68 one-off hex colours, 44 clickable divs without keyboard support, 28 hover-only actions.
-- The Keuangan page still shows the mining "Siklus uang tambang" strip, with "Gaji + BPJS" and
-  "Armada NBV" tiles that link to the now-hidden pages.
-- The login page's left panel still lists Penjualan, Manufaktur and SDM, which this business
-  doesn't use (seen in the browser on 21 Nov; the sign-in form itself looks right).
+- The signup page still has a "Daftar dengan Google" button that only says "belum dikonfigurasi"
+  (the same stub was removed from login in round 1).
+- The Keuangan page still has English labels: "Cash on Hand", "Net Margin", "Finance Module
+  Actions", "To-Do Accounting", "Cash Flow (7 Hari)".
+- The light-mode token floor darkens zinc-400/500 everywhere, so muted text on dark brand panels in
+  light mode gets dimmer. The signup panel is fixed; check other dark panels the same way.
 - Pre-existing: a hard reload in local demo mode lands on the dashboard.
 - Pre-existing, found while tracing #1: manufacturing BOM screens sum `quantity` the same way
   (`app/manufacturing/bom/[id]/page.tsx:242,249`, `components/manufacturing/bom/timeline-view.tsx:248`).

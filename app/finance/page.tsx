@@ -13,6 +13,7 @@ import { AccountingModuleActions } from "@/components/finance/accounting-module-
 import { CashFlowChart } from "@/components/finance/cash-flow-chart"
 import { CommandPulse, MiningMoneyLoop, MiningSnapshotStrip } from "@/components/mining/command-pulse"
 import { formatCompactNumber, formatIDR } from "@/lib/utils"
+import { getBusinessProfile } from "@/lib/business-profile"
 
 export default function FinanceDashboardPage() {
     const { data, isLoading } = useFinanceDashboard()
@@ -22,20 +23,26 @@ export default function FinanceDashboardPage() {
     }
 
     const { metrics, dashboardData } = data
+    const mining = getBusinessProfile() === "mining"
 
     return (
         <div className="mf-page">
 
             <CommandPulse
-                title="Finance Command — langkah yang menggerakkan buku"
-                subtitle="Invoice pelanggan, bill vendor, gaji, dan armada. Satu klik, jurnal ikut."
+                title="Keuangan — langkah yang menggerakkan buku"
+                subtitle={
+                    mining
+                        ? "Invoice pelanggan, tagihan vendor, gaji, dan armada. Satu klik, jurnal ikut."
+                        : "Invoice pelanggan, tagihan vendor, dan pembayaran. Satu klik, jurnal ikut."
+                }
             />
             <MiningMoneyLoop />
-            <MiningSnapshotStrip />
+            {/* Spare-part: every cell of this strip already sits in the money loop above. */}
+            {mining && <MiningSnapshotStrip />}
 
             {/* COMMAND HEADER */}
             <div className="border border-border shadow-sm overflow-hidden bg-white dark:bg-zinc-900">
-                <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-orange-400">
+                <div className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 border-l-[6px] border-l-orange-400">
                     <div className="flex items-center gap-3">
                         <Wallet className="h-5 w-5 text-blue-500" />
                         <div>
@@ -47,7 +54,7 @@ export default function FinanceDashboardPage() {
                             </p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         <Button variant="outline" asChild className="border border-border font-semibold text-xs h-9 px-4 rounded-md">
                             <Link href="/finance/reports">
                                 <Activity className="mr-2 h-3.5 w-3.5" /> Laporan Cepat

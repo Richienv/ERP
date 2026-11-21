@@ -8,7 +8,7 @@ import { queryKeys } from "@/lib/query-keys"
 import { formatIDR } from "@/lib/utils"
 import { NB } from "@/lib/dialog-styles"
 import { InlinePendingBar } from "@/components/ui/inline-pending"
-import { dashboardShowsModule, getBusinessProfile } from "@/lib/business-profile"
+import { businessUsesModule, dashboardShowsModule, getBusinessProfile, type OptionalModule } from "@/lib/business-profile"
 
 const TONE: Record<CommandAction["tone"], { bar: string; chip: string }> = {
     critical: { bar: "border-l-red-500", chip: "bg-red-50 text-red-700 border-red-200" },
@@ -248,7 +248,11 @@ export function CommandPulse({
     compact?: boolean
 }) {
     const { data, isLoading, isFetching, isError, refetch } = useMiningCommandPulse()
-    const actions = (data?.actions ?? []).filter((action) => !module || action.module === module)
+    // A module page shows its own module. Without one (Keuangan), follow the business profile,
+    // so a spare-part business sees no Armada or SDM steps.
+    const actions = (data?.actions ?? []).filter((action) =>
+        module ? action.module === module : businessUsesModule(action.module),
+    )
 
     if (isLoading && !data) {
         return (
@@ -314,35 +318,50 @@ const MONEY_LOOP: Array<{
     label: string
     href: string
     hint: string
+    /** Only for businesses that run this module (lib/business-profile.ts). */
+    module?: OptionalModule
 }> = [
     { key: "inventoryValue", label: "Spare part", href: "/inventory", hint: "Nilai gudang" },
-    { key: "apOpen", label: "Bill vendor", href: "/finance/bills", hint: "Utang terbuka" },
+    { key: "apOpen", label: "Tagihan vendor", href: "/finance/bills", hint: "Utang terbuka" },
     { key: "cash", label: "Kas / Bayar", href: "/finance/vendor-payments", hint: "Uang di bank" },
     { key: "arOpen", label: "Invoice", href: "/finance/invoices", hint: "Piutang pelanggan" },
-    { key: "payrollCompanyCost", label: "Gaji + BPJS", href: "/hcm/payroll", hint: "Beban perusahaan" },
-    { key: "fleetAssetValue", label: "Armada NBV", href: "/fleet", hint: "Aset tetap" },
+    { key: "payrollCompanyCost", label: "Gaji + BPJS", href: "/hcm/payroll", hint: "Beban perusahaan", module: "hcm" },
+    { key: "fleetAssetValue", label: "Armada NBV", href: "/fleet", hint: "Aset tetap", module: "fleet" },
 ]
 
-/** Finance wow — satu jalur uang tambang, bukan menu terpisah. */
+/** Finance wow — satu jalur uang, bukan menu terpisah. Gaji dan armada hanya untuk edisi tambang. */
 export function MiningMoneyLoop() {
     const { data } = useMiningCommandPulse()
     if (!data) return null
+
+    const steps = MONEY_LOOP.filter((step) => !step.module || businessUsesModule(step.module))
+    const mining = getBusinessProfile() === "mining"
 
     return (
         <div className={NB.pageCard}>
             <div className={NB.pageAccent} />
             <div className="px-4 py-3 border-b border-zinc-200">
-                <h2 className="text-sm font-semibold  ">Siklus uang tambang</h2>
+                <h2 className="text-sm font-semibold  ">{mining ? "Siklus uang tambang" : "Siklus uang"}</h2>
                 <p className="text-xs text-zinc-500 mt-0.5">
-                    Spare part masuk → bill → bayar → invoice pelanggan → gaji → armada jadi aset. Semua ke GL.
+                    {mining
+                        ? "Spare part masuk → tagihan → bayar → invoice pelanggan → gaji → armada jadi aset. Semua ke GL."
+                        : "Spare part masuk → tagihan vendor → bayar → invoice pelanggan. Semua tercatat di jurnal."}
                 </p>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-6 divide-x divide-y md:divide-y-0 divide-zinc-200">
-                {MONEY_LOOP.map((step, index) => (
+            {/* The six-step mining loop keeps its old grid. The four-step loop uses hairline gaps:
+                one column on phones, two on tablets, four only where every Rupiah fits uncut. */}
+            <div
+                className={
+                    steps.length > 4
+                        ? "grid grid-cols-2 md:grid-cols-6 divide-x divide-y md:divide-y-0 divide-zinc-200"
+                        : "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-px bg-zinc-200 dark:bg-zinc-800"
+                }
+            >
+                {steps.map((step, index) => (
                     <Link
                         key={step.key}
                         href={step.href}
-                        className="px-3 py-3 hover:bg-blue-50/70 min-w-0"
+                        className="px-3 py-3 bg-white dark:bg-zinc-900 hover:bg-blue-50/70 min-w-0"
                     >
                         <div className="text-xs font-semibold text-blue-600">
                             {queueNumber(index)} · {step.label}

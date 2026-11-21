@@ -65,3 +65,23 @@ export function isProfileHiddenPath(pathname: string, profile: BusinessProfile =
         return owns && !PROFILE_MODULES[profile][module]
     })
 }
+
+/**
+ * What the sign-in page promises: one plain line and the modules this business opens in the
+ * sidebar (kept equal to the visible sidebar by __tests__/ui-ux-master-guards.test.ts). A plain
+ * list here keeps the sidebar's icon set out of the login bundle.
+ */
+const PROFILE_PITCH: Record<BusinessProfile, { line: string; modules: string[] }> = {
+    sparepart: {
+        line: "Stok spare part, pembelian, tagihan vendor, dan kas tercatat rapi dalam satu sistem.",
+        modules: ["Inventori", "Pengadaan", "Keuangan"],
+    },
+    mining: {
+        line: "Armada, spare part, pembelian, keuangan, dan gaji tercatat rapi dalam satu sistem.",
+        modules: ["Armada", "Inventori", "Pengadaan", "Keuangan", "SDM"],
+    },
+}
+
+export function businessPitch(profile: BusinessProfile = getBusinessProfile()): { line: string; modules: string[] } {
+    return PROFILE_PITCH[profile]
+}

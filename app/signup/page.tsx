@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Eye, EyeOff, AlertCircle, ArrowRight, Loader2, Mail, ChevronDown } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
+import { businessPitch } from "@/lib/business-profile"
 
 const ROLES = [
     { value: "ROLE_CEO", label: "Owner / CEO" },
@@ -17,6 +18,8 @@ const ROLES = [
     { value: "ROLE_SALES", label: "Sales & Marketing" },
     { value: "ROLE_STAFF", label: "Staff Operasional" },
 ]
+
+const pitch = businessPitch()
 
 export default function SignUpPage() {
     const router = useRouter()
@@ -355,14 +358,14 @@ function BrandingPanel({ tenantName }: { tenantName: string | null }) {
                     <span className="text-emerald-400">bisnis Anda.</span>
                 </h2>
 
-                <p className="text-zinc-500 text-sm max-w-sm leading-relaxed">
-                    Daftar sekarang dan kelola inventori, penjualan, keuangan, dan manufaktur dalam satu platform.
+                <p className="text-slate-300 text-sm max-w-sm leading-relaxed">
+                    Daftar sekarang. {pitch.line}
                 </p>
 
-                {/* Feature pills */}
+                {/* Feature pills: the modules this business uses, as the sidebar shows them */}
                 <div className="flex flex-wrap gap-2 pt-2">
-                    {["Inventori", "Penjualan", "Keuangan", "Manufaktur", "SDM"].map((mod) => (
-                        <span key={mod} className="text-xs font-mono text-zinc-600 border border-zinc-800 px-2.5 py-1">
+                    {pitch.modules.map((mod) => (
+                        <span key={mod} className="text-xs font-mono text-slate-200 border border-white/15 px-2.5 py-1">
                             {mod}
                         </span>
                     ))}
