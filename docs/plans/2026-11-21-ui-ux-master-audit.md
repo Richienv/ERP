@@ -130,14 +130,30 @@ opened, "Batal" closed it, and no delete request was sent.
 - *Kenapa penting:* every card on the first screen should be something the owner acts on. Fewer
   cards mean the right one is found faster.
 
+## Round 4: the menus follow the business too (Richie: "Ya, sembunyikan juga")
+
+**10. Tanpa menu Armada dan SDM**
+- *Sebelumnya:* the dashboard no longer showed Armada or SDM, but the sidebar still had both
+  menus, Keuangan had a "Gaji & SDM" shortcut, and Cmd+K offered "Penggajian", "Data Karyawan" and
+  more.
+- *Sekarang:* with the `sparepart` profile the sidebar shows Dasbor, Inventori, Pengadaan and
+  Keuangan only (desktop and phone), "Gaji & SDM" is gone from Keuangan, and Cmd+K finds nothing
+  for "gaji". `isModuleEnabled()` now checks the business profile as well as the edition flag, and
+  `isProfileHiddenPath()` filters the palette. The /fleet and /hcm pages are not deleted or
+  redirected: a direct link still opens them. The mining profile keeps everything.
+- *Kenapa penting:* a menu nobody uses is one more thing to read past on every visit. Four menus
+  for four jobs is the shortest path for a 40–60+ admin.
+
 ## Not done (next)
 
 - About 30 icon-only buttons (refresh, clone, delete) spin without words. Their aria-labels name the
   action, but they could also set `aria-busy`.
 - 60 English words remain, mostly in manufacturing, HR and sales, which this business has hidden.
 - 68 one-off hex colours, 44 clickable divs without keyboard support, 28 hover-only actions.
-- The Armada and SDM menus are still in the sidebar. Hiding them too is a one-line flag change if
-  the business never uses them.
+- The Keuangan page still shows the mining "Siklus uang tambang" strip, with "Gaji + BPJS" and
+  "Armada NBV" tiles that link to the now-hidden pages.
+- The login page's left panel still lists Penjualan, Manufaktur and SDM, which this business
+  doesn't use (seen in the browser on 21 Nov; the sign-in form itself looks right).
 - Pre-existing: a hard reload in local demo mode lands on the dashboard.
 - Pre-existing, found while tracing #1: manufacturing BOM screens sum `quantity` the same way
   (`app/manufacturing/bom/[id]/page.tsx:242,249`, `components/manufacturing/bom/timeline-view.tsx:248`).

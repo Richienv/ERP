@@ -10,7 +10,11 @@ import path from "node:path"
 import { describe, expect, it } from "vitest"
 import { statusLabel, statusTone, findStatusWord } from "@/lib/status-labels"
 import { loginErrorMessage } from "@/lib/auth-messages"
-import { dashboardShows, dashboardShowsModule, getBusinessProfile } from "@/lib/business-profile"
+import { businessUsesModule, dashboardShows, dashboardShowsModule, getBusinessProfile, isProfileHiddenPath } from "@/lib/business-profile"
+import { filterNavByFeatureFlags, navMain } from "@/lib/sidebar-nav-data"
+import { isModuleEnabled, MODULE_FLAGS } from "@/lib/sidebar-feature-flags"
+import { CMDK_ACTIONS, VISIBLE_CMDK_ACTIONS } from "@/lib/cmdk-registry"
+import { isKriHiddenPath } from "@/lib/kri-module-gates"
 import * as React from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { Button } from "@/components/ui/button"
@@ -267,5 +271,75 @@ describe("the dashboard shows only what this business uses", () => {
         const modulePulse = pulse.slice(pulse.indexOf("export function CommandPulse("))
         expect(inbox).toContain("dashboardShowsModule(action.module)")
         expect(modulePulse).not.toContain("dashboardShowsModule(")
+    })
+})
+
+function withProfile<T>(profile: "sparepart" | "mining" | undefined, fn: () => T): T {
+    const saved = process.env.NEXT_PUBLIC_BUSINESS_PROFILE
+    if (profile === undefined) delete process.env.NEXT_PUBLIC_BUSINESS_PROFILE
+    else process.env.NEXT_PUBLIC_BUSINESS_PROFILE = profile
+    try {
+        return fn()
+    } finally {
+        if (saved === undefined) delete process.env.NEXT_PUBLIC_BUSINESS_PROFILE
+        else process.env.NEXT_PUBLIC_BUSINESS_PROFILE = saved
+    }
+}
+
+describe("the menus show only what this business uses", () => {
+    const titles = (items: ReturnType<typeof filterNavByFeatureFlags>) => items.map((i) => i.title)
+    const allUrls = (items: ReturnType<typeof filterNavByFeatureFlags>) =>
+        items.flatMap((i) => [i.url, ...(i.items ?? []).map((sub) => sub.url)])
+
+    it("a spare-part business (the default) has no Armada or SDM in the sidebar", () => {
+        withProfile(undefined, () => {
+            const nav = filterNavByFeatureFlags(navMain)
+            expect(titles(nav)).not.toContain("Armada")
+            expect(titles(nav)).not.toContain("SDM")
+            // The "Gaji & SDM" shortcut under Keuangan goes too.
+            expect(allUrls(nav).filter((u) => u.startsWith("/hcm") || u.startsWith("/fleet"))).toEqual([])
+            // Everything the business does use stays.
+            for (const kept of ["Dasbor", "Inventori", "Pengadaan", "Keuangan"]) {
+                expect(titles(nav).some((t) => t.startsWith(kept)), kept).toBe(true)
+            }
+            expect(isModuleEnabled("hcm")).toBe(false)
+            expect(isModuleEnabled("fleet")).toBe(false)
+            expect(isModuleEnabled("finance")).toBe(true)
+        })
+    })
+
+    it("the mining edition keeps Armada, SDM and the Gaji & SDM shortcut", () => {
+        withProfile("mining", () => {
+            const nav = filterNavByFeatureFlags(navMain)
+            expect(titles(nav)).toContain("Armada")
+            expect(titles(nav)).toContain("SDM")
+            expect(allUrls(nav)).toContain("/hcm/payroll")
+            expect(isModuleEnabled("hcm")).toBe(true)
+            expect(businessUsesModule("fleet")).toBe(true)
+        })
+        // The edition flags themselves are unchanged.
+        expect(MODULE_FLAGS.hcm).toBe(true)
+        expect(MODULE_FLAGS.fleet).toBe(true)
+    })
+
+    it("knows which routes belong to the hidden modules", () => {
+        for (const p of ["/hcm", "/hcm/payroll", "/hcm/payroll#compliance", "/fleet", "/fleet/new"]) {
+            expect(isProfileHiddenPath(p, "sparepart"), p).toBe(true)
+            expect(isProfileHiddenPath(p, "mining"), p).toBe(false)
+        }
+        for (const p of ["/hcmx", "/finance/bills", "/inventory", "/dashboard"]) {
+            expect(isProfileHiddenPath(p, "sparepart"), p).toBe(false)
+        }
+    })
+
+    it("Cmd+K offers no SDM or Armada entries, but the registry stays complete", () => {
+        expect(VISIBLE_CMDK_ACTIONS.filter((a) => isProfileHiddenPath(a.route, "sparepart"))).toEqual([])
+        expect(VISIBLE_CMDK_ACTIONS.map((a) => a.id)).not.toContain("nav-hcm-payroll")
+        expect(CMDK_ACTIONS.map((a) => a.id)).toContain("nav-hcm-payroll")
+    })
+
+    it("the pages still open from a direct link (no redirect)", () => {
+        expect(isKriHiddenPath("/hcm/payroll")).toBe(false)
+        expect(isKriHiddenPath("/fleet")).toBe(false)
     })
 })

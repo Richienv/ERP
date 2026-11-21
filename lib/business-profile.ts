@@ -1,23 +1,31 @@
 /**
- * Which kind of business this deployment serves, so the dashboard shows only what that
- * business uses (ui-ux-master skill: one screen, one job; no cards nobody acts on).
+ * Which kind of business this deployment serves, so the app shows only what that
+ * business uses (ui-ux-master skill: one screen, one job; no menus or cards nobody acts on).
  *
- * - "sparepart" (default): spare-part trading. Armada (fleet) and SDM (staff, attendance,
- *   leave) are not run in this ERP, so the dashboard and its work inbox leave them out.
- * - "mining": the KRI mining edition. Armada and SDM stay on the dashboard.
+ * - "sparepart" (default): spare-part trading. Armada (fleet) and SDM (staff, payroll,
+ *   attendance, leave) are not run in this ERP, so the sidebar, the Cmd+K palette, the
+ *   dashboard and its work inbox leave them out.
+ * - "mining": the KRI mining edition. Armada and SDM stay everywhere.
  *
- * Set NEXT_PUBLIC_BUSINESS_PROFILE=mining on a mining deployment. The menus and pages
- * themselves are unchanged; this only decides what the dashboard puts in front of people.
+ * Set NEXT_PUBLIC_BUSINESS_PROFILE=mining on a mining deployment. The /fleet and /hcm pages
+ * themselves still open from a direct link (nothing is deleted or redirected); they are
+ * just not offered in the menus.
  */
 
 export type BusinessProfile = "sparepart" | "mining"
 
-/** Dashboard sections that only some businesses use. */
-export type OptionalDashboardModule = "fleet" | "hcm"
+/** Modules that only some businesses use. */
+export type OptionalModule = "fleet" | "hcm"
 
-const DASHBOARD_MODULES: Record<BusinessProfile, Record<OptionalDashboardModule, boolean>> = {
+const PROFILE_MODULES: Record<BusinessProfile, Record<OptionalModule, boolean>> = {
     sparepart: { fleet: false, hcm: false },
     mining: { fleet: true, hcm: true },
+}
+
+/** Page prefixes owned by each optional module. */
+const MODULE_PATHS: Record<OptionalModule, string> = {
+    fleet: "/fleet",
+    hcm: "/hcm",
 }
 
 export function getBusinessProfile(): BusinessProfile {
@@ -25,13 +33,35 @@ export function getBusinessProfile(): BusinessProfile {
     return process.env.NEXT_PUBLIC_BUSINESS_PROFILE === "mining" ? "mining" : "sparepart"
 }
 
+function isOptionalModule(module: string): module is OptionalModule {
+    return module === "fleet" || module === "hcm"
+}
+
+/** Does this business use the module? Modules that every business uses return true. */
+export function businessUsesModule(module: string, profile: BusinessProfile = getBusinessProfile()): boolean {
+    if (isOptionalModule(module)) return PROFILE_MODULES[profile][module]
+    return true
+}
+
 /** Should the dashboard show this module's card and its inbox items? */
-export function dashboardShows(module: OptionalDashboardModule, profile: BusinessProfile = getBusinessProfile()): boolean {
-    return DASHBOARD_MODULES[profile][module]
+export function dashboardShows(module: OptionalModule, profile: BusinessProfile = getBusinessProfile()): boolean {
+    return PROFILE_MODULES[profile][module]
 }
 
 /** True for dashboard modules that are always shown (finance, procurement, inventory…). */
 export function dashboardShowsModule(module: string, profile: BusinessProfile = getBusinessProfile()): boolean {
-    if (module === "fleet" || module === "hcm") return dashboardShows(module, profile)
-    return true
+    return businessUsesModule(module, profile)
+}
+
+/**
+ * True when a route belongs to a module this business doesn't use, so menus and the Cmd+K
+ * palette should not offer it. Not used for redirects: the page still opens from a link.
+ */
+export function isProfileHiddenPath(pathname: string, profile: BusinessProfile = getBusinessProfile()): boolean {
+    const path = pathname.split(/[?#]/)[0]
+    return (Object.keys(MODULE_PATHS) as OptionalModule[]).some((module) => {
+        const prefix = MODULE_PATHS[module]
+        const owns = path === prefix || path.startsWith(`${prefix}/`)
+        return owns && !PROFILE_MODULES[profile][module]
+    })
 }
