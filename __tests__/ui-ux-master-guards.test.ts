@@ -10,6 +10,11 @@ import path from "node:path"
 import { describe, expect, it } from "vitest"
 import { statusLabel, statusTone, findStatusWord } from "@/lib/status-labels"
 import { loginErrorMessage } from "@/lib/auth-messages"
+import { businessPitch, businessUsesModule, dashboardShows, dashboardShowsModule, getBusinessProfile, isProfileHiddenPath } from "@/lib/business-profile"
+import { filterNavByFeatureFlags, navMain } from "@/lib/sidebar-nav-data"
+import { isModuleEnabled, MODULE_FLAGS } from "@/lib/sidebar-feature-flags"
+import { CMDK_ACTIONS, VISIBLE_CMDK_ACTIONS } from "@/lib/cmdk-registry"
+import { isKriHiddenPath } from "@/lib/kri-module-gates"
 import * as React from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { Button } from "@/components/ui/button"
@@ -234,5 +239,135 @@ describe("buttons say what they are doing while they wait", () => {
     it("labelled buttons switch to the action in progress", () => {
         expect(src("app/inventory/products/[id]/page.tsx")).toContain('{isSaving ? "Menyimpan…" : "Simpan"}')
         expect(src("app/finance/bills/page.tsx")).toContain('loadingText="Menyetujui tagihan…"')
+    })
+})
+
+describe("the dashboard shows only what this business uses", () => {
+    it("a spare-part business (the default) has no Armada or SDM on the dashboard", () => {
+        const saved = process.env.NEXT_PUBLIC_BUSINESS_PROFILE
+        delete process.env.NEXT_PUBLIC_BUSINESS_PROFILE
+        try {
+            expect(getBusinessProfile()).toBe("sparepart")
+            expect(dashboardShows("fleet")).toBe(false)
+            expect(dashboardShows("hcm")).toBe(false)
+            expect(dashboardShowsModule("finance")).toBe(true)
+            expect(dashboardShowsModule("procurement")).toBe(true)
+            expect(dashboardShowsModule("inventory")).toBe(true)
+        } finally {
+            if (saved !== undefined) process.env.NEXT_PUBLIC_BUSINESS_PROFILE = saved
+        }
+    })
+
+    it("the mining edition keeps them", () => {
+        expect(dashboardShows("fleet", "mining")).toBe(true)
+        expect(dashboardShows("hcm", "mining")).toBe(true)
+        expect(dashboardShowsModule("fleet", "mining")).toBe(true)
+    })
+
+    it("the SDM card and the inbox follow the profile; module pages are untouched", () => {
+        expect(src("app/dashboard/dashboard-client.tsx")).toContain('totalStaff > 0 && dashboardShows("hcm")')
+        const pulse = src("components/mining/command-pulse.tsx")
+        const inbox = pulse.slice(pulse.indexOf("export function OperationsInbox("), pulse.indexOf("export function CommandPulse("))
+        const modulePulse = pulse.slice(pulse.indexOf("export function CommandPulse("))
+        expect(inbox).toContain("dashboardShowsModule(action.module)")
+        // A module page shows only its module; without one (Keuangan) it follows the profile.
+        expect(modulePulse).toContain("module ? action.module === module : businessUsesModule(action.module)")
+    })
+})
+
+function withProfile<T>(profile: "sparepart" | "mining" | undefined, fn: () => T): T {
+    const saved = process.env.NEXT_PUBLIC_BUSINESS_PROFILE
+    if (profile === undefined) delete process.env.NEXT_PUBLIC_BUSINESS_PROFILE
+    else process.env.NEXT_PUBLIC_BUSINESS_PROFILE = profile
+    try {
+        return fn()
+    } finally {
+        if (saved === undefined) delete process.env.NEXT_PUBLIC_BUSINESS_PROFILE
+        else process.env.NEXT_PUBLIC_BUSINESS_PROFILE = saved
+    }
+}
+
+describe("the menus show only what this business uses", () => {
+    const titles = (items: ReturnType<typeof filterNavByFeatureFlags>) => items.map((i) => i.title)
+    const allUrls = (items: ReturnType<typeof filterNavByFeatureFlags>) =>
+        items.flatMap((i) => [i.url, ...(i.items ?? []).map((sub) => sub.url)])
+
+    it("a spare-part business (the default) has no Armada or SDM in the sidebar", () => {
+        withProfile(undefined, () => {
+            const nav = filterNavByFeatureFlags(navMain)
+            expect(titles(nav)).not.toContain("Armada")
+            expect(titles(nav)).not.toContain("SDM")
+            // The "Gaji & SDM" shortcut under Keuangan goes too.
+            expect(allUrls(nav).filter((u) => u.startsWith("/hcm") || u.startsWith("/fleet"))).toEqual([])
+            // Everything the business does use stays.
+            for (const kept of ["Dasbor", "Inventori", "Pengadaan", "Keuangan"]) {
+                expect(titles(nav).some((t) => t.startsWith(kept)), kept).toBe(true)
+            }
+            expect(isModuleEnabled("hcm")).toBe(false)
+            expect(isModuleEnabled("fleet")).toBe(false)
+            expect(isModuleEnabled("finance")).toBe(true)
+        })
+    })
+
+    it("the mining edition keeps Armada, SDM and the Gaji & SDM shortcut", () => {
+        withProfile("mining", () => {
+            const nav = filterNavByFeatureFlags(navMain)
+            expect(titles(nav)).toContain("Armada")
+            expect(titles(nav)).toContain("SDM")
+            expect(allUrls(nav)).toContain("/hcm/payroll")
+            expect(isModuleEnabled("hcm")).toBe(true)
+            expect(businessUsesModule("fleet")).toBe(true)
+        })
+        // The edition flags themselves are unchanged.
+        expect(MODULE_FLAGS.hcm).toBe(true)
+        expect(MODULE_FLAGS.fleet).toBe(true)
+    })
+
+    it("knows which routes belong to the hidden modules", () => {
+        for (const p of ["/hcm", "/hcm/payroll", "/hcm/payroll#compliance", "/fleet", "/fleet/new"]) {
+            expect(isProfileHiddenPath(p, "sparepart"), p).toBe(true)
+            expect(isProfileHiddenPath(p, "mining"), p).toBe(false)
+        }
+        for (const p of ["/hcmx", "/finance/bills", "/inventory", "/dashboard"]) {
+            expect(isProfileHiddenPath(p, "sparepart"), p).toBe(false)
+        }
+    })
+
+    it("Cmd+K offers no SDM or Armada entries, but the registry stays complete", () => {
+        expect(VISIBLE_CMDK_ACTIONS.filter((a) => isProfileHiddenPath(a.route, "sparepart"))).toEqual([])
+        expect(VISIBLE_CMDK_ACTIONS.map((a) => a.id)).not.toContain("nav-hcm-payroll")
+        expect(CMDK_ACTIONS.map((a) => a.id)).toContain("nav-hcm-payroll")
+    })
+
+    it("the pages still open from a direct link (no redirect)", () => {
+        expect(isKriHiddenPath("/hcm/payroll")).toBe(false)
+        expect(isKriHiddenPath("/fleet")).toBe(false)
+    })
+})
+
+describe("Keuangan and the sign-in pages follow the business too", () => {
+    it("the Keuangan money loop drops Gaji and Armada for spare parts, and the duplicate strip goes", () => {
+        const pulse = src("components/mining/command-pulse.tsx")
+        expect(pulse).toMatch(/key: "payrollCompanyCost".*module: "hcm"/)
+        expect(pulse).toMatch(/key: "fleetAssetValue".*module: "fleet"/)
+        expect(pulse).toContain("!step.module || businessUsesModule(step.module)")
+        expect(pulse).toContain('mining ? "Siklus uang tambang" : "Siklus uang"')
+        const finance = src("app/finance/page.tsx")
+        expect(finance).toContain("{mining && <MiningSnapshotStrip />}")
+        expect(finance).not.toContain("Finance Command")
+    })
+
+    it("the sign-in pages promise exactly the menus this business has", () => {
+        const sidebarModules = () =>
+            filterNavByFeatureFlags(navMain).map((i) => i.title).filter((t) => t !== "Dasbor")
+        withProfile("sparepart", () => expect(businessPitch().modules).toEqual(sidebarModules()))
+        withProfile("mining", () => expect(businessPitch().modules).toEqual(sidebarModules()))
+        expect(businessPitch("sparepart").line).not.toMatch(/armada|gaji|manufaktur|penjualan/i)
+        for (const page of ["app/login/page.tsx", "app/signup/page.tsx"]) {
+            const code = src(page)
+            expect(code, page).toContain("businessPitch()")
+            expect(code, page).not.toContain('"Manufaktur"')
+            expect(code, page).not.toContain('"Penjualan"')
+        }
     })
 })

@@ -11,6 +11,10 @@ import Link from "next/link"
 import { toast } from "sonner"
 import { IntegraLogo, INTEGRA_COLORS } from "@/components/brand/integra-logo"
 import { loginErrorMessage } from "@/lib/auth-messages"
+import { businessPitch } from "@/lib/business-profile"
+
+/** The modules this business uses, as the sidebar shows them (never promise a hidden one). */
+const pitch = businessPitch()
 
 export default function LoginPage() {
     const router = useRouter()
@@ -148,10 +152,10 @@ export default function LoginPage() {
                         <span className="text-blue-300">Semua kendali.</span>
                     </h2>
                     <p className="text-base leading-relaxed text-slate-300">
-                        Inventori, penjualan, keuangan, dan manufaktur tercatat rapi dalam satu sistem terintegrasi.
+                        {pitch.line}
                     </p>
                     <ul className="flex flex-wrap gap-2 pt-1" aria-label="Modul">
-                        {["Inventori", "Penjualan", "Keuangan", "Manufaktur", "SDM"].map((mod) => (
+                        {pitch.modules.map((mod) => (
                             <li key={mod} className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-sm text-slate-200">
                                 {mod}
                             </li>

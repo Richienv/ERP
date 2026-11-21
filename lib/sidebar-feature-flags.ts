@@ -1,3 +1,5 @@
+import { businessUsesModule } from "@/lib/business-profile"
+
 /**
  * Module visibility for integra.id Mining Edition (KRI scope).
  *
@@ -56,7 +58,12 @@ export const MODULE_FLAGS = {
 
 export type ModuleKey = keyof typeof MODULE_FLAGS
 
+/**
+ * On for this deployment: the edition flag above AND the business profile
+ * (lib/business-profile.ts). A spare-part business turns off `fleet` and `hcm`,
+ * so Armada and SDM leave the sidebar; the mining edition keeps them.
+ */
 export function isModuleEnabled(key: ModuleKey | undefined): boolean {
     if (!key) return true // untagged items default to visible
-    return MODULE_FLAGS[key] === true
+    return MODULE_FLAGS[key] === true && businessUsesModule(key)
 }

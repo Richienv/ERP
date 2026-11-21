@@ -15,6 +15,7 @@ import Link from "next/link"
 import { AreaChart, Area, ResponsiveContainer } from "recharts"
 import { FlagButton } from "@/components/dashboard/flag-button"
 import { isModuleEnabled } from "@/lib/sidebar-feature-flags"
+import { dashboardShows } from "@/lib/business-profile"
 import {
     IconShoppingCart,
     IconTruck,
@@ -931,8 +932,8 @@ export function DashboardPageClient() {
                                 )}
                             </ModuleCard>
 
-                            {/* SDM — only show metrics that have data */}
-                            {totalStaff > 0 && (
+                            {/* SDM — only for businesses that run HR here, and only metrics that have data */}
+                            {totalStaff > 0 && dashboardShows("hcm") && (
                                 <ModuleCard
                                     title="SDM"
                                     icon={IconUsers}

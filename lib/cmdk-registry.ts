@@ -3,6 +3,7 @@
 // See docs/features/cmdk-design.md for the full design specification.
 
 import { isKriHiddenPath } from "@/lib/kri-module-gates"
+import { isProfileHiddenPath } from "@/lib/business-profile"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -595,7 +596,9 @@ export const PINNED_ACTIONS: CmdKAction[] = CMDK_ACTIONS.filter((a) => a.pinned)
  * user is never offered a route that middleware bounces to /dashboard.
  */
 export const VISIBLE_CMDK_ACTIONS: CmdKAction[] = CMDK_ACTIONS.filter(
-  (a) => !isKriHiddenPath(a.route),
+  // Also drop modules this business doesn't use (Armada/SDM for spare parts),
+  // matching the sidebar. Those pages still open from a direct link.
+  (a) => !isKriHiddenPath(a.route) && !isProfileHiddenPath(a.route),
 )
 
 export const VISIBLE_CMDK_BY_ID: ReadonlyMap<string, CmdKAction> = new Map(
